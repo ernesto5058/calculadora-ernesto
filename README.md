@@ -1,8 +1,15 @@
-# Calculadora de Ernesto 📱
+# Calculadora Ernesto
 
-Repo de versiones de la **CalculadoraPRO** (Scriptable) de Ernesto.
+Sistema de actualizaciones de la CalculadoraPRO de Ernesto (Scriptable, iPhone):
 
-- `CalculadoraPRO.js` — la calculadora (saldo + transferencia). La sube Máximo.
-- En el iPhone, el script **«Actualizar»** de Scriptable baja este archivo y lo instala solo.
-- La calculadora funciona **100% offline**; internet solo hace falta para actualizar.
-- Los números de Ernesto NO están aquí: viven en un archivo aparte dentro de su teléfono.
+- `CalculadoraPRO.js` — la calculadora (saldo + transferencia). El script
+  **«Actualizar»** dentro de Scriptable la baja desde aqui cuando sale una
+  version nueva (marca `// version: N` en la primera linea).
+- `.github/workflows/vigia-mercado.yml` + `scripts/foto_mercado.py` — el
+  **vigia en la nube**: cada hora, GitHub guarda una foto de los promedios
+  publicos P2P de QvaPay (ETECSA y BANK_CUP) en `datos/historico.jsonl`, y la
+  ultima en `datos/ultimo.json`. Solo datos publicos, sin llaves.
+- `datos/` — el historico del mercado, foto a foto.
+
+Uso diario de la calculadora: 100% offline. La conexion solo se usa para
+actualizar y para bajar las fotos del mercado.
