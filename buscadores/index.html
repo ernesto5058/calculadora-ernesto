@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0B0E13">
+<title>Mi Trabajo — Buscadores</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { background: #0B0E13; }
+  body { font-family: -apple-system, 'Segoe UI', Roboto, Arial, sans-serif; color: #E8ECF1; min-height: 100vh; padding: 14px 14px 40px; }
+  .wrap { max-width: 560px; margin: 0 auto; }
+  header { text-align: center; padding: 10px 0 4px; }
+  header .big { font-size: 40px; }
+  h1 { font-size: 24px; font-weight: 800; letter-spacing: .3px; }
+  h1 .gold { color: #F5BC14; }
+  .sub { color: #9AA7B8; font-size: 13px; margin-top: 4px; }
+  .tarifa { margin: 12px 0 4px; background: #12161F; border: 1px solid #232B3A; border-radius: 12px; padding: 10px 12px; font-size: 13px; color: #C7D0DC; line-height: 1.55; }
+  .tarifa b { color: #F5BC14; }
+  .tabs { display: flex; gap: 8px; margin: 14px 0; }
+  .tab { flex: 1; padding: 13px 6px; text-align: center; border-radius: 12px; background: #161C28; color: #9AA7B8; font-weight: 700; font-size: 15px; border: 1px solid #232B3A; cursor: pointer; }
+  .tab.on { background: #F5BC14; color: #191204; border-color: #F5BC14; }
+  .card { background: #12161F; border: 1px solid #232B3A; border-radius: 16px; padding: 16px; margin-bottom: 14px; }
+  .card h2 { font-size: 17px; margin-bottom: 4px; }
+  .card .hint { color: #9AA7B8; font-size: 13px; line-height: 1.5; margin-bottom: 12px; }
+  label { display: block; font-size: 13px; color: #9AA7B8; margin: 12px 0 6px; font-weight: 600; }
+  input[type=number], input[type=text] { width: 100%; padding: 14px; font-size: 20px; font-weight: 700; color: #fff; background: #0B0E13; border: 1.5px solid #2A3347; border-radius: 12px; outline: none; }
+  input:focus { border-color: #F5BC14; }
+  .chips { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+  .chip { padding: 8px 14px; border-radius: 999px; background: #1B2233; color: #C7D0DC; font-size: 14px; font-weight: 700; border: 1px solid #2A3347; cursor: pointer; }
+  .chip:active { background: #F5BC14; color: #191204; }
+  input[type=range] { width: 100%; margin-top: 10px; accent-color: #F5BC14; height: 28px; }
+  .res { margin-top: 16px; background: #0E2A1E; border: 1px solid #1E5C40; border-radius: 14px; padding: 14px; text-align: center; }
+  .res .lab { color: #8FD8B6; font-size: 13px; font-weight: 700; }
+  .res .num { font-size: 34px; font-weight: 900; color: #2ECC71; margin: 2px 0; }
+  .res .det { color: #C7D0DC; font-size: 13px; line-height: 1.55; }
+  .warn { margin-top: 16px; background: #2A1414; border: 1px solid #5C2727; color: #FF9A9A; border-radius: 14px; padding: 13px; font-size: 14px; line-height: 1.5; display: none; }
+  .ok { margin-top: 16px; background: #14202A; border: 1px solid #27455C; color: #9ACBFF; border-radius: 14px; padding: 13px; font-size: 14px; line-height: 1.5; display: none; }
+  .bar { height: 14px; background: #232B3A; border-radius: 999px; overflow: hidden; margin: 8px 0 4px; }
+  .bar > div { height: 100%; background: linear-gradient(90deg, #F5BC14, #2ECC71); width: 0%; transition: width .5s; }
+  .trato { display: flex; justify-content: space-between; gap: 10px; padding: 10px 2px; border-bottom: 1px solid #1D2536; font-size: 14px; }
+  .trato:last-child { border-bottom: none; }
+  .trato .f { color: #9AA7B8; white-space: nowrap; }
+  .trato .c { color: #2ECC71; font-weight: 800; white-space: nowrap; }
+  .total { text-align: center; padding: 12px 0 2px; }
+  .total .num { font-size: 32px; font-weight: 900; color: #F5BC14; }
+  .total .lab { color: #9AA7B8; font-size: 13px; }
+  button.go { width: 100%; padding: 14px; border: none; border-radius: 12px; background: #F5BC14; color: #191204; font-size: 16px; font-weight: 800; cursor: pointer; margin-top: 10px; }
+  .foot { text-align: center; color: #5C6B82; font-size: 12px; line-height: 1.6; margin-top: 18px; padding: 0 8px; }
+  .hide { display: none; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="big">💼</div>
+    <h1>MI <span class="gold">TRABAJO</span></h1>
+    <div class="sub">Tu calculadora y tu panel — funciona sin internet 📴</div>
+  </header>
+
+  <div class="tarifa" id="tarifaBox">Cargando la tarifa del día…</div>
+
+  <div class="tabs">
+    <div class="tab on" id="tabCalc">🧮 Calculadora</div>
+    <div class="tab" id="tabPanel">📊 Mi panel</div>
+  </div>
+
+  <!-- ============ CALCULADORA ============ -->
+  <div id="viewCalc">
+    <div class="card">
+      <h2>📱 Saldo — ¿cuánto cobro?</h2>
+      <div class="hint">Consigues una recarga de 360 y cobras el <b>25% del excedente</b>: lo que se gana por encima del precio que pagaste. Pon el precio que lograste y la app te dice tu parte al momento.</div>
+      <label>Precio que conseguiste por la recarga de 360 (CUP)</label>
+      <input type="number" id="s_precio" inputmode="decimal" placeholder="Ej: 950">
+      <div class="chips">
+        <div class="chip" data-p="900">900</div>
+        <div class="chip" data-p="925">925</div>
+        <div class="chip" data-p="950">950</div>
+        <div class="chip" data-p="1000">1000</div>
+      </div>
+      <label>¿Cuántas recargas de 360 son?</label>
+      <input type="number" id="s_cant" inputmode="numeric" value="1">
+      <div class="res" id="s_res" style="display:none">
+        <div class="lab">💰 TU COMISIÓN</div>
+        <div class="num" id="s_fee">$0.00</div>
+        <div class="det" id="s_det"></div>
+      </div>
+      <div class="warn" id="s_warn"></div>
+    </div>
+
+    <div class="card">
+      <h2>🏦 Transferencia — ¿cuánto cobro?</h2>
+      <div class="hint">Traes a una persona conocida que cambia efectivo por transferencia. Cobras el <b>20% de la ganancia</b> de la vuelta completa, cuando la vuelta cierra. Solo se aceptan tratos <b>al 25% o más</b>.</div>
+      <label>Efectivo que entrega la persona (CUP)</label>
+      <input type="number" id="t_ef" inputmode="decimal" placeholder="Ej: 5000">
+      <label>¿Al cuánto es el trato? (<span id="t_pct_lab">30</span>%)</label>
+      <input type="number" id="t_pct" inputmode="decimal" value="30">
+      <input type="range" id="t_rng" min="0" max="50" step="1" value="30">
+      <div class="chips">
+        <div class="chip" data-t="25">al 25%</div>
+        <div class="chip" data-t="30">al 30%</div>
+        <div class="chip" data-t="35">al 35%</div>
+        <div class="chip" data-t="40">al 40%</div>
+      </div>
+      <div class="res" id="t_res" style="display:none">
+        <div class="lab">💰 TU COMISIÓN (al cerrar la vuelta)</div>
+        <div class="num" id="t_fee">$0.00</div>
+        <div class="det" id="t_det"></div>
+      </div>
+      <div class="warn" id="t_warn"></div>
+      <div class="ok" id="t_ok"></div>
+    </div>
+  </div>
+
+  <!-- ============ PANEL ============ -->
+  <div id="viewPanel" class="hide">
+    <div class="card">
+      <h2>📊 Mi panel</h2>
+      <div class="hint">Escribe tu código personal una vez — queda guardado en tu teléfono. Aquí ves tus tratos confirmados, lo que has ganado y cómo vas para tu bono. 🎁</div>
+      <label>Tu código personal</label>
+      <input type="text" id="p_code" placeholder="Ej: DEMO-01" autocomplete="off">
+      <button class="go" id="p_btn">Ver mi panel</button>
+      <div class="warn" id="p_warn"></div>
+      <div id="p_body" class="hide">
+        <div class="total">
+          <div class="lab">TOTAL GANADO 💰</div>
+          <div class="num" id="p_total">$0.00</div>
+          <div class="lab" id="p_name"></div>
+        </div>
+        <label>🎁 Bono de saldo: <span id="p_bs_lab"></span></label>
+        <div class="bar"><div id="p_bs_bar"></div></div>
+        <label>🎁 Bono de transferencia: <span id="p_bt_lab"></span></label>
+        <div class="bar"><div id="p_bt_bar"></div></div>
+        <label>Tus tratos confirmados</label>
+        <div id="p_tratos"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="foot">
+    Las cuentas de esta app usan la tarifa de referencia del día.<br>
+    La cuenta final de cada trato la confirma Ernesto con los números reales. ✅<br>
+    Hecha para el equipo de Ernesto 🦾
+  </div>
+</div>
+
+<script>
+"use strict";
+/* Tarifa de respaldo: se usa sin conexión si nunca se ha descargado datos.json.
+   La tarifa viva viene de datos.json (la actualiza Ernesto/Máximo). */
+var DEFAULT_TARIFA = { ingresoRef360: 1092.65, libroRef: 1110, salidaRef: 950,
+  pctSaldo: 25, pctTransf: 20, pisoTransf: 25,
+  bonoSaldoMeta: 150, bonoSaldoMonto: 300, bonoTransfMeta: 10, bonoTransfMonto: 300 };
+var DATA = { tarifa: DEFAULT_TARIFA, actualizado: "", buscadores: {} };
+var T = DEFAULT_TARIFA;
+
+function $(id){ return document.getElementById(id); }
+function num(id){ var v = parseFloat($(id).value); return isNaN(v) ? null : v; }
+function fmt(n){ return "$" + n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ","); }
+function fmtN(n){ return n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ","); }
+
+/* ===== Fórmulas del esquema v2 (idénticas a las de Ernesto) ===== */
+function comisionSaldo(precio, cant){
+  var exc = T.ingresoRef360 - precio;            // excedente por cada 360
+  if (exc <= 0) return { fee: 0, exc: exc };
+  return { fee: exc * (T.pctSaldo/100) * cant, exc: exc };
+}
+function comisionTransf(efectivo, pct){
+  var recibe = efectivo * (1 + pct/100);                       // transferencia recibida
+  var qusd = recibe / T.libroRef;                              // QUSD comprados
+  var regreso = qusd * T.salidaRef;                            // efectivo de vuelta
+  var ganancia = regreso - efectivo;                           // ganancia de la vuelta
+  return { recibe: recibe, qusd: qusd, regreso: regreso,
+           ganancia: ganancia, fee: Math.max(0, ganancia) * (T.pctTransf/100) };
+}
+
+function calcSaldo(){
+  var p = num("s_precio"), c = num("s_cant") || 1;
+  var res = $("s_res"), warn = $("s_warn");
+  if (p === null || p <= 0){ res.style.display = "none"; warn.style.display = "none"; return; }
+  var r = comisionSaldo(p, c);
+  if (r.exc <= 0){
+    res.style.display = "none"; warn.style.display = "block";
+    warn.textContent = "⚠️ A ese precio no hay excedente: cobrarías $0.00. Negocia más bajo — mientras más bajo el precio, más cobras tú. 💪";
+    return;
+  }
+  warn.style.display = "none"; res.style.display = "block";
+  $("s_fee").textContent = fmt(r.fee);
+  $("s_det").innerHTML = "Excedente por recarga: " + fmtN(r.exc) + " CUP · tu " + T.pctSaldo + "% = " + fmtN(r.fee / c) + " por recarga" +
+    (c > 1 ? " · × " + c + " recargas" : "") + "<br>Entre más barato consigas, más ganas. 🔥";
+}
+function calcTransf(){
+  var ef = num("t_ef"), pct = num("t_pct");
+  var res = $("t_res"), warn = $("t_warn"), ok = $("t_ok");
+  $("t_pct_lab").textContent = (pct === null ? "—" : pct);
+  if (ef === null || ef <= 0 || pct === null){ res.style.display = "none"; warn.style.display = "none"; ok.style.display = "none"; return; }
+  if (pct < T.pisoTransf){
+    res.style.display = "none"; ok.style.display = "none"; warn.style.display = "block";
+    warn.textContent = "🚫 Ese trato no se acepta: el mínimo es al " + T.pisoTransf + "%. Negocia más alto o no hay trato.";
+    return;
+  }
+  warn.style.display = "none";
+  var r = comisionTransf(ef, pct);
+  if (r.ganancia <= 0){
+    res.style.display = "none"; ok.style.display = "block";
+    ok.textContent = "Con la tarifa de hoy esa vuelta no deja ganancia. Espera o negocia un % más alto.";
+    return;
+  }
+  ok.style.display = "none"; res.style.display = "block";
+  $("t_fee").textContent = fmt(r.fee);
+  $("t_det").innerHTML = "La persona recibe " + fmtN(r.recibe) + " por transferencia · la vuelta gana " + fmtN(r.ganancia) + " CUP · tu " + T.pctTransf + "% = tu comisión.<br>Se paga cuando la vuelta cierra. ✅";
+}
+
+/* ===== Panel ===== */
+function renderPanel(){
+  var code = ($("p_code").value || "").trim().toUpperCase();
+  var warn = $("p_warn"), body = $("p_body");
+  var b = DATA.buscadores ? DATA.buscadores[code] : null;
+  if (!code){ warn.style.display = "block"; warn.textContent = "Escribe tu código primero."; body.classList.add("hide"); return; }
+  if (!b){ warn.style.display = "block"; warn.textContent = "Ese código no aparece. Revísalo con Ernesto."; body.classList.add("hide"); return; }
+  warn.style.display = "none"; body.classList.remove("hide");
+  try { localStorage.setItem("busc_codigo", code); } catch(e){}
+  var total = 0, recSaldo = 0, nTransf = 0, html = "";
+  (b.tratos || []).forEach(function(tr){
+    total += tr.comision || 0;
+    if (tr.tipo === "saldo") recSaldo += tr.recargas || 0;
+    if (tr.tipo === "transferencia") nTransf += 1;
+    html += '<div class="trato"><span class="f">' + tr.fecha + "</span><span>" +
+      (tr.tipo === "saldo" ? "📱 " : "🏦 ") + (tr.nota || "") + '</span><span class="c">' + fmt(tr.comision || 0) + "</span></div>";
+  });
+  if (!html) html = '<div class="trato"><span>Aún no tienes tratos confirmados. ¡A buscar! 🔎</span></div>';
+  $("p_total").textContent = fmt(total);
+  $("p_name").textContent = b.nombre ? ("de " + b.nombre) : "";
+  $("p_tratos").innerHTML = html;
+  var bsM = T.bonoSaldoMeta, btM = T.bonoTransfMeta;
+  $("p_bs_lab").textContent = recSaldo + " de " + bsM + " recargas → bono " + fmt(T.bonoSaldoMonto);
+  $("p_bs_bar").style.width = Math.min(100, bsM ? (recSaldo / bsM * 100) : 0) + "%";
+  $("p_bt_lab").textContent = nTransf + " de " + btM + " tratos → bono " + fmt(T.bonoTransfMonto);
+  $("p_bt_bar").style.width = Math.min(100, btM ? (nTransf / btM * 100) : 0) + "%";
+}
+
+function tarifaText(){
+  return "📋 <b>Tarifa de referencia</b>" + (DATA.actualizado ? " (" + DATA.actualizado + ")" : "") +
+    " · Saldo: cobras el <b>" + T.pctSaldo + "%</b> del excedente · Transferencia: el <b>" + T.pctTransf + "%</b> de la ganancia, mínimo al <b>" + T.pisoTransf + "%</b>" +
+    " · Bonos: <b>" + fmt(T.bonoSaldoMonto) + "</b> con " + T.bonoSaldoMeta + " recargas/semana · <b>" + fmt(T.bonoTransfMonto) + "</b> con " + T.bonoTransfMeta + " tratos/semana";
+}
+
+function applyData(d){
+  if (d && d.tarifa) { DATA = d; T = d.tarifa; }
+  $("tarifaBox").innerHTML = tarifaText();
+  calcSaldo(); calcTransf();
+  if (!$("p_body").classList.contains("hide")) renderPanel();
+}
+function loadData(){
+  try {
+    var cached = localStorage.getItem("busc_datos");
+    if (cached) applyData(JSON.parse(cached));
+    else $("tarifaBox").innerHTML = tarifaText();
+  } catch(e){ $("tarifaBox").innerHTML = tarifaText(); }
+  if (window.fetch) {
+    fetch("datos.json", { cache: "no-store" }).then(function(r){ return r.json(); }).then(function(d){
+      try { localStorage.setItem("busc_datos", JSON.stringify(d)); } catch(e){}
+      applyData(d);
+    }).catch(function(){ /* sin internet: se trabaja con lo guardado */ });
+  }
+  calcSaldo(); calcTransf();
+}
+
+/* ===== Eventos ===== */
+["s_precio","s_cant"].forEach(function(id){ $(id).addEventListener("input", calcSaldo); });
+["t_ef","t_pct"].forEach(function(id){ $(id).addEventListener("input", function(){ if (id === "t_pct") $("t_rng").value = $("t_pct").value || 0; calcTransf(); }); });
+$("t_rng").addEventListener("input", function(){ $("t_pct").value = $("t_rng").value; calcTransf(); });
+document.querySelectorAll(".chip[data-p]").forEach(function(ch){ ch.addEventListener("click", function(){ $("s_precio").value = ch.getAttribute("data-p"); calcSaldo(); }); });
+document.querySelectorAll(".chip[data-t]").forEach(function(ch){ ch.addEventListener("click", function(){ $("t_pct").value = ch.getAttribute("data-t"); $("t_rng").value = ch.getAttribute("data-t"); calcTransf(); }); });
+$("tabCalc").addEventListener("click", function(){ $("tabCalc").classList.add("on"); $("tabPanel").classList.remove("on"); $("viewCalc").classList.remove("hide"); $("viewPanel").classList.add("hide"); });
+$("tabPanel").addEventListener("click", function(){ $("tabPanel").classList.add("on"); $("tabCalc").classList.remove("on"); $("viewPanel").classList.remove("hide"); $("viewCalc").classList.add("hide"); });
+$("p_btn").addEventListener("click", renderPanel);
+try { var saved = localStorage.getItem("busc_codigo"); if (saved) $("p_code").value = saved; } catch(e){}
+
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", function(){ navigator.serviceWorker.register("sw.js").catch(function(){}); });
+}
+loadData();
+</script>
+</body>
+</html>
