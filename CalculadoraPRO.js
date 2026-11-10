@@ -1,4 +1,4 @@
-// version: 7
+// version: 8
 // Calculadora Ernesto PRO — Scriptable
 // Pantalla completa interactiva: calcula EN VIVO mientras escribes,
 // con semáforo de decisión, chips rápidos, deslizador y botón de copiar.
@@ -10,6 +10,11 @@ const PATH = FM.joinPath(FM.documentsDirectory(), "calc-ernesto.json");
 function loadData() {
   try {
     if (FM.fileExists(PATH)) return JSON.parse(FM.readString(PATH));
+  } catch (e) {}
+  try {
+    const ic = FileManager.iCloud();
+    const ip = ic.joinPath(ic.documentsDirectory(), "calc-ernesto.json");
+    if (ic.fileExists(ip)) return JSON.parse(ic.readString(ip));
   } catch (e) {}
   return {
     saldo:  { salida: 950, costo: 1040, tasa: 320, saldo: 3600 },
@@ -119,8 +124,17 @@ function buildHTML(d) {
   .row { display:flex; align-items:center; gap:8px; }
   .step { width:44px; height:48px; border-radius:12px; border:1px solid #263248; background:#1A2434; color:#2ECCAC; font-size:24px; font-weight:800; }
   .step:active { background:#2ECCAC; color:#0B0E13; }
-  input[type=number] { flex:1; min-width:0; height:48px; border-radius:12px; border:1px solid #263248; background:#0D1420; color:#fff; font-size:21px; font-weight:700; text-align:center; padding:0 8px; }
-  input[type=number]:focus { border-color:#2ECCAC; outline:none; }
+  .num { flex:1; min-width:0; height:48px; display:flex; align-items:center; justify-content:center; cursor:pointer; border-radius:12px; border:1px solid #263248; background:#0D1420; color:#fff; font-size:21px; font-weight:700; text-align:center; padding:0 8px; }
+  .num:active { border-color:#2ECCAC; background:#12202A; }
+  .num.sel { border-color:#2ECCAC; box-shadow:0 0 0 1px #2ECCAC inset; }
+  #pad { position:fixed; left:0; right:0; bottom:0; z-index:60; background:#0D1420; border-top:2px solid #2ECCAC; padding:10px 12px calc(12px + env(safe-area-inset-bottom)); transform:translateY(110%); transition:transform .22s ease; box-shadow:0 -12px 32px rgba(0,0,0,.55); }
+  #pad.on { transform:none; }
+  #pad .prow { display:flex; gap:8px; margin-bottom:8px; }
+  #pad .prow:last-child { margin-bottom:0; }
+  #pad .pk { flex:1; height:52px; border-radius:12px; background:#1A2434; border:1px solid #263248; color:#fff; font-size:23px; font-weight:800; display:flex; align-items:center; justify-content:center; }
+  #pad .pk:active { background:#2ECCAC; color:#0B0E13; }
+  #pad .pk.fn { color:#2ECCAC; font-size:19px; }
+  #pad .pk.ok { background:#12473D; color:#2ECCAC; border-color:#2ECCAC; }
   .chips { display:flex; gap:8px; margin-top:8px; flex-wrap:wrap; }
   .chip { padding:6px 13px; border-radius:999px; background:#1A2434; border:1px solid #263248; color:#C9D4E3; font-size:14px; font-weight:700; }
   .chip:active { background:#2ECCAC; color:#0B0E13; }
@@ -159,18 +173,18 @@ function buildHTML(d) {
   <div class="panel on" id="panelS">
     <div class="card">
       <div class="field"><label>💵 Salida con Miguel</label>
-        <div class="row"><button class="step" onclick="step('s_salida',-5)">−</button><input type="number" id="s_salida" inputmode="decimal"><button class="step" onclick="step('s_salida',5)">+</button></div>
+        <div class="row"><button class="step" onclick="step('s_salida',-5)">−</button><div class="num" id="s_salida" onclick="openPad(this)"></div><button class="step" onclick="step('s_salida',5)">+</button></div>
         <div class="chips"><span class="chip" onclick="setV('s_salida',930)">930</span><span class="chip" onclick="setV('s_salida',950)">950</span><span class="chip" onclick="setV('s_salida',960)">960</span></div>
       </div>
       <div class="field"><label>🏷️ Costo por 360</label>
-        <div class="row"><button class="step" onclick="step('s_costo',-10)">−</button><input type="number" id="s_costo" inputmode="decimal"><button class="step" onclick="step('s_costo',10)">+</button></div>
+        <div class="row"><button class="step" onclick="step('s_costo',-10)">−</button><div class="num" id="s_costo" onclick="openPad(this)"></div><button class="step" onclick="step('s_costo',10)">+</button></div>
         <div class="chips"><span class="chip" onclick="setV('s_costo',1000)">1,000</span><span class="chip" onclick="setV('s_costo',1040)">1,040</span><span class="chip" onclick="setV('s_costo',1114)">1,114</span></div>
       </div>
       <div class="field"><label>📊 Tasa de venta</label>
-        <div class="row"><button class="step" onclick="step('s_tasa',-1)">−</button><input type="number" id="s_tasa" inputmode="decimal"><button class="step" onclick="step('s_tasa',1)">+</button></div>
+        <div class="row"><button class="step" onclick="step('s_tasa',-1)">−</button><div class="num" id="s_tasa" onclick="openPad(this)"></div><button class="step" onclick="step('s_tasa',1)">+</button></div>
       </div>
       <div class="field"><label>📱 Saldo a vender</label>
-        <div class="row"><button class="step" onclick="step('s_saldo',-360)">−</button><input type="number" id="s_saldo" inputmode="decimal"><button class="step" onclick="step('s_saldo',360)">+</button></div>
+        <div class="row"><button class="step" onclick="step('s_saldo',-360)">−</button><div class="num" id="s_saldo" onclick="openPad(this)"></div><button class="step" onclick="step('s_saldo',360)">+</button></div>
         <div class="chips"><span class="chip" onclick="setV('s_saldo',3600)">3,600</span><span class="chip" onclick="setV('s_saldo',10000)">10,000</span><span class="chip" onclick="setV('s_saldo',22900)">22,900</span></div>
       </div>
     </div>
@@ -188,19 +202,19 @@ function buildHTML(d) {
   <div class="panel" id="panelT">
     <div class="card">
       <div class="field"><label>💵 Efectivo a mover (CUP)</label>
-        <div class="row"><button class="step" onclick="step('t_efectivo',-500)">−</button><input type="number" id="t_efectivo" inputmode="decimal"><button class="step" onclick="step('t_efectivo',500)">+</button></div>
+        <div class="row"><button class="step" onclick="step('t_efectivo',-500)">−</button><div class="num" id="t_efectivo" onclick="openPad(this)"></div><button class="step" onclick="step('t_efectivo',500)">+</button></div>
       </div>
       <div class="field"><label>％ Prima de la transferencia: <span id="t_porc_lbl" style="color:#2ECCAC">30%</span></label>
-        <div class="row"><button class="step" onclick="step('t_porc',-1)">−</button><input type="number" id="t_porc" inputmode="decimal"><button class="step" onclick="step('t_porc',1)">+</button></div>
+        <div class="row"><button class="step" onclick="step('t_porc',-1)">−</button><div class="num" id="t_porc" onclick="openPad(this)"></div><button class="step" onclick="step('t_porc',1)">+</button></div>
         <input type="range" id="t_slider" min="0" max="50" step="1" value="30">
         <div class="chips"><span class="chip" onclick="setV('t_porc',25)">25%</span><span class="chip" onclick="setV('t_porc',30)">30%</span><span class="chip" onclick="setV('t_porc',35)">35%</span><span class="chip" onclick="setV('t_porc',40)">40%</span></div>
       </div>
       <div class="field"><label>📖 Libro BANK_CUP</label>
-        <div class="row"><button class="step" onclick="step('t_libro',-10)">−</button><input type="number" id="t_libro" inputmode="decimal"><button class="step" onclick="step('t_libro',10)">+</button></div>
+        <div class="row"><button class="step" onclick="step('t_libro',-10)">−</button><div class="num" id="t_libro" onclick="openPad(this)"></div><button class="step" onclick="step('t_libro',10)">+</button></div>
         <div class="chips"><span class="chip" onclick="setV('t_libro',1130)">1,130</span><span class="chip" onclick="setV('t_libro',1100)">1,100</span><span class="chip" onclick="setV('t_libro',1150)">1,150</span></div>
       </div>
       <div class="field"><label>💵 Salida con Miguel</label>
-        <div class="row"><button class="step" onclick="step('t_salida',-5)">−</button><input type="number" id="t_salida" inputmode="decimal"><button class="step" onclick="step('t_salida',5)">+</button></div>
+        <div class="row"><button class="step" onclick="step('t_salida',-5)">−</button><div class="num" id="t_salida" onclick="openPad(this)"></div><button class="step" onclick="step('t_salida',5)">+</button></div>
       </div>
     </div>
     <div class="card res">
@@ -222,14 +236,14 @@ function buildHTML(d) {
     <div class="card">
       <div style="font-weight:800;color:#F5BC14;font-size:16px;margin-bottom:10px;">📱 Buscador de SALDO</div>
       <div class="field"><label>🏷️ Precio pagado al vendedor (por 360)</label>
-        <div class="row"><button class="step" onclick="step('b_precio',-10)">−</button><input type="number" id="b_precio" inputmode="decimal"><button class="step" onclick="step('b_precio',10)">+</button></div>
+        <div class="row"><button class="step" onclick="step('b_precio',-10)">−</button><div class="num" id="b_precio" onclick="openPad(this)"></div><button class="step" onclick="step('b_precio',10)">+</button></div>
         <div class="chips"><span class="chip" onclick="setV('b_precio',900)">900</span><span class="chip" onclick="setV('b_precio',950)">950</span><span class="chip" onclick="setV('b_precio',1000)">1,000</span></div>
       </div>
       <div class="field"><label>📊 Tasa de venta de hoy</label>
-        <div class="row"><button class="step" onclick="step('b_tasa',-1)">−</button><input type="number" id="b_tasa" inputmode="decimal"><button class="step" onclick="step('b_tasa',1)">+</button></div>
+        <div class="row"><button class="step" onclick="step('b_tasa',-1)">−</button><div class="num" id="b_tasa" onclick="openPad(this)"></div><button class="step" onclick="step('b_tasa',1)">+</button></div>
       </div>
       <div class="field"><label>💵 Salida con Miguel</label>
-        <div class="row"><button class="step" onclick="step('b_salida',-5)">−</button><input type="number" id="b_salida" inputmode="decimal"><button class="step" onclick="step('b_salida',5)">+</button></div>
+        <div class="row"><button class="step" onclick="step('b_salida',-5)">−</button><div class="num" id="b_salida" onclick="openPad(this)"></div><button class="step" onclick="step('b_salida',5)">+</button></div>
       </div>
       <div class="grid">
         <div class="cell"><div class="v" id="rb_com">—</div><div class="k">🤝 COBRA ÉL (25%)</div></div>
@@ -241,18 +255,18 @@ function buildHTML(d) {
     <div class="card">
       <div style="font-weight:800;color:#F5BC14;font-size:16px;margin-bottom:10px;">🏦 Buscador de TRANSFERENCIA</div>
       <div class="field"><label>💵 Efectivo del trato (CUP)</label>
-        <div class="row"><button class="step" onclick="step('b2_efectivo',-500)">−</button><input type="number" id="b2_efectivo" inputmode="decimal"><button class="step" onclick="step('b2_efectivo',500)">+</button></div>
+        <div class="row"><button class="step" onclick="step('b2_efectivo',-500)">−</button><div class="num" id="b2_efectivo" onclick="openPad(this)"></div><button class="step" onclick="step('b2_efectivo',500)">+</button></div>
       </div>
       <div class="field"><label>％ Prima pactada: <span id="b2_porc_lbl" style="color:#2ECCAC">30%</span></label>
-        <div class="row"><button class="step" onclick="step('b2_porc',-1)">−</button><input type="number" id="b2_porc" inputmode="decimal"><button class="step" onclick="step('b2_porc',1)">+</button></div>
+        <div class="row"><button class="step" onclick="step('b2_porc',-1)">−</button><div class="num" id="b2_porc" onclick="openPad(this)"></div><button class="step" onclick="step('b2_porc',1)">+</button></div>
         <input type="range" id="b2_slider" min="0" max="50" step="1" value="30">
         <div class="chips"><span class="chip" onclick="setV('b2_porc',25)">25%</span><span class="chip" onclick="setV('b2_porc',30)">30%</span><span class="chip" onclick="setV('b2_porc',35)">35%</span><span class="chip" onclick="setV('b2_porc',40)">40%</span></div>
       </div>
       <div class="field"><label>📖 Libro BANK_CUP</label>
-        <div class="row"><button class="step" onclick="step('b2_libro',-10)">−</button><input type="number" id="b2_libro" inputmode="decimal"><button class="step" onclick="step('b2_libro',10)">+</button></div>
+        <div class="row"><button class="step" onclick="step('b2_libro',-10)">−</button><div class="num" id="b2_libro" onclick="openPad(this)"></div><button class="step" onclick="step('b2_libro',10)">+</button></div>
       </div>
       <div class="field"><label>💵 Salida con Miguel</label>
-        <div class="row"><button class="step" onclick="step('b2_salida',-5)">−</button><input type="number" id="b2_salida" inputmode="decimal"><button class="step" onclick="step('b2_salida',5)">+</button></div>
+        <div class="row"><button class="step" onclick="step('b2_salida',-5)">−</button><div class="num" id="b2_salida" onclick="openPad(this)"></div><button class="step" onclick="step('b2_salida',5)">+</button></div>
       </div>
       <div class="grid">
         <div class="cell"><div class="v" id="rb2_com">—</div><div class="k">🤝 COBRA ÉL (20%)</div></div>
@@ -262,6 +276,8 @@ function buildHTML(d) {
       <div style="font-size:12.5px;color:#9EAFC4;margin-top:10px;text-align:center;">🎁 Bono: 10+ tratos cerrados en la semana → +300 CUP · Solo gente conocida 🔒</div>
     </div>
   </div>
+
+  <div id="pad"><div id="padKeys"></div></div>
 
   <div class="btns">
     <div class="btn copy" onclick="copiar()">📋 Copiar resultado</div>
@@ -273,8 +289,8 @@ function buildHTML(d) {
 <script>
 const SAVED = ${JSON.stringify(d)};
 let cur = "s";
-function gv(id){ const v = parseFloat((document.getElementById(id).value || "").toString().replace(",", ".")); return isNaN(v) ? 0 : v; }
-function sv(id, v){ document.getElementById(id).value = v; }
+function gv(id){ const v = parseFloat((document.getElementById(id).textContent || "").toString().replace(",", ".")); return isNaN(v) ? 0 : v; }
+function sv(id, v){ document.getElementById(id).textContent = v; }
 function fmt(n){ return (Math.round(n * 100) / 100).toFixed(2); }
 function setV(id, v){ sv(id, v); render(); }
 function step(id, dlt){ sv(id, Math.max(0, gv(id) + dlt)); render(); }
@@ -298,8 +314,8 @@ let saveTimer = null;
 function autosave(){
   clearTimeout(saveTimer);
   saveTimer = setTimeout(function(){
-    window.location.href = "ernesto://save?d=" + encodeURIComponent(JSON.stringify(collect()));
-  }, 500);
+    try { history.replaceState(null, "", "#ernesto-save:" + encodeURIComponent(JSON.stringify(collect()))); } catch (e) {}
+  }, 400);
 }
 let lastText = "";
 function render(){
@@ -327,7 +343,7 @@ function render(){
   document.getElementById("r_gan").textContent = fmt(gan);
   document.getElementById("r_margen").textContent = fmt(margen) + "%";
   document.getElementById("t_porc_lbl").textContent = fmt(d.transf.porc) + "%";
-  document.getElementById("t_slider").value = d.transf.porc;
+  if (document.activeElement !== document.getElementById("t_slider")) document.getElementById("t_slider").value = d.transf.porc;
   const semaT = document.getElementById("r_semaT");
   if (d.transf.porc > eqp) { semaT.className = "sema ok"; semaT.textContent = "🟢 DALE — estás sobre el equilibrio (al " + fmt(eqp) + "%)"; }
   else { semaT.className = "sema bad"; semaT.textContent = "🔴 NO ALCANZA — el equilibrio es al " + fmt(eqp) + "%"; }
@@ -347,7 +363,7 @@ function render(){
   document.getElementById("rb2_com").textContent = fmt(b2Com);
   document.getElementById("rb2_neto").textContent = fmt(b2Gan - b2Com);
   document.getElementById("b2_porc_lbl").textContent = fmt(d.busc.porc) + "%";
-  document.getElementById("b2_slider").value = d.busc.porc;
+  if (document.activeElement !== document.getElementById("b2_slider")) document.getElementById("b2_slider").value = d.busc.porc;
   const semaB2 = document.getElementById("r_semaB2");
   if (d.busc.porc >= 25 && b2Gan > 0) { semaB2.className = "sema ok"; semaB2.textContent = "🟢 TRATO BUENO — él cobra al cerrar la vuelta"; }
   else if (d.busc.porc > b2Eqp) { semaB2.className = "sema bad"; semaB2.textContent = "🔴 MUY FLOJO — el piso es al 25% (equilibrio al " + fmt(b2Eqp) + "%)"; }
@@ -358,15 +374,59 @@ function render(){
     : "🏦 TRANSFERENCIA\\n🔄 Recibes: " + fmt(tr) + "\\n🪙 QUSD: " + fmt(qusd) + "\\n↩️ Regreso: " + fmt(regreso) + " CUP\\n💵 Ganancia: " + fmt(gan) + " CUP\\n📈 Margen: " + fmt(margen) + "%");
   autosave();
 }
-function copiar(){ window.location.href = "ernesto://copy?d=" + encodeURIComponent(JSON.stringify({ text: lastText })); }
-function salir(){ window.location.href = "ernesto://exit"; }
+function copiar(){ try { history.replaceState(null, "", "#ernesto-copy:" + encodeURIComponent(JSON.stringify({ text: lastText }))); } catch (e) {} }
+function salir(){ try { history.replaceState(null, "", "#ernesto-exit"); } catch (e) {} }
 // init
 sv("s_salida", SAVED.saldo.salida); sv("s_costo", SAVED.saldo.costo); sv("s_tasa", SAVED.saldo.tasa); sv("s_saldo", SAVED.saldo.saldo);
 sv("t_efectivo", SAVED.transf.efectivo); sv("t_porc", SAVED.transf.porc); sv("t_libro", SAVED.transf.libro); sv("t_salida", SAVED.transf.salida);
 const B0 = SAVED.busc || { precio: 950, tasaVenta: 313, efectivo: 5000, porc: 30, libro: 1110, salida: 950 };
 sv("b_precio", B0.precio); sv("b_tasa", B0.tasaVenta); sv("b_salida", B0.salida);
 sv("b2_efectivo", B0.efectivo); sv("b2_porc", B0.porc); sv("b2_libro", B0.libro); sv("b2_salida", B0.salida);
-document.querySelectorAll("input[type=number]").forEach(function(el){ el.addEventListener("input", render); });
+let padTarget = null;
+function buildPad(){
+  const keys = ["1","2","3","4","5","6","7","8","9",".","0","DEL","C","OK"];
+  let h = "";
+  for (let i = 0; i < keys.length; i += 3) {
+    h += "<div class=\"prow\">";
+    const row = keys.slice(i, i + 3);
+    for (let j = 0; j < row.length; j++) {
+      const k = row[j];
+      const lbl = k === "DEL" ? "⌫" : (k === "OK" ? "✔ OK" : k);
+      const cls = k === "OK" ? "pk ok" : ((k === "DEL" || k === "C") ? "pk fn" : "pk");
+      const sty = k === "OK" ? " style=\"flex:2\"" : "";
+      h += "<div class=\"" + cls + "\"" + sty + " data-k=\"" + k + "\">" + lbl + "</div>";
+    }
+    h += "</div>";
+  }
+  document.getElementById("padKeys").innerHTML = h;
+  document.querySelectorAll("#padKeys .pk").forEach(function(el){
+    el.addEventListener("click", function(){ padKey(el.getAttribute("data-k")); });
+  });
+}
+function openPad(el){
+  padTarget = el;
+  document.querySelectorAll(".num").forEach(function(n){ n.classList.remove("sel"); });
+  el.classList.add("sel");
+  document.getElementById("pad").classList.add("on");
+}
+function closePad(){
+  padTarget = null;
+  document.querySelectorAll(".num").forEach(function(n){ n.classList.remove("sel"); });
+  document.getElementById("pad").classList.remove("on");
+}
+function padKey(k){
+  if (!padTarget) return;
+  if (k === "OK") { closePad(); return; }
+  let v = padTarget.textContent;
+  if (k === "DEL") v = v.slice(0, -1);
+  else if (k === "C") v = "";
+  else if (k === ".") { if (v.indexOf(".") < 0) v = (v === "" ? "0" : v) + "."; }
+  else v = (v === "0" ? k : v + k);
+  if (v.length > 12) return;
+  padTarget.textContent = v;
+  render();
+}
+buildPad();
 document.getElementById("t_slider").addEventListener("input", function(){ sv("t_porc", this.value); render(); });
 document.getElementById("b2_slider").addEventListener("input", function(){ sv("b2_porc", this.value); render(); });
 render();
@@ -390,21 +450,28 @@ if (config.runsInWidget) {
   Script.complete();
 } else {
   const wv = new WebView();
-  wv.shouldAllowRequest = (req) => {
-    const url = req.url || "";
-    if (url.indexOf("ernesto://") === 0) {
-      try {
-        const q = url.split("?d=")[1];
-        const payload = q ? JSON.parse(decodeURIComponent(q)) : {};
-        if (url.indexOf("ernesto://save") === 0) saveData(payload);
-        if (url.indexOf("ernesto://copy") === 0 && payload.text) Pasteboard.copyString(payload.text);
-        if (url.indexOf("ernesto://exit") === 0) Script.complete();
-      } catch (e) {}
-      return false;
-    }
-    return true;
-  };
   await wv.loadHTML(buildHTML(data));
-  await wv.present(true);
+  // Presentar SIN bloquear: el sondeo lee los mensajes de la pagina por el hash
+  wv.present(true);
+  let lastHash = "";
+  let exit = false;
+  for (let i = 0; i < 3600 && !exit; i++) {
+    await new Promise(r => setTimeout(r, 350));
+    let h = "";
+    try { h = await wv.evaluateJavaScript("window.location.hash"); } catch (e) { break; }
+    if (!h || h === lastHash) continue;
+    lastHash = h;
+    try {
+      if (h.indexOf("#ernesto-save:") === 0) {
+        const payload = JSON.parse(decodeURIComponent(h.substring(14)));
+        saveData(payload);
+      } else if (h.indexOf("#ernesto-copy:") === 0) {
+        const payload = JSON.parse(decodeURIComponent(h.substring(14)));
+        if (payload.text) Pasteboard.copyString(payload.text);
+      } else if (h.indexOf("#ernesto-exit") === 0) {
+        exit = true;
+      }
+    } catch (e) {}
+  }
   Script.complete();
 }
