@@ -1,12 +1,16 @@
-// version: 13
+// version: 14
 // Calculadora Ernesto PRO — Scriptable
-// v13: RESCATE de la interfaz antigua (la oscura estilo trading de la
-// v6, la que a Ernesto le gusto) + la seccion Buscadores de la v12.
-// Lo unico que cambia del diseno original: la pagina YA NO usa
-// position:fixed con scroll interno (esa era la trampa: en su iPhone
-// los toques no llegaban a los controles). Ahora la pagina fluye normal
-// y con pantallas tactiles verificadas: inputs con font-size 17 (sin
-// zoom de iOS), touch-action manipulation y areas de toque amplias.
+// v14: sobre la interfaz de la v13 (la oscura de la v6, rescatada):
+// (1) TECLADO NUMERICO PROPIO oscuro, integrado a la pagina: tocar un
+// campo ya NO abre el teclado blanco del sistema (pedido de Ernesto:
+// que compagine con la estructura de la app). Los campos son readonly;
+// se escribe con la pizarra de la app, con borrado y boton LISTO.
+// (2) EXPLICACION corta debajo de CADA campo: que significa el dato
+// que se pone ahi, en palabras simples (pedido de Ernesto: "si no
+// entiendo no sirve para nada").
+// (3) SCROLL: vuelve la estructura EXACTA de la v6 (body position:fixed
+// + #app con scroll interno), que nunca mostro fondo blanco; la v13
+// fluia como documento y al hacer scroll salia blanco arriba.
 // Calcula EN VIVO mientras escribes, con semaforo, chips y deslizador.
 // Como widget: muestra tus ultimos resultados con el semaforo.
 
@@ -120,10 +124,10 @@ function buildHTML(d) {
 <meta name="color-scheme" content="dark">
 <style>
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-  html { background:#0B0E13; }
-  body { background:#0B0E13; overscroll-behavior:none; }
-  body { margin:0; font-family:-apple-system,Helvetica,Arial,sans-serif; color:#EEF0F5; -webkit-text-size-adjust:100%; }
-  #app { padding:18px 16px 40px; background:#0B0E13; min-height:100vh; }
+  html, body { height:100%; background:#0B0E13; overscroll-behavior:none; }
+  body { margin:0; font-family:-apple-system,Helvetica,Arial,sans-serif; color:#EEF0F5; -webkit-text-size-adjust:100%; position:fixed; inset:0; overflow:hidden; }
+  #app { height:100%; overflow-y:auto; -webkit-overflow-scrolling:touch; padding:18px 16px 40px; background:#0B0E13; }
+  #app.padOpen { padding-bottom:360px; }
   .head { text-align:center; margin-bottom:14px; }
   .head .t { font-size:26px; font-weight:800; color:#F5BC14; letter-spacing:.5px; }
   .head .s { font-size:13px; color:#9EAFC4; margin-top:2px; }
@@ -140,8 +144,16 @@ function buildHTML(d) {
   .row { display:flex; align-items:center; gap:8px; }
   .step { width:48px; height:52px; touch-action:manipulation; border-radius:12px; border:1px solid #263248; background:#1A2434; color:#2ECCAC; font-size:24px; font-weight:800; }
   .step:active { background:#2ECCAC; color:#0B0E13; }
-  input[type=number] { flex:1; min-width:0; height:52px; border-radius:12px; border:1px solid #263248; background:#0D1420; color:#fff; font-size:22px; font-weight:700; text-align:center; padding:0 8px; touch-action:manipulation; }
-  input[type=number]:focus { border-color:#2ECCAC; outline:none; }
+  .num { flex:1; min-width:0; height:52px; border-radius:12px; border:1px solid #263248; background:#0D1420; color:#fff; font-size:22px; font-weight:700; text-align:center; padding:0 8px; touch-action:manipulation; }
+  .num.act { border-color:#2ECCAC; box-shadow:0 0 0 1px #2ECCAC; }
+  .help { font-size:12.5px; color:#7C8DA6; line-height:1.35; margin:6px 2px 0; }
+  #pad { position:fixed; left:0; right:0; bottom:0; background:#0D1420; border-top:1px solid #263248; padding:10px 10px 24px; display:none; z-index:60; }
+  #pad.on { display:block; }
+  .prow { display:flex; gap:8px; margin-bottom:8px; }
+  .prow:last-child { margin-bottom:0; }
+  .pk { flex:1; padding:14px 0; text-align:center; font-size:23px; font-weight:800; color:#fff; background:#1A2434; border:1px solid #263248; border-radius:12px; touch-action:manipulation; user-select:none; -webkit-user-select:none; }
+  .pk:active { background:#2ECCAC; color:#0B0E13; }
+  .pk.ok { background:#12473D; color:#2ECCAC; border-color:#2ECCAC; font-size:19px; }
   .chips { display:flex; gap:8px; margin-top:8px; flex-wrap:wrap; }
   .chip { padding:8px 14px; touch-action:manipulation; border-radius:999px; background:#1A2434; border:1px solid #263248; color:#C9D4E3; font-size:14px; font-weight:700; }
   .chip:active { background:#2ECCAC; color:#0B0E13; }
@@ -167,7 +179,7 @@ function buildHTML(d) {
 <div id="app">
   <div class="head">
     <div class="t">📌 CALCULADORA ERNESTO</div>
-    <div class="s">Calcula en vivo mientras escribes ⚡</div>
+    <div class="s">Toca un campo y escribe con el teclado de la app 👇</div>
   </div>
 
   <div class="tabs">
@@ -179,19 +191,19 @@ function buildHTML(d) {
   <!-- SALDO -->
   <div class="panel on" id="panelS">
     <div class="card">
-      <div class="field"><label>💵 Salida con Miguel</label>
-        <div class="row"><button class="step" onclick="step('s_salida',-5)">−</button><input type="number" id="s_salida" inputmode="decimal"><button class="step" onclick="step('s_salida',5)">+</button></div>
+      <div class="field"><label>💵 Salida con Miguel</label><div class="help">Lo que Miguel te paga por cada QUSD que le vendes. Si el Toque sube, este numero sube.</div>
+        <div class="row"><button class="step" onclick="step('s_salida',-5)">−</button><input type="text" class="num" readonly id="s_salida"><button class="step" onclick="step('s_salida',5)">+</button></div>
         <div class="chips"><span class="chip" onclick="setV('s_salida',930)">930</span><span class="chip" onclick="setV('s_salida',950)">950</span><span class="chip" onclick="setV('s_salida',960)">960</span></div>
       </div>
-      <div class="field"><label>🏷️ Costo por 360</label>
-        <div class="row"><button class="step" onclick="step('s_costo',-10)">−</button><input type="number" id="s_costo" inputmode="decimal"><button class="step" onclick="step('s_costo',10)">+</button></div>
+      <div class="field"><label>🏷️ Costo por 360</label><div class="help">Lo que te cuesta conseguir cada recarga de 360 (ya con el buscador incluido).</div>
+        <div class="row"><button class="step" onclick="step('s_costo',-10)">−</button><input type="text" class="num" readonly id="s_costo"><button class="step" onclick="step('s_costo',10)">+</button></div>
         <div class="chips"><span class="chip" onclick="setV('s_costo',1000)">1,000</span><span class="chip" onclick="setV('s_costo',1040)">1,040</span><span class="chip" onclick="setV('s_costo',1114)">1,114</span></div>
       </div>
-      <div class="field"><label>📊 Tasa de venta</label>
-        <div class="row"><button class="step" onclick="step('s_tasa',-1)">−</button><input type="number" id="s_tasa" inputmode="decimal"><button class="step" onclick="step('s_tasa',1)">+</button></div>
+      <div class="field"><label>📊 Tasa de venta</label><div class="help">La tasa de tu oferta de venta en QvaPay. Mas baja = vendes mas rapido, pero ganas menos.</div>
+        <div class="row"><button class="step" onclick="step('s_tasa',-1)">−</button><input type="text" class="num" readonly id="s_tasa"><button class="step" onclick="step('s_tasa',1)">+</button></div>
       </div>
-      <div class="field"><label>📱 Saldo a vender</label>
-        <div class="row"><button class="step" onclick="step('s_saldo',-360)">−</button><input type="number" id="s_saldo" inputmode="decimal"><button class="step" onclick="step('s_saldo',360)">+</button></div>
+      <div class="field"><label>📱 Saldo a vender</label><div class="help">Cuanto saldo vas a vender en total. La app ya descuenta los 5 que cobra el envio.</div>
+        <div class="row"><button class="step" onclick="step('s_saldo',-360)">−</button><input type="text" class="num" readonly id="s_saldo"><button class="step" onclick="step('s_saldo',360)">+</button></div>
         <div class="chips"><span class="chip" onclick="setV('s_saldo',3600)">3,600</span><span class="chip" onclick="setV('s_saldo',10000)">10,000</span><span class="chip" onclick="setV('s_saldo',22900)">22,900</span></div>
       </div>
     </div>
@@ -208,20 +220,20 @@ function buildHTML(d) {
   <!-- TRANSFERENCIA -->
   <div class="panel" id="panelT">
     <div class="card">
-      <div class="field"><label>💵 Efectivo a mover (CUP)</label>
-        <div class="row"><button class="step" onclick="step('t_efectivo',-500)">−</button><input type="number" id="t_efectivo" inputmode="decimal"><button class="step" onclick="step('t_efectivo',500)">+</button></div>
+      <div class="field"><label>💵 Efectivo a mover (CUP)</label><div class="help">El efectivo tuyo que entra en la vuelta. De aqui sale todo el ciclo.</div>
+        <div class="row"><button class="step" onclick="step('t_efectivo',-500)">−</button><input type="text" class="num" readonly id="t_efectivo"><button class="step" onclick="step('t_efectivo',500)">+</button></div>
       </div>
-      <div class="field"><label>％ Prima de la transferencia: <span id="t_porc_lbl" style="color:#2ECCAC">30%</span></label>
-        <div class="row"><button class="step" onclick="step('t_porc',-1)">−</button><input type="number" id="t_porc" inputmode="decimal"><button class="step" onclick="step('t_porc',1)">+</button></div>
+      <div class="field"><label>％ Prima de la transferencia: <span id="t_porc_lbl" style="color:#2ECCAC">30%</span></label><div class="help">La prima del trato: «al 30%» significa que por cada 1,000 tuyos recibes 1,300 en transferencia.</div>
+        <div class="row"><button class="step" onclick="step('t_porc',-1)">−</button><input type="text" class="num" readonly id="t_porc"><button class="step" onclick="step('t_porc',1)">+</button></div>
         <input type="range" id="t_slider" min="0" max="50" step="1" value="30">
         <div class="chips"><span class="chip" onclick="setV('t_porc',25)">25%</span><span class="chip" onclick="setV('t_porc',30)">30%</span><span class="chip" onclick="setV('t_porc',35)">35%</span><span class="chip" onclick="setV('t_porc',40)">40%</span></div>
       </div>
-      <div class="field"><label>📖 Libro BANK_CUP</label>
-        <div class="row"><button class="step" onclick="step('t_libro',-10)">−</button><input type="number" id="t_libro" inputmode="decimal"><button class="step" onclick="step('t_libro',10)">+</button></div>
+      <div class="field"><label>📖 Libro BANK_CUP</label><div class="help">El precio de 1 QUSD pagando con transferencia (el libro BANK_CUP de QvaPay).</div>
+        <div class="row"><button class="step" onclick="step('t_libro',-10)">−</button><input type="text" class="num" readonly id="t_libro"><button class="step" onclick="step('t_libro',10)">+</button></div>
         <div class="chips"><span class="chip" onclick="setV('t_libro',1130)">1,130</span><span class="chip" onclick="setV('t_libro',1100)">1,100</span><span class="chip" onclick="setV('t_libro',1150)">1,150</span></div>
       </div>
-      <div class="field"><label>💵 Salida con Miguel</label>
-        <div class="row"><button class="step" onclick="step('t_salida',-5)">−</button><input type="number" id="t_salida" inputmode="decimal"><button class="step" onclick="step('t_salida',5)">+</button></div>
+      <div class="field"><label>💵 Salida con Miguel</label><div class="help">Lo que Miguel te paga por cada QUSD cuando cierras la vuelta.</div>
+        <div class="row"><button class="step" onclick="step('t_salida',-5)">−</button><input type="text" class="num" readonly id="t_salida"><button class="step" onclick="step('t_salida',5)">+</button></div>
       </div>
     </div>
     <div class="card res">
@@ -242,12 +254,12 @@ function buildHTML(d) {
   <div class="panel" id="panelB">
     <div class="card">
       <div style="font-size:16px;font-weight:800;color:#2ECCAC;margin-bottom:10px">📱 BUSCADOR DE SALDO</div>
-      <div class="field"><label>🏷️ Precio que pagas al vendedor (por 360)</label>
-        <div class="row"><button class="step" onclick="step('b_precio',-10)">−</button><input type="number" id="b_precio" inputmode="decimal"><button class="step" onclick="step('b_precio',10)">+</button></div>
+      <div class="field"><label>🏷️ Precio que pagas al vendedor (por 360)</label><div class="help">Lo que TU le pagas en efectivo al vendedor por cada recarga de 360 que te consigue el buscador. Ejemplo: si te la dejo a 950, pon 950. Con ese precio la app saca su 25% y tu 75%.</div>
+        <div class="row"><button class="step" onclick="step('b_precio',-10)">−</button><input type="text" class="num" readonly id="b_precio"><button class="step" onclick="step('b_precio',10)">+</button></div>
         <div class="chips"><span class="chip" onclick="setV('b_precio',900)">900</span><span class="chip" onclick="setV('b_precio',950)">950</span><span class="chip" onclick="setV('b_precio',1000)">1,000</span></div>
       </div>
-      <div class="field"><label>📊 Tasa a la que vendes tú</label>
-        <div class="row"><button class="step" onclick="step('b_tasa',-1)">−</button><input type="number" id="b_tasa" inputmode="decimal"><button class="step" onclick="step('b_tasa',1)">+</button></div>
+      <div class="field"><label>📊 Tasa a la que vendes tú</label><div class="help">La tasa a la que TU vendes ese saldo en QvaPay. De ella sale el ingreso por cada 360.</div>
+        <div class="row"><button class="step" onclick="step('b_tasa',-1)">−</button><input type="text" class="num" readonly id="b_tasa"><button class="step" onclick="step('b_tasa',1)">+</button></div>
       </div>
     </div>
     <div class="card res">
@@ -260,18 +272,18 @@ function buildHTML(d) {
     </div>
     <div class="card">
       <div style="font-size:16px;font-weight:800;color:#2ECCAC;margin-bottom:10px">🏦 BUSCADOR DE TRANSFERENCIA</div>
-      <div class="field"><label>💵 Efectivo a mover (CUP)</label>
-        <div class="row"><button class="step" onclick="step('b_efectivo',-500)">−</button><input type="number" id="b_efectivo" inputmode="decimal"><button class="step" onclick="step('b_efectivo',500)">+</button></div>
+      <div class="field"><label>💵 Efectivo a mover (CUP)</label><div class="help">El efectivo tuyo que se mueve en el trato de transferencia que trajo el buscador.</div>
+        <div class="row"><button class="step" onclick="step('b_efectivo',-500)">−</button><input type="text" class="num" readonly id="b_efectivo"><button class="step" onclick="step('b_efectivo',500)">+</button></div>
       </div>
-      <div class="field"><label>％ Prima del trato</label>
-        <div class="row"><button class="step" onclick="step('b_porc',-1)">−</button><input type="number" id="b_porc" inputmode="decimal"><button class="step" onclick="step('b_porc',1)">+</button></div>
+      <div class="field"><label>％ Prima del trato</label><div class="help">La prima del trato que trajo el buscador. Regla de la casa: solo tratos al 25% o mas.</div>
+        <div class="row"><button class="step" onclick="step('b_porc',-1)">−</button><input type="text" class="num" readonly id="b_porc"><button class="step" onclick="step('b_porc',1)">+</button></div>
         <div class="chips"><span class="chip" onclick="setV('b_porc',25)">25%</span><span class="chip" onclick="setV('b_porc',30)">30%</span><span class="chip" onclick="setV('b_porc',35)">35%</span><span class="chip" onclick="setV('b_porc',40)">40%</span></div>
       </div>
-      <div class="field"><label>📖 Libro BANK_CUP</label>
-        <div class="row"><button class="step" onclick="step('b_libro',-10)">−</button><input type="number" id="b_libro" inputmode="decimal"><button class="step" onclick="step('b_libro',10)">+</button></div>
+      <div class="field"><label>📖 Libro BANK_CUP</label><div class="help">El precio de 1 QUSD pagando con transferencia (el libro BANK_CUP de QvaPay).</div>
+        <div class="row"><button class="step" onclick="step('b_libro',-10)">−</button><input type="text" class="num" readonly id="b_libro"><button class="step" onclick="step('b_libro',10)">+</button></div>
       </div>
-      <div class="field"><label>💵 Salida con Miguel</label>
-        <div class="row"><button class="step" onclick="step('b_salida',-5)">−</button><input type="number" id="b_salida" inputmode="decimal"><button class="step" onclick="step('b_salida',5)">+</button></div>
+      <div class="field"><label>💵 Salida con Miguel</label><div class="help">Lo que Miguel te paga por cada QUSD. Con esto se calcula la ganancia de la vuelta y el 20% del buscador.</div>
+        <div class="row"><button class="step" onclick="step('b_salida',-5)">−</button><input type="text" class="num" readonly id="b_salida"><button class="step" onclick="step('b_salida',5)">+</button></div>
       </div>
     </div>
     <div class="card res">
@@ -288,7 +300,15 @@ function buildHTML(d) {
     <div class="btn copy" onclick="copiar()">📋 Copiar resultado</div>
     <div class="btn" onclick="salir()">❌ Salir</div>
   </div>
-  <div class="foot">Tus datos se guardan solos en tu iPhone 💾 · Hecha por Máximo · v13</div>
+  <div class="foot">Tus datos se guardan solos en tu iPhone 💾 · Hecha por Máximo · v14</div>
+</div>
+
+<div id="pad">
+  <div class="prow"><div class="pk" onclick="pk('1')">1</div><div class="pk" onclick="pk('2')">2</div><div class="pk" onclick="pk('3')">3</div></div>
+  <div class="prow"><div class="pk" onclick="pk('4')">4</div><div class="pk" onclick="pk('5')">5</div><div class="pk" onclick="pk('6')">6</div></div>
+  <div class="prow"><div class="pk" onclick="pk('7')">7</div><div class="pk" onclick="pk('8')">8</div><div class="pk" onclick="pk('9')">9</div></div>
+  <div class="prow"><div class="pk" onclick="pk('.')">.</div><div class="pk" onclick="pk('0')">0</div><div class="pk" onclick="pk('del')">⌫</div></div>
+  <div class="prow"><div class="pk ok" onclick="pkOK()">✔ LISTO</div></div>
 </div>
 
 <script>
@@ -386,7 +406,34 @@ function salir(){ window.location.href = "ernesto://exit"; }
 sv("s_salida", SAVED.saldo.salida); sv("s_costo", SAVED.saldo.costo); sv("s_tasa", SAVED.saldo.tasa); sv("s_saldo", SAVED.saldo.saldo);
 sv("t_efectivo", SAVED.transf.efectivo); sv("t_porc", SAVED.transf.porc); sv("t_libro", SAVED.transf.libro); sv("t_salida", SAVED.transf.salida);
 sv("b_precio", SAVED.busc.precio); sv("b_tasa", SAVED.busc.tasaVenta); sv("b_efectivo", SAVED.busc.efectivo); sv("b_porc", SAVED.busc.porc); sv("b_libro", SAVED.busc.libro); sv("b_salida", SAVED.busc.salida);
-document.querySelectorAll("input[type=number]").forEach(function(el){ el.addEventListener("input", render); });
+let actId = null;
+function pkOpen(id){
+  actId = id;
+  document.querySelectorAll(".num").forEach(function(e){ e.classList.remove("act"); });
+  const el = document.getElementById(id);
+  el.classList.add("act");
+  document.getElementById("pad").className = "on";
+  document.getElementById("app").classList.add("padOpen");
+  if (el.scrollIntoView) el.scrollIntoView({ block: "center" });
+}
+function pkClose(){
+  actId = null;
+  document.getElementById("pad").className = "";
+  document.getElementById("app").classList.remove("padOpen");
+  document.querySelectorAll(".num").forEach(function(e){ e.classList.remove("act"); });
+}
+function pk(k){
+  if (!actId) return;
+  const el = document.getElementById(actId);
+  let v = el.value || "";
+  if (k === "del") { v = v.slice(0, -1); }
+  else if (k === ".") { if (v.indexOf(".") < 0) v = (v === "" ? "0." : v + "."); }
+  else { v = (v === "0") ? k : v + k; }
+  el.value = v;
+  render();
+}
+function pkOK(){ pkClose(); }
+document.querySelectorAll(".num").forEach(function(el){ el.addEventListener("click", function(){ pkOpen(el.id); }); });
 document.getElementById("t_slider").addEventListener("input", function(){ sv("t_porc", this.value); render(); });
 render();
 </script>
