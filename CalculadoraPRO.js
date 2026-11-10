@@ -1,7 +1,8 @@
-// version: 11
+// version: 12
 // Calculadora Ernesto PRO — Scriptable (100% NATIVA)
-// Sin paginas web: todo se presenta con los componentes oficiales de
-// Scriptable (UITable + Alert), tal como indica su documentacion.
+// v12: el diseno de la tabla quedo FIJO con alto de fila propio y pesos
+// de celda (la v11 se veia montada: sin alto, la fila no crecia con el
+// texto de dos lineas). Cada dato va en UNA sola linea con su valor.
 // La entrada de datos va por Alert con campos de texto y teclado numerico
 // (flujo de la v1 que SI funciono en el telefono de Ernesto).
 // La WebView quedo descartada: en su iPhone la pagina se veia pero los
@@ -141,6 +142,7 @@ const GRAY = new Color("#9EAFC4");
 
 function headerRow(table, text, color) {
   const r = new UITableRow();
+  r.height = 34;
   const c = UITableCell.text(text);
   c.titleFont = Font.boldSystemFont(19);
   if (color) c.titleColor = color;
@@ -149,25 +151,45 @@ function headerRow(table, text, color) {
 }
 function bigRow(table, text, color) {
   const r = new UITableRow();
+  r.height = 52;
   const c = UITableCell.text(text);
   c.titleFont = Font.boldSystemFont(30);
   if (color) c.titleColor = color;
   r.addCell(c);
   table.addRow(r);
 }
-function infoRow(table, text, sub, color) {
+function infoRow(table, label, value) {
   const r = new UITableRow();
-  const c = UITableCell.text(text, sub || null);
-  c.titleFont = Font.systemFont(15);
+  r.height = 26;
+  const a = UITableCell.text(label);
+  a.titleFont = Font.systemFont(15);
+  a.widthWeight = 55;
+  const b = UITableCell.text(value);
+  b.titleFont = Font.boldSystemFont(15);
+  b.widthWeight = 45;
+  b.rightAligned();
+  r.addCell(a);
+  r.addCell(b);
+  table.addRow(r);
+}
+function noteRow(table, text, color) {
+  const r = new UITableRow();
+  r.height = 24;
+  const c = UITableCell.text(text);
+  c.titleFont = Font.systemFont(13);
   if (color) c.titleColor = color;
   r.addCell(c);
   table.addRow(r);
 }
 function editRow(table, label, value, onTap) {
   const r = new UITableRow();
-  const c = UITableCell.text(label, "Actual: " + value + "  ·  toca para cambiar");
+  r.height = 30;
+  const c = UITableCell.text(label + ":  " + value);
   c.titleFont = Font.systemFont(16);
+  c.widthWeight = 72;
   const b = UITableCell.button("✏️ Cambiar");
+  b.widthWeight = 28;
+  b.rightAligned();
   b.onTap = onTap;
   b.dismissOnTap = true;
   r.addCell(c);
@@ -176,6 +198,7 @@ function editRow(table, label, value, onTap) {
 }
 function actionRow(table, label, onTap) {
   const r = new UITableRow();
+  r.height = 32;
   const b = UITableCell.button(label);
   b.onTap = onTap;
   b.dismissOnTap = true;
@@ -198,7 +221,7 @@ async function runApp() {
   table.showSeparators = true;
 
   headerRow(table, "📌 CALCULADORA ERNESTO", GOLD);
-  infoRow(table, "Todo nativo, sin internet. Toca «Cambiar» en lo que quieras ajustar.", null, GRAY);
+  noteRow(table, "Todo nativo, sin internet. Toca «Cambiar» en lo que quieras ajustar.", GRAY);
 
   actionRow(table, "📋 Copiar resultados", () => {
     Pasteboard.copyString(
@@ -212,7 +235,7 @@ async function runApp() {
 
   headerRow(table, "📱 SALDO", TEAL);
   bigRow(table, fmt(s.total) + " CUP", okS ? GREEN : RED);
-  infoRow(table, "de ganancia total " + (okS ? "🟢 PUEDES VENDER" : "🔴 NO VENDAS A ESA TASA"));
+  noteRow(table, okS ? "🟢 PUEDES VENDER" : "🔴 NO VENDAS A ESA TASA", okS ? GREEN : RED);
   infoRow(table, "⚖️ Equilibrio (techo)", fmt(s.eq));
   infoRow(table, "💰 Ganancia por 360", fmt(s.g360) + " CUP");
   editRow(table, "💵 Salida con Miguel", fmt(data.saldo.salida), async () => {
@@ -251,10 +274,11 @@ async function runApp() {
 
   headerRow(table, "🏦 TRANSFERENCIA", TEAL);
   bigRow(table, fmt(t.ganancia) + " CUP", okT ? GREEN : RED);
-  infoRow(table, "de ganancia en la vuelta " + (okT ? "🟢 LA VUELTA CIERRA" : "🔴 NO CIERRA"));
+  noteRow(table, okT ? "🟢 LA VUELTA CIERRA" : "🔴 NO CIERRA", okT ? GREEN : RED);
   infoRow(table, "🎯 Equilibrio", "al " + fmt(t.eqp) + "%");
   infoRow(table, "📈 Margen real", fmt(t.margen) + "%");
-  infoRow(table, "↩️ Regreso", fmt(t.regreso) + " CUP  ·  " + fmt(t.qusd) + " QUSD");
+  infoRow(table, "↩️ Regreso", fmt(t.regreso) + " CUP");
+  infoRow(table, "💵 En QUSD", fmt(t.qusd));
   editRow(table, "💵 Efectivo a mover", fmt(data.transf.efectivo), async () => {
     const r = await editForm("🏦 Transferencia", "Efectivo que pones en la vuelta (CUP)", [
       { key: "efectivo", label: "Efectivo", value: data.transf.efectivo }
@@ -291,9 +315,9 @@ async function runApp() {
 
   headerRow(table, "🤝 BUSCADORES", TEAL);
   bigRow(table, fmt(bs.comision) + " CUP", okB1 ? GREEN : RED);
-  infoRow(table, "cobra el buscador de SALDO por cada 360 " + (okB1 ? "🟢" : "🔴 SIN EXCEDENTE: NO COMPRAR"));
+  noteRow(table, okB1 ? "🟢 cobra por cada 360 entregado" : "🔴 SIN EXCEDENTE: NO COMPRAR", okB1 ? GREEN : RED);
   infoRow(table, "💰 Neto tuyo por 360", fmt(bs.neto) + " CUP");
-  infoRow(table, "🎁 Bono", "150+ recargas/semana → +300 CUP");
+  infoRow(table, "🎁 Bono semanal", "150+ → +300 CUP");
   editRow(table, "🏷️ Precio pagado al vendedor", fmt(data.busc.precio), async () => {
     const r = await editForm("🤝 Buscador de saldo", "Precio REAL pagado al vendedor por 360 (lo confirmas tú)", [
       { key: "precio", label: "Precio pagado", value: data.busc.precio }
@@ -312,8 +336,11 @@ async function runApp() {
     ]);
     if (r) { data.busc.salida = r.salida; saveData(data); }
   });
-  infoRow(table, "🤝 Buscador de TRANSFERENCIA " + (okB2 ? "🟢" : "🔴"), "Cobra él " + fmt(bt.comision) + " · Neto tuyo " + fmt(bt.neto));
-  infoRow(table, "🎯 Piso de aceptación", "al 25% (equilibrio al " + fmt(bt.eqp) + "%) · 🎁 10+ tratos/semana → +300 · Solo gente conocida");
+  headerRow(table, "🤝 BUSCADOR TRANSF. " + (okB2 ? "🟢" : "🔴"), TEAL);
+  infoRow(table, "💸 Cobra él (vuelta)", fmt(bt.comision) + " CUP");
+  infoRow(table, "💰 Neto tuyo (vuelta)", fmt(bt.neto) + " CUP");
+  infoRow(table, "🎯 Piso · equilibrio", "al 25% · " + fmt(bt.eqp) + "%");
+  noteRow(table, "🎁 10+ tratos/semana → +300 CUP · Solo gente conocida", GRAY);
   editRow(table, "💵 Efectivo (busc. transf.)", fmt(data.busc.efectivo), async () => {
     const r = await editForm("🤝 Buscador de transferencia", "Efectivo de la vuelta que trae el buscador", [
       { key: "efectivo", label: "Efectivo", value: data.busc.efectivo }
@@ -333,7 +360,7 @@ async function runApp() {
     if (r) { data.busc.libro = r.libro; saveData(data); }
   });
 
-  infoRow(table, "Hecha por Máximo · v11 nativa", "Sin página web: componentes oficiales de Scriptable", GRAY);
+  noteRow(table, "Hecha por Máximo · v12 nativa", GRAY);
   await table.present(true);
 }
 
