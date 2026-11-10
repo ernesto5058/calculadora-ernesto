@@ -1,4 +1,4 @@
-// version: 8
+// version: 9
 // Calculadora Ernesto PRO — Scriptable
 // Pantalla completa interactiva: calcula EN VIVO mientras escribes,
 // con semáforo de decisión, chips rápidos, deslizador y botón de copiar.
@@ -451,12 +451,13 @@ if (config.runsInWidget) {
 } else {
   const wv = new WebView();
   await wv.loadHTML(buildHTML(data));
+  const sleepNative = (ms) => new Promise(res => { const t = new Timer(); t.timeInterval = ms; t.schedule(() => res()); });
   // Presentar SIN bloquear: el sondeo lee los mensajes de la pagina por el hash
-  wv.present(true);
+  wv.present(true).catch(() => {});
   let lastHash = "";
   let exit = false;
   for (let i = 0; i < 3600 && !exit; i++) {
-    await new Promise(r => setTimeout(r, 350));
+    await sleepNative(300);
     let h = "";
     try { h = await wv.evaluateJavaScript("window.location.hash"); } catch (e) { break; }
     if (!h || h === lastHash) continue;
