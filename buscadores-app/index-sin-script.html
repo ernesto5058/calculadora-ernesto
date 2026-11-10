@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0B0E13">
+<title>Mi Trabajo — Buscadores</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { background: #0B0E13; }
+  body { font-family: -apple-system, 'Segoe UI', Roboto, Arial, sans-serif; color: #E8ECF1; min-height: 100vh; padding: 14px 14px 40px; }
+  .wrap { max-width: 560px; margin: 0 auto; }
+  header { text-align: center; padding: 10px 0 4px; }
+  header .big { font-size: 40px; }
+  h1 { font-size: 24px; font-weight: 800; letter-spacing: .3px; }
+  h1 .gold { color: #F5BC14; }
+  .sub { color: #9AA7B8; font-size: 13px; margin-top: 4px; }
+  .tarifa { margin: 12px 0 4px; background: #12161F; border: 1px solid #232B3A; border-radius: 12px; padding: 10px 12px; font-size: 13px; color: #C7D0DC; line-height: 1.55; }
+  .tarifa b { color: #F5BC14; }
+  .tabs { display: flex; gap: 8px; margin: 14px 0; }
+  .tab { flex: 1; padding: 13px 6px; text-align: center; border-radius: 12px; background: #161C28; color: #9AA7B8; font-weight: 700; font-size: 15px; border: 1px solid #232B3A; cursor: pointer; }
+  .tab.on { background: #F5BC14; color: #191204; border-color: #F5BC14; }
+  .card { background: #12161F; border: 1px solid #232B3A; border-radius: 16px; padding: 16px; margin-bottom: 14px; }
+  .card h2 { font-size: 17px; margin-bottom: 4px; }
+  .card .hint { color: #9AA7B8; font-size: 13px; line-height: 1.5; margin-bottom: 12px; }
+  label { display: block; font-size: 13px; color: #9AA7B8; margin: 12px 0 6px; font-weight: 600; }
+  input[type=number], input[type=text] { width: 100%; padding: 14px; font-size: 20px; font-weight: 700; color: #fff; background: #0B0E13; border: 1.5px solid #2A3347; border-radius: 12px; outline: none; }
+  input:focus { border-color: #F5BC14; }
+  .chips { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+  .chip { padding: 8px 14px; border-radius: 999px; background: #1B2233; color: #C7D0DC; font-size: 14px; font-weight: 700; border: 1px solid #2A3347; cursor: pointer; }
+  .chip:active { background: #F5BC14; color: #191204; }
+  input[type=range] { width: 100%; margin-top: 10px; accent-color: #F5BC14; height: 28px; }
+  .res { margin-top: 16px; background: #0E2A1E; border: 1px solid #1E5C40; border-radius: 14px; padding: 14px; text-align: center; }
+  .res .lab { color: #8FD8B6; font-size: 13px; font-weight: 700; }
+  .res .num { font-size: 34px; font-weight: 900; color: #2ECC71; margin: 2px 0; }
+  .res .det { color: #C7D0DC; font-size: 13px; line-height: 1.55; }
+  .warn { margin-top: 16px; background: #2A1414; border: 1px solid #5C2727; color: #FF9A9A; border-radius: 14px; padding: 13px; font-size: 14px; line-height: 1.5; display: none; }
+  .ok { margin-top: 16px; background: #14202A; border: 1px solid #27455C; color: #9ACBFF; border-radius: 14px; padding: 13px; font-size: 14px; line-height: 1.5; display: none; }
+  .bar { height: 14px; background: #232B3A; border-radius: 999px; overflow: hidden; margin: 8px 0 4px; }
+  .bar > div { height: 100%; background: linear-gradient(90deg, #F5BC14, #2ECC71); width: 0%; transition: width .5s; }
+  .trato { display: flex; justify-content: space-between; gap: 10px; padding: 10px 2px; border-bottom: 1px solid #1D2536; font-size: 14px; }
+  .trato:last-child { border-bottom: none; }
+  .trato .f { color: #9AA7B8; white-space: nowrap; }
+  .trato .c { color: #2ECC71; font-weight: 800; white-space: nowrap; }
+  .total { text-align: center; padding: 12px 0 2px; }
+  .total .num { font-size: 32px; font-weight: 900; color: #F5BC14; }
+  .total .lab { color: #9AA7B8; font-size: 13px; }
+  button.go { width: 100%; padding: 14px; border: none; border-radius: 12px; background: #F5BC14; color: #191204; font-size: 16px; font-weight: 800; cursor: pointer; margin-top: 10px; }
+  .foot { text-align: center; color: #5C6B82; font-size: 12px; line-height: 1.6; margin-top: 18px; padding: 0 8px; }
+  .hide { display: none; }
+  .tiposel { display: flex; gap: 8px; margin-top: 2px; }
+  .tiposel .tab { font-size: 14px; padding: 11px 6px; }
+  textarea { width: 100%; padding: 12px; font-size: 16px; color: #fff; background: #0B0E13; border: 1.5px solid #2A3347; border-radius: 12px; outline: none; font-family: inherit; }
+  textarea:focus { border-color: #F5BC14; }
+  .rep { display: flex; justify-content: space-between; gap: 10px; padding: 10px 2px; border-bottom: 1px solid #1D2536; font-size: 14px; }
+  .rep:last-child { border-bottom: none; }
+  .st { font-weight: 800; white-space: nowrap; }
+  .st.pend { color: #F5BC14; } .st.okk { color: #2ECC71; } .st.no { color: #FF7A7A; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="big">💼</div>
+    <h1>MI <span class="gold">TRABAJO</span></h1>
+    <div class="sub">Tu calculadora y tu panel — funciona sin internet 📴</div>
+  </header>
+
+  <div class="tarifa" id="tarifaBox">Cargando la tarifa del día…</div>
+
+  <div class="tabs">
+    <div class="tab on" id="tabCalc">🧮 Calculadora</div>
+    <div class="tab" id="tabRep">📤 Reportar</div>
+    <div class="tab" id="tabPanel">📊 Mi panel</div>
+  </div>
+
+  <!-- ============ CALCULADORA ============ -->
+  <div id="viewCalc">
+    <div class="card">
+      <h2>📱 Saldo — ¿cuánto cobro?</h2>
+      <div class="hint">Consigues una recarga de 360 y cobras el <b>25% del excedente</b>: lo que se gana por encima del precio que pagaste. Pon el precio que lograste y la app te dice tu parte al momento.</div>
+      <label>Precio que conseguiste por la recarga de 360 (CUP)</label>
+      <input type="number" id="s_precio" inputmode="decimal" placeholder="Ej: 950">
+      <div class="chips">
+        <div class="chip" data-p="900">900</div>
+        <div class="chip" data-p="925">925</div>
+        <div class="chip" data-p="950">950</div>
+        <div class="chip" data-p="1000">1000</div>
+      </div>
+      <label>¿Cuántas recargas de 360 son?</label>
+      <input type="number" id="s_cant" inputmode="numeric" value="1">
+      <div class="res" id="s_res" style="display:none">
+        <div class="lab">💰 TU COMISIÓN</div>
+        <div class="num" id="s_fee">$0.00</div>
+        <div class="det" id="s_det"></div>
+      </div>
+      <div class="warn" id="s_warn"></div>
+    </div>
+
+    <div class="card">
+      <h2>🏦 Transferencia — ¿cuánto cobro?</h2>
+      <div class="hint">Traes a una persona conocida que cambia efectivo por transferencia. Cobras el <b>20% de la ganancia</b> de la vuelta completa, cuando la vuelta cierra. Solo se aceptan tratos <b>al 25% o más</b>.</div>
+      <label>Efectivo que entrega la persona (CUP)</label>
+      <input type="number" id="t_ef" inputmode="decimal" placeholder="Ej: 5000">
+      <label>¿Al cuánto es el trato? (<span id="t_pct_lab">30</span>%)</label>
+      <input type="number" id="t_pct" inputmode="decimal" value="30">
+      <input type="range" id="t_rng" min="0" max="50" step="1" value="30">
+      <div class="chips">
+        <div class="chip" data-t="25">al 25%</div>
+        <div class="chip" data-t="30">al 30%</div>
+        <div class="chip" data-t="35">al 35%</div>
+        <div class="chip" data-t="40">al 40%</div>
+      </div>
+      <div class="res" id="t_res" style="display:none">
+        <div class="lab">💰 TU COMISIÓN (al cerrar la vuelta)</div>
+        <div class="num" id="t_fee">$0.00</div>
+        <div class="det" id="t_det"></div>
+      </div>
+      <div class="warn" id="t_warn"></div>
+      <div class="ok" id="t_ok"></div>
+    </div>
+  </div>
+
+  <!-- ============ REPORTAR ============ -->
+  <div id="viewRep" class="hide">
+    <div class="card">
+      <h2>📤 Reportar una búsqueda</h2>
+      <div class="hint">¿Conseguiste un trato? Repórtalo aquí. Ernesto lo revisa y, si lo confirma, tu comisión aparece en tu panel. Si no tienes tu código puesto, ve a «Mi panel» y escríbelo primero.</div>
+      <label>¿Qué conseguiste?</label>
+      <div class="tiposel">
+        <div class="tab on" id="r_tipo_s">📱 Saldo</div>
+        <div class="tab" id="r_tipo_t">🏦 Transferencia</div>
+      </div>
+      <div id="r_box_s">
+        <label>Precio que pide el vendedor por cada recarga de 360 (CUP)</label>
+        <input type="number" id="r_precio" inputmode="decimal" placeholder="Ej: 950">
+        <label>¿Cuántas recargas de 360 tiene?</label>
+        <input type="number" id="r_cant" inputmode="numeric" value="1">
+      </div>
+      <div id="r_box_t" class="hide">
+        <label>Efectivo que entrega la persona (CUP)</label>
+        <input type="number" id="r_ef" inputmode="decimal" placeholder="Ej: 5000">
+        <label>¿Al cuánto es el trato? (%)</label>
+        <input type="number" id="r_pct" inputmode="decimal" placeholder="Ej: 30">
+      </div>
+      <label>Teléfono del vendedor / de la persona</label>
+      <input type="tel" id="r_tel" inputmode="tel" placeholder="Ej: 51234567">
+      <label>Nota (opcional)</label>
+      <textarea id="r_nota" rows="2" placeholder="Ej: es de Micro 9, tiene saldo hoy"></textarea>
+      <button class="go" id="r_btn">📤 Enviar reporte a Ernesto</button>
+      <div class="res" id="r_res" style="display:none">
+        <div class="lab">✅ REPORTE ENVIADO</div>
+        <div class="det">Quedó <b>pendiente</b>. Cuando Ernesto lo confirme, tu comisión aparece en «Mi panel».</div>
+      </div>
+      <div class="warn" id="r_warn"></div>
+      <label>Tus reportes enviados (en este teléfono)</label>
+      <div id="r_lista"></div>
+    </div>
+  </div>
+
+  <!-- ============ PANEL ============ -->
+  <div id="viewPanel" class="hide">
+    <div class="card">
+      <h2>📊 Mi panel</h2>
+      <div class="hint">Escribe tu código personal una vez — queda guardado en tu teléfono. Aquí ves tus tratos confirmados, lo que has ganado y cómo vas para tu bono. 🎁</div>
+      <label>Tu código personal</label>
+      <input type="text" id="p_code" placeholder="Ej: DEMO-01" autocomplete="off">
+      <button class="go" id="p_btn">Ver mi panel</button>
+      <div class="warn" id="p_warn"></div>
+      <div id="p_body" class="hide">
+        <div class="total">
+          <div class="lab">TOTAL GANADO 💰</div>
+          <div class="num" id="p_total">$0.00</div>
+          <div class="lab" id="p_name"></div>
+        </div>
+        <label>🎁 Bono de saldo: <span id="p_bs_lab"></span></label>
+        <div class="bar"><div id="p_bs_bar"></div></div>
+        <label>🎁 Bono de transferencia: <span id="p_bt_lab"></span></label>
+        <div class="bar"><div id="p_bt_bar"></div></div>
+        <label>Tus tratos confirmados</label>
+        <div id="p_tratos"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="foot">
+    Las cuentas de esta app usan la tarifa de referencia del día.<br>
+    La cuenta final de cada trato la confirma Ernesto con los números reales. ✅<br>
+    Hecha para el equipo de Ernesto 🦾
+  </div>
+</div>
+
+<script id="appjs"></script>
+</body>
+</html>

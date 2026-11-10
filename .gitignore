@@ -1,0 +1,12 @@
+node_modules/
+android/.gradle/
+android/app/build/
+buscadores-app/android/
+
+# Generado por Capacitor en cada sync (la fuente es buscadores/)
+android/app/src/main/assets/public/
+
+# Partes generadas por ensamblar.py (fuentes en buscadores/ y buscadores-app/)
+
+# Llave de firma: SOLO local, nunca al repo
+claves/

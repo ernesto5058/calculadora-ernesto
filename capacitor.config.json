@@ -1,0 +1,13 @@
+{
+  "appId": "cu.ernesto.mitrabajo",
+  "appName": "Mi Trabajo",
+  "webDir": "buscadores",
+  "backgroundColor": "#0B0E13",
+  "server": {
+    "androidScheme": "https",
+    "cleartext": false
+  },
+  "android": {
+    "allowMixedContent": false
+  }
+}
