@@ -1,4 +1,4 @@
-// version: 9
+// version: 10
 // Calculadora Ernesto PRO — Scriptable
 // Pantalla completa interactiva: calcula EN VIVO mientras escribes,
 // con semáforo de decisión, chips rápidos, deslizador y botón de copiar.
@@ -287,7 +287,7 @@ function buildHTML(d) {
 </div>
 
 <script>
-const SAVED = ${JSON.stringify(d)};
+const SAVED = window.__ERNESTO__ || ${JSON.stringify(d)};
 let cur = "s";
 function gv(id){ const v = parseFloat((document.getElementById(id).textContent || "").toString().replace(",", ".")); return isNaN(v) ? 0 : v; }
 function sv(id, v){ document.getElementById(id).textContent = v; }
@@ -314,7 +314,7 @@ let saveTimer = null;
 function autosave(){
   clearTimeout(saveTimer);
   saveTimer = setTimeout(function(){
-    try { history.replaceState(null, "", "#ernesto-save:" + encodeURIComponent(JSON.stringify(collect()))); } catch (e) {}
+    try { window.__OUT__ = JSON.stringify(collect()); } catch (e) {}
   }, 400);
 }
 let lastText = "";
@@ -374,8 +374,8 @@ function render(){
     : "🏦 TRANSFERENCIA\\n🔄 Recibes: " + fmt(tr) + "\\n🪙 QUSD: " + fmt(qusd) + "\\n↩️ Regreso: " + fmt(regreso) + " CUP\\n💵 Ganancia: " + fmt(gan) + " CUP\\n📈 Margen: " + fmt(margen) + "%");
   autosave();
 }
-function copiar(){ try { history.replaceState(null, "", "#ernesto-copy:" + encodeURIComponent(JSON.stringify({ text: lastText }))); } catch (e) {} }
-function salir(){ try { history.replaceState(null, "", "#ernesto-exit"); } catch (e) {} }
+function copiar(){ try { window.__COPY__ = lastText; } catch (e) {} }
+function salir(){ try { window.__EXIT__ = true; } catch (e) {} }
 // init
 sv("s_salida", SAVED.saldo.salida); sv("s_costo", SAVED.saldo.costo); sv("s_tasa", SAVED.saldo.tasa); sv("s_saldo", SAVED.saldo.saldo);
 sv("t_efectivo", SAVED.transf.efectivo); sv("t_porc", SAVED.transf.porc); sv("t_libro", SAVED.transf.libro); sv("t_salida", SAVED.transf.salida);
@@ -450,29 +450,22 @@ if (config.runsInWidget) {
   Script.complete();
 } else {
   const wv = new WebView();
-  await wv.loadHTML(buildHTML(data));
-  const sleepNative = (ms) => new Promise(res => { const t = new Timer(); t.timeInterval = ms; t.schedule(() => res()); });
-  // Presentar SIN bloquear: el sondeo lee los mensajes de la pagina por el hash
-  wv.present(true).catch(() => {});
-  let lastHash = "";
-  let exit = false;
-  for (let i = 0; i < 3600 && !exit; i++) {
-    await sleepNative(300);
-    let h = "";
-    try { h = await wv.evaluateJavaScript("window.location.hash"); } catch (e) { break; }
-    if (!h || h === lastHash) continue;
-    lastHash = h;
-    try {
-      if (h.indexOf("#ernesto-save:") === 0) {
-        const payload = JSON.parse(decodeURIComponent(h.substring(14)));
-        saveData(payload);
-      } else if (h.indexOf("#ernesto-copy:") === 0) {
-        const payload = JSON.parse(decodeURIComponent(h.substring(14)));
-        if (payload.text) Pasteboard.copyString(payload.text);
-      } else if (h.indexOf("#ernesto-exit") === 0) {
-        exit = true;
-      }
-    } catch (e) {}
-  }
+  // Unico puente: la pagina deja sus datos en variables JS globales;
+  // aqui se leen DESPUES de cerrar la pantalla (sin sondeos ni temporizadores).
+  wv.shouldAllowRequest = (req) => {
+    const u = (req && req.url) || "";
+    if (u.indexOf("ernesto://") === 0) return false;
+    return true;
+  };
+  await wv.loadHTML(buildHTML(data), "https://localhost/");
+  await wv.present(true);
+  try {
+    const raw = await wv.evaluateJavaScript("window.__OUT__ || ''");
+    if (raw) { const p = JSON.parse(raw); if (p && p.saldo && p.transf) saveData(p); }
+  } catch (e) {}
+  try {
+    const cp = await wv.evaluateJavaScript("window.__COPY__ || ''");
+    if (cp) Pasteboard.copyString(cp);
+  } catch (e) {}
   Script.complete();
 }
