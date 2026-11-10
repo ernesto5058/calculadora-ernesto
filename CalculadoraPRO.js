@@ -1,12 +1,14 @@
-// version: 12
-// Calculadora Ernesto PRO — Scriptable (100% NATIVA)
-// v12: el diseno de la tabla quedo FIJO con alto de fila propio y pesos
-// de celda (la v11 se veia montada: sin alto, la fila no crecia con el
-// texto de dos lineas). Cada dato va en UNA sola linea con su valor.
-// La entrada de datos va por Alert con campos de texto y teclado numerico
-// (flujo de la v1 que SI funciono en el telefono de Ernesto).
-// La WebView quedo descartada: en su iPhone la pagina se veia pero los
-// toques no llegaban a los controles (4 versiones seguidas fallando).
+// version: 13
+// Calculadora Ernesto PRO — Scriptable
+// v13: RESCATE de la interfaz antigua (la oscura estilo trading de la
+// v6, la que a Ernesto le gusto) + la seccion Buscadores de la v12.
+// Lo unico que cambia del diseno original: la pagina YA NO usa
+// position:fixed con scroll interno (esa era la trampa: en su iPhone
+// los toques no llegaban a los controles). Ahora la pagina fluye normal
+// y con pantallas tactiles verificadas: inputs con font-size 17 (sin
+// zoom de iOS), touch-action manipulation y areas de toque amplias.
+// Calcula EN VIVO mientras escribes, con semaforo, chips y deslizador.
+// Como widget: muestra tus ultimos resultados con el semaforo.
 
 const FM = FileManager.local();
 const PATH = FM.joinPath(FM.documentsDirectory(), "calc-ernesto.json");
@@ -54,6 +56,7 @@ function calcTransf(t) {
     margen: ((1 + t.porc / 100) * t.salida / t.libro - 1) * 100
   };
 }
+
 function calcBuscSaldo(b) {
   const ingreso = (360 / b.tasaVenta) * b.salida;
   const excedente = ingreso - b.precio;
@@ -65,7 +68,7 @@ function calcBuscTransf(b) {
   const comision = ganancia > 0 ? 0.20 * ganancia : 0;
   return { ganancia: ganancia, comision: comision, neto: ganancia - comision, eqp: (b.libro / b.salida - 1) * 100 };
 }
-
+// ---------- WIDGET ----------
 function buildWidget(d) {
   const w = new ListWidget();
   w.url = "scriptable:///run/" + encodeURIComponent(Script.name());
@@ -94,289 +97,332 @@ function buildWidget(d) {
   const l4 = w.addText("↩️ Regreso: " + fmt(t.regreso) + " CUP");
   l4.font = Font.systemFont(13); l4.textColor = Color.white();
   w.addSpacer(6);
+  const bs = calcBuscSaldo(d.busc);
+  const bt = calcBuscTransf(d.busc);
+  const l5 = w.addText("🤝 Busc. saldo: cobra " + fmt(bs.comision) + " · tuyo " + fmt(bs.neto));
+  l5.font = Font.systemFont(13); l5.textColor = Color.white();
+  const l6 = w.addText("🤝 Busc. transf: cobra " + fmt(bt.comision) + " · tuyo " + fmt(bt.neto));
+  l6.font = Font.systemFont(13); l6.textColor = Color.white();
+  w.addSpacer(6);
   const tip = w.addText("Toca para abrir la calculadora");
   tip.font = Font.systemFont(11); tip.textColor = new Color("#9EAFC4");
   return w;
 }
 
-// ---------- Entrada de datos (Alert nativo) ----------
-// Devuelve {key: valor} si pulso Calcular, o null si cancelo.
-// clean() pone a prueba que lo que devuelve textFieldValue sea util:
-// si un campo llega vacio o ilegible, conserva el valor anterior.
-function clean(raw, prev) {
-  const s = (raw === null || raw === undefined ? "" : String(raw)).replace(",", ".").trim();
-  const n = parseFloat(s);
-  return isNaN(n) ? prev : n;
+// ---------- PANTALLA PRO (HTML) ----------
+function buildHTML(d) {
+  return `<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="theme-color" content="#0B0E13">
+<meta name="color-scheme" content="dark">
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html { background:#0B0E13; }
+  body { background:#0B0E13; overscroll-behavior:none; }
+  body { margin:0; font-family:-apple-system,Helvetica,Arial,sans-serif; color:#EEF0F5; -webkit-text-size-adjust:100%; }
+  #app { padding:18px 16px 40px; background:#0B0E13; min-height:100vh; }
+  .head { text-align:center; margin-bottom:14px; }
+  .head .t { font-size:26px; font-weight:800; color:#F5BC14; letter-spacing:.5px; }
+  .head .s { font-size:13px; color:#9EAFC4; margin-top:2px; }
+  .tabs { display:flex; gap:10px; margin:16px 0; }
+  .tab { flex:1; text-align:center; padding:13px 0; touch-action:manipulation; border-radius:14px; background:#131A24; border:1px solid #263248; font-size:17px; font-weight:700; color:#9EAFC4; transition:all .18s; }
+  .tab.on { background:linear-gradient(135deg,#0E3B33,#12473D); color:#2ECCAC; border-color:#2ECCAC; transform:scale(1.02); }
+  .panel { display:none; }
+  .panel.on { display:block; animation:fade .22s ease; }
+  @keyframes fade { from { opacity:0; transform:translateY(6px);} to { opacity:1; transform:none;} }
+  .card { background:#111824; border:1px solid #263248; border-radius:18px; padding:16px; margin-bottom:14px; }
+  .field { margin-bottom:14px; }
+  .field:last-child { margin-bottom:2px; }
+  label { display:block; font-size:14px; color:#9EAFC4; margin-bottom:6px; font-weight:600; }
+  .row { display:flex; align-items:center; gap:8px; }
+  .step { width:48px; height:52px; touch-action:manipulation; border-radius:12px; border:1px solid #263248; background:#1A2434; color:#2ECCAC; font-size:24px; font-weight:800; }
+  .step:active { background:#2ECCAC; color:#0B0E13; }
+  input[type=number] { flex:1; min-width:0; height:52px; border-radius:12px; border:1px solid #263248; background:#0D1420; color:#fff; font-size:22px; font-weight:700; text-align:center; padding:0 8px; touch-action:manipulation; }
+  input[type=number]:focus { border-color:#2ECCAC; outline:none; }
+  .chips { display:flex; gap:8px; margin-top:8px; flex-wrap:wrap; }
+  .chip { padding:8px 14px; touch-action:manipulation; border-radius:999px; background:#1A2434; border:1px solid #263248; color:#C9D4E3; font-size:14px; font-weight:700; }
+  .chip:active { background:#2ECCAC; color:#0B0E13; }
+  input[type=range] { width:100%; margin-top:10px; accent-color:#2ECCAC; height:30px; }
+  .res { text-align:center; }
+  .big { font-size:42px; font-weight:900; line-height:1.1; }
+  .big small { font-size:16px; color:#9EAFC4; font-weight:700; }
+  .grid { display:flex; gap:10px; margin-top:12px; }
+  .cell { flex:1; background:#0D1420; border:1px solid #263248; border-radius:14px; padding:10px 4px; }
+  .cell .v { font-size:19px; font-weight:800; }
+  .cell .k { font-size:11.5px; color:#9EAFC4; margin-top:2px; font-weight:600; }
+  .sema { margin-top:14px; border-radius:14px; padding:13px 10px; font-size:16.5px; font-weight:800; text-align:center; transition:all .2s; }
+  .sema.ok { background:rgba(46,204,113,.16); color:#2ECC71; border:1px solid #2ECC71; }
+  .sema.bad { background:rgba(255,92,92,.13); color:#FF5C5C; border:1px solid #FF5C5C; }
+  .btns { display:flex; gap:10px; margin-top:4px; }
+  .btn { flex:1; padding:15px 0; touch-action:manipulation; border-radius:14px; border:1px solid #263248; background:#1A2434; color:#fff; font-size:16px; font-weight:800; text-align:center; }
+  .btn:active { transform:scale(.97); }
+  .btn.copy { color:#2ECCAC; }
+  .foot { text-align:center; color:#5B6B82; font-size:12px; margin-top:16px; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="head">
+    <div class="t">📌 CALCULADORA ERNESTO</div>
+    <div class="s">Calcula en vivo mientras escribes ⚡</div>
+  </div>
+
+  <div class="tabs">
+    <div class="tab on" id="tabS" onclick="showTab('s')">📱 Saldo</div>
+    <div class="tab" id="tabT" onclick="showTab('t')">🏦 Transf.</div>
+    <div class="tab" id="tabB" onclick="showTab('b')">🤝 Busc.</div>
+  </div>
+
+  <!-- SALDO -->
+  <div class="panel on" id="panelS">
+    <div class="card">
+      <div class="field"><label>💵 Salida con Miguel</label>
+        <div class="row"><button class="step" onclick="step('s_salida',-5)">−</button><input type="number" id="s_salida" inputmode="decimal"><button class="step" onclick="step('s_salida',5)">+</button></div>
+        <div class="chips"><span class="chip" onclick="setV('s_salida',930)">930</span><span class="chip" onclick="setV('s_salida',950)">950</span><span class="chip" onclick="setV('s_salida',960)">960</span></div>
+      </div>
+      <div class="field"><label>🏷️ Costo por 360</label>
+        <div class="row"><button class="step" onclick="step('s_costo',-10)">−</button><input type="number" id="s_costo" inputmode="decimal"><button class="step" onclick="step('s_costo',10)">+</button></div>
+        <div class="chips"><span class="chip" onclick="setV('s_costo',1000)">1,000</span><span class="chip" onclick="setV('s_costo',1040)">1,040</span><span class="chip" onclick="setV('s_costo',1114)">1,114</span></div>
+      </div>
+      <div class="field"><label>📊 Tasa de venta</label>
+        <div class="row"><button class="step" onclick="step('s_tasa',-1)">−</button><input type="number" id="s_tasa" inputmode="decimal"><button class="step" onclick="step('s_tasa',1)">+</button></div>
+      </div>
+      <div class="field"><label>📱 Saldo a vender</label>
+        <div class="row"><button class="step" onclick="step('s_saldo',-360)">−</button><input type="number" id="s_saldo" inputmode="decimal"><button class="step" onclick="step('s_saldo',360)">+</button></div>
+        <div class="chips"><span class="chip" onclick="setV('s_saldo',3600)">3,600</span><span class="chip" onclick="setV('s_saldo',10000)">10,000</span><span class="chip" onclick="setV('s_saldo',22900)">22,900</span></div>
+      </div>
+    </div>
+    <div class="card res">
+      <div class="big"><span id="r_total">—</span> <small>CUP de ganancia</small></div>
+      <div class="grid">
+        <div class="cell"><div class="v" id="r_eq">—</div><div class="k">⚖️ EQUILIBRIO (TECHO)</div></div>
+        <div class="cell"><div class="v" id="r_g360">—</div><div class="k">💰 GANANCIA / 360</div></div>
+      </div>
+      <div class="sema ok" id="r_semaS">—</div>
+    </div>
+  </div>
+
+  <!-- TRANSFERENCIA -->
+  <div class="panel" id="panelT">
+    <div class="card">
+      <div class="field"><label>💵 Efectivo a mover (CUP)</label>
+        <div class="row"><button class="step" onclick="step('t_efectivo',-500)">−</button><input type="number" id="t_efectivo" inputmode="decimal"><button class="step" onclick="step('t_efectivo',500)">+</button></div>
+      </div>
+      <div class="field"><label>％ Prima de la transferencia: <span id="t_porc_lbl" style="color:#2ECCAC">30%</span></label>
+        <div class="row"><button class="step" onclick="step('t_porc',-1)">−</button><input type="number" id="t_porc" inputmode="decimal"><button class="step" onclick="step('t_porc',1)">+</button></div>
+        <input type="range" id="t_slider" min="0" max="50" step="1" value="30">
+        <div class="chips"><span class="chip" onclick="setV('t_porc',25)">25%</span><span class="chip" onclick="setV('t_porc',30)">30%</span><span class="chip" onclick="setV('t_porc',35)">35%</span><span class="chip" onclick="setV('t_porc',40)">40%</span></div>
+      </div>
+      <div class="field"><label>📖 Libro BANK_CUP</label>
+        <div class="row"><button class="step" onclick="step('t_libro',-10)">−</button><input type="number" id="t_libro" inputmode="decimal"><button class="step" onclick="step('t_libro',10)">+</button></div>
+        <div class="chips"><span class="chip" onclick="setV('t_libro',1130)">1,130</span><span class="chip" onclick="setV('t_libro',1100)">1,100</span><span class="chip" onclick="setV('t_libro',1150)">1,150</span></div>
+      </div>
+      <div class="field"><label>💵 Salida con Miguel</label>
+        <div class="row"><button class="step" onclick="step('t_salida',-5)">−</button><input type="number" id="t_salida" inputmode="decimal"><button class="step" onclick="step('t_salida',5)">+</button></div>
+      </div>
+    </div>
+    <div class="card res">
+      <div class="big"><span id="r_gan">—</span> <small>CUP de ganancia</small></div>
+      <div class="grid">
+        <div class="cell"><div class="v" id="r_recibes">—</div><div class="k">🔄 RECIBES (TRANSF.)</div></div>
+        <div class="cell"><div class="v" id="r_qusd">—</div><div class="k">🪙 QUSD</div></div>
+      </div>
+      <div class="grid">
+        <div class="cell"><div class="v" id="r_regreso">—</div><div class="k">↩️ REGRESO (CUP)</div></div>
+        <div class="cell"><div class="v" id="r_margen">—</div><div class="k">📈 MARGEN</div></div>
+      </div>
+      <div class="sema ok" id="r_semaT">—</div>
+    </div>
+  </div>
+
+  <!-- BUSCADORES -->
+  <div class="panel" id="panelB">
+    <div class="card">
+      <div style="font-size:16px;font-weight:800;color:#2ECCAC;margin-bottom:10px">📱 BUSCADOR DE SALDO</div>
+      <div class="field"><label>🏷️ Precio que pagas al vendedor (por 360)</label>
+        <div class="row"><button class="step" onclick="step('b_precio',-10)">−</button><input type="number" id="b_precio" inputmode="decimal"><button class="step" onclick="step('b_precio',10)">+</button></div>
+        <div class="chips"><span class="chip" onclick="setV('b_precio',900)">900</span><span class="chip" onclick="setV('b_precio',950)">950</span><span class="chip" onclick="setV('b_precio',1000)">1,000</span></div>
+      </div>
+      <div class="field"><label>📊 Tasa a la que vendes tú</label>
+        <div class="row"><button class="step" onclick="step('b_tasa',-1)">−</button><input type="number" id="b_tasa" inputmode="decimal"><button class="step" onclick="step('b_tasa',1)">+</button></div>
+      </div>
+    </div>
+    <div class="card res">
+      <div class="big"><span id="r_bcom">—</span> <small>CUP cobra el buscador</small></div>
+      <div class="grid">
+        <div class="cell"><div class="v" id="r_bneto">—</div><div class="k">💰 NETO TUYO / 360</div></div>
+        <div class="cell"><div class="v">+300</div><div class="k">🎁 BONO 150+ / SEMANA</div></div>
+      </div>
+      <div class="sema ok" id="r_semaB1">—</div>
+    </div>
+    <div class="card">
+      <div style="font-size:16px;font-weight:800;color:#2ECCAC;margin-bottom:10px">🏦 BUSCADOR DE TRANSFERENCIA</div>
+      <div class="field"><label>💵 Efectivo a mover (CUP)</label>
+        <div class="row"><button class="step" onclick="step('b_efectivo',-500)">−</button><input type="number" id="b_efectivo" inputmode="decimal"><button class="step" onclick="step('b_efectivo',500)">+</button></div>
+      </div>
+      <div class="field"><label>％ Prima del trato</label>
+        <div class="row"><button class="step" onclick="step('b_porc',-1)">−</button><input type="number" id="b_porc" inputmode="decimal"><button class="step" onclick="step('b_porc',1)">+</button></div>
+        <div class="chips"><span class="chip" onclick="setV('b_porc',25)">25%</span><span class="chip" onclick="setV('b_porc',30)">30%</span><span class="chip" onclick="setV('b_porc',35)">35%</span><span class="chip" onclick="setV('b_porc',40)">40%</span></div>
+      </div>
+      <div class="field"><label>📖 Libro BANK_CUP</label>
+        <div class="row"><button class="step" onclick="step('b_libro',-10)">−</button><input type="number" id="b_libro" inputmode="decimal"><button class="step" onclick="step('b_libro',10)">+</button></div>
+      </div>
+      <div class="field"><label>💵 Salida con Miguel</label>
+        <div class="row"><button class="step" onclick="step('b_salida',-5)">−</button><input type="number" id="b_salida" inputmode="decimal"><button class="step" onclick="step('b_salida',5)">+</button></div>
+      </div>
+    </div>
+    <div class="card res">
+      <div class="big"><span id="r_btcom">—</span> <small>CUP cobra el buscador</small></div>
+      <div class="grid">
+        <div class="cell"><div class="v" id="r_btneto">—</div><div class="k">💰 NETO TUYO (VUELTA)</div></div>
+        <div class="cell"><div class="v" id="r_bteq">—</div><div class="k">🎯 EQUILIBRIO</div></div>
+      </div>
+      <div class="sema ok" id="r_semaB2">—</div>
+    </div>
+  </div>
+
+  <div class="btns">
+    <div class="btn copy" onclick="copiar()">📋 Copiar resultado</div>
+    <div class="btn" onclick="salir()">❌ Salir</div>
+  </div>
+  <div class="foot">Tus datos se guardan solos en tu iPhone 💾 · Hecha por Máximo · v13</div>
+</div>
+
+<script>
+const SAVED = ${JSON.stringify(d)};
+let cur = "s";
+function gv(id){ const v = parseFloat((document.getElementById(id).value || "").toString().replace(",", ".")); return isNaN(v) ? 0 : v; }
+function sv(id, v){ document.getElementById(id).value = v; }
+function fmt(n){ return (Math.round(n * 100) / 100).toFixed(2); }
+function setV(id, v){ sv(id, v); render(); }
+function step(id, dlt){ sv(id, Math.max(0, gv(id) + dlt)); render(); }
+function showTab(t){
+  cur = t;
+  document.getElementById("tabS").className = "tab" + (t === "s" ? " on" : "");
+  document.getElementById("tabT").className = "tab" + (t === "t" ? " on" : "");
+  document.getElementById("tabB").className = "tab" + (t === "b" ? " on" : "");
+  document.getElementById("panelS").className = "panel" + (t === "s" ? " on" : "");
+  document.getElementById("panelT").className = "panel" + (t === "t" ? " on" : "");
+  document.getElementById("panelB").className = "panel" + (t === "b" ? " on" : "");
 }
-async function editForm(title, message, fields) {
-  const a = new Alert();
-  a.title = title;
-  a.message = message;
-  for (let i = 0; i < fields.length; i++) {
-    const f = fields[i];
-    try {
-      const tf = a.addTextField(f.label, String(f.value));
-      if (tf && tf.setDecimalPadKeyboard) tf.setDecimalPadKeyboard();
-      else if (tf && tf.setNumberPadKeyboard) tf.setNumberPadKeyboard();
-    } catch (e) {
-      a.addTextField(f.label, String(f.value));
-    }
-  }
-  a.addAction("✅ Calcular");
-  a.addCancelAction("Cancelar");
-  const idx = await a.presentAlert();
-  if (idx === -1) return null;
-  const out = {};
-  for (let i = 0; i < fields.length; i++) {
-    out[fields[i].key] = clean(a.textFieldValue(i), fields[i].value);
-  }
-  return out;
+function collect(){
+  return {
+    saldo:  { salida: gv("s_salida"), costo: gv("s_costo"), tasa: gv("s_tasa"), saldo: gv("s_saldo") },
+    transf: { efectivo: gv("t_efectivo"), porc: gv("t_porc"), libro: gv("t_libro"), salida: gv("t_salida") },
+    busc:   { precio: gv("b_precio"), tasaVenta: gv("b_tasa"), efectivo: gv("b_efectivo"), porc: gv("b_porc"), libro: gv("b_libro"), salida: gv("b_salida") }
+  };
 }
-
-// ---------- Pantalla principal (UITable nativa) ----------
-const GOLD = new Color("#F5BC14");
-const TEAL = new Color("#2ECCAC");
-const RED = new Color("#FF5C5C");
-const GREEN = new Color("#2ECC71");
-const GRAY = new Color("#9EAFC4");
-
-function headerRow(table, text, color) {
-  const r = new UITableRow();
-  r.height = 34;
-  const c = UITableCell.text(text);
-  c.titleFont = Font.boldSystemFont(19);
-  if (color) c.titleColor = color;
-  r.addCell(c);
-  table.addRow(r);
+let saveTimer = null;
+function autosave(){
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(function(){
+    window.location.href = "ernesto://save?d=" + encodeURIComponent(JSON.stringify(collect()));
+  }, 500);
 }
-function bigRow(table, text, color) {
-  const r = new UITableRow();
-  r.height = 52;
-  const c = UITableCell.text(text);
-  c.titleFont = Font.boldSystemFont(30);
-  if (color) c.titleColor = color;
-  r.addCell(c);
-  table.addRow(r);
+let lastText = "";
+function render(){
+  const d = collect();
+  // SALDO
+  const eq = 360 * d.saldo.salida / d.saldo.costo;
+  const g360 = (360 / d.saldo.tasa) * d.saldo.salida - d.saldo.costo;
+  const total = g360 * (d.saldo.saldo / 360) - 14.44;
+  document.getElementById("r_eq").textContent = fmt(eq);
+  document.getElementById("r_g360").textContent = fmt(g360);
+  document.getElementById("r_total").textContent = fmt(total);
+  const semaS = document.getElementById("r_semaS");
+  if (d.saldo.tasa <= eq) { semaS.className = "sema ok"; semaS.textContent = "🟢 VENDE — ganas " + fmt(g360) + " por cada 360"; }
+  else { semaS.className = "sema bad"; semaS.textContent = "🔴 NO VENDAS a " + fmt(d.saldo.tasa) + " — tu techo es " + fmt(eq); }
+  // TRANSFERENCIA
+  const tr = d.transf.efectivo * (1 + d.transf.porc / 100);
+  const qusd = tr / d.transf.libro;
+  const regreso = qusd * d.transf.salida;
+  const gan = regreso - d.transf.efectivo;
+  const eqp = (d.transf.libro / d.transf.salida - 1) * 100;
+  const margen = ((1 + d.transf.porc / 100) * d.transf.salida / d.transf.libro - 1) * 100;
+  document.getElementById("r_recibes").textContent = fmt(tr);
+  document.getElementById("r_qusd").textContent = fmt(qusd);
+  document.getElementById("r_regreso").textContent = fmt(regreso);
+  document.getElementById("r_gan").textContent = fmt(gan);
+  document.getElementById("r_margen").textContent = fmt(margen) + "%";
+  document.getElementById("t_porc_lbl").textContent = fmt(d.transf.porc) + "%";
+  document.getElementById("t_slider").value = d.transf.porc;
+  const semaT = document.getElementById("r_semaT");
+  if (d.transf.porc > eqp) { semaT.className = "sema ok"; semaT.textContent = "🟢 DALE — estás sobre el equilibrio (al " + fmt(eqp) + "%)"; }
+  else { semaT.className = "sema bad"; semaT.textContent = "🔴 NO ALCANZA — el equilibrio es al " + fmt(eqp) + "%"; }
+  // BUSCADORES
+  const ingreso = (360 / d.busc.tasaVenta) * d.busc.salida;
+  const exc = ingreso - d.busc.precio;
+  const bcom = exc > 0 ? 0.25 * exc : 0;
+  const bneto = exc > 0 ? exc - bcom : exc;
+  document.getElementById("r_bcom").textContent = fmt(bcom);
+  document.getElementById("r_bneto").textContent = fmt(bneto);
+  const semaB1 = document.getElementById("r_semaB1");
+  if (exc > 0) { semaB1.className = "sema ok"; semaB1.textContent = "🟢 HAY EXCEDENTE — el buscador cobra el 25% y tú el 75%"; }
+  else { semaB1.className = "sema bad"; semaB1.textContent = "🔴 SIN EXCEDENTE a ese precio: NO COMPRAR"; }
+  const trB = d.busc.efectivo * (1 + d.busc.porc / 100);
+  const ganB = (trB / d.busc.libro) * d.busc.salida - d.busc.efectivo;
+  const btcom = ganB > 0 ? 0.20 * ganB : 0;
+  const btneto = ganB - btcom;
+  const eqpB = (d.busc.libro / d.busc.salida - 1) * 100;
+  document.getElementById("r_btcom").textContent = fmt(btcom);
+  document.getElementById("r_btneto").textContent = fmt(btneto);
+  document.getElementById("r_bteq").textContent = "al " + fmt(eqpB) + "%";
+  const semaB2 = document.getElementById("r_semaB2");
+  if (d.busc.porc >= 25 && ganB > 0) { semaB2.className = "sema ok"; semaB2.textContent = "🟢 TRATO VÁLIDO — cobra el 20% al cerrar la vuelta"; }
+  else { semaB2.className = "sema bad"; semaB2.textContent = "🔴 PISO: solo tratos al 25% o más (y que la vuelta gane)"; }
+  lastText = cur === "b"
+    ? "\u{1F91D} BUSCADORES" + String.fromCharCode(10) + "\u{1F4F1} Saldo \u2014 Cobra \u00E9l: " + fmt(bcom) + " CUP \u00B7 Neto tuyo: " + fmt(bneto) + " CUP (por 360)" + String.fromCharCode(10) + "\u{1F3E6} Transf \u2014 Cobra \u00E9l: " + fmt(btcom) + " CUP \u00B7 Neto tuyo: " + fmt(btneto) + " CUP (vuelta)"
+    : cur === "s"
+    ? "📱 SALDO\\n⚖️ Equilibrio: " + fmt(eq) + "\\n💰 Ganancia/360: " + fmt(g360) + " CUP\\n🧮 Ganancia total: " + fmt(total) + " CUP"
+    : "🏦 TRANSFERENCIA\\n🔄 Recibes: " + fmt(tr) + "\\n🪙 QUSD: " + fmt(qusd) + "\\n↩️ Regreso: " + fmt(regreso) + " CUP\\n💵 Ganancia: " + fmt(gan) + " CUP\\n📈 Margen: " + fmt(margen) + "%";
+  autosave();
 }
-function infoRow(table, label, value) {
-  const r = new UITableRow();
-  r.height = 26;
-  const a = UITableCell.text(label);
-  a.titleFont = Font.systemFont(15);
-  a.widthWeight = 55;
-  const b = UITableCell.text(value);
-  b.titleFont = Font.boldSystemFont(15);
-  b.widthWeight = 45;
-  b.rightAligned();
-  r.addCell(a);
-  r.addCell(b);
-  table.addRow(r);
-}
-function noteRow(table, text, color) {
-  const r = new UITableRow();
-  r.height = 24;
-  const c = UITableCell.text(text);
-  c.titleFont = Font.systemFont(13);
-  if (color) c.titleColor = color;
-  r.addCell(c);
-  table.addRow(r);
-}
-function editRow(table, label, value, onTap) {
-  const r = new UITableRow();
-  r.height = 30;
-  const c = UITableCell.text(label + ":  " + value);
-  c.titleFont = Font.systemFont(16);
-  c.widthWeight = 72;
-  const b = UITableCell.button("✏️ Cambiar");
-  b.widthWeight = 28;
-  b.rightAligned();
-  b.onTap = onTap;
-  b.dismissOnTap = true;
-  r.addCell(c);
-  r.addCell(b);
-  table.addRow(r);
-}
-function actionRow(table, label, onTap) {
-  const r = new UITableRow();
-  r.height = 32;
-  const b = UITableCell.button(label);
-  b.onTap = onTap;
-  b.dismissOnTap = true;
-  r.addCell(b);
-  table.addRow(r);
-}
-
-async function runApp() {
-  const data = loadData();
-  const s = calcSaldo(data.saldo);
-  const t = calcTransf(data.transf);
-  const bs = calcBuscSaldo(data.busc);
-  const bt = calcBuscTransf(data.busc);
-  const okS = data.saldo.tasa <= s.eq && s.g360 > 0;
-  const okT = data.transf.porc > t.eqp && t.ganancia > 0;
-  const okB1 = bs.excedente > 0;
-  const okB2 = data.busc.porc >= 25 && bt.ganancia > 0;
-
-  const table = new UITable();
-  table.showSeparators = true;
-
-  headerRow(table, "📌 CALCULADORA ERNESTO", GOLD);
-  noteRow(table, "Todo nativo, sin internet. Toca «Cambiar» en lo que quieras ajustar.", GRAY);
-
-  actionRow(table, "📋 Copiar resultados", () => {
-    Pasteboard.copyString(
-      "📌 CALCULADORA ERNESTO\n" +
-      "📱 SALDO — Eq " + fmt(s.eq) + " · G/360 " + fmt(s.g360) + " · Total " + fmt(s.total) + " CUP " + (okS ? "🟢" : "🔴") + "\n" +
-      "🏦 TRANSF — Eq al " + fmt(t.eqp) + "% · Ganancia " + fmt(t.ganancia) + " CUP · Regreso " + fmt(t.regreso) + " " + (okT ? "🟢" : "🔴") + "\n" +
-      "🤝 BUSCADOR SALDO — Cobra él " + fmt(bs.comision) + " · Neto tuyo " + fmt(bs.neto) + "\n" +
-      "🤝 BUSCADOR TRANSF — Cobra él " + fmt(bt.comision) + " · Neto tuyo " + fmt(bt.neto)
-    );
-  });
-
-  headerRow(table, "📱 SALDO", TEAL);
-  bigRow(table, fmt(s.total) + " CUP", okS ? GREEN : RED);
-  noteRow(table, okS ? "🟢 PUEDES VENDER" : "🔴 NO VENDAS A ESA TASA", okS ? GREEN : RED);
-  infoRow(table, "⚖️ Equilibrio (techo)", fmt(s.eq));
-  infoRow(table, "💰 Ganancia por 360", fmt(s.g360) + " CUP");
-  editRow(table, "💵 Salida con Miguel", fmt(data.saldo.salida), async () => {
-    const r = await editForm("📱 Saldo", "Salida con Miguel (CUP por QUSD)", [
-      { key: "salida", label: "Salida", value: data.saldo.salida }
-    ]);
-    if (r) { data.saldo.salida = r.salida; saveData(data); }
-  });
-  editRow(table, "🏷️ Costo por 360", fmt(data.saldo.costo), async () => {
-    const r = await editForm("📱 Saldo", "Costo de compra por cada 360 (con buscador incluido si aplica)", [
-      { key: "costo", label: "Costo por 360", value: data.saldo.costo }
-    ]);
-    if (r) { data.saldo.costo = r.costo; saveData(data); }
-  });
-  editRow(table, "📊 Tasa de venta", fmt(data.saldo.tasa), async () => {
-    const r = await editForm("📱 Saldo", "Tasa a la que vendes en QvaPay (saldo por QUSD)", [
-      { key: "tasa", label: "Tasa de venta", value: data.saldo.tasa }
-    ]);
-    if (r) { data.saldo.tasa = r.tasa; saveData(data); }
-  });
-  editRow(table, "📱 Saldo a vender", fmt(data.saldo.saldo), async () => {
-    const r = await editForm("📱 Saldo", "Cantidad de saldo que vas a vender", [
-      { key: "saldo", label: "Saldo", value: data.saldo.saldo }
-    ]);
-    if (r) { data.saldo.saldo = r.saldo; saveData(data); }
-  });
-  actionRow(table, "✏️ Editar TODO el saldo de una vez", async () => {
-    const r = await editForm("📱 Saldo — todo", "Los 4 datos del saldo. Lo que dejes igual, queda igual.", [
-      { key: "salida", label: "Salida con Miguel", value: data.saldo.salida },
-      { key: "costo", label: "Costo por 360", value: data.saldo.costo },
-      { key: "tasa", label: "Tasa de venta", value: data.saldo.tasa },
-      { key: "saldo", label: "Saldo a vender", value: data.saldo.saldo }
-    ]);
-    if (r) { data.saldo = r; saveData(data); }
-  });
-
-  headerRow(table, "🏦 TRANSFERENCIA", TEAL);
-  bigRow(table, fmt(t.ganancia) + " CUP", okT ? GREEN : RED);
-  noteRow(table, okT ? "🟢 LA VUELTA CIERRA" : "🔴 NO CIERRA", okT ? GREEN : RED);
-  infoRow(table, "🎯 Equilibrio", "al " + fmt(t.eqp) + "%");
-  infoRow(table, "📈 Margen real", fmt(t.margen) + "%");
-  infoRow(table, "↩️ Regreso", fmt(t.regreso) + " CUP");
-  infoRow(table, "💵 En QUSD", fmt(t.qusd));
-  editRow(table, "💵 Efectivo a mover", fmt(data.transf.efectivo), async () => {
-    const r = await editForm("🏦 Transferencia", "Efectivo que pones en la vuelta (CUP)", [
-      { key: "efectivo", label: "Efectivo", value: data.transf.efectivo }
-    ]);
-    if (r) { data.transf.efectivo = r.efectivo; saveData(data); }
-  });
-  editRow(table, "％ Prima (al %)", fmt(data.transf.porc) + "%", async () => {
-    const r = await editForm("🏦 Transferencia", "Prima de la vuelta: recibes ese % extra en transferencia", [
-      { key: "porc", label: "Al %", value: data.transf.porc }
-    ]);
-    if (r) { data.transf.porc = r.porc; saveData(data); }
-  });
-  editRow(table, "📖 Libro BANK_CUP", fmt(data.transf.libro), async () => {
-    const r = await editForm("🏦 Transferencia", "Libro BANK_CUP (transferencia por QUSD)", [
-      { key: "libro", label: "Libro", value: data.transf.libro }
-    ]);
-    if (r) { data.transf.libro = r.libro; saveData(data); }
-  });
-  editRow(table, "💵 Salida con Miguel", fmt(data.transf.salida), async () => {
-    const r = await editForm("🏦 Transferencia", "Salida con Miguel (CUP por QUSD)", [
-      { key: "salida", label: "Salida", value: data.transf.salida }
-    ]);
-    if (r) { data.transf.salida = r.salida; saveData(data); }
-  });
-  actionRow(table, "✏️ Editar TODA la transferencia de una vez", async () => {
-    const r = await editForm("🏦 Transferencia — todo", "Los 4 datos de la vuelta. Lo que dejes igual, queda igual.", [
-      { key: "efectivo", label: "Efectivo", value: data.transf.efectivo },
-      { key: "porc", label: "Al %", value: data.transf.porc },
-      { key: "libro", label: "Libro BANK_CUP", value: data.transf.libro },
-      { key: "salida", label: "Salida con Miguel", value: data.transf.salida }
-    ]);
-    if (r) { data.transf = r; saveData(data); }
-  });
-
-  headerRow(table, "🤝 BUSCADORES", TEAL);
-  bigRow(table, fmt(bs.comision) + " CUP", okB1 ? GREEN : RED);
-  noteRow(table, okB1 ? "🟢 cobra por cada 360 entregado" : "🔴 SIN EXCEDENTE: NO COMPRAR", okB1 ? GREEN : RED);
-  infoRow(table, "💰 Neto tuyo por 360", fmt(bs.neto) + " CUP");
-  infoRow(table, "🎁 Bono semanal", "150+ → +300 CUP");
-  editRow(table, "🏷️ Precio pagado al vendedor", fmt(data.busc.precio), async () => {
-    const r = await editForm("🤝 Buscador de saldo", "Precio REAL pagado al vendedor por 360 (lo confirmas tú)", [
-      { key: "precio", label: "Precio pagado", value: data.busc.precio }
-    ]);
-    if (r) { data.busc.precio = r.precio; saveData(data); }
-  });
-  editRow(table, "📊 Tasa de venta del día", fmt(data.busc.tasaVenta), async () => {
-    const r = await editForm("🤝 Buscador de saldo", "Tasa a la que venderás ese saldo hoy", [
-      { key: "tasaVenta", label: "Tasa de venta", value: data.busc.tasaVenta }
-    ]);
-    if (r) { data.busc.tasaVenta = r.tasaVenta; saveData(data); }
-  });
-  editRow(table, "💵 Salida (busc. saldo)", fmt(data.busc.salida), async () => {
-    const r = await editForm("🤝 Buscador de saldo", "Salida con Miguel para esta cuenta", [
-      { key: "salida", label: "Salida", value: data.busc.salida }
-    ]);
-    if (r) { data.busc.salida = r.salida; saveData(data); }
-  });
-  headerRow(table, "🤝 BUSCADOR TRANSF. " + (okB2 ? "🟢" : "🔴"), TEAL);
-  infoRow(table, "💸 Cobra él (vuelta)", fmt(bt.comision) + " CUP");
-  infoRow(table, "💰 Neto tuyo (vuelta)", fmt(bt.neto) + " CUP");
-  infoRow(table, "🎯 Piso · equilibrio", "al 25% · " + fmt(bt.eqp) + "%");
-  noteRow(table, "🎁 10+ tratos/semana → +300 CUP · Solo gente conocida", GRAY);
-  editRow(table, "💵 Efectivo (busc. transf.)", fmt(data.busc.efectivo), async () => {
-    const r = await editForm("🤝 Buscador de transferencia", "Efectivo de la vuelta que trae el buscador", [
-      { key: "efectivo", label: "Efectivo", value: data.busc.efectivo }
-    ]);
-    if (r) { data.busc.efectivo = r.efectivo; saveData(data); }
-  });
-  editRow(table, "％ Prima (busc. transf.)", fmt(data.busc.porc) + "%", async () => {
-    const r = await editForm("🤝 Buscador de transferencia", "Prima del trato (piso: al 25%)", [
-      { key: "porc", label: "Al %", value: data.busc.porc }
-    ]);
-    if (r) { data.busc.porc = r.porc; saveData(data); }
-  });
-  editRow(table, "📖 Libro (busc. transf.)", fmt(data.busc.libro), async () => {
-    const r = await editForm("🤝 Buscador de transferencia", "Libro BANK_CUP para esta cuenta", [
-      { key: "libro", label: "Libro", value: data.busc.libro }
-    ]);
-    if (r) { data.busc.libro = r.libro; saveData(data); }
-  });
-
-  noteRow(table, "Hecha por Máximo · v12 nativa", GRAY);
-  await table.present(true);
+function copiar(){ window.location.href = "ernesto://copy?d=" + encodeURIComponent(JSON.stringify({ text: lastText })); }
+function salir(){ window.location.href = "ernesto://exit"; }
+// init
+sv("s_salida", SAVED.saldo.salida); sv("s_costo", SAVED.saldo.costo); sv("s_tasa", SAVED.saldo.tasa); sv("s_saldo", SAVED.saldo.saldo);
+sv("t_efectivo", SAVED.transf.efectivo); sv("t_porc", SAVED.transf.porc); sv("t_libro", SAVED.transf.libro); sv("t_salida", SAVED.transf.salida);
+sv("b_precio", SAVED.busc.precio); sv("b_tasa", SAVED.busc.tasaVenta); sv("b_efectivo", SAVED.busc.efectivo); sv("b_porc", SAVED.busc.porc); sv("b_libro", SAVED.busc.libro); sv("b_salida", SAVED.busc.salida);
+document.querySelectorAll("input[type=number]").forEach(function(el){ el.addEventListener("input", render); });
+document.getElementById("t_slider").addEventListener("input", function(){ sv("t_porc", this.value); render(); });
+render();
+</script>
+</body>
+</html>`;
 }
 
 // ---------- MAIN ----------
-const data0 = loadData();
+const data = loadData();
 const qp = (typeof args !== "undefined" && args.queryParameters) || {};
 if (config.runsInWidget) {
-  Script.setWidget(buildWidget(data0));
+  Script.setWidget(buildWidget(data));
   Script.complete();
 } else if (!config.runsInApp && qp.full !== "1") {
   // Corrió desde Atajos (segundo plano): se relanza dentro de la app
-  // de Scriptable para que la tabla abra como una app de verdad.
+  // de Scriptable para que la pantalla abra como una app de verdad.
   const selfURL = "scriptable:///run/" + encodeURIComponent(Script.name()) + "?full=1";
   await Safari.open(selfURL);
   Script.complete();
 } else {
-  await runApp();
+  const wv = new WebView();
+  wv.shouldAllowRequest = (req) => {
+    const url = req.url || "";
+    if (url.indexOf("ernesto://") === 0) {
+      try {
+        const q = url.split("?d=")[1];
+        const payload = q ? JSON.parse(decodeURIComponent(q)) : {};
+        if (url.indexOf("ernesto://save") === 0) saveData(payload);
+        if (url.indexOf("ernesto://copy") === 0 && payload.text) Pasteboard.copyString(payload.text);
+        if (url.indexOf("ernesto://exit") === 0) Script.complete();
+      } catch (e) {}
+      return false;
+    }
+    return true;
+  };
+  await wv.loadHTML(buildHTML(data));
+  await wv.present(true);
   Script.complete();
 }
