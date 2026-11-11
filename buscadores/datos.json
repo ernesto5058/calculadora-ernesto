@@ -1,5 +1,6 @@
 {
-  "actualizado": "2026-11-10",
+  "actualizado": "2026-11-11",
+  "apkUrl": "https://github.com/ernesto5058/calculadora-ernesto/releases/download/apk-v1.4.4/Mi-Trabajo-v1.4.4.apk",
   "buscadores": {
     "ABRAHAM-5ZU": {
       "nombre": "Abraham",
@@ -9,6 +10,17 @@
       "nombre": "Briku",
       "tratos": []
     }
+  },
+  "publico": {
+    "domicilio": "Domicilio gratis en Santiago de Cuba",
+    "saldo": {
+      "desdeAlta": 5000,
+      "recarga": 720,
+      "tasa": 2,
+      "tasaAlta": 2.2
+    },
+    "telefono": "51231558",
+    "zona": "Micro 10, distrito José Martí, Santiago de Cuba"
   },
   "tarifa": {
     "bonoSaldoMeta": 150,
@@ -23,6 +35,5 @@
     "salidaRef": 950
   },
   "version": 4,
-  "versionApp": "1.4.3",
-  "apkUrl": "https://github.com/ernesto5058/calculadora-ernesto/releases/download/apk-v1.4.3/Mi-Trabajo-v1.4.3.apk"
+  "versionApp": "1.4.4"
 }
