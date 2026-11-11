@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0B0E13">
+<title>Mercado</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Mercado">
+<link rel="stylesheet" href="tema-pro.css">
+<style>
+  /* «Mercado» — estilos propios SOLO con tokens de tema-pro.css
+     (cero hex sueltos: regla §9.1 del DISENO-PRO). */
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg-0); color: var(--txt-1); font: var(--t-cuerpo);
+    -webkit-font-smoothing: antialiased; min-height: 100dvh;
+  }
+  .envoltura { max-width: 560px; margin: 0 auto; padding: 0 var(--e-4); }
+  .cab-app {
+    position: sticky; top: 0; z-index: 20;
+    background: var(--glass); -webkit-backdrop-filter: blur(20px) saturate(1.5);
+    backdrop-filter: blur(20px) saturate(1.5);
+    border-bottom: 1px solid var(--glass-borde);
+  }
+  .cab-fila {
+    display: flex; align-items: center; gap: var(--e-3);
+    padding: var(--e-3) var(--e-4); max-width: 560px; margin: 0 auto;
+  }
+  .cab-titulo { font: var(--t-seccion); letter-spacing: -0.01em; }
+  .cab-sello { margin-left: auto; text-align: right; font: var(--t-nota); color: var(--txt-3); }
+  .btn-refrescar {
+    width: 44px; height: 44px; border-radius: 999px; flex: none;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--bg-2); border: 1px solid var(--borde-fuerte);
+    color: var(--dorado); cursor: pointer;
+  }
+  .btn-refrescar:active { transform: scale(0.97); }
+  .btn-refrescar svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+  .btn-refrescar.girando svg { animation: gira 0.9s linear infinite; }
+  @keyframes gira { to { transform: rotate(360deg); } }
+  main { padding: var(--e-4) 0 calc(96px + env(safe-area-inset-bottom)); }
+  .pantalla { display: none; }
+  .pantalla.activa { display: block; animation: entra var(--anim) both; }
+  @keyframes entra { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+  .explica { font: var(--t-sub); color: var(--txt-2); margin: 0 0 var(--e-3); }
+  .heroe-num { font: var(--t-display); font-family: var(--fuente-num); font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+  .heroe-num .unidad { font: var(--t-sub); color: var(--txt-2); font-family: var(--fuente); }
+  .rejilla2 { display: grid; grid-template-columns: 1fr 1fr; gap: var(--e-3); }
+  .dato { background: var(--bg-2); border: 1px solid var(--borde); border-radius: var(--r-md); padding: var(--e-3); }
+  .dato .etiqueta { margin-bottom: var(--e-1); }
+  .dato .valor { font: 600 20px/1.2 var(--fuente-num); font-variant-numeric: tabular-nums; }
+  .dato .valor .unidad { font: var(--t-nota); color: var(--txt-2); font-family: var(--fuente); }
+  .dato .nota { font: var(--t-nota); color: var(--txt-3); margin-top: var(--e-1); }
+  .seccion-tit { font: var(--t-seccion); margin: var(--e-5) 0 var(--e-3); }
+  .sello {
+    display: inline-flex; align-items: center; gap: var(--e-2);
+    padding: var(--e-1) var(--e-3); border-radius: 999px;
+    font: var(--t-micro); letter-spacing: 0.04em; text-transform: uppercase;
+  }
+  .sello .punto { width: 8px; height: 8px; border-radius: 999px; background: currentColor; flex: none; }
+  .sello.fresca { background: var(--verde-suave); color: var(--verde); }
+  .sello.vieja { background: var(--rojo-suave); color: var(--rojo); }
+  .sello.respaldo { background: var(--ambar-suave); color: var(--ambar); }
+  .sello.neutro { background: var(--bg-2); color: var(--txt-2); }
+  .barra { height: 8px; border-radius: 999px; background: var(--bg-2); overflow: hidden; border: 1px solid var(--borde); }
+  .barra > i { display: block; height: 100%; background: var(--dorado-grad); border-radius: 999px; }
+  .semaforo { display: flex; gap: var(--e-3); align-items: flex-start; }
+  .semaforo .luz {
+    width: 56px; height: 56px; border-radius: 999px; flex: none;
+    display: flex; align-items: center; justify-content: center;
+    border: 1px solid var(--borde-fuerte); background: var(--bg-2); color: var(--txt-3);
+  }
+  .semaforo .luz svg { width: 28px; height: 28px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+  .semaforo.verde .luz { background: var(--verde-suave); color: var(--verde); border-color: var(--verde); }
+  .semaforo.ambar .luz { background: var(--ambar-suave); color: var(--ambar); border-color: var(--ambar); }
+  .mini-grafica { width: 100%; height: 72px; display: block; }
+  .fila-hora { font: var(--t-nota); color: var(--txt-3); white-space: nowrap; }
+  .pie-nota { font: var(--t-nota); color: var(--txt-3); margin-top: var(--e-3); }
+  .aviso-banda { margin-bottom: var(--e-3); }
+</style>
+</head>
+<body>
+<header class="cab-app">
+  <div class="cab-fila">
+    <div>
+      <div class="cab-titulo">Mercado</div>
+      <div class="t-nota" style="color:var(--txt-3)" id="cabSub">Tu vigía del mercado QvaPay</div>
+    </div>
+    <div class="cab-sello" id="selloVersion">Mercado v1</div>
+    <button class="btn-refrescar" id="btnRefrescar" aria-label="Actualizar ahora">
+      <svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.34-5.66"/><path d="M20 3v4h-4"/></svg>
+    </button>
+  </div>
+</header>
+
+<main class="envoltura">
+  <section class="pantalla activa" id="pgAhora">
+    <div id="ctAhora"></div>
+  </section>
+  <section class="pantalla" id="pgEquilibrio">
+    <div id="ctEquilibrio"></div>
+  </section>
+  <section class="pantalla" id="pgDemanda">
+    <div id="ctDemanda"></div>
+  </section>
+  <section class="pantalla" id="pgPromos">
+    <div id="ctPromos"></div>
+  </section>
+  <section class="pantalla" id="pgHistorial">
+    <div id="ctHistorial"></div>
+  </section>
+  <section class="pantalla" id="pgAvisos">
+    <div id="ctAvisos"></div>
+  </section>
+</main>
+
+<nav class="tabbar" id="tabbar">
+  <button class="tab activa" data-pg="pgAhora">
+    <svg viewBox="0 0 24 24"><path d="M4 20V10"/><path d="M10 20V4"/><path d="M16 20v-8"/><path d="M22 20H2"/></svg>
+    Ahora
+  </button>
+  <button class="tab" data-pg="pgEquilibrio">
+    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="1" fill="currentColor"/></svg>
+    Equilibrio
+  </button>
+  <button class="tab" data-pg="pgDemanda">
+    <svg viewBox="0 0 24 24"><path d="M12 3c1 3-2 4.5-2 7a4.5 4.5 0 0 0 9 0c0-1.5-.5-2.5-1-3.5-1.5 1-2 2-2 2 .5-2.5-.5-5-3-6z"/><path d="M9.5 13.5A4.5 4.5 0 0 0 12 21a4.5 4.5 0 0 0 2.5-7.5c-1 1-1.5 1.5-2.5 1.5s-1.5-.5-2.5-1.5z" opacity=".55"/></svg>
+    Demanda
+  </button>
+  <button class="tab" data-pg="pgPromos">
+    <svg viewBox="0 0 24 24"><rect x="3" y="8" width="18" height="4"/><path d="M5 12v9h14v-9"/><path d="M12 8v13"/><path d="M12 8s-4.5.3-4.5-2A1.8 1.8 0 0 1 11 4.5C12.2 5 12 8 12 8z"/><path d="M12 8s4.5.3 4.5-2A1.8 1.8 0 0 0 13 4.5C11.8 5 12 8 12 8z"/></svg>
+    Promos
+  </button>
+  <button class="tab" data-pg="pgHistorial">
+    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg>
+    Historial
+  </button>
+  <button class="tab" data-pg="pgAvisos">
+    <svg viewBox="0 0 24 24"><path d="M18 9a6 6 0 1 0-12 0c0 6-2.5 7-2.5 7h17S18 15 18 9z"/><path d="M10 20a2.2 2.2 0 0 0 4 0"/></svg>
+    Avisos
+  </button>
+</nav>
+
+<script>
+"use strict";
+/* =====================================================================
+   «Mercado» — la vigilancia del mercado QvaPay de Ernesto como app
+   suya: un lector en SU Supabase guarda una foto cada 15 minutos y
+   esta app la lee por puertas de SOLO LECTURA (mercado_ultima_foto,
+   mercado_historial, mercado_promos, mercado_avisos). La app no puede
+   tocar nada más de su base.
+   Honestidad de frescura siempre visible: dos relojes (origen del
+   dato y recepción de la foto), sello FRESCA / VIEJA / RESPALDO y,
+   sin conexión, la última foto guardada con «dato de hace X».
+   El equilibrio sale de la TARIFA VIVA y del costo cargado en su
+   base: sin costo, el número NO se inventa (se explica qué falta).
+   ===================================================================== */
+const MERCADO_VERSION = "v1";
+const SELLO = "Mercado · versión 2026-11-11 14:29 · caché v1";
+const SB_URL = "https://otsudfgwpapkluusrlnj.supabase.co";
+const SB_KEY = "sb_publishable_Uchl5QnojJkZbXR5ar8vDg_5CXnqi_d"; // pública: solo lee por las puertas de mercado
+const LS_CLAVE = "mercado_cache_v1";
+const RESPALDO_URL = "https://ernesto5058.github.io/calculadora-ernesto/datos/ultimo.json";
+
+const S = { datos: null, errorRed: false, cargando: false, ultimoIntento: 0 };
+
+/* ---------------- utilidades ---------------- */
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => (
+  { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+function num(x) { if (x === null || x === undefined || x === "") return null; const n = Number(x); return Number.isFinite(n) ? n : null; }
+function fmt(x, dec) {
+  const n = num(x); if (n === null) return "—";
+  return n.toLocaleString("es-ES", { minimumFractionDigits: dec || 0, maximumFractionDigits: dec || 0 });
+}
+function fmtTasa(x) { return fmt(x, 2); }
+const FMT_HORA = new Intl.DateTimeFormat("es-CU", { timeZone: "America/Havana", hour: "2-digit", minute: "2-digit" });
+const FMT_DIA = new Intl.DateTimeFormat("es-CU", { timeZone: "America/Havana", day: "numeric", month: "short" });
+function hora(iso) { if (!iso) return "—"; try { return FMT_HORA.format(new Date(iso)); } catch (e) { return "—"; } }
+function diaHora(iso) { if (!iso) return "—"; try { return FMT_DIA.format(new Date(iso)) + " · " + FMT_HORA.format(new Date(iso)); } catch (e) { return "—"; } }
+function haceTxt(iso) {
+  if (!iso) return "sin hora";
+  const min = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000));
+  if (min < 1) return "ahora mismo";
+  if (min < 60) return "hace " + min + " min";
+  const h = Math.floor(min / 60);
+  if (h < 24) return "hace " + h + " h" + (min % 60 ? " " + (min % 60) + " min" : "");
+  return "hace " + Math.floor(h / 24) + " días";
+}
+function edadMin(iso) { if (!iso) return Infinity; return (Date.now() - new Date(iso).getTime()) / 60000; }
+
+/* ---------------- datos ---------------- */
+async function rpc(nombre, args) {
+  const r = await fetch(SB_URL + "/rest/v1/rpc/" + nombre, {
+    method: "POST",
+    headers: { apikey: SB_KEY, Authorization: "Bearer " + SB_KEY, "Content-Type": "application/json" },
+    body: JSON.stringify(args || {}),
+  });
+  if (!r.ok) throw new Error("puerta " + nombre + " HTTP " + r.status);
+  return await r.json();
+}
+function guardarCache() {
+  try { localStorage.setItem(LS_CLAVE, JSON.stringify({ datos: S.datos, guardadoEn: new Date().toISOString() })); } catch (e) {}
+}
+function leerCache() {
+  try { const c = JSON.parse(localStorage.getItem(LS_CLAVE) || "null"); return c && c.datos ? c.datos : null; } catch (e) { return null; }
+}
+
+/* Si aún no hay fotos del lector, la primera foto es la del vigía del
+   repo (datos/ultimo.json), marcada RESPALDO y VIEJA según su hora. */
+async function fotoRespaldoRepo() {
+  const r = await fetch(RESPALDO_URL, { cache: "no-store" });
+  if (!r.ok) return null;
+  const d = await r.json();
+  const et = d.ETECSA || {}, bc = d.BANK_CUP || {};
+  return {
+    foto: {
+      recibida_en: d.ts || null, origen_en: d.ts || null, origen: "respaldo",
+      fresca: false, libro_ok: false,
+      etecsa_top_compra: null, etecsa_nivel20: null, etecsa_top_venta: null,
+      etecsa_promedio: num(et.average), etecsa_promedio_compra: num(et.average_buy),
+      etecsa_promedio_venta: num(et.average_sell),
+      etecsa_count: num(et.count), etecsa_count_buy: num(et.count_buy), etecsa_count_sell: num(et.count_sell),
+      bankcup_promedio: num(bc.average), bankcup_count: num(bc.count),
+      salida_ref: null, costo_ref: null, equilibrio: null,
+    },
+    estado: { demanda_pendiente: 0, demanda_alertada: false, lector_con_libro: false },
+    config: { costo_ref360: null, umbral_count_buy: 25, umbral_nivel20: 300 },
+    tarifa: null,
+  };
+}
+
+async function cargar() {
+  if (S.cargando) return;
+  S.cargando = true; S.ultimoIntento = Date.now();
+  const btn = $("btnRefrescar"); if (btn) btn.classList.add("girando");
+  try {
+    const [u, h, p, a] = await Promise.all([
+      rpc("mercado_ultima_foto"), rpc("mercado_historial", { p_limite: 48 }),
+      rpc("mercado_promos"), rpc("mercado_avisos"),
+    ]);
+    let ultima = u;
+    if (!ultima || !ultima.foto) {
+      const respaldo = await fotoRespaldoRepo().catch(() => null);
+      if (respaldo) ultima = respaldo;
+    }
+    S.datos = { ultima, historial: Array.isArray(h) ? h : [], promos: Array.isArray(p) ? p : [], avisos: a || {} };
+    S.errorRed = false;
+    guardarCache();
+  } catch (e) {
+    S.errorRed = true;
+    if (!S.datos) S.datos = leerCache();
+  }
+  S.cargando = false;
+  if (btn) btn.classList.remove("girando");
+  renderTodo();
+}
+
+/* ---------------- estado del dato (frescura honesta) ---------------- */
+/* Devuelve {clase, texto}: fresca (verde) · vieja (rojo) · respaldo (ámbar). */
+function estadoDato(foto) {
+  if (!foto) return { clase: "neutro", texto: "SIN DATOS" };
+  const vieja = edadMin(foto.origen_en || foto.recibida_en) > 30 || edadMin(foto.recibida_en) > 45;
+  if (vieja) return { clase: "vieja", texto: "DATO VIEJO" };
+  if (!foto.libro_ok || foto.origen === "respaldo") return { clase: "respaldo", texto: "RESPALDO · SIN LIBRO" };
+  return { clase: "fresca", texto: "FRESCA" };
+}
+function bandaRed() {
+  if (!S.errorRed) return "";
+  const f = S.datos && S.datos.ultima && S.datos.ultima.foto;
+  return '<div class="aviso error aviso-banda">Sin conexión ahora: te muestro la última foto guardada' +
+    (f ? ", recibida " + haceTxt(f.recibida_en) : "") + ".</div>";
+}
+/* Sin datos y con error de red: error en palabras claras (estado
+   obligatorio del DISENO-PRO), nunca un esqueleto eterno. */
+function sinDatos() {
+  if (S.errorRed) return '<div class="aviso error">No pude leer tu servidor y no hay ninguna ' +
+    'foto guardada en este teléfono. Revisa la conexión y toca el botón de actualizar.</div>';
+  return esqueleto();
+}
+function esqueleto() {
+  return '<div class="esqueleto" style="height:120px;border-radius:var(--r-xl);margin-bottom:var(--e-3)"></div>' +
+         '<div class="esqueleto" style="height:84px;border-radius:var(--r-lg)"></div>';
+}
+function fotoActual() { return S.datos && S.datos.ultima ? S.datos.ultima.foto : null; }
+
+/* ---------------- pantalla: Ahora ---------------- */
+function renderAhora() {
+  const el = $("ctAhora"); if (!el) return;
+  if (!S.datos) { el.innerHTML = sinDatos(); return; }
+  const u = S.datos.ultima || {}, f = u.foto;
+  let h = bandaRed() + '<p class="explica">El mercado QvaPay ahora mismo, leído por tu propio servidor cada 15 minutos.</p>';
+  if (!f) {
+    el.innerHTML = h + '<div class="estado"><div class="estado-tit">Todavía no hay fotos del mercado</div>' +
+      '<p>Tu lector guarda la primera foto en su próxima lectura. Vuelve en unos minutos.</p></div>';
+    return;
+  }
+  const ed = estadoDato(f);
+  const heroeValor = num(f.etecsa_nivel20) !== null ? f.etecsa_nivel20 : f.etecsa_promedio;
+  const heroeEtiqueta = num(f.etecsa_nivel20) !== null ? "NIVEL DE 20 USD · ETECSA" : "PROMEDIO 24 H · ETECSA";
+  h += '<div class="card heroe">' +
+    '<div class="etiqueta">' + heroeEtiqueta + '</div>' +
+    '<div class="heroe-num">' + fmtTasa(heroeValor) + ' <span class="unidad">saldo por QUSD</span></div>' +
+    '<div style="margin-top:var(--e-3);display:flex;gap:var(--e-2);flex-wrap:wrap;align-items:center">' +
+      '<span class="sello ' + ed.clase + '"><span class="punto"></span>' + ed.texto + '</span>' +
+      '<span class="t-nota" style="color:var(--txt-3)">Foto ' + hora(f.recibida_en) + ' · dato de origen ' + hora(f.origen_en) + ' (' + haceTxt(f.origen_en || f.recibida_en) + ')</span>' +
+    '</div>' +
+    (num(f.etecsa_nivel20) === null
+      ? '<p class="pie-nota">Sin libro todavía: esto es el promedio de operaciones reales. El nivel de 20 USD llega cuando el lector tenga las credenciales de tu app «Vigila Mercado».</p>'
+      : '<p class="pie-nota">El nivel de 20 USD es la mejor tasa de compra con al menos 20 USD detrás: el nivel que manda, no un anuncio suelto.</p>') +
+  '</div>';
+  const dato = (et, val, unidad, nota) =>
+    '<div class="dato"><div class="etiqueta">' + et + '</div><div class="valor">' + val +
+    (unidad ? ' <span class="unidad">' + unidad + '</span>' : '') + '</div>' +
+    (nota ? '<div class="nota">' + nota + '</div>' : '') + '</div>';
+  h += '<div class="rejilla2" style="margin-top:var(--e-3)">' +
+    dato("TOP COMPRA", fmtTasa(f.etecsa_top_compra), "saldo/QUSD", "La tasa más alta que pagan por saldo") +
+    dato("TOP VENTA", fmtTasa(f.etecsa_top_venta), "saldo/QUSD", "La tasa más baja a la que venden saldo") +
+    dato("PROMEDIO 24 H", fmtTasa(f.etecsa_promedio), "saldo/QUSD",
+      "Compra " + fmtTasa(f.etecsa_promedio_compra) + " · Venta " + fmtTasa(f.etecsa_promedio_venta)) +
+    dato("COMPRAS REALES", fmt(f.etecsa_count_buy), "",
+      "Operaciones de compra completadas · total " + fmt(f.etecsa_count) + " en la ventana de la fuente") +
+    dato("BANK_CUP", fmtTasa(f.bankcup_promedio), "CUP por QUSD", "Lo que cuesta 1 QUSD pagando por transferencia") +
+    dato("VENTAS REALES", fmt(f.etecsa_count_sell), "", "Operaciones de venta completadas en la ventana") +
+  '</div>';
+  el.innerHTML = h;
+}
+
+/* ---------------- pantalla: Equilibrio ---------------- */
+function renderEquilibrio() {
+  const el = $("ctEquilibrio"); if (!el) return;
+  if (!S.datos) { el.innerHTML = sinDatos(); return; }
+  const u = S.datos.ultima || {}, f = u.foto || {};
+  const tarifa = u.tarifa || {};
+  const salida = num(tarifa.salida_ref) !== null ? tarifa.salida_ref : f.salida_ref;
+  const costo = u.config ? u.config.costo_ref360 : null;
+  const eq = num(f.equilibrio);
+  let h = bandaRed() + '<p class="explica">Tu tasa de empate del día: si vendes por encima de ella ganas; por debajo, pierdes.</p>';
+  if (eq === null) {
+    h += '<div class="estado"><div class="estado-tit">Falta tu costo del día</div>' +
+      '<p>El equilibrio es 360 × salida ÷ costo. Tu salida viva de la tarifa es <b>' + fmt(salida) +
+      ' CUP por QUSD</b>, pero tu costo (CUP por recarga de 360, el de tu CalculadoraPRO) todavía no está ' +
+      'cargado en tu base. Sin ese dato el número no se inventa: en cuanto quede cargado, aquí verás tu empate exacto.</p></div>';
+    el.innerHTML = h; return;
+  }
+  h += '<div class="card heroe"><div class="etiqueta">TU EQUILIBRIO HOY</div>' +
+    '<div class="heroe-num">' + fmtTasa(eq) + ' <span class="unidad">saldo por QUSD</span></div>' +
+    '<p class="pie-nota">Equilibrio = 360 × salida ÷ costo = 360 × ' + fmt(salida) + ' ÷ ' + fmt(costo) +
+    ' (salida en CUP por QUSD · costo en CUP por recarga de 360). Tarifa actualizada ' + diaHora(tarifa.actualizado) + '.</p></div>';
+  const niv = num(f.etecsa_nivel20);
+  if (niv !== null) {
+    const dif = Math.round((eq - niv) * 100) / 100;
+    const debajo = niv <= eq;
+    h += '<div class="card" style="margin-top:var(--e-3)">' +
+      '<div class="etiqueta">EL LIBRO CONTRA TU EQUILIBRIO</div>' +
+      '<p style="margin:var(--e-2) 0 0">El nivel de 20 USD está en <b class="num">' + fmtTasa(niv) +
+      ' saldo por QUSD</b>: <span class="' + (debajo ? "verde" : "rojo") + '">' +
+      (debajo
+        ? Math.abs(dif) < 0.005 ? "justo en tu equilibrio." : fmtTasa(Math.abs(dif)) + " por debajo de tu equilibrio — puedes vender sin perder."
+        : fmtTasa(Math.abs(dif)) + " por ENCIMA de tu equilibrio — a esa tasa perderías; tu tope es " + fmtTasa(eq) + ".") +
+      '</span></p></div>';
+  } else {
+    h += '<div class="aviso info" style="margin-top:var(--e-3)">Sin libro en la última foto: la comparación con el nivel de 20 USD llega cuando el lector tenga las credenciales de «Vigila Mercado».</div>';
+  }
+  el.innerHTML = h;
+}
+
+/* ---------------- pantalla: Demanda ---------------- */
+function renderDemanda() {
+  const el = $("ctDemanda"); if (!el) return;
+  if (!S.datos) { el.innerHTML = sinDatos(); return; }
+  const u = S.datos.ultima || {}, f = u.foto || {}, st = u.estado || {}, cfg = u.config || {};
+  const umbralCount = num(cfg.umbral_count_buy) || 25;
+  const umbralNivel = num(cfg.umbral_nivel20) || 300;
+  const cb = num(f.etecsa_count_buy), niv = num(f.etecsa_nivel20);
+  const alertada = st.demanda_alertada === true, pendiente = num(st.demanda_pendiente) || 0;
+  const sinLibro = !f.libro_ok;
+  const vieja = estadoDato(f).clase === "vieja";
+  let clase = "", titulo = "", texto = "";
+  if (alertada) {
+    clase = "verde"; titulo = "VOLVIÓ LA DEMANDA";
+    texto = "Confirmada en dos lecturas seguidas de tu lector. El aviso ya salió por tu Telegram.";
+  } else if (pendiente >= 1) {
+    clase = "ambar"; titulo = "Una lectura ya cumple";
+    texto = "Falta que la próxima lectura (en ~15 min) lo confirme. Todavía no aviso: una sola lectura puede ser ruido, y tú pediste dos confirmaciones.";
+  } else if (sinLibro) {
+    clase = ""; titulo = "Vigilando en respaldo";
+    texto = "Sin el libro no hay nivel de 20 USD, y sin ese nivel tu regla no se puede confirmar: la vigilancia completa arranca cuando el lector tenga las credenciales de tu app «Vigila Mercado». Los conteos de compras sí se vigilan.";
+  } else if (vieja) {
+    clase = ""; titulo = "Última foto vieja";
+    texto = "Con un dato viejo no se concluye nada. En cuanto llegue una foto fresca, la regla se evalúa otra vez.";
+  } else {
+    clase = ""; titulo = "Sin demanda por ahora";
+    texto = "Tu regla pide " + umbralCount + "+ compras y nivel de 20 USD en " + fmt(umbralNivel) + " o menos. Hoy no se cumple: silencio, como pediste.";
+  }
+  let h = bandaRed() + '<p class="explica">Tu regla: vuelve la demanda con ' + umbralCount + '+ compras reales y el nivel de 20 USD en ' +
+    fmt(umbralNivel) + ' o menos, confirmado en dos lecturas seguidas.</p>';
+  h += '<div class="card"><div class="semaforo ' + clase + '">' +
+    '<div class="luz"><svg viewBox="0 0 24 24"><path d="M12 3c1 3-2 4.5-2 7a4.5 4.5 0 0 0 9 0c0-1.5-.5-2.5-1-3.5-1.5 1-2 2-2 2 .5-2.5-.5-5-3-6z"/></svg></div>' +
+    '<div><div class="t-seccion">' + titulo + '</div><p class="t-sub" style="color:var(--txt-2);margin:var(--e-1) 0 0">' + texto + '</p></div>' +
+  '</div></div>';
+  const pctCount = cb === null ? 0 : Math.min(100, Math.round((cb / umbralCount) * 100));
+  h += '<div class="card" style="margin-top:var(--e-3)">' +
+    '<div class="fila" style="padding:0 0 var(--e-2)"><div class="fila-tit">Compras reales: ' + fmt(cb) + ' de ' + umbralCount + '</div>' +
+    '<div class="fila-hora">' + pctCount + '%</div></div>' +
+    '<div class="barra"><i style="width:' + pctCount + '%"></i></div>' +
+    '<div class="fila" style="padding:var(--e-3) 0 0"><div class="fila-tit">Nivel de 20 USD: ' + (niv === null ? "sin libro" : fmtTasa(niv) + " saldo por QUSD") + '</div>' +
+    '<div class="fila-hora">tope ' + fmt(umbralNivel) + '</div></div>' +
+    '<p class="pie-nota">Foto ' + diaHora(f.recibida_en) + ' · dato de origen ' + haceTxt(f.origen_en || f.recibida_en) + '. Dos lecturas seguidas o nada: esa es tu regla.</p>' +
+  '</div>';
+  el.innerHTML = h;
+  /* Punto en la pestaña cuando hay algo que mirar */
+  const tab = document.querySelector('[data-pg="pgDemanda"]');
+  if (tab) {
+    let b = tab.querySelector(".badge");
+    if (alertada || pendiente >= 1) {
+      if (!b) { b = document.createElement("span"); b.className = "badge"; tab.appendChild(b); }
+      b.textContent = alertada ? "1" : "·";
+    } else if (b) b.remove();
+  }
+}
+
+/* ---------------- pantalla: Promos ---------------- */
+function renderPromos() {
+  const el = $("ctPromos"); if (!el) return;
+  if (!S.datos) { el.innerHTML = sinDatos(); return; }
+  const promos = S.datos.promos || [];
+  let h = bandaRed() + '<p class="explica">Las promos conocidas no se vuelven a avisar. Solo una promo NUEVA y confirmada te llega por Telegram.</p>';
+  if (!promos.length) {
+    h += '<div class="estado"><div class="estado-tit">Sin promos registradas</div><p>Cuando tu lector detecte un cambio en la página oficial de ETECSA, la candidata aparece aquí.</p></div>';
+  } else {
+    h += '<div class="card lista" style="padding:0 var(--e-4)">';
+    for (const p of promos) {
+      const cand = p.estado === "candidata";
+      const rango = p.desde ? (diaHora(p.desde + "T12:00:00Z").split(" · ")[0] + (p.hasta ? " → " + diaHora(p.hasta + "T12:00:00Z").split(" · ")[0] : "")) : "";
+      h += '<div class="fila"><div class="fila-cuerpo">' +
+        '<div class="fila-tit">' + esc(p.titulo) + '</div>' +
+        '<div class="fila-sub">' + esc(p.detalle || "") + (rango ? " · " + rango : "") + '</div></div>' +
+        '<span class="etiqueta" style="color:' + (cand ? "var(--ambar)" : "var(--txt-3)") + '">' + (cand ? "POR CONFIRMAR" : "CONOCIDA") + '</span></div>';
+    }
+    h += '</div>';
+  }
+  h += '<p class="pie-nota">Tu lector revisa la página oficial de la recarga internacional en cada lectura: si cambia, la candidata aparece aquí marcada POR CONFIRMAR (sin aviso por Telegram hasta confirmarla).</p>';
+  el.innerHTML = h;
+}
+
+/* ---------------- pantalla: Historial ---------------- */
+function renderHistorial() {
+  const el = $("ctHistorial"); if (!el) return;
+  if (!S.datos) { el.innerHTML = sinDatos(); return; }
+  const hist = (S.datos.historial || []).slice();
+  let h = bandaRed() + '<p class="explica">Cada foto que tu lector guarda, una cada 15 minutos: así se ve el mercado moverse.</p>';
+  if (!hist.length) {
+    h += '<div class="estado"><div class="estado-tit">Historial vacío</div><p>Las fotos se acumulan solas con cada lectura de tu lector.</p></div>';
+    el.innerHTML = h; return;
+  }
+  /* Mini-gráfica: línea del promedio ETECSA (o nivel20) foto a foto */
+  const serie = hist.slice().reverse()
+    .map((x) => ({ t: x.recibida_en, v: num(x.etecsa_nivel20) !== null ? num(x.etecsa_nivel20) : num(x.etecsa_promedio) }))
+    .filter((x) => x.v !== null);
+  if (serie.length >= 2) {
+    const W = 320, H = 72, PAD = 6;
+    const vs = serie.map((x) => x.v);
+    const min = Math.min.apply(null, vs), max = Math.max.apply(null, vs), rango = (max - min) || 1;
+    const pts = serie.map((x, i) => {
+      const px = PAD + (i / (serie.length - 1)) * (W - PAD * 2);
+      const py = H - PAD - ((x.v - min) / rango) * (H - PAD * 2);
+      return px.toFixed(1) + "," + py.toFixed(1);
+    }).join(" ");
+    h += '<div class="card"><div class="etiqueta">NIVEL / PROMEDIO ETECSA · SALDO POR QUSD</div>' +
+      '<svg class="mini-grafica" viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none" style="margin-top:var(--e-2)">' +
+      '<polyline points="' + pts + '" fill="none" stroke="var(--dorado)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/></svg>' +
+      '<div style="display:flex;justify-content:space-between"><span class="t-nota" style="color:var(--txt-3)">' + diaHora(serie[0].t) + '</span>' +
+      '<span class="t-nota" style="color:var(--txt-3)">máx ' + fmtTasa(max) + ' · mín ' + fmtTasa(min) + '</span>' +
+      '<span class="t-nota" style="color:var(--txt-3)">' + diaHora(serie[serie.length - 1].t) + '</span></div></div>';
+  }
+  h += '<div class="seccion-tit">Fotos guardadas</div><div class="card lista" style="padding:0 var(--e-4)">';
+  for (const x of hist) {
+    const ed = x.libro_ok ? (x.fresca ? "FRESCA" : "VIEJA") : "RESPALDO";
+    const col = ed === "FRESCA" ? "var(--verde)" : (ed === "VIEJA" ? "var(--rojo)" : "var(--ambar)");
+    h += '<div class="fila"><div class="fila-cuerpo">' +
+      '<div class="fila-tit num">' + fmtTasa(x.etecsa_nivel20 !== null && x.etecsa_nivel20 !== undefined ? x.etecsa_nivel20 : x.etecsa_promedio) + ' saldo por QUSD</div>' +
+      '<div class="fila-sub">Compras ' + fmt(x.etecsa_count_buy) + ' · ' + (num(x.equilibrio) !== null ? "equilibrio " + fmtTasa(x.equilibrio) : "sin equilibrio") + '</div></div>' +
+      '<div style="text-align:right"><div class="fila-hora">' + diaHora(x.recibida_en) + '</div>' +
+      '<div class="etiqueta" style="color:' + col + '">' + ed + '</div></div></div>';
+  }
+  h += '</div>';
+  el.innerHTML = h;
+}
+
+/* ---------------- pantalla: Avisos ---------------- */
+function renderAvisos() {
+  const el = $("ctAvisos"); if (!el) return;
+  if (!S.datos) { el.innerHTML = sinDatos(); return; }
+  const a = S.datos.avisos || {};
+  const f = fotoActual() || {};
+  let h = bandaRed() + '<p class="explica">Por aquí te llegan los avisos confirmados de demanda. Sin evento, silencio total: así lo pediste.</p>';
+  const filaEstado = (tit, okTxt, malTxt, ok) =>
+    '<div class="fila"><div class="fila-cuerpo"><div class="fila-tit">' + tit + '</div>' +
+    '<div class="fila-sub">' + (ok ? okTxt : malTxt) + '</div></div>' +
+    '<span class="punto-linea" style="background:' + (ok ? "var(--en-linea)" : "var(--ambar)") + '"></span></div>';
+  h += '<div class="card lista" style="padding:0 var(--e-4)">' +
+    filaEstado("Bot de Telegram", "Vinculado: los avisos te llegan al momento.", "Sin vincular: entra a tu bot y toca Vincular.", a.bot_vinculado === true) +
+    filaEstado("Lector del mercado", "Completo: lee el libro entero con tu app «Vigila Mercado».",
+      "En respaldo: lee los promedios; falta entregar la llave de tu app «Vigila Mercado» para leer el libro.", a.lector_con_libro === true || f.libro_ok === true) +
+  '</div>';
+  h += '<div class="seccion-tit">Alertas enviadas: ' + fmt(a.total_alertas) + '</div>';
+  const ult = a.ultima_alerta;
+  if (ult) {
+    h += '<div class="card"><div class="fila-tit">' + esc(ult.titulo) + '</div>' +
+      '<p class="t-sub" style="color:var(--txt-2);white-space:pre-line;margin:var(--e-2) 0 0">' + esc(ult.cuerpo) + '</p>' +
+      '<p class="pie-nota">' + diaHora(ult.creada_en) + ' · ' + (ult.entregado ? "entregada por Telegram" : "registrada; la entrega no se confirmó") + '</p></div>';
+  } else {
+    h += '<div class="estado"><div class="estado-tit">Ninguna alerta todavía</div><p>Cuando la demanda vuelva de verdad (dos lecturas seguidas), la alerta sale sola por tu Telegram y queda registrada aquí.</p></div>';
+  }
+  el.innerHTML = h;
+}
+
+/* ---------------- navegación y arranque ---------------- */
+function renderTodo() {
+  const selloEl = $("selloVersion");
+  if (selloEl) selloEl.textContent = SELLO;
+  renderAhora(); renderEquilibrio(); renderDemanda(); renderPromos(); renderHistorial(); renderAvisos();
+  const cab = $("cabSub");
+  const f = fotoActual();
+  if (cab) cab.textContent = f ? ("Foto " + haceTxt(f.recibida_en) + " · " + estadoDato(f).texto.toLowerCase()) : "Tu vigía del mercado QvaPay";
+}
+document.querySelectorAll("#tabbar .tab").forEach((b) => {
+  b.addEventListener("click", () => {
+    document.querySelectorAll("#tabbar .tab").forEach((x) => x.classList.toggle("activa", x === b));
+    document.querySelectorAll(".pantalla").forEach((p) => p.classList.toggle("activa", p.id === b.dataset.pg));
+    window.scrollTo(0, 0);
+  });
+});
+$("btnRefrescar").addEventListener("click", cargar);
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden && Date.now() - S.ultimoIntento > 60000) cargar();
+});
+if ("serviceWorker" in navigator) {
+  try { navigator.serviceWorker.register("sw.js"); } catch (e) {}
+}
+S.datos = leerCache();
+renderTodo();
+cargar();
+
+</script>
+</body>
+</html>
