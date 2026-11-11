@@ -94,6 +94,17 @@
   .gateCard label { text-align: left; }
   .gateCard .warn { text-align: left; }
   .gateWa { display: block; margin-top: 16px; color: #25D366; font-weight: 700; font-size: 14px; text-decoration: none; line-height: 1.5; }
+  /* ===== Chat con Ernesto (v1.3.0) ===== */
+  .cbadge { display: inline-block; min-width: 20px; padding: 1px 6px; margin-left: 6px; border-radius: 999px; background: #E5484D; color: #fff; font-size: 12px; font-weight: 800; vertical-align: 2px; text-align: center; }
+  .hilo { max-height: 46vh; overflow-y: auto; padding: 4px 2px; }
+  .chatVacio { color: #9AA7B8; font-size: 13px; line-height: 1.5; padding: 10px 2px; }
+  .msg { display: flex; flex-direction: column; margin: 8px 0; }
+  .msg .bur { max-width: 82%; padding: 10px 12px; border-radius: 14px; font-size: 15px; line-height: 1.45; overflow-wrap: anywhere; white-space: pre-wrap; }
+  .msg.me { align-items: flex-end; }
+  .msg.me .bur { background: #F5BC14; color: #191204; border-bottom-right-radius: 4px; }
+  .msg.him { align-items: flex-start; }
+  .msg.him .bur { background: #1B2233; color: #E8ECF1; border: 1px solid #2A3347; border-bottom-left-radius: 4px; }
+  .msg .mhora { color: #7C8AA0; font-size: 11px; margin-top: 3px; }
 </style>
 </head>
 <body>
@@ -133,7 +144,7 @@
     <div class="tab on" id="tabCalc"><svg class="ic" aria-hidden="true"><use href="#i-calc"/></svg> Calculadora</div>
     <div class="tab" id="tabRep"><svg class="ic" aria-hidden="true"><use href="#i-send"/></svg> Reportar</div>
     <div class="tab" id="tabPanel"><svg class="ic" aria-hidden="true"><use href="#i-chart"/></svg> Mi panel</div>
-    <div class="tab" id="tabAyuda"><svg class="ic" aria-hidden="true"><use href="#i-help"/></svg> Ayuda</div>
+    <div class="tab" id="tabAyuda"><svg class="ic" aria-hidden="true"><use href="#i-chat"/></svg> Chat<span id="chatBadge" class="cbadge hide">0</span></div>
   </div>
   <div id="updBox" class="upd hide">
     <div class="t">Hay una versión nueva de Mi Trabajo</div>
@@ -225,21 +236,16 @@
     </div>
   </div>
 
-  <!-- ============ AYUDA ============ -->
+  <!-- ============ CHAT CON ERNESTO ============ -->
   <div id="viewAyuda" class="hide">
     <div class="card">
-      <h2><svg class="ic" aria-hidden="true"><use href="#i-help"/></svg> Ayuda y contacto</h2>
-      <div class="hint">¿Algo no funciona, una cuenta sale mal o tienes una idea para mejorar la app? Cuéntaselo a Ernesto por aquí: tu reporte le llega directo y él lo lee. Sale con tu sesión, así Ernesto sabe que viene de su equipo autorizado.</div>
-      <label>¿Qué pasa? Cuéntalo con tus palabras</label>
-      <textarea id="a_msg" rows="3" placeholder="Ej: le doy a enviar y no pasa nada / la cuenta de transferencia me sale rara"></textarea>
-      <button class="go" id="a_btn"><svg class="ic" aria-hidden="true"><use href="#i-send"/></svg> Enviar reporte a Ernesto</button>
-      <div class="res" id="a_res" style="display:none">
-        <div class="lab"><svg class="ic mini" aria-hidden="true"><use href="#i-check"/></svg> REPORTE ENVIADO</div>
-        <div class="det">Ernesto lo recibe y lo revisa. Gracias por avisar.</div>
-      </div>
-      <div class="warn" id="a_warn"></div>
-      <label>Tus reportes de ayuda (en este teléfono)</label>
-      <div id="a_lista"></div>
+      <h2><svg class="ic" aria-hidden="true"><use href="#i-chat"/></svg> Chat con Ernesto</h2>
+      <div class="hint">Escríbele directo a Ernesto por aquí: una duda de un trato, algo que no funciona o una idea para mejorar la app. Te responde en este mismo chat. Sale con tu sesión, así Ernesto sabe que viene de su equipo autorizado.</div>
+      <div id="c_hilo" class="hilo"><div class="chatVacio">Cargando el chat…</div></div>
+      <label>Tu mensaje para Ernesto</label>
+      <textarea id="c_txt" rows="2" placeholder="Ej: conseguí un vendedor pero no sé si el precio sirve"></textarea>
+      <button class="go" id="c_btn"><svg class="ic" aria-hidden="true"><use href="#i-send"/></svg> Enviar a Ernesto</button>
+      <div class="warn" id="c_warn"></div>
     </div>
     <div class="card">
       <h2><svg class="ic" aria-hidden="true"><use href="#i-brief"/></svg> ¿Quieres trabajar con Ernesto?</h2>
@@ -275,7 +281,7 @@
   <div class="foot">
     Las cuentas de esta app usan la tarifa de referencia del día.<br>
     La cuenta final de cada trato la confirma Ernesto con los números reales.<br>
-    Mi Trabajo v<span id="verLab">1.2.0</span> · Hecha para el equipo de Ernesto
+    Mi Trabajo v<span id="verLab">1.3.0</span> · Hecha para el equipo de Ernesto
   </div>
 </div>
 
