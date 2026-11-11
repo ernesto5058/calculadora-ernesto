@@ -13,151 +13,186 @@
 <link rel="stylesheet" href="./tema-pro.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <style>
-/* ===== DISEÑO MODERNO (pedido de Ernesto 2026-11-11) =====
-   Oscuro elegante tipo WhatsApp/Telegram: fondo con profundidad,
-   tarjetas redondeadas con bordes sutiles y sombras suaves,
-   espaciados generosos, dorado en degradado refinado y burbujas
-   de chat modernas. SOLO capa visual: ni una función cambia. */
+/* ===== MI NEGOCIO · SISTEMA PRO (v8) =====
+   Rediseño completo sobre los tokens oficiales de tema-pro.css
+   (DISENO-PRO): superficies por capas, dorado SOLO en degradado o
+   tinte, números tabulares protagonistas, rejilla 4/8, bordes
+   hairline de 1 px, iconos de trazo fino (cero emojis como iconos
+   de estructura) y el mínimo scroll por pantalla. Todo var(--…):
+   ni un hex suelto en esta capa. SOLO presentación. */
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-html, body { margin:0; padding:0; background:#0B141A; }
-body { font-family:-apple-system, Helvetica, Arial, sans-serif; color:#E9EDEF; -webkit-font-smoothing:antialiased; background:radial-gradient(1100px 520px at 50% -8%, #182635 0%, #0B141A 58%) fixed, #0B141A; min-height:100vh; }
-#app { max-width:640px; margin:0 auto; padding:18px 16px 52px; }
-h1 { font-size:22px; margin:2px 0 4px; color:#F5C451; letter-spacing:-.3px; font-weight:800; }
-.sub { color:#8696A0; font-size:12.5px; margin-bottom:14px; line-height:1.45; }
-.card { background:linear-gradient(180deg, #18222C 0%, #131C24 100%); border:1px solid rgba(255,255,255,.06); border-radius:20px; padding:16px; margin-bottom:14px; box-shadow:0 10px 28px rgba(0,0,0,.38); }
-.card h3 { margin:0 0 8px; font-size:16.5px; font-weight:700; letter-spacing:-.2px; }
-.mut { color:#8696A0; font-size:12.5px; line-height:1.45; }
-.ayuda { font-size:12.5px; color:#7E97AD; line-height:1.5; margin:0 0 12px; }
-.big { font-size:32px; font-weight:800; letter-spacing:-.6px; }
-input, textarea, select { width:100%; background:#0E171F; border:1px solid rgba(255,255,255,.09); color:#E9EDEF; border-radius:14px; padding:13px; font-size:16px; margin:8px 0; }
-button { border:0; border-radius:14px; padding:14px; font-size:15px; font-weight:700; width:100%; margin-top:10px; cursor:pointer; letter-spacing:.2px; }
-.bGold { background:linear-gradient(135deg, #F7C948 0%, #E39A2D 100%); color:#221806; box-shadow:0 8px 20px rgba(227,154,45,.32); }
-.bOk { background:linear-gradient(135deg, #2BC07F 0%, #12805A 100%); color:#fff; box-shadow:0 8px 20px rgba(18,128,90,.30); }
-.bBad { background:rgba(255,92,108,.10); color:#FF8A96; border:1px solid rgba(255,92,108,.35); }
-.bGhost { background:rgba(255,255,255,.05); color:#D6DEE7; border:1px solid rgba(255,255,255,.09); }
+html, body { margin:0; padding:0; }
+body { font-family:var(--fuente); color:var(--txt-1); -webkit-font-smoothing:antialiased; background:radial-gradient(1100px 520px at 50% -8%, rgba(35,46,66,.50) 0%, rgba(11,14,19,0) 58%) fixed, var(--bg-0); min-height:100vh; }
+#app { max-width:640px; margin:0 auto; padding:var(--e-4) var(--e-4) var(--e-7); }
+h1 { font:var(--t-titulo); letter-spacing:-.02em; margin:2px 0 var(--e-1); background:var(--dorado-grad); -webkit-background-clip:text; background-clip:text; color:transparent; }
+.sub { color:var(--txt-2); font:var(--t-sub); margin-bottom:var(--e-3); }
+.card { background:var(--bg-1); border:1px solid var(--borde); border-radius:var(--r-lg); padding:var(--e-4); margin-bottom:var(--e-3); box-shadow:var(--sombra-1); }
+.card h3 { margin:0 0 var(--e-2); font:var(--t-seccion); letter-spacing:-.01em; display:flex; align-items:center; gap:var(--e-2); }
+.secIco { display:inline-flex; flex:0 0 auto; }
+.secIco svg { width:20px; height:20px; fill:none; stroke:var(--dorado); stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; }
+.mut { color:var(--txt-2); font:var(--t-sub); }
+.ayuda { font:var(--t-nota); color:var(--txt-3); margin:0 0 var(--e-3); }
+.big { font:700 32px/1.15 var(--fuente); font-variant-numeric:tabular-nums; letter-spacing:-.02em; }
+.big .cur { font:600 15px var(--fuente); color:var(--txt-3); letter-spacing:0; }
+input, textarea, select { width:100%; background:var(--bg-2); border:1px solid var(--borde); color:var(--txt-1); border-radius:var(--r-md); padding:var(--e-3); font-size:16px; margin:var(--e-2) 0; font-family:var(--fuente); }
+input:focus, textarea:focus, select:focus { outline:none; border-color:var(--dorado-borde); box-shadow:0 0 0 3px var(--dorado-suave); }
+select { appearance:none; -webkit-appearance:none; }
+.selOculto { position:absolute; width:1px; height:1px; opacity:0; pointer-events:none; margin:0; padding:0; }
+button { border:0; border-radius:var(--r-md); padding:14px; font:600 15px var(--fuente); width:100%; margin-top:var(--e-2); cursor:pointer; letter-spacing:.01em; transition:transform var(--anim-rapida), filter var(--anim-rapida), background var(--anim-rapida); }
+button:active { transform:scale(.97); }
+.bGold { background:var(--dorado-grad); color:var(--txt-sobre-dorado); box-shadow:var(--sombra-dorada); border-radius:var(--r-pildora); }
+.bOk { background:var(--verde-suave); color:var(--verde); border:1px solid rgba(47,191,113,.35); }
+.bBad { background:var(--rojo-suave); color:var(--rojo); border:1px solid rgba(246,70,93,.35); }
+.bGhost { background:var(--bg-2); color:var(--txt-1); border:1px solid var(--borde-fuerte); }
 button.off, .off { opacity:.45; pointer-events:none; }
-.bMini { width:auto; padding:9px 15px; font-size:13px; margin:0; border-radius:12px; }
-.tabs { display:flex; gap:8px; margin-bottom:14px; flex-wrap:wrap; }
-.tab { flex:1 1 30%; text-align:center; padding:11px 2px; border-radius:999px; background:rgba(255,255,255,.045); border:1px solid rgba(255,255,255,.06); font-size:13px; font-weight:700; color:#8696A0; cursor:pointer; }
-.tab.on { background:linear-gradient(135deg, #F7C948 0%, #E39A2D 100%); color:#221806; border-color:transparent; box-shadow:0 6px 16px rgba(227,154,45,.30); }
-.pill { display:inline-block; padding:3px 9px; border-radius:999px; font-size:11px; font-weight:700; }
-.pPend { background:rgba(245,188,20,.14); color:#F7C948; }
-.pOk { background:rgba(46,204,113,.14); color:#3ED598; }
-.pBad { background:rgba(255,92,108,.14); color:#FF8A96; }
-.pChat { background:#E5484D; color:#fff; }
-.pCola { background:rgba(245,188,20,.14); color:#F7C948; }
-.err { background:rgba(255,92,108,.10); border:1px solid rgba(255,92,108,.35); color:#FFB3BC; border-radius:14px; padding:12px; font-size:13px; margin:10px 0; display:none; line-height:1.45; }
-.info { background:rgba(83,189,235,.09); border:1px solid rgba(83,189,235,.28); color:#BFE0FF; border-radius:14px; padding:12px; font-size:13px; margin:10px 0; line-height:1.45; }
-.row { display:flex; align-items:center; justify-content:space-between; gap:8px; }
-.fila { display:inline-flex; align-items:center; gap:8px; }
+.bMini { width:auto; min-height:44px; padding:var(--e-2) var(--e-4); font-size:13px; margin:0; border-radius:var(--r-pildora); display:inline-flex; align-items:center; justify-content:center; }
+/* Navegación: rejilla compacta de accesos (icono de trazo + nombre),
+   las 10 secciones visibles de un vistazo, sin óvalos gigantes. */
+.tabs { display:grid; grid-template-columns:repeat(4, 1fr); gap:var(--e-2); margin-bottom:var(--e-4); }
+.tab { width:auto; margin:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:var(--e-1); min-height:60px; padding:var(--e-2) 2px; border-radius:var(--r-md); background:var(--bg-1); border:1px solid var(--borde); font:500 11px var(--fuente); color:var(--txt-2); cursor:pointer; position:relative; }
+.tab svg { width:24px; height:24px; fill:none; stroke:currentColor; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; }
+.tab span { white-space:nowrap; letter-spacing:-.01em; }
+.tab.activa { background:var(--dorado-suave); border-color:var(--dorado-borde); color:var(--dorado-claro); }
+.tab .badge { position:absolute; top:6px; right:calc(50% - 24px); }
+.pill { display:inline-flex; align-items:center; padding:4px 10px; border-radius:var(--r-pildora); font:600 11px var(--fuente); letter-spacing:.02em; }
+.pPend { background:var(--ambar-suave); color:var(--ambar); }
+.pOk { background:var(--verde-suave); color:var(--verde); }
+.pBad { background:var(--rojo-suave); color:var(--rojo); }
+.pChat { background:var(--rojo); color:#fff; }
+.pCola { background:var(--ambar-suave); color:var(--ambar); }
+.err { background:var(--rojo-suave); border:1px solid rgba(246,70,93,.35); color:#FFD7DC; border-radius:var(--r-md); padding:var(--e-3); font:var(--t-sub); margin:var(--e-2) 0; display:none; }
+.info { background:var(--dorado-suave); border:1px solid var(--dorado-borde); color:var(--dorado-claro); border-radius:var(--r-md); padding:var(--e-3); font:var(--t-sub); margin:var(--e-2) 0; }
+.row { display:flex; align-items:center; justify-content:space-between; gap:var(--e-2); }
+.fila { display:inline-flex; align-items:center; gap:var(--e-2); }
 .switch { position:relative; width:52px; height:30px; flex:0 0 auto; }
 .switch input { opacity:0; width:0; height:0; }
-.sl { position:absolute; inset:0; background:rgba(255,255,255,.14); border-radius:999px; }
-.sl:before { content:""; position:absolute; width:24px; height:24px; left:3px; top:3px; background:#fff; border-radius:50%; box-shadow:0 2px 6px rgba(0,0,0,.35); }
-.switch input:checked + .sl { background:linear-gradient(135deg, #2BC07F, #12805A); }
+.sl { position:absolute; inset:0; background:var(--bg-3); border-radius:var(--r-pildora); }
+.sl:before { content:""; position:absolute; width:24px; height:24px; left:3px; top:3px; background:var(--txt-1); border-radius:50%; box-shadow:var(--sombra-1); }
+.switch input:checked + .sl { background:var(--verde); }
 .switch input:checked + .sl:before { transform:translateX(22px); }
-.kv { font-size:14.5px; margin:4px 0; line-height:1.5; }
-.kv b { color:#fff; }
-#toast { position:fixed; left:16px; right:16px; bottom:20px; background:linear-gradient(135deg, #2BC07F, #12805A); color:#fff; padding:14px; border-radius:16px; font-weight:700; text-align:center; display:none; z-index:99; box-shadow:0 12px 30px rgba(0,0,0,.45); max-width:608px; margin:0 auto; }
+.kv { font:var(--t-sub); margin:var(--e-1) 0; }
+.kv b { color:var(--txt-1); font-variant-numeric:tabular-nums; }
+#toast { position:fixed; left:var(--e-4); right:var(--e-4); bottom:20px; background:var(--bg-3); color:var(--txt-1); padding:14px; border-radius:var(--r-md); font:600 15px var(--fuente); text-align:center; display:none; z-index:99; box-shadow:var(--sombra-2); max-width:608px; margin:0 auto; }
 .prensable { -webkit-touch-callout:none; -webkit-user-select:none; user-select:none; }
-.prensable.prensando { border-color:rgba(245,196,81,.55); filter:brightness(1.15); }
-.dots { width:auto; margin:0; padding:3px 11px; background:rgba(255,255,255,.06); color:#AEBAC1; border:1px solid rgba(255,255,255,.08); border-radius:12px; font-size:17px; font-weight:700; line-height:1.3; flex:0 0 auto; }
-#hojaFondo { position:fixed; inset:0; background:rgba(3,8,12,.62); display:none; z-index:60; }
-#hoja { position:absolute; left:0; right:0; bottom:0; background:#16212B; border-top:1px solid rgba(255,255,255,.09); border-radius:26px 26px 0 0; padding:18px 16px 26px; max-height:84%; overflow-y:auto; max-width:640px; margin:0 auto; box-shadow:0 -14px 40px rgba(0,0,0,.5); }
-#hojaTit { font-size:17px; font-weight:800; margin-bottom:6px; letter-spacing:-.2px; }
-#hojaTxt { margin-bottom:8px; line-height:1.5; }
-#hoja .bGold, #hoja .bOk, #hoja .bBad, #hoja .bGhost { margin-top:10px; }
-.hiloP { margin:8px 0 4px; max-height:52vh; overflow-y:auto; }
-.hiloWA { background:#0B141A; background-image:radial-gradient(rgba(255,255,255,.028) 1px, transparent 1px); background-size:18px 18px; border-radius:16px; padding:10px; max-height:56vh; }
-.chatHead { display:flex; align-items:center; gap:10px; margin-bottom:6px; }
+.prensable.prensando { border-color:var(--dorado-borde); filter:brightness(1.15); }
+.dots { width:auto; min-height:44px; margin:0; padding:3px 11px; background:var(--bg-2); color:var(--txt-2); border:1px solid var(--borde); border-radius:var(--r-sm); font-size:17px; font-weight:700; line-height:1.3; flex:0 0 auto; display:inline-flex; align-items:center; justify-content:center; }
+.dots svg { width:20px; height:20px; fill:none; stroke:currentColor; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; }
+#hojaFondo { position:fixed; inset:0; background:rgba(3,6,10,.62); display:none; z-index:60; }
+#hoja { position:absolute; left:0; right:0; bottom:0; background:var(--bg-2); border-top:1px solid var(--borde-fuerte); border-radius:var(--r-xl) var(--r-xl) 0 0; padding:var(--e-4) var(--e-4) var(--e-5); max-height:84%; overflow-y:auto; max-width:640px; margin:0 auto; box-shadow:var(--sombra-2); }
+#hojaTit { font:var(--t-seccion); margin-bottom:var(--e-2); letter-spacing:-.01em; }
+#hojaTxt { margin-bottom:var(--e-2); line-height:1.5; }
+#hoja .bGold, #hoja .bOk, #hoja .bBad, #hoja .bGhost { margin-top:var(--e-2); }
+.hiloP { margin:var(--e-2) 0 var(--e-1); max-height:52vh; overflow-y:auto; }
+.hiloWA { background:var(--bg-chat); border:1px solid var(--linea); border-radius:var(--r-md); padding:var(--e-3); max-height:56vh; }
+.chatHead { display:flex; align-items:center; gap:var(--e-3); margin-bottom:var(--e-2); }
 .chatHeadTx { flex:1; min-width:0; }
-.chatNom { font-weight:800; font-size:16.5px; color:#fff; }
-.chatBuscar { margin-top:8px; }
-.fechaSep { text-align:center; margin:12px 0 4px; }
-.fechaSep span { background:#182229; color:#8696A0; border-radius:8px; padding:4px 12px; font-size:11.5px; }
-.burMeta { float:right; margin:10px 0 0 12px; font-size:10.5px; opacity:.8; display:inline-flex; align-items:center; gap:3px; }
+.chatNom { font:var(--t-seccion); color:var(--txt-1); }
+.chatBuscar { margin-top:var(--e-2); }
+.fechaSep { text-align:center; margin:var(--e-3) 0 var(--e-1); }
+.fechaSep span { background:var(--bg-2); color:var(--txt-2); border-radius:var(--r-sm); padding:4px 12px; font:600 11.5px var(--fuente); }
+.burMeta { float:right; margin:10px 0 0 12px; font-size:10.5px; opacity:.85; display:inline-flex; align-items:center; gap:3px; font-variant-numeric:tabular-nums; }
 .burMeta .ticks svg { width:17px; height:11px; }
-.compWA { display:flex; gap:8px; align-items:center; margin-top:10px; }
-.compBox { flex:1; display:flex; align-items:center; background:#0E171F; border:1px solid rgba(255,255,255,.09); border-radius:999px; padding:0 4px 0 16px; }
-.compBox input { flex:1; border:0; background:transparent; margin:0; padding:12px 0; color:#E9EDEF; font-size:15px; }
-.clipBtn { width:40px; height:40px; border-radius:50%; background:transparent; border:0; color:#8696A0; font-size:19px; margin:0; padding:0; flex:0 0 auto; }
-.sendBtn { width:48px; height:48px; border-radius:50%; background:linear-gradient(135deg, #F7C948, #E39A2D); color:#221806; border:0; font-size:19px; font-weight:800; margin:0; padding:0; flex:0 0 auto; }
-.micBtn { width:48px; height:48px; border-radius:50%; background:rgba(255,255,255,.06); color:#D6DEE7; border:1px solid rgba(255,255,255,.09); font-size:18px; margin:0; padding:0; flex:0 0 auto; }
-.adjHojaWA { gap:8px; margin-top:10px; flex-wrap:wrap; }
+.compWA { display:flex; gap:var(--e-2); align-items:center; margin-top:var(--e-3); }
+.compBox { flex:1; display:flex; align-items:center; background:var(--bg-2); border:1px solid var(--borde); border-radius:var(--r-pildora); padding:0 4px 0 var(--e-4); }
+.compBox input { flex:1; border:0; background:transparent; margin:0; padding:12px 0; color:var(--txt-1); font-size:15px; box-shadow:none; }
+.compBox input:focus { box-shadow:none; border:0; }
+.clipBtn { width:44px; height:44px; border-radius:50%; background:transparent; border:0; color:var(--txt-2); margin:0; padding:0; flex:0 0 auto; display:inline-flex; align-items:center; justify-content:center; }
+.clipBtn svg { width:21px; height:21px; fill:none; stroke:currentColor; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; }
+.sendBtn { width:48px; height:48px; border-radius:50%; background:var(--dorado-grad); color:var(--txt-sobre-dorado); border:0; font-size:19px; font-weight:800; margin:0; padding:0; flex:0 0 auto; box-shadow:var(--sombra-dorada); display:inline-flex; align-items:center; justify-content:center; }
+.sendBtn svg { width:21px; height:21px; fill:currentColor; stroke:none; }
+.micBtn { width:48px; height:48px; border-radius:50%; background:var(--bg-2); color:var(--txt-1); border:1px solid var(--borde); margin:0; padding:0; flex:0 0 auto; display:inline-flex; align-items:center; justify-content:center; }
+.micBtn svg { width:21px; height:21px; fill:none; stroke:currentColor; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; }
+.adjHojaWA { gap:var(--e-2); margin-top:var(--e-3); flex-wrap:wrap; }
 .adjHojaWA button { flex:1; min-width:90px; margin:0; }
-.msgSistema { text-align:center; color:var(--t2,#A7B3C4); font-size:12.5px; margin:12px auto; background:var(--bg3,#1A2130); border-radius:999px; padding:6px 14px; max-width:88%; }
-.citaB { display:block; border-left:3px solid var(--oro2,#E8B84B); background:rgba(232,184,75,.12); border-radius:6px; padding:5px 8px; margin-bottom:6px; font-size:12.5px; }
+.msgSistema { text-align:center; color:var(--txt-2); font:var(--t-nota); margin:var(--e-3) auto; background:var(--bg-2); border-radius:var(--r-pildora); padding:6px 14px; max-width:88%; }
+.citaB { display:block; border-left:3px solid var(--dorado); background:var(--dorado-suave); border-radius:6px; padding:5px 8px; margin-bottom:6px; font-size:12.5px; }
 .reacRow { display:flex; gap:4px; margin-top:3px; flex-wrap:wrap; }
 .msgP.me .reacRow { justify-content:flex-end; }
-.reacRow span { background:var(--bg3,#1A2130); border:1px solid rgba(255,255,255,.08); border-radius:999px; padding:1px 8px; font-size:12px; }
-.fijadoBar { background:rgba(232,184,75,.14); border:1px solid rgba(232,184,75,.45); color:var(--oro1,#F5D67B); border-radius:12px; padding:9px 12px; font-size:13px; margin:8px 0; }
-.adjFoto { max-width:210px; border-radius:10px; display:block; margin-bottom:6px; }
+.reacRow span { background:var(--bg-3); border:1px solid var(--borde); border-radius:var(--r-pildora); padding:1px 8px; font-size:12px; }
+.fijadoBar { background:var(--dorado-suave); border:1px solid var(--dorado-borde); color:var(--dorado-claro); border-radius:var(--r-sm); padding:9px 12px; font:var(--t-sub); margin:var(--e-2) 0; }
+.adjFoto { max-width:210px; border-radius:var(--r-sm); display:block; margin-bottom:6px; }
+.adj-foto { width:100%; max-width:320px; border-radius:var(--r-sm); display:block; margin-top:var(--e-2); }
 .msgP .editado { font-size:10.5px; opacity:.75; }
 .msgP .eliminado { font-style:italic; opacity:.75; }
-.filaBtns { display:flex; gap:8px; margin-top:8px; flex-wrap:wrap; }
+.filaBtns { display:flex; gap:var(--e-2); margin-top:var(--e-2); flex-wrap:wrap; }
 .filaBtns button { flex:1; min-width:70px; }
-.msgP { display:flex; flex-direction:column; margin:10px 0; }
-.msgP .burP { max-width:82%; padding:11px 13px; border-radius:18px; font-size:14.5px; line-height:1.5; white-space:pre-wrap; overflow-wrap:anywhere; box-shadow:0 3px 10px rgba(0,0,0,.28); }
+.msgP { display:flex; flex-direction:column; margin:var(--e-3) 0; }
+.msgP .burP { max-width:82%; padding:11px 13px; border-radius:18px; font-size:14.5px; line-height:1.5; white-space:pre-wrap; overflow-wrap:anywhere; box-shadow:var(--sombra-1); }
 .msgP.me { align-items:flex-end; }
-.msgP.me .burP { background:linear-gradient(135deg, #F2B33D 0%, #DE9426 100%); color:#241A05; border-bottom-right-radius:6px; }
+.msgP.me .burP { background:var(--burbuja-mia-grad); border:1px solid rgba(232,184,75,.18); color:var(--txt-1); border-bottom-right-radius:6px; }
 .msgP.him { align-items:flex-start; }
-.msgP.him .burP { background:#1C2934; border:1px solid rgba(255,255,255,.05); color:#E9EDEF; border-bottom-left-radius:6px; }
-.presChat { font-size:13.5px; margin:2px 0 6px; }
-.estAzul { color:#53BDEB; font-weight:700; }
-.estCola { color:#F5C451; }
-.sema { margin-top:10px; border-radius:16px; padding:12px 10px; font-size:15px; font-weight:800; text-align:center; }
-.sema.ok { background:rgba(46,204,113,.13); color:#2ECC71; border:1px solid rgba(46,204,113,.45); }
-.sema.bad { background:rgba(255,92,92,.10); color:#FF6B6B; border:1px solid rgba(255,92,92,.45); }
-.grid { display:flex; gap:10px; margin-top:10px; }
-.cell { flex:1; background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.06); border-radius:16px; padding:12px 4px; text-align:center; }
-.cell .v { font-size:19px; font-weight:800; letter-spacing:-.3px; }
-.cell .k { font-size:11px; color:#8696A0; margin-top:3px; font-weight:600; }
-.stepRow { display:flex; align-items:center; gap:8px; }
-.step { width:46px; height:50px; flex:0 0 auto; margin:0; border-radius:14px; border:1px solid rgba(46,204,172,.25); background:rgba(46,204,172,.08); color:#2ECCAC; font-size:22px; font-weight:800; }
-.numIn { flex:1; min-width:0; text-align:center; font-size:19px; font-weight:700; }
-.chips { display:flex; gap:8px; margin:8px 0 2px; flex-wrap:wrap; }
-.chip { padding:8px 14px; border-radius:999px; background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.08); color:#C9D4E3; font-size:13px; font-weight:700; cursor:pointer; }
-label { display:block; font-size:13px; color:#8696A0; margin:12px 0 2px; font-weight:600; }
+.msgP.him .burP { background:var(--burbuja-suya); border:1px solid var(--borde); color:var(--txt-1); border-bottom-left-radius:6px; }
+.presChat { font:var(--t-sub); color:var(--txt-2); margin:2px 0 6px; }
+.estAzul { color:var(--azul); font-weight:700; }
+.estCola { color:var(--dorado); }
+.sr-only { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; }
+.sema { margin-top:var(--e-3); border-radius:var(--r-md); padding:var(--e-3) var(--e-2); font:600 15px var(--fuente); text-align:center; }
+.sema.ok { background:var(--verde-suave); color:var(--verde); border:1px solid rgba(47,191,113,.40); }
+.sema.bad { background:var(--rojo-suave); color:var(--rojo); border:1px solid rgba(246,70,93,.40); }
+.grid { display:flex; gap:var(--e-2); margin-top:var(--e-2); }
+.cell { flex:1; background:var(--bg-2); border:1px solid var(--borde); border-radius:var(--r-md); padding:var(--e-3) var(--e-1); text-align:center; }
+.cell .v { font:700 20px/1.2 var(--fuente); font-variant-numeric:tabular-nums; letter-spacing:-.02em; }
+.cell .k { font:var(--t-micro); letter-spacing:.06em; color:var(--txt-3); margin-top:var(--e-1); }
+/* ===== CALCULADORA PRO (v8): el resultado manda, arriba ===== */
+#pgCalc .calcOut { margin-bottom:var(--e-4); }
+#pgCalc .calcResK { font:var(--t-micro); letter-spacing:.08em; color:var(--txt-3); margin-bottom:var(--e-1); }
+#pgCalc .calcRes { border-bottom:1px solid var(--linea); padding-bottom:var(--e-3); }
+#pgCalc .calcInfoBtn { width:auto; display:inline-flex; align-items:center; gap:6px; padding:var(--e-2) var(--e-3); background:transparent; border:1px solid var(--borde); border-radius:var(--r-pildora); color:var(--dorado); font:600 13px var(--fuente); cursor:pointer; margin:var(--e-3) 0 0; min-height:44px; }
+#pgCalc .calcInfo { margin-top:var(--e-2); }
+#pgCalc .calcInfo .ayuda { margin:0; font:var(--t-sub); color:var(--txt-2); }
+#pgCalc .calcInfoBtn.mini { min-height:28px; padding:2px 9px; font-size:12px; margin:0 0 0 4px; vertical-align:middle; }
+.stepRow { display:flex; align-items:center; gap:var(--e-2); }
+.step { width:44px; height:48px; flex:0 0 auto; margin:0; padding:0; border-radius:var(--r-md); border:1px solid var(--borde-fuerte); background:var(--bg-2); color:var(--dorado); font-size:22px; font-weight:700; display:inline-flex; align-items:center; justify-content:center; }
+.numIn { flex:1; min-width:0; text-align:center; font:600 20px var(--fuente); font-variant-numeric:tabular-nums; height:48px; margin:0; }
+.chips { display:flex; gap:var(--e-2); margin:var(--e-2) 0 2px; flex-wrap:wrap; }
+.chips.unaFila { flex-wrap:nowrap; overflow-x:auto; padding-bottom:var(--e-1); -webkit-overflow-scrolling:touch; scrollbar-width:none; }
+.chips.unaFila::-webkit-scrollbar { display:none; }
+.chips.unaFila .chip { flex:0 0 auto; }
+.chip { padding:var(--e-2) var(--e-3); border-radius:var(--r-pildora); background:var(--bg-2); border:1px solid var(--borde); color:var(--txt-2); font:500 14px var(--fuente); cursor:pointer; min-height:36px; display:inline-flex; align-items:center; }
+.chip.activa { background:var(--dorado-suave); border-color:var(--dorado-borde); color:var(--dorado-claro); }
+label { display:block; font:600 13px var(--fuente); color:var(--txt-2); margin:var(--e-3) 0 var(--e-2); }
+/* Semáforo del equipo: filas con hairline (antes sin estilo) */
+.equipo-linea { display:flex; align-items:center; gap:var(--e-3); padding:var(--e-2) 0; border-bottom:1px solid var(--linea); }
+.equipo-linea:last-of-type { border-bottom:0; }
+.eq-info { flex:1; min-width:0; }
+.eq-nombre { font:var(--t-cuerpo-f); }
 /* ===== VOZ PRO (punto 4): reproductor y grabación estilo WhatsApp ===== */
 .vozP { display:inline-flex; align-items:center; gap:9px; min-width:210px; max-width:100%; padding:2px 0; vertical-align:middle; }
 .vozBtn { flex:0 0 auto; width:38px; height:38px; border-radius:50%; border:none; background:rgba(0,0,0,.22); color:#fff; font-size:15px; line-height:1; cursor:pointer; display:flex; align-items:center; justify-content:center; padding:0; margin:0; }
-.msgP.him .vozBtn { background:#2A3942; }
+.msgP.him .vozBtn { background:var(--bg-3); }
 .vozOnda { flex:1; display:flex; align-items:center; gap:2px; height:30px; min-width:110px; }
-.vozOnda i { flex:1; background:rgba(0,0,0,.30); border-radius:2px; min-height:3px; }
-.msgP.him .vozOnda i { background:#3B4A54; }
-.vozOnda i.on { background:#fff; }
-.msgP.him .vozOnda i.on { background:#E9EDEF; }
+.vozOnda i { flex:1; background:rgba(255,255,255,.28); border-radius:2px; min-height:3px; }
+.vozOnda i.on { background:var(--txt-1); }
 .vozT { flex:0 0 auto; font-size:11.5px; opacity:.85; font-variant-numeric:tabular-nums; }
-.grabBar { display:flex; align-items:center; gap:10px; background:#1C2934; border:1px solid rgba(255,92,92,.4); border-radius:16px; padding:10px 12px; margin-top:8px; }
-.grabPunto { flex:0 0 auto; width:12px; height:12px; border-radius:50%; background:#FF5C5C; animation:grabPulso 1s ease-in-out infinite; }
+.grabBar { display:flex; align-items:center; gap:10px; background:var(--bg-2); border:1px solid rgba(246,70,93,.40); border-radius:var(--r-md); padding:10px 12px; margin-top:var(--e-2); }
+.grabPunto { flex:0 0 auto; width:12px; height:12px; border-radius:50%; background:var(--rojo); animation:grabPulso 1s ease-in-out infinite; }
 @keyframes grabPulso { 0%,100% { opacity:1; transform:scale(1); } 50% { opacity:.35; transform:scale(.8); } }
 .grabT { font-weight:700; font-variant-numeric:tabular-nums; min-width:38px; }
 .grabOnda { flex:1; display:flex; align-items:center; gap:2px; height:30px; }
-.grabOnda i { flex:1; background:#FF8A80; border-radius:2px; min-height:3px; animation:grabOndaAnim 1.1s ease-in-out infinite alternate; }
+.grabOnda i { flex:1; background:var(--rojo); opacity:.75; border-radius:2px; min-height:3px; animation:grabOndaAnim 1.1s ease-in-out infinite alternate; }
 .grabOnda i:nth-child(3n) { animation-delay:.25s; } .grabOnda i:nth-child(4n) { animation-delay:.5s; } .grabOnda i:nth-child(5n) { animation-delay:.75s; }
 @keyframes grabOndaAnim { from { transform:scaleY(.55); } to { transform:scaleY(1); } }
 /* ===== KIT DE MEDIOS (local-first): previa real antes de enviar,
    tarjeta de documento y visor de foto a pantalla completa ===== */
-.adjFoto { width:100%; max-width:260px; border-radius:12px; cursor:zoom-in; }
-.prevAdj { display:flex; align-items:center; gap:10px; background:#1C2934; border:1px solid rgba(255,255,255,.08); border-radius:14px; padding:8px 10px; margin-top:8px; }
-.prevFoto { width:120px; max-height:120px; object-fit:cover; border-radius:12px; flex:0 0 auto; cursor:zoom-in; display:block; }
-.prevMeta { flex:1; min-width:0; font-size:12.5px; color:#A7B3C4; overflow-wrap:anywhere; }
-.prevMeta b { display:block; color:#E9EDEF; font-size:13px; }
-.docCard { display:flex; align-items:center; gap:10px; background:rgba(0,0,0,.18); border:1px solid rgba(255,255,255,.10); border-radius:12px; padding:9px 11px; margin-bottom:6px; max-width:260px; }
-.msgP.me .docCard { background:rgba(0,0,0,.14); }
+.adjFoto { width:100%; max-width:260px; border-radius:var(--r-sm); cursor:zoom-in; }
+.prevAdj { display:flex; align-items:center; gap:10px; background:var(--bg-2); border:1px solid var(--borde); border-radius:var(--r-md); padding:var(--e-2) var(--e-3); margin-top:var(--e-2); }
+.prevFoto { width:120px; max-height:120px; object-fit:cover; border-radius:var(--r-sm); flex:0 0 auto; cursor:zoom-in; display:block; }
+.prevMeta { flex:1; min-width:0; font:var(--t-nota); font-size:12.5px; color:var(--txt-2); overflow-wrap:anywhere; }
+.prevMeta b { display:block; color:var(--txt-1); font-size:13px; }
+.docCard { display:flex; align-items:center; gap:10px; background:rgba(0,0,0,.18); border:1px solid var(--borde-fuerte); border-radius:var(--r-sm); padding:9px 11px; margin-bottom:6px; max-width:260px; }
 .docIco { font-size:26px; flex:0 0 auto; line-height:1; }
 .docMeta { flex:1; min-width:0; font-size:12.5px; overflow-wrap:anywhere; opacity:.92; }
 .docMeta b { display:block; font-size:13px; opacity:1; }
-.docDl { flex:0 0 auto; width:38px; height:38px; border-radius:50%; border:1px solid rgba(255,255,255,.25); background:rgba(255,255,255,.08); color:inherit; font-size:16px; cursor:pointer; display:flex; align-items:center; justify-content:center; padding:0; margin:0; }
+.docDl { flex:0 0 auto; width:38px; height:38px; border-radius:50%; border:1px solid var(--borde-fuerte); background:var(--bg-2); color:inherit; font-size:16px; cursor:pointer; display:flex; align-items:center; justify-content:center; padding:0; margin:0; }
 .visorFoto { position:fixed; inset:0; z-index:9999; background:rgba(0,0,0,.94); display:none; flex-direction:column; }
 .visorFoto.abierto { display:flex; }
-.visorBar { display:flex; align-items:center; gap:10px; padding:12px 14px; color:#E9EDEF; }
-.visorNom { flex:1; min-width:0; font-size:13.5px; overflow-wrap:anywhere; }
-.visorBtn { flex:0 0 auto; border:1px solid rgba(255,255,255,.3); background:rgba(255,255,255,.08); color:#fff; border-radius:999px; padding:8px 14px; font-size:13px; font-weight:700; cursor:pointer; text-decoration:none; display:inline-block; }
+.visorBar { display:flex; align-items:center; gap:10px; padding:12px 14px; color:var(--txt-1); }
+.visorNom { flex:1; min-width:0; font:var(--t-sub); overflow-wrap:anywhere; }
+.visorBtn { flex:0 0 auto; width:auto; border:1px solid var(--borde-fuerte); background:var(--bg-2); color:var(--txt-1); border-radius:var(--r-pildora); padding:8px 14px; font:600 13px var(--fuente); cursor:pointer; text-decoration:none; display:inline-block; margin:0; }
 .visorImgWrap { flex:1; display:flex; align-items:center; justify-content:center; overflow:auto; padding:6px; }
 .visorImg { max-width:100%; max-height:100%; object-fit:contain; border-radius:8px; }
-.offBanner { background:rgba(245,188,20,.10); border:1px solid rgba(245,188,20,.35); color:#F5D67A; border-radius:14px; padding:12px; font-size:13px; margin-bottom:14px; display:none; line-height:1.45; }
-.logoMN { width:68px; height:68px; border-radius:20px; background:linear-gradient(135deg, rgba(247,201,72,.20), rgba(227,154,45,.06)); border:1px solid rgba(245,196,81,.5); color:#F5C451; font-size:27px; font-weight:900; display:flex; align-items:center; justify-content:center; margin:10px auto 12px; box-shadow:0 10px 26px rgba(227,154,45,.18); }
+.offBanner { background:var(--ambar-suave); border:1px solid rgba(240,185,11,.35); color:#F7DC8F; border-radius:var(--r-md); padding:var(--e-3); font:var(--t-sub); margin-bottom:var(--e-3); display:none; }
+.logoMN { width:68px; height:68px; border-radius:var(--r-lg); background:var(--dorado-suave); border:1px solid var(--dorado-borde); color:var(--dorado); font-size:27px; font-weight:900; display:flex; align-items:center; justify-content:center; margin:10px auto 12px; box-shadow:var(--sombra-dorada); }
 /* ===== CONTABILIDAD PRO (v7) ===== */
 #pgContabilidad .contaUna { margin:0 0 var(--e-3); }
 #pgContabilidad h3 { display:flex; align-items:center; gap:var(--e-2); }
@@ -216,7 +251,7 @@ label { display:block; font-size:13px; color:#8696A0; margin:12px 0 2px; font-we
   <h1 style="text-align:center">Mi Negocio</h1>
   <div class="sub" style="text-align:center">Tu centro de mando: calculadora, equipo, tarifa y mercado en una sola app.</div>
   <div class="card">
-    <h3>🔑 Tu código de administrador</h3>
+    <h3>Tu código de administrador</h3>
     <div class="mut">Lo pones una sola vez y queda guardado solo en este teléfono. Sin él nadie puede abrir tu negocio aquí.</div>
     <input id="inCodigo" type="text" autocomplete="off" autocapitalize="characters" placeholder="Ej.: XXXX-XXXX">
     <div id="errAcceso" class="err"></div>
@@ -238,9 +273,12 @@ label { display:block; font-size:13px; color:#8696A0; margin:12px 0 2px; font-we
   <div id="pgEquipo" style="display:none"></div>
   <div id="pgTarifa" style="display:none"></div>
   <div id="pgMercado" style="display:none"></div>
+  <div id="pgCierre" style="display:none"></div>
+  <div id="pgActividad" style="display:none"></div>
+  <div id="pgTextos" style="display:none"></div>
   <div id="pgContabilidad" style="display:none"></div>
   <div id="pgChat" style="display:none"></div>
-  <button class="bGhost" id="btnSalir">❌ Salir de Mi Negocio</button>
+  <button class="bGhost" id="btnSalir">Salir de Mi Negocio</button>
 </div>
 </div>
 <div id="toast"></div>
@@ -449,7 +487,12 @@ var ICONOS = {
   enviar: '<svg viewBox="0 0 24 24"><path d="M3.4 20.4 21.8 12 3.4 3.6l-.01 6.53L14 12 3.39 13.87z"/></svg>',
   puntos: '<svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><circle cx="12" cy="5" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="12" cy="19" r="1.8"/></svg>',
   telefono: '<svg viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/></svg>',
-  pin: '<svg viewBox="0 0 24 24"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0z"/><circle cx="12" cy="10" r="3"/></svg>'
+  pin: '<svg viewBox="0 0 24 24"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0z"/><circle cx="12" cy="10" r="3"/></svg>',
+  cambio: '<svg viewBox="0 0 24 24"><path d="M8 3 4 7l4 4"/><path d="M4 7h16"/><path d="m16 21 4-4-4-4"/><path d="M20 17H4"/></svg>',
+  clip: '<svg viewBox="0 0 24 24"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>',
+  micro: '<svg viewBox="0 0 24 24"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><path d="M12 19v3"/></svg>',
+  info: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>',
+  reloj: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>'
 };
 function icono(n){ return ICONOS[n] || ""; }
 /* Palomitas del chat (DISENO-PRO §6): SVG de trazo fino + el nombre
@@ -1072,19 +1115,19 @@ function nombreDe(codigo){
 }
 function descOp(a){
   switch (a.tipo) {
-    case "chat": return "💬 Mensaje para " + nombreDe(a.para);
-    case "aprobar": return "✅ Aprobar un reporte";
-    case "rechazar": return "⛔ Rechazar un reporte";
-    case "ayudaVista": return "👁️ Marcar ayuda como vista";
-    case "activo": return (a.activo ? "🟢 Activar a " : "⏸️ Pausar a ") + (a.codigoUsuario || "");
-    case "nuevo": return "➕ Dar de alta a " + (a.nombre || a.codigoUsuario || "");
-    case "editarChat": return "✏️ Editar un mensaje";
-    case "pagado": return "💵 Marcar comisión pagada";
-    case "prueba": return "🧪 Marcar / quitar marca de prueba";
-    case "publicar": return "📣 Publicar tarifa y tratos";
-    case "pushReg": return "🔔 Registrar los avisos en el servidor";
+    case "chat": return "Mensaje para " + nombreDe(a.para);
+    case "aprobar": return "Aprobar un reporte";
+    case "rechazar": return "Rechazar un reporte";
+    case "ayudaVista": return "Marcar ayuda como vista";
+    case "activo": return (a.activo ? "Activar a " : "Pausar a ") + (a.codigoUsuario || "");
+    case "nuevo": return "Dar de alta a " + (a.nombre || a.codigoUsuario || "");
+    case "editarChat": return "Editar un mensaje";
+    case "pagado": return "Marcar comisión pagada";
+    case "prueba": return "Marcar / quitar marca de prueba";
+    case "publicar": return "Publicar tarifa y tratos";
+    case "pushReg": return "Registrar los avisos en el servidor";
   }
-  return "📤 " + (a.tipo || "Acción");
+  return a.tipo || "Acción";
 }
 
 /* =====================================================================
@@ -1367,17 +1410,17 @@ function haceVisible(){
   if (lbl) {
     var pend = state.foto.reportes.filter(function(r){ return r.estado === "pendiente"; }).length;
     lbl.textContent = online
-      ? "🟢 En línea · " + pend + " reporte(s) por aprobar"
-      : "📴 " + (state.foto.cuando ? ("Sin conexión · foto del " + state.foto.cuando) : "Sin conexión · aún sin foto guardada");
+      ? "En línea · " + pend + " reporte(s) por aprobar"
+      : (state.foto.cuando ? ("Sin conexión · foto del " + state.foto.cuando) : "Sin conexión · aún sin foto guardada");
   }
   var b = $("bannerOff");
   if (b) {
-    if (!online && state.codigo) { b.style.display = "block"; b.textContent = "📴 Estás sin conexión: la app trabaja con la última foto guardada (" + selloTexto("bandeja") + "). Lo que hagas queda en cola y se envía solo al volver la red."; }
+    if (!online && state.codigo) { b.style.display = "block"; b.textContent = "Estás sin conexión: la app trabaja con la última foto guardada (" + selloTexto("bandeja") + "). Lo que hagas queda en cola y se envía solo al volver la red."; }
     else b.style.display = "none";
   }
   var ba = $("bannerAct");
   if (ba) {
-    if (puertasBase === false && state.codigo) { ba.style.display = "block"; ba.textContent = "🧩 " + TXT_FALTA_ACTIVAR + ". Mientras tanto, Mi Negocio trabaja con tu foto guardada y guarda todo en cola."; }
+    if (puertasBase === false && state.codigo) { ba.style.display = "block"; ba.textContent = TXT_FALTA_ACTIVAR + ". Mientras tanto, Mi Negocio trabaja con tu foto guardada y guarda todo en cola."; }
     else ba.style.display = "none";
   }
   /* LOCAL-FIRST: el latido visible también drena la outbox
@@ -1476,13 +1519,13 @@ registrarModulo({
     var pendRep = state.foto.reportes.filter(function(r){ return r.estado === "pendiente"; }).length;
     var pendEnvio = state.cola.length + (state.publicarPendiente ? 1 : 0);
     var h = "";
-    h += '<div class="card"><h3>💲 Tarifa viva</h3>'
+    h += '<div class="card"><h3><span class="secIco">' + icono("tarifa") + '</span>Tarifa viva</h3>'
       + '<div class="kv">Ingreso por recarga de 360: <b>' + fmt(Number(t.ingresoRef360)) + ' CUP</b></div>'
       + '<div class="kv">Libro (CUP por QUSD): <b>' + fmt(Number(t.libroRef)) + '</b> · Salida de referencia: <b>' + fmt(Number(t.salidaRef)) + '</b></div>'
       + '<div class="kv">Comisiones: saldo <b>' + t.pctSaldo + '%</b> · transferencia <b>' + t.pctTransf + '%</b> · piso <b>' + t.pisoTransf + '%</b></div>'
       + (state.tarifaViva ? '<div class="mut">Viene de la tarifa guardada en la base' + (state.tarifaVivaEn ? ", actualizada el " + esc(state.tarifaVivaEn) : "") + '.</div>' : "")
-      + '<div class="ayuda">Es la tarifa que tus buscadores ven. La ajustas en la pestaña 💲 Tarifa.</div></div>';
-    h += '<div class="card"><h3>📥 Por atender</h3>'
+      + '<div class="ayuda">Es la tarifa que tus buscadores ven. La ajustas en la pestaña Tarifa.</div></div>';
+    h += '<div class="card"><h3><span class="secIco">' + icono("bandeja") + '</span>Por atender</h3>'
       + '<div class="kv">Reportes pendientes de aprobar: <b>' + pendRep + '</b></div>'
       + (puertasChat === true
           ? '<div class="kv">Mensajes sin leer: <b>' + sinLeerTotal + '</b> · Buscadores en línea: <b>' + enLinea + '</b></div>'
@@ -1492,17 +1535,17 @@ registrarModulo({
       + '<div class="ayuda">Los reportes se aprueban en la Bandeja. En línea = se le vio activo en los últimos 3 minutos.</div></div>';
     if (pendEnvio > 0) {
       var listaOps = state.cola.slice(0, 8).map(function(a){
-        return '<div class="kv">' + descOp(a) + ' — <b>' + (a.estado === "enviando" ? "⏳ enviando…" : "🕐 guardado en tu teléfono") + '</b>'
+        return '<div class="kv">' + descOp(a) + ' — <b>' + (a.estado === "enviando" ? "enviando…" : "guardado en tu teléfono") + '</b>'
           + (a.intentos ? ' <span class="mut">(' + a.intentos + ' intento' + (a.intentos > 1 ? 's' : '') + ')</span>' : '') + '</div>';
       }).join("");
-      h += '<div class="card"><h3>📤 Pendientes de enviar: ' + pendEnvio + '</h3>'
+      h += '<div class="card"><h3><span class="secIco">' + icono("enviar") + '</span>Pendientes de enviar: ' + pendEnvio + '</h3>'
         + listaOps
         + '<div class="mut">Acciones hechas sin conexión o sin confirmar. Se envían solas cuando vuelva la red.</div>'
-        + '<button class="bGold" id="inReintentar">📤 Reintentar ahora</button>'
+        + '<button class="bGold" id="inReintentar">Reintentar ahora</button>'
         + '<div class="ayuda">La cola vive en este teléfono: nada de lo que hagas sin internet se pierde en silencio.</div></div>';
     }
-    h += '<div class="card"><h3>🕐 Estado de los datos</h3>'
-      + '<div class="kv">' + (online ? "🟢 En línea: datos frescos de ahora." : ("📴 " + selloTexto("bandeja") + ".")) + '</div>'
+    h += '<div class="card"><h3><span class="secIco">' + icono("reloj") + '</span>Estado de los datos</h3>'
+      + '<div class="kv">' + (online ? "En línea: datos frescos de ahora." : (selloTexto("bandeja") + ".")) + '</div>'
       + '<div class="ayuda">Con poca cobertura, Mi Negocio sigue abriendo y trabajando con la última foto guardada de cada pestaña.</div></div>';
     el.innerHTML = h + bloqueSemaforoHtml() + bloqueCuentasHtml() + bloqueAvisosHtml()
       + '<div class="mut" style="text-align:center;padding:6px 0 2px">' + selloVersion() + '</div>';
@@ -1511,16 +1554,47 @@ registrarModulo({
   }
 });
 
-/* ===== MÓDULO CALCULADORA (v14 completa; 100% offline) ===== */
-function campo(id, label, valor, ayuda){
-  return '<label for="' + id + '">' + label + '</label>'
+/* ===== MÓDULO CALCULADORA (v14 completa; 100% offline) =====
+   REDISEÑO PRO v8: el RESULTADO manda y va ARRIBA de cada sección
+   (ganancia + equilibrio + veredicto, sin bajar entre campos);
+   campos compactos con steppers discretos; presets en UNA fila de
+   chips deslizable; cada campo explica en UNA línea y su detalle
+   vive en un desplegable «ⓘ» cerrado por defecto (mismo patrón
+   que la Contabilidad v7). Lógica y fórmulas: intactas. */
+function campo(id, label, valor, ayuda, detalle){
+  var h = '<label for="' + id + '">' + label + '</label>'
     + '<div class="stepRow"><button type="button" class="step" data-st="' + id + ':-1">−</button>'
     + '<input class="numIn" id="' + id + '" type="text" inputmode="decimal" value="' + valor + '">'
     + '<button type="button" class="step" data-st="' + id + ':1">+</button></div>'
-    + '<div class="ayuda">' + ayuda + '</div>';
+    + '<div class="ayuda" style="margin:6px 0 0">' + ayuda;
+  if (detalle) h += ' <button type="button" class="calcInfoBtn mini" data-calc-info aria-expanded="false" title="Más detalle">ⓘ</button>';
+  h += '</div>';
+  if (detalle) h += '<div class="calcInfo" hidden><p class="ayuda">' + detalle + '</p></div>';
+  return h;
+}
+function desplegableCalc(texto){
+  return '<div><button type="button" class="calcInfoBtn" data-calc-info aria-expanded="false">ⓘ ¿Cómo se calcula?</button>'
+    + '<div class="calcInfo" hidden><p class="ayuda">' + texto + '</p></div></div>';
+}
+function montarInfoCalc(){
+  var pg = $("pgCalc"); if (!pg) return;
+  pg.querySelectorAll("[data-calc-info]").forEach(function(b){
+    if (b.__wired) return; b.__wired = true;
+    b.addEventListener("click", function(){
+      var info = null;
+      if (b.parentElement) {
+        info = b.parentElement.querySelector(".calcInfo");
+        var sib = b.parentElement.nextElementSibling;
+        if (!info && sib && sib.classList && sib.classList.contains("calcInfo")) info = sib;
+      }
+      if (!info) return;
+      info.hidden = !info.hidden;
+      b.setAttribute("aria-expanded", info.hidden ? "false" : "true");
+    });
+  });
 }
 function chips(id, valores){
-  var h = '<div class="chips">';
+  var h = '<div class="chips unaFila">';
   valores.forEach(function(v){ h += '<span class="chip" data-ch="' + id + ':' + v + '">' + v + '</span>'; });
   return h + "</div>";
 }
@@ -1545,32 +1619,35 @@ function montarStepsCalc(){
 }
 function calcHtml(){
   var s = state.calc.saldo, t = state.calc.transf, b = state.calc.busc;
-  var h = '<div class="card"><h3>📱 Saldo (ETECSA)</h3>'
-    + campo("c_s_salida", "Precio de salida del QUSD (CUP)", s.salida, "A cuánto te pagan 1 QUSD al venderlo. Completa el equilibrio.")
+  var h = '<div class="card"><h3><span class="secIco">' + icono("telefono") + '</span>Saldo (ETECSA)</h3>'
+    + '<div id="c_out_s" class="calcOut"></div>'
+    + campo("c_s_salida", "Precio de salida del QUSD (CUP)", s.salida, "A cuánto te pagan 1 QUSD al venderlo.", "Es tu precio de salida con tu comprador. Con tu costo define el equilibrio: la tasa más alta a la que puedes vender sin perder.")
     + chips("c_s_salida", [930, 950, 960, 970])
-    + campo("c_s_costo", "Tu costo por recarga de 360 (CUP)", s.costo, "Lo que pagaste por cada 360 de saldo. Completa el equilibrio.")
+    + campo("c_s_costo", "Tu costo por recarga de 360 (CUP)", s.costo, "Lo que pagaste por cada 360 de saldo.", "Si tu costo sube, tu equilibrio baja: tendrás que vender a menor tasa para no perder.")
     + chips("c_s_costo", [1000, 1040, 1100, 1114])
-    + campo("c_s_tasa", "Tasa a la que vendes en QvaPay (saldo por QUSD)", s.tasa, "Menos tasa = vendes más caro. Mucho ojo aquí.")
+    + campo("c_s_tasa", "Tasa a la que vendes en QvaPay (saldo por QUSD)", s.tasa, "El saldo que entregas por cada QUSD.", "Menos tasa = vendes más caro y ganas más por 360, pero la oferta puede tardar más en venderse. Es el número que más mueve tu ganancia: mucho ojo aquí.")
     + chips("c_s_tasa", [300, 320, 340])
-    + campo("c_s_saldo", "Saldo total a vender", s.saldo, "Cuánto saldo piensas vender en total.")
-    + '<div id="c_out_s"></div></div>';
-  h += '<div class="card"><h3>🏦 Transferencia</h3>'
+    + campo("c_s_saldo", "Saldo total a vender", s.saldo, "Cuánto saldo piensas vender en total.", "La ganancia del monto completo se calcula sobre este total y resta 14,44 CUP del costo de los envíos (cada transferencia de saldo descuenta 5 de principal).")
+    + '</div>';
+  h += '<div class="card"><h3><span class="secIco">' + icono("cambio") + '</span>Transferencia</h3>'
+    + '<div id="c_out_t" class="calcOut"></div>'
     + campo("c_t_efectivo", "Efectivo a entregar (CUP)", t.efectivo, "El dinero en efectivo que das en mano en este trato.")
-    + campo("c_t_porc", "Te pagan AL % (prima por transferencia)", t.porc, "Cuánta transferencia extra recibes. En la calle se oye hasta el 40%.")
+    + campo("c_t_porc", "Te pagan AL % (prima por transferencia)", t.porc, "Cuánta transferencia extra recibes por tu efectivo.", "En la calle se oye hasta el 40%. El resultado te dice tu equilibrio: por encima de esa prima, la vuelta gana.")
     + chips("c_t_porc", [20, 25, 30, 35, 40])
-    + campo("c_t_libro", "Libro BANK_CUP (CUP por QUSD)", t.libro, "Precio de 1 QUSD pagando por transferencia (libro en vivo de QvaPay).")
+    + campo("c_t_libro", "Libro BANK_CUP (CUP por QUSD)", t.libro, "Precio de 1 QUSD pagando por transferencia.", "Es el libro en vivo de QvaPay: con la transferencia que recibes compras QUSD a este precio y lo vendes a tu salida.")
     + chips("c_t_libro", [1030, 1100, 1130])
     + campo("c_t_salida", "Precio de salida del QUSD (CUP)", t.salida, "A cuánto te pagan 1 QUSD al venderlo por efectivo.")
-    + '<div id="c_out_t"></div></div>';
-  h += '<div class="card"><h3>🤝 Buscadores (esquema v2)</h3>'
-    + campo("c_b_precio", "Precio que te trae el buscador (efectivo, por 360)", b.precio, "El buscador te trae saldo a este precio. La comisión se saca del excedente.")
+    + '</div>';
+  h += '<div class="card"><h3><span class="secIco">' + icono("equipo") + '</span>Buscadores (esquema v2)</h3>'
+    + '<div id="c_out_b" class="calcOut"></div>'
+    + campo("c_b_precio", "Precio que te trae el buscador (efectivo, por 360)", b.precio, "El buscador te trae saldo a este precio.", "La comisión del buscador sale del excedente: lo que rinde la recarga vendida menos este precio.")
     + campo("c_b_tasaVenta", "Tasa de venta en QvaPay (saldo por QUSD)", b.tasaVenta, "La tasa a la que vas a vender ese saldo en QvaPay.")
     + campo("c_b_efectivo", "Efectivo de la vuelta de transferencia (CUP)", b.efectivo, "Para el cálculo de transferencia del buscador.")
     + campo("c_b_porc", "Prima de la vuelta (%)", b.porc, "La prima al % de esa vuelta de transferencia.")
     + campo("c_b_libro", "Libro BANK_CUP de la vuelta", b.libro, "Precio de 1 QUSD por transferencia en esa vuelta.")
-    + campo("c_b_salida", "Salida del QUSD (CUP)", b.salida, "Sirve para saldo y transferencia: ingreso y ganancia salen de aquí.")
-    + '<div id="c_out_b"></div></div>';
-  h += '<div class="ayuda">La calculadora trabaja 100% sin internet y guarda tus números en este teléfono. La sección Buscadores alimenta la tarifa derivada de la pestaña 💲 Tarifa.</div>';
+    + campo("c_b_salida", "Salida del QUSD (CUP)", b.salida, "Sirve para saldo y transferencia: de aquí salen el ingreso y la ganancia.")
+    + '</div>';
+  h += '<div class="ayuda">La calculadora trabaja 100% sin internet y guarda tus números en este teléfono. La sección Buscadores alimenta la tarifa derivada de la pestaña Tarifa.</div>';
   return h;
 }
 function renderCalc(outOnly){
@@ -1592,12 +1669,15 @@ function renderCalc(outOnly){
     var eq = 360 * Number(s.salida) / Number(s.costo);
     var g360 = (360 / Number(s.tasa)) * Number(s.salida) - Number(s.costo);
     var total = g360 * (Number(s.saldo) / 360) - 14.44;
-    os.innerHTML = '<div class="big">' + fmt(total) + ' CUP</div><div class="mut">ganancia del monto completo</div>'
+    os.innerHTML = '<div class="calcRes"><div class="calcResK">Ganancia del monto completo</div>'
+      + '<div class="big">' + fmt(total) + ' <span class="cur">CUP</span></div>'
       + '<div class="grid"><div class="cell"><div class="v">' + fmt(eq) + '</div><div class="k">EQUILIBRIO · tasa</div></div>'
       + '<div class="cell"><div class="v">' + fmt(g360) + '</div><div class="k">GANA / 360</div></div></div>'
       + (Number(s.tasa) <= eq
-        ? '<div class="sema ok">🟢 VENDE — la tasa ' + fmt(Number(s.tasa)) + ' está por debajo del equilibrio ' + fmt(eq) + '</div>'
-        : '<div class="sema bad">🔴 NO VENDAS a ' + fmt(Number(s.tasa)) + ' — pierdes ' + fmt(Math.abs(g360)) + ' CUP por cada 360</div>');
+        ? '<div class="sema ok">VENDE — la tasa ' + fmt(Number(s.tasa)) + ' está por debajo del equilibrio ' + fmt(eq) + '</div>'
+        : '<div class="sema bad">NO VENDAS a ' + fmt(Number(s.tasa)) + ' — pierdes ' + fmt(Math.abs(g360)) + ' CUP por cada 360</div>')
+      + desplegableCalc("Equilibrio = 360 × salida ÷ costo: es la tasa más alta a la que puedes vender sin perder. Ganancia por 360 = (360 ÷ tu tasa) × salida − costo. La del monto completo multiplica esa ganancia por tu saldo total y resta 14,44 CUP del costo de los envíos.")
+      + '</div>';
   }
   var ot = $("c_out_t");
   if (ot && Number(t.libro) > 0) {
@@ -1607,14 +1687,17 @@ function renderCalc(outOnly){
     var gan = reg - Number(t.efectivo);
     var eqp = (Number(t.libro) / Number(t.salida) - 1) * 100;
     var mg = ((1 + Number(t.porc) / 100) * Number(t.salida) / Number(t.libro) - 1) * 100;
-    ot.innerHTML = '<div class="big">' + fmt(gan) + ' CUP</div><div class="mut">ganancia de la vuelta</div>'
+    ot.innerHTML = '<div class="calcRes"><div class="calcResK">Ganancia de la vuelta</div>'
+      + '<div class="big">' + fmt(gan) + ' <span class="cur">CUP</span></div>'
       + '<div class="grid"><div class="cell"><div class="v">' + fmt(rec) + '</div><div class="k">RECIBES TRANSF.</div></div>'
       + '<div class="cell"><div class="v">' + fmt(qusd) + '</div><div class="k">COMPRAS QUSD</div></div>'
       + '<div class="cell"><div class="v">' + fmt(reg) + '</div><div class="k">REGRESA EFECT.</div></div></div>'
       + '<div class="mut" style="margin-top:8px">Equilibrio: al ' + fmt(eqp) + '% · Tu margen al ' + fmt(Number(t.porc)) + '%: ' + fmt(mg) + '%</div>'
       + (Number(t.porc) > eqp
-        ? '<div class="sema ok">🟢 DALE — estás por encima del equilibrio (al ' + fmt(eqp) + '%)</div>'
-        : '<div class="sema bad">🔴 NO CONVIENE — necesitas más del ' + fmt(eqp) + '% y te dan el ' + fmt(Number(t.porc)) + '%</div>');
+        ? '<div class="sema ok">DALE — estás por encima del equilibrio (al ' + fmt(eqp) + '%)</div>'
+        : '<div class="sema bad">NO CONVIENE — necesitas más del ' + fmt(eqp) + '% y te dan el ' + fmt(Number(t.porc)) + '%</div>')
+      + desplegableCalc("Recibes tu efectivo más la prima en transferencia; con eso compras QUSD al precio del libro y lo vendes a tu salida. El equilibrio es la prima mínima para no perder: libro ÷ salida − 1. Por encima de ella, la vuelta gana.")
+      + '</div>';
   }
   var ob = $("c_out_b");
   if (ob) {
@@ -1625,12 +1708,16 @@ function renderCalc(outOnly){
     var recB = Number(b.efectivo) * (1 + Number(b.porc) / 100);
     var ganB = (recB / Number(b.libro)) * Number(b.salida) - Number(b.efectivo);
     var comT2 = ganB > 0 ? ganB * Number(t2.pctTransf) / 100 : 0;
-    ob.innerHTML = '<div class="grid"><div class="cell"><div class="v">' + fmt(ing2) + '</div><div class="k">INGRESO / 360</div></div>'
+    ob.innerHTML = '<div class="calcRes"><div class="calcResK">Lo que gana el buscador</div>'
+      + '<div class="grid" style="margin-top:0"><div class="cell"><div class="v">' + fmt(ing2) + '</div><div class="k">INGRESO / 360</div></div>'
       + '<div class="cell"><div class="v">' + fmt(comS2) + '</div><div class="k">PAGA SALDO ' + t2.pctSaldo + '%</div></div></div>'
       + '<div class="grid"><div class="cell"><div class="v">' + fmt(ganB) + '</div><div class="k">GANANCIA VUELTA</div></div>'
       + '<div class="cell"><div class="v">' + fmt(comT2) + '</div><div class="k">PAGA TRANSF. ' + t2.pctTransf + '%</div></div></div>'
-      + '<div class="ayuda" style="margin-top:8px">Saldo: el buscador gana el ' + t2.pctSaldo + '% del excedente. Transferencia: el ' + t2.pctTransf + '% de la ganancia de la vuelta, solo al cerrar.</div>';
+      + '<div class="ayuda" style="margin-top:8px">Saldo: el buscador gana el ' + t2.pctSaldo + '% del excedente. Transferencia: el ' + t2.pctTransf + '% de la ganancia de la vuelta, solo al cerrar.</div>'
+      + desplegableCalc("Ingreso por 360 = (360 ÷ tasa de venta) × salida. En saldo, el buscador gana el " + t2.pctSaldo + "% del excedente (el ingreso menos el precio que te trae). En transferencia, gana el " + t2.pctTransf + "% de la ganancia de la vuelta completa, y solo se paga cuando la vuelta cierra.")
+      + '</div>';
   }
+  montarInfoCalc();
 }
 registrarModulo({
   id: "Calc", tab: "Calculadora", icono: "calc",
@@ -1672,11 +1759,11 @@ function hojaReporte(r){
   if (r.estado !== "pendiente") txt += "<br>Estado: " + esc(r.estado) + (r.comision !== null && r.comision !== undefined && r.estado === "aprobado" ? " · Comisión: " + fmt(Number(r.comision)) + " CUP" : "") + (r.motivo ? " · Motivo: " + esc(r.motivo) : "");
   var btns = [];
   if (r.estado === "pendiente") {
-    btns.push({ txt: "✅ Aprobar con la sugerencia: " + fmt(sug.com) + " CUP", cls: "bOk", fn: function(){ decidirReporte(r.id, true, sug.com); } });
-    btns.push({ txt: "✏️ Aprobar con otro monto…", cls: "bGold", fn: function(){ formComision(r); } });
-    btns.push({ txt: "❌ Rechazar…", cls: "bBad", fn: function(){ formRechazo(r); } });
+    btns.push({ txt: "Aprobar con la sugerencia: " + fmt(sug.com) + " CUP", cls: "bOk", fn: function(){ decidirReporte(r.id, true, sug.com); } });
+    btns.push({ txt: "Aprobar con otro monto…", cls: "bGold", fn: function(){ formComision(r); } });
+    btns.push({ txt: "Rechazar…", cls: "bBad", fn: function(){ formRechazo(r); } });
   }
-  btns.push({ txt: r.prueba ? "↩️ Quitar marca de prueba" : "🧪 Marcar como prueba", cls: "bGhost", fn: function(){ cerrarHoja(); marcarPrueba(r); } });
+  btns.push({ txt: r.prueba ? "Quitar marca de prueba" : "Marcar como prueba", cls: "bGhost", fn: function(){ cerrarHoja(); marcarPrueba(r); } });
   abrirHoja("Reporte de " + r.nombre, txt, btns);
 }
 function formComision(r){
@@ -1685,7 +1772,7 @@ function formComision(r){
   var tx = $("hojaTxt"); tx.style.display = "block";
   tx.innerHTML = '<div class="mut">Sugerencia del esquema v2: <b>' + fmt(sug.com) + ' CUP</b>' + (sug.aviso ? "<br>" + esc(sug.aviso) : "") + '</div><input id="hCom" type="text" inputmode="decimal" value="' + fmt(sug.com) + '">';
   var cont = $("hojaBtns"); cont.innerHTML = "";
-  var b = document.createElement("button"); b.className = "bOk"; b.textContent = "✅ Aprobar con este monto";
+  var b = document.createElement("button"); b.className = "bOk"; b.textContent = "Aprobar con este monto";
   b.addEventListener("click", function(){
     var v = parseFloat(String($("hCom").value).replace(",", "."));
     cerrarHoja(); decidirReporte(r.id, true, isFinite(v) ? v : sug.com);
@@ -1700,7 +1787,7 @@ function formRechazo(r){
   var tx = $("hojaTxt"); tx.style.display = "block";
   tx.innerHTML = '<div class="mut">Motivo (opcional): explícalo en una línea para que el buscador entienda.</div><input id="hMot" type="text" placeholder="Por qué se rechaza">';
   var cont = $("hojaBtns"); cont.innerHTML = "";
-  var b = document.createElement("button"); b.className = "bBad"; b.textContent = "❌ Rechazar";
+  var b = document.createElement("button"); b.className = "bBad"; b.textContent = "Rechazar";
   b.addEventListener("click", function(){
     var v = $("hMot").value || "";
     cerrarHoja(); decidirReporte(r.id, false, 0, v);
@@ -1719,12 +1806,12 @@ function tarjetaReporte(r){
     + '<div class="kv">' + esc(conceptoDe(r)) + " · " + fechaCorta(r.creado) + '</div>'
     + '<div class="kv">Teléfono: ' + esc(r.telefono || "—") + (r.nota ? ' · Nota: ' + esc(r.nota) : '') + '</div>'
     + (r.estado === "aprobado" && r.comision !== null && r.comision !== undefined ? '<div class="kv">Comisión: <b>' + fmt(Number(r.comision)) + ' CUP</b></div>' : "")
-    + (r.comision_pagada_en ? '<div class="kv">💰 Comisión pagada el ' + fechaCorta(r.comision_pagada_en) + " " + horaDe(r.comision_pagada_en) + '</div>' : "")
+    + (r.comision_pagada_en ? '<div class="kv">Comisión pagada el ' + fechaCorta(r.comision_pagada_en) + " " + horaDe(r.comision_pagada_en) + '</div>' : "")
     + (r.adj_datos ? '<img class="adj-foto" alt="Comprobante del reporte" src="' + (String(r.adj_datos).indexOf("data:") === 0 ? r.adj_datos : "data:image/jpeg;base64," + r.adj_datos) + '">' : "")
-    + (r.estado === "aprobado" && !r.comision_pagada_en ? '<div class="fila" style="margin-top:8px"><button class="bOk bMini" data-pagar="' + r.id + '">💰 Ya pagué</button></div><div class="ayuda">Al pagarla, el buscador ve «Comisión pagada» en su trato y la cuenta de la semana baja sola.</div>' : "")
+    + (r.estado === "aprobado" && !r.comision_pagada_en ? '<div class="fila" style="margin-top:8px"><button class="bOk bMini" data-pagar="' + r.id + '">Ya pagué</button></div><div class="ayuda">Al pagarla, el buscador ve «Comisión pagada» en su trato y la cuenta de la semana baja sola.</div>' : "")
     + (r.estado === "rechazado" && r.motivo ? '<div class="kv">Motivo: ' + esc(r.motivo) + '</div>' : "")
     + (sug ? '<div class="kv">Comisión sugerida: <b>' + fmt(sug.com) + ' CUP</b></div>' + (sug.aviso ? '<div class="mut">' + esc(sug.aviso) + '</div>' : "") : "")
-    + (r.estado === "pendiente" ? '<div class="fila" style="margin-top:8px;gap:8px"><button class="bOk bMini" data-ap="' + r.id + '">✅ Aprobar</button><button class="bBad bMini" data-rj="' + r.id + '">❌ Rechazar…</button></div>'
+    + (r.estado === "pendiente" ? '<div class="fila" style="margin-top:8px;gap:8px"><button class="bOk bMini" data-ap="' + r.id + '">Aprobar</button><button class="bBad bMini" data-rj="' + r.id + '">Rechazar…</button></div>'
       + '<div class="ayuda">Mantén presionada la tarjeta (o toca ⋯) para aprobar con otro monto. Lo sin red no se pierde: va a la cola.</div>' : "")
     + "</div>";
   return h;
@@ -1735,7 +1822,7 @@ function tarjetaAyuda(a){
     + '<div class="kv"><b>' + esc(a.tema || "Ayuda") + "</b> · " + fechaCorta(a.creado) + '</div>'
     + '<div class="kv">' + esc(a.mensaje || "") + '</div>'
     + (a.telefono ? '<div class="kv">Teléfono: ' + esc(a.telefono) + '</div>' : "");
-  if (a.estado !== "visto") h += '<button class="bGhost" data-vista="' + a.id + '">✔️ Marcar como vista</button>';
+  if (a.estado !== "visto") h += '<button class="bGhost" data-vista="' + a.id + '">Marcar como vista</button>';
   return h + "</div>";
 }
 registrarModulo({
@@ -1745,13 +1832,13 @@ registrarModulo({
     var todosReps = state.foto.reportes.slice().sort(function(x, y){ return String(y.creado).localeCompare(String(x.creado)); });
     var reps = todosReps.filter(function(r){ return !r.prueba; });
     var nPruebas = todosReps.length - reps.length;
-    var h = (!online ? '<div class="offBanner" style="display:block">📴 ' + selloTexto("bandeja") + ". Las decisiones que tomes aquí quedan en cola y salen solas.</div>" : "");
-    h += '<div class="sub">Reportes pendientes de los buscadores. Aprobar deja la comisión lista para publicarla con 💲 Tarifa → 📡 Publicar ahora.</div>';
+    var h = (!online ? '<div class="offBanner" style="display:block">' + selloTexto("bandeja") + ". Las decisiones que tomes aquí quedan en cola y salen solas.</div>" : "");
+    h += '<div class="sub">Reportes pendientes de los buscadores. Aprobar deja la comisión lista para publicarla con Tarifa → Publicar ahora.</div>';
     if (!reps.length) h += '<div class="card"><div class="mut">No hay reportes todavía.</div></div>';
     reps.forEach(function(r){ h += tarjetaReporte(r); });
-    if (nPruebas > 0) h += '<div class="mut" style="margin:4px 0 10px">🧪 ' + nPruebas + ' reportes marcados como prueba (ocultos de la Bandeja y de las cuentas).</div>';
+    if (nPruebas > 0) h += '<div class="mut" style="margin:4px 0 10px">' + nPruebas + ' reportes marcados como prueba (ocultos de la Bandeja y de las cuentas).</div>';
     var ays = state.foto.ayudas.slice().sort(function(x, y){ return String(y.creado).localeCompare(String(x.creado)); });
-    if (ays.length) { h += '<h3 style="margin:16px 0 8px">💬 Ayudas</h3>'; ays.forEach(function(a){ h += tarjetaAyuda(a); }); }
+    if (ays.length) { h += '<h3 style="margin:16px 0 8px">Ayudas</h3>'; ays.forEach(function(a){ h += tarjetaAyuda(a); }); }
     el.innerHTML = h;
     el.querySelectorAll("[data-ap]").forEach(function(b){ b.addEventListener("click", function(){ var r = buscarReporte(b.getAttribute("data-ap")); if (r) decidirReporte(r.id, true, sugerencia(r).com); }); });
     el.querySelectorAll("[data-rj]").forEach(function(b){ b.addEventListener("click", function(){ var r = buscarReporte(b.getAttribute("data-rj")); if (r) formRechazo(r); }); });
@@ -1770,9 +1857,9 @@ registrarModulo({
 /* ===== ACCIONES DE EQUIPO (con cola offline; eliminar NO se encola) ===== */
 function hojaUsuario(u){
   var btns = [];
-  if (puertasChat === true) btns.push({ txt: "💬 Abrir chat", cls: "bGold", fn: function(){ abrirChat(u.codigo, u.nombre); } });
-  btns.push({ txt: u.activo ? "🚫 Desactivar (bloquear su app)" : "🔓 Activar de nuevo", cls: "bGhost", fn: function(){ cambiarActivo(u.codigo, !u.activo); } });
-  btns.push({ txt: "🗑️ Eliminar buscador…", cls: "bBad", fn: function(){ confirmarEliminar(u); } });
+  if (puertasChat === true) btns.push({ txt: "Abrir chat", cls: "bGold", fn: function(){ abrirChat(u.codigo, u.nombre); } });
+  btns.push({ txt: u.activo ? "Desactivar (bloquear su app)" : "Activar de nuevo", cls: "bGhost", fn: function(){ cambiarActivo(u.codigo, !u.activo); } });
+  btns.push({ txt: "Eliminar buscador…", cls: "bBad", fn: function(){ confirmarEliminar(u); } });
   abrirHoja(u.nombre + " (" + u.codigo + ")", (u.activo ? "Buscador ACTIVO. Ve todo el panel: su tarifa, sus tratos y su comisión." : "Buscador DESACTIVADO: su app le dice que no tiene acceso."), btns);
 }
 function cambiarActivo(codigo, on){
@@ -1788,7 +1875,7 @@ function confirmarEliminar(u){
     return;
   }
   abrirHoja("¿Eliminar a " + u.nombre + "?", "Se borra TODO lo suyo: su acceso, sus reportes y sus ayudas. Los tratos ya aprobados que estén en su panel se quedan. No se puede deshacer.", [
-    { txt: "🗑️ Sí, eliminar", cls: "bBad", fn: function(){ eliminarUsuario(u); } }
+    { txt: "Sí, eliminar", cls: "bBad", fn: function(){ eliminarUsuario(u); } }
   ]);
 }
 function eliminarUsuario(u){
@@ -1815,28 +1902,28 @@ registrarModulo({
   id: "Equipo", tab: "Equipo", icono: "equipo",
   render: function(){
     var el = $("pgEquipo"); if (!el) return;
-    var h = (!online ? '<div class="offBanner" style="display:block">📴 ' + selloTexto("equipo") + ". Chat y presencia vuelven con la red; las altas y bajas quedan en cola.</div>" : "");
-    if (puertasChat === false) h += '<div class="info">💬 Chat y presencia todavía no están activados en tu base: se encienden solos con el paquete SQL único. El resto del equipo funciona igual.</div>';
+    var h = (!online ? '<div class="offBanner" style="display:block">' + selloTexto("equipo") + ". Chat y presencia vuelven con la red; las altas y bajas quedan en cola.</div>" : "");
+    if (puertasChat === false) h += '<div class="info">Chat y presencia todavía no están activados en tu base: se encienden solos con el paquete SQL único. El resto del equipo funciona igual.</div>';
     h += '<div class="sub">Tus buscadores: quién está en línea, su chat y su acceso. Mantén presionada una tarjeta (o toca ⋯) para las acciones.</div>';
     state.foto.usuarios.forEach(function(u){
       var badge = Number(sinLeerMap[u.codigo] || 0);
       h += '<div class="card prensable" data-u="' + esc(u.codigo) + '"><div class="row"><h3>' + esc(u.nombre) + '</h3><span class="fila">'
         + (u.activo ? '<span class="pill pOk">ACTIVO</span>' : '<span class="pill pBad">BLOQUEADO</span>')
-        + (badge > 0 ? '<span class="pill pChat">💬 ' + badge + '</span>' : "")
+        + (badge > 0 ? '<span class="pill pChat">' + badge + '</span>' : "")
         + '<button class="dots" data-udot="' + esc(u.codigo) + '">⋯</button></span></div>'
         + '<div class="kv">Código: ' + esc(u.codigo) + "</div>" + lineaPresencia(u)
         + '<div class="fila" style="margin-top:8px;gap:8px">'
-        + (puertasChat === true ? '<button class="bGold bMini" data-chat="' + esc(u.codigo) + '">💬 Chat' + (badge > 0 ? " · " + badge + " sin leer" : "") + "</button>" : "")
-        + '<button class="bGhost bMini" data-act="' + esc(u.codigo) + '">' + (u.activo ? "🚫 Desactivar" : "🔓 Activar") + "</button></div></div>";
+        + (puertasChat === true ? '<button class="bGold bMini" data-chat="' + esc(u.codigo) + '">Chat' + (badge > 0 ? " · " + badge + " sin leer" : "") + "</button>" : "")
+        + '<button class="bGhost bMini" data-act="' + esc(u.codigo) + '">' + (u.activo ? "Desactivar" : "Activar") + "</button></div></div>";
     });
     if (!state.foto.usuarios.length) h += '<div class="card"><div class="mut">Todavía no hay buscadores en tu equipo.</div></div>';
-    h += '<div class="card"><h3>➕ Añadir buscador</h3>'
+    h += '<div class="card"><h3>Añadir buscador</h3>'
       + '<input id="nuCod" placeholder="Código que TÚ le entregas (ej.: PALABRA-123)" autocapitalize="characters">'
       + '<div class="ayuda">Invéntalo tú: una palabra y un número. Ese código es su llave de entrada a «Mi Trabajo».</div>'
       + '<input id="nuNom" placeholder="Nombre (ej.: un apodo)">'
       + '<button class="bOk" id="nuBtn">Añadir al equipo</button>'
       + '<div class="ayuda">El alta queda registrada y su app entra con ese código en cuanto la base la confirma.</div></div>';
-    h += '<div class="card"><h3>🔑 Tu acceso</h3><div class="mut">Tu código de administrador vive solo en este teléfono.</div>'
+    h += '<div class="card"><h3>Tu acceso</h3><div class="mut">Tu código de administrador vive solo en este teléfono.</div>'
       + '<button class="bGhost" id="btnBorrarCodigo">Borrar mi código de este teléfono</button>'
       + '<div class="ayuda">Cerrar sesión: al volver a abrir Mi Negocio te lo pide de nuevo. Útil si prestas el teléfono.</div></div>';
     el.innerHTML = h;
@@ -1847,7 +1934,7 @@ registrarModulo({
     var nb = $("nuBtn"); if (nb) nb.addEventListener("click", guardarNuevoBuscador);
     var bc = $("btnBorrarCodigo"); if (bc) bc.addEventListener("click", function(){
       abrirHoja("¿Borrar tu código de este teléfono?", "Mi Negocio se cierra y al abrirlo te pide el código otra vez. La base no cambia: solo se olvida en este aparato.", [
-        { txt: "🔒 Sí, borrar y salir", cls: "bBad", fn: function(){
+        { txt: "Sí, borrar y salir", cls: "bBad", fn: function(){
           state.codigo = ""; guardar();
           try { localStorage.removeItem(LS_KEY); } catch(e){}
           state = estadoVacio();
@@ -2152,10 +2239,10 @@ function pintarChat(){
   var h = '<div class="card chatWA"><div class="chatHead">'
     + avatarHtml(chatNombre, perf.avatar_color, enLineaDe(chatCon) === true)
     + '<div class="chatHeadTx"><div class="chatNom">' + esc(chatNombre) + '</div><div class="presChat" id="chPres">' + (pres ? pres : "Cargando presencia…") + '</div></div>'
-    + '<span><button class="dots" id="chInfoBtn" title="Qué significan los estados">ℹ️</button> <button class="dots" id="chTempBtn">⏱️</button> <button class="dots" id="chVolver">←</button></span></div>'
-    + (chatFijado && !chatFijado.borrado ? '<div class="fijadoBar">📌 ' + esc(chatFijado.texto || "Mensaje fijado") + '</div>' : "")
-    + (chatTempSeg ? '<div class="mut">⏱️ Los mensajes de esta conversación desaparecen en ' + (chatTempSeg <= 86400 ? "24 h" : (chatTempSeg <= 7 * 86400 ? "7 días" : "90 días")) + '. Solo tú lo activas; ' + esc(chatNombre) + ' ve el estado pero no lo cambia.</div>' : "")
-    + '<input id="chBuscar" class="chatBuscar" type="text" placeholder="🔍 Buscar en el chat…">'
+    + '<span><button class="dots" id="chInfoBtn" title="Qué significan los estados">' + icono("info") + '</button> <button class="dots" id="chTempBtn" title="Mensajes temporales">' + icono("reloj") + '</button> <button class="dots" id="chVolver" title="Volver al equipo">' + icono("volver") + '</button></span></div>'
+    + (chatFijado && !chatFijado.borrado ? '<div class="fijadoBar">' + esc(chatFijado.texto || "Mensaje fijado") + '</div>' : "")
+    + (chatTempSeg ? '<div class="mut">Los mensajes de esta conversación desaparecen en ' + (chatTempSeg <= 86400 ? "24 h" : (chatTempSeg <= 7 * 86400 ? "7 días" : "90 días")) + '. Solo tú lo activas; ' + esc(chatNombre) + ' ve el estado pero no lo cambia.</div>' : "")
+    + '<input id="chBuscar" class="chatBuscar" type="text" placeholder="Buscar en el chat…">'
     + '<div class="hiloP hiloWA" id="chHilo">';
   if (!chatMsgs.length) h += '<div class="mut">Sin mensajes todavía. Escribe el primero abajo.</div>';
   var ultimoDia = "";
@@ -2183,12 +2270,12 @@ function pintarChat(){
     h += '<div class="msgP ' + (mio ? "me" : "him") + '" data-mid="' + esc(String(m.id)) + '"><div class="burP">' + inner + '</div>' + reac + "</div>";
   });
   h += '</div>'
-    + (chatResp ? '<div class="fijadoBar">↩️ Respondiendo a: «' + esc(String(chatResp.texto || "adjunto").slice(0, 80)) + '» <button class="bGhost bMini" id="chRespX">Quitar</button></div>' : "")
+    + (chatResp ? '<div class="fijadoBar">Respondiendo a: «' + esc(String(chatResp.texto || "adjunto").slice(0, 80)) + '» <button class="bGhost bMini" id="chRespX">Quitar</button></div>' : "")
     + previaAdjHtml()
-    + '<div class="adjHojaWA" id="chAdjHoja" style="display:none"><button class="bGhost" id="chFoto">📷 Foto</button><button class="bGhost" id="chArchivo">📎 Archivo</button><button class="bGhost" id="chVoz">🎤 Nota de voz</button></div>'
+    + '<div class="adjHojaWA" id="chAdjHoja" style="display:none"><button class="bGhost" id="chFoto">Foto</button><button class="bGhost" id="chArchivo">Archivo</button><button class="bGhost" id="chVoz">Nota de voz</button></div>'
     + (grabVoz
-        ? '<div class="grabBar"><span class="grabPunto"></span><span class="grabT" id="grabT">0:00</span><span class="grabOnda" id="grabOnda">' + barrasGrabHtml() + '</span><button class="bGhost" id="grabCancel">Cancelar</button><button class="bGhost" id="grabAdj" title="Terminar y adjuntar para escucharla">✓</button><button class="sendBtn" id="grabEnviar" title="Terminar y enviar directo">➤</button></div>'
-        : '<div class="compWA"><div class="compBox"><input id="chTexto" placeholder="Escribe un mensaje…"><button class="clipBtn" id="chClip" title="Adjuntar foto, archivo o voz">📎</button></div><button class="micBtn" id="chVozBtn" title="Nota de voz">🎤</button><button class="sendBtn" id="chEnviar" title="' + (chatEditId ? "Guardar edición" : "Enviar") + '">' + (chatEditId ? "✓" : "➤") + '</button></div>')
+        ? '<div class="grabBar"><span class="grabPunto"></span><span class="grabT" id="grabT">0:00</span><span class="grabOnda" id="grabOnda">' + barrasGrabHtml() + '</span><button class="bGhost" id="grabCancel">Cancelar</button><button class="bGhost" id="grabAdj" title="Terminar y adjuntar para escucharla">✓</button><button class="sendBtn" id="grabEnviar" title="Terminar y enviar directo">' + icono("enviar") + '</button></div>'
+        : '<div class="compWA"><div class="compBox"><input id="chTexto" placeholder="Escribe un mensaje…"><button class="clipBtn" id="chClip" title="Adjuntar foto, archivo o voz">' + icono("clip") + '</button></div><button class="micBtn" id="chVozBtn" title="Nota de voz">' + icono("micro") + '</button><button class="sendBtn" id="chEnviar" title="' + (chatEditId ? "Guardar edición" : "Enviar") + '">' + (chatEditId ? "✓" : icono("enviar")) + '</button></div>')
     + '<input id="chFile" type="file" style="display:none">'
     + '<div class="ayuda">Con este chat abierto, los mensajes nuevos llegan al momento (timbre en vivo) y el hilo se refresca solo cada 3 s.</div></div>';
   el.innerHTML = h;
@@ -2355,27 +2442,27 @@ function hojaMensajeMN(m){
   var mio = m.de === "ADMIN";
   var btns = [];
   if (m.local) {
-    btns.push({ txt: "🗑️ Quitar de la cola (no se envía)", cls: "bBad", fn: function(){
+    btns.push({ txt: "Quitar de la cola (no se envía)", cls: "bBad", fn: function(){
       state.cola = state.cola.filter(function(a){ return !(a.tipo === "chat" && a.cuando === m.creado); });
       guardar(); cargarChat(); toast("Mensaje de la cola eliminado");
     } });
-    btns.push({ txt: "📋 Copiar texto", cls: "bGhost", fn: function(){ copiarTexto(m.texto || ""); } });
+    btns.push({ txt: "Copiar texto", cls: "bGhost", fn: function(){ copiarTexto(m.texto || ""); } });
     abrirHoja(mio ? "Tu mensaje (en cola)" : "Mensaje", '<div class="kv">' + esc(m.texto || "(adjunto)") + '</div>', btns);
     return;
   }
   if (!m.borrado) {
-    btns.push({ txt: "↩️ Responder", cls: "bGhost", fn: function(){ chatResp = m; pintarChat(); } });
+    btns.push({ txt: "Responder", cls: "bGhost", fn: function(){ chatResp = m; pintarChat(); } });
     ["❤️", "👍", "😂", "👏", "🔥"].forEach(function(e){
       btns.push({ txt: e + " Reaccionar", cls: "bGhost", fn: function(){
         rpc("reaccionar", { p_codigo: "ADMIN", p_id: m.id, p_emoji: e }).then(function(){ cargarChat(); }).catch(function(){ toast("Falta activar las reacciones (pegado SQL único)", false); });
       } });
     });
-    btns.push({ txt: "📋 Copiar texto", cls: "bGhost", fn: function(){ copiarTexto(m.texto || ""); } });
-    if (chatFijado && chatFijado.id === m.id) btns.push({ txt: "📌 Desfijar", cls: "bGhost", fn: function(){ fijarMN(m, false); } });
-    else btns.push({ txt: "📌 Fijar", cls: "bGhost", fn: function(){ fijarMN(m, true); } });
+    btns.push({ txt: "Copiar texto", cls: "bGhost", fn: function(){ copiarTexto(m.texto || ""); } });
+    if (chatFijado && chatFijado.id === m.id) btns.push({ txt: "Desfijar", cls: "bGhost", fn: function(){ fijarMN(m, false); } });
+    else btns.push({ txt: "Fijar", cls: "bGhost", fn: function(){ fijarMN(m, true); } });
     if (mio) {
-      btns.push({ txt: "✏️ Editar", cls: "bGhost", fn: function(){ chatEditId = m.id; pintarChat(); var t = $("chTexto"); if (t) { t.value = m.texto || ""; t.focus(); } } });
-      btns.push({ txt: "🗑️ Eliminar para todos", cls: "bBad", fn: function(){
+      btns.push({ txt: "Editar", cls: "bGhost", fn: function(){ chatEditId = m.id; pintarChat(); var t = $("chTexto"); if (t) { t.value = m.texto || ""; t.focus(); } } });
+      btns.push({ txt: "Eliminar para todos", cls: "bBad", fn: function(){
         rpc("borrarMensaje", { p_codigo: "ADMIN", p_id: m.id }).then(function(){ cargarChat(); }).catch(function(){ toast("No se pudo eliminar", false); });
       } });
     }
@@ -2393,7 +2480,7 @@ function hojaTemporalesMN(){
     { txt: "7 días", horas: 168 },
     { txt: "90 días", horas: 2160 }
   ];
-  abrirHoja("⏱️ Mensajes temporales con " + chatNombre,
+  abrirHoja("Mensajes temporales con " + chatNombre,
     '<div class="mut">Con una ventana activa, los mensajes más viejos que ella se eliminan para ambos solos. Solo tú lo activas; el buscador ve el estado pero no lo cambia.</div>',
     opciones.map(function(o){
       return { txt: o.txt, cls: "bGhost", fn: function(){
@@ -2514,7 +2601,7 @@ function publicarAhora(){
       abrirHoja("Publicado en vivo pendiente", (e && e.faltaPuerta)
         ? "🧩 " + TXT_FALTA_ACTIVAR + ": la tarifa quedó guardada en este teléfono como pendiente y tus tratos siguen en la cola. También puedes generar el datos.json de siempre (botón de abajo) y pasarlo por WhatsApp."
         : "Falló la red al publicar: la tarifa quedó guardada en este teléfono como pendiente y se reintenta sola. También puedes generar el datos.json de siempre (botón de abajo) y pasarlo por WhatsApp.", [
-        { txt: "🧾 Generar datos.json", cls: "bGold", fn: mostrarJsonRespaldo }
+        { txt: "Generar datos.json", cls: "bGold", fn: mostrarJsonRespaldo }
       ]);
     });
 }
@@ -2530,7 +2617,7 @@ function mostrarJsonRespaldo(){
   var tx = $("hojaTxt"); tx.style.display = "block";
   tx.innerHTML = '<textarea id="hJson" rows="9" readonly>' + esc(JSON.stringify(datos, null, 1)) + "</textarea>";
   var cont = $("hojaBtns"); cont.innerHTML = "";
-  var b = document.createElement("button"); b.className = "bGold"; b.textContent = "📋 Copiar el datos.json";
+  var b = document.createElement("button"); b.className = "bGold"; b.textContent = "Copiar el datos.json";
   b.addEventListener("click", function(){
     var ta = $("hJson"); ta.select(); ta.setSelectionRange(0, 999999);
     var hecho = false;
@@ -2540,7 +2627,7 @@ function mostrarJsonRespaldo(){
     toast(hecho ? "📋 datos.json copiado: pégalo en buscadores/datos.json del repo" : "Selecciona el texto y cópialo a mano", hecho);
   });
   cont.appendChild(b);
-  var v = document.createElement("button"); v.className = "bGhost"; v.textContent = "🧹 Vaciar cola de publicación";
+  var v = document.createElement("button"); v.className = "bGhost"; v.textContent = "Vaciar cola de publicación";
   v.addEventListener("click", function(){
     state.foto.publicar = []; state.publicarPendiente = null;
     state.cola = state.cola.filter(function(a){ return a.tipo !== "publicar"; });
@@ -2557,29 +2644,29 @@ registrarModulo({
   render: function(){
     var el = $("pgTarifa"); if (!el) return;
     var t = tarifa(), tb = tarifaBase(), d = derivadaCalc();
-    var h = (!online ? '<div class="offBanner" style="display:block">📴 ' + selloTexto("tarifa") + ". Puedes dejar la tarifa preparada: quedará en cola.</div>" : "");
+    var h = (!online ? '<div class="offBanner" style="display:block">' + selloTexto("tarifa") + ". Puedes dejar la tarifa preparada: quedará en cola.</div>" : "");
     h += '<div class="card"><h3>Tarifa para los buscadores</h3>'
       + '<label for="tf_ing">Ingreso por recarga de 360 (CUP)</label><input id="tf_ing" type="text" inputmode="decimal" value="' + fmt(Number(t.ingresoRef360)) + '">'
-      + '<div class="ayuda">Cuánto te rinde una recarga de 360 vendida donde calculas. Sube con tu salida; baja si vendes más barato. Lo que cobras sobre esto define el excedente.</div>'
+      + '<div class="ayuda">Cuánto te rinde una recarga de 360 vendida donde calculas.</div>'
       + '<label for="tf_lib">Libro BANK_CUP (CUP por QUSD)</label><input id="tf_lib" type="text" inputmode="decimal" value="' + fmt(Number(t.libroRef)) + '">'
-      + '<div class="ayuda">El precio de 1 QUSD pagando por transferencia. Lo usa la vuelta de transferencia de tus buscadores.</div>'
+      + '<div class="ayuda">El precio de 1 QUSD pagando por transferencia.</div>'
       + '<label for="tf_sal">Salida de referencia (CUP por QUSD)</label><input id="tf_sal" type="text" inputmode="decimal" value="' + fmt(Number(t.salidaRef)) + '">'
       + '<div class="ayuda">OJO: esta es la salida que VEN tus buscadores (la referencia con la que se les paga). Tu salida real de negociación no sale de tu Calculadora ni de este panel.</div>'
       + '<div class="kv">Comisiones: saldo <b>' + tb.pctSaldo + '%</b> del excedente · transferencia <b>' + tb.pctTransf + '%</b> de la ganancia · piso transf. <b>' + tb.pisoTransf + '%</b></div>'
-      + (d ? '<div class="mut">📟 Viene de tu Calculadora ahora mismo (salida ' + fmt(d.salida) + " · tasa de venta " + fmt(d.tasaVenta) + " · libro " + fmt(d.libro) + '). Si escribes a mano aquí, tu número manda y queda guardado.</div>' : "")
+      + (d ? '<div class="mut">Viene de tu Calculadora ahora mismo (salida ' + fmt(d.salida) + " · tasa de venta " + fmt(d.tasaVenta) + " · libro " + fmt(d.libro) + '). Si escribes a mano aquí, tu número manda y queda guardado.</div>' : "")
       + (state.tarifaVivaEn ? '<div class="mut">Tarifa guardada en la base, actualizada el ' + esc(state.tarifaVivaEn) + ".</div>" : "")
-      + '<button class="bGold" id="tfPub">📡 Publicar ahora</button>'
+      + '<button class="bGold" id="tfPub">Publicar ahora</button>'
       + (state.publicarPendiente ? '<div class="kv" style="margin-top:8px"><span class="pill pCola">PENDIENTE DE ENVIAR</span> la última tarifa espera conexión o activación.</div>' : "")
-      + '<button class="bGhost" id="tfRespaldo">🧾 Respaldo: generar datos.json</button>'
-      + '<div class="ayuda">Publicar ahora manda la tarifa y los tratos aprobados a las apps de tus buscadores por el aire. El respaldo genera el datos.json de siempre por si prefieres el camino del repo.</div>'
+      + '<button class="bGhost" id="tfRespaldo">Respaldo: generar datos.json</button>'
+      + '<div class="ayuda">Publicar ahora manda la tarifa y los tratos aprobados a las apps de tus buscadores. El respaldo genera el datos.json de siempre, por si prefieres el camino del repo.</div>'
       + '<div class="ayuda">Tratos aprobados esperando publicación: <b>' + state.foto.publicar.filter(function(x){ return !!x.codigo; }).length + "</b></div></div>";
     var retMN = state.foto.publicar.map(function(p, ix){ return { p: p, ix: ix }; }).filter(function(x){ return !x.p.codigo; });
     if (retMN.length) {
-      h += '<div class="card"><h3>⚠️ Tratos retenidos: ' + retMN.length + '</h3>'
+      h += '<div class="card"><h3>Tratos retenidos: ' + retMN.length + '</h3>'
         + '<div class="mut">Aprobados sin dueño claro: NO se publican hasta asignarlos (los demás sí salen, normal). Asigna cada uno o quítalo de la cola.</div>'
         + retMN.map(function(x){
-            return '<div class="kv" style="margin-top:10px">🧾 <b>' + esc(x.p.nombre || "Sin nombre") + '</b> · ' + esc(x.p.concepto || "") + ' · ' + fmt(Number(x.p.comision || 0)) + ' CUP</div>'
-              + '<div class="fila" style="gap:8px"><button class="bGold bMini" data-asignar-mn="' + x.ix + '">👤 Asignar a…</button><button class="bGhost bMini" data-quitar-mn="' + x.ix + '">✖ Quitar de la cola</button></div>';
+            return '<div class="kv" style="margin-top:10px"><b>' + esc(x.p.nombre || "Sin nombre") + '</b> · ' + esc(x.p.concepto || "") + ' · ' + fmt(Number(x.p.comision || 0)) + ' CUP</div>'
+              + '<div class="fila" style="gap:8px"><button class="bGold bMini" data-asignar-mn="' + x.ix + '">Asignar a…</button><button class="bGhost bMini" data-quitar-mn="' + x.ix + '">Quitar de la cola</button></div>';
           }).join("")
         + '</div>';
     }
@@ -2602,7 +2689,7 @@ function asignarRetenidoMN(ix){
   var us = (state.foto.usuarios || []).filter(function(u){ return state.foto.borrados.indexOf(u.codigo) < 0; });
   if (!us.length) { toast("Todavía no hay equipo cargado: actualiza con conexión.", false); return; }
   abrirHoja("Asignar trato a…", "Trato de «" + (p.nombre || "Sin nombre") + "» · " + (p.concepto || "") + ". ¿De qué buscador es?", us.map(function(u){
-    return { txt: "👤 " + u.nombre + " · " + u.codigo, cls: "bGhost", fn: function(){
+    return { txt: u.nombre + " · " + u.codigo, cls: "bGhost", fn: function(){
       p.codigo = u.codigo; p.nombre = u.nombre; delete p.retenido;
       guardar(); pintarTodo();
       toast("✅ Trato asignado a " + u.nombre + ". Ya puede publicarse.");
@@ -2622,15 +2709,15 @@ registrarModulo({
     var el = $("pgMercado"); if (!el) return;
     var m = state.foto.mercado;
     if (!m) {
-      el.innerHTML = '<div class="card"><h3>📊 Mercado</h3><div class="mut">' + (online ? "Cargando la foto del mercado…" : "Sin conexión y todavía no hay foto guardada del mercado: abre esta pestaña una vez con internet.") + '</div></div>';
+      el.innerHTML = '<div class="card"><h3><span class="secIco">' + icono("mercado") + '</span>Mercado</h3><div class="mut">' + (online ? "Cargando la foto del mercado…" : "Sin conexión y todavía no hay foto guardada del mercado: abre esta pestaña una vez con internet.") + '</div></div>';
       return;
     }
     var e = m.ETECSA || {}, b = m.BANK_CUP || {};
     var ing360 = (e.average !== null && e.average !== undefined) ? Number(e.average) * 3.6 : null;
-    var h = (!online ? '<div class="offBanner" style="display:block">📴 ' + selloTexto("mercado") + ".</div>" : "");
-    h += '<div class="card"><h3>📊 El mercado, en claro</h3>'
-      + (ing360 !== null ? '<div class="big">' + fmt(ing360) + ' CUP</div><div class="mut">rinde en promedio una recarga de 360 en el mercado</div>' : "")
-      + '<div class="ayuda">El vigía revisa las ofertas de QvaPay cada hora. El promedio ETECSA se cotiza por cada 100 de saldo: por eso la recarga de 360 rinde el promedio × 3.6.</div>'
+    var h = (!online ? '<div class="offBanner" style="display:block">' + selloTexto("mercado") + ".</div>" : "");
+    h += '<div class="card"><h3><span class="secIco">' + icono("mercado") + '</span>El mercado, en claro</h3>'
+      + (ing360 !== null ? '<div class="big">' + fmt(ing360) + ' <span class="cur">CUP</span></div><div class="mut">rinde en promedio una recarga de 360 en el mercado</div>' : "")
+      + '<div class="ayuda">El promedio ETECSA se cotiza por cada 100 de saldo: la recarga de 360 rinde el promedio × 3.6. El vigía revisa las ofertas de QvaPay cada hora.</div>'
       + '<div class="kv">Saldo (ETECSA): promedio <b>' + fmt(Number(e.average)) + '</b> por cada 100 · compra <b>' + fmt(Number(e.average_buy)) + '</b> · venta <b>' + fmt(Number(e.average_sell)) + '</b> · ofertas contadas: <b>' + (e.count !== undefined ? e.count : "—") + '</b></div>'
       + '<div class="kv">Transferencia (BANK_CUP): promedio <b>' + fmt(Number(b.average)) + '</b> CUP por QUSD · compra <b>' + fmt(Number(b.average_buy)) + '</b> · venta <b>' + fmt(Number(b.average_sell)) + '</b> · ofertas contadas: <b>' + (b.count !== undefined ? b.count : "—") + '</b></div>'
       + '<div class="mut">Foto del vigía: ' + esc(m.ts || "—") + (m.ts ? " (" + haceCuanto(m.ts) + ")" : "") + '</div>'
@@ -2687,14 +2774,14 @@ function intentarEntrar(){
    controllerchange recarga la app UNA sola vez (marca en
    sessionStorage por versión: sin bucles). MN_VERSION se sube
    junto con el CACHE de sw.js. */
-var MN_VERSION = "v7";
+var MN_VERSION = "v8";
 /* Sello VISIBLE de compilación (punto 6): Ernesto quejándose con
    razón — «no sé si se actualizó o no». Una sola constante que
    sube con cada publicación; se ve en Inicio y en la hoja ℹ️ del
    chat. Formato: «Mi Negocio · versión 2026-11-11 HH:MM · caché v6»
    (fecha Y HORA de la publicación, para distinguir dos subidas
    del mismo día). La hora es la de Cuba (CST) al compilar. */
-var MN_COMPILACION = "2026-11-11 13:14";
+var MN_COMPILACION = "2026-11-11 13:53";
 function selloVersion(){ return "Mi Negocio · versión " + MN_COMPILACION + " · caché " + MN_VERSION; }
 var regSW = null;
 var swConControladorAlArrancar = false;
@@ -3074,11 +3161,11 @@ function bloqueCuentasHtml(){
   var retHtml = "";
   if (c.retenidos.length) {
     var detalle = c.retenidos.map(function(x){ return esc(x.nombre) + ": " + fmt(x.comision) + " CUP"; }).join(" · ");
-    retHtml = '<div class="kv">⏸ ' + c.retenidos.length + (c.retenidos.length === 1 ? " trato aprobado sin buscador válido" : " tratos aprobados sin buscador válido")
+    retHtml = '<div class="kv">' + c.retenidos.length + (c.retenidos.length === 1 ? " trato aprobado sin buscador válido" : " tratos aprobados sin buscador válido")
       + " — " + detalle + " — no entra en tus cuentas por pagar; se asigna desde PanelPRO</div>";
   }
-  return '<div class="card"><h3>💰 Cuentas de la semana</h3>'
-    + (filas || '<div class="mut">No debes ninguna comisión ahora mismo: todo lo aprobado está pagado. 🎉</div>')
+  return '<div class="card"><h3><span class="secIco">' + icono("tarifa") + '</span>Cuentas de la semana</h3>'
+    + (filas || '<div class="mut">No debes ninguna comisión ahora mismo: todo lo aprobado está pagado.</div>')
     + (c.total > 0 ? '<div class="kv">Total pendiente de pago: <b>' + fmt(c.total) + ' CUP</b></div>' : "")
     + retHtml
     + '<div class="ayuda">Es la suma de las comisiones de los tratos aprobados que aún no marcas «Ya pagué». Al pagar, toca el botón en la Bandeja y la cuenta baja sola.</div></div>';
@@ -3093,7 +3180,7 @@ function bloqueSemaforoHtml(){
     return '<div class="equipo-linea">' + avatarHtml(nombreVisible(u), (perfilDe(u.codigo) || {}).avatar_color, enL === true)
       + '<div class="eq-info"><div class="eq-nombre">' + esc(nombreVisible(u)) + '</div><div class="mut">' + estado + '</div></div>' + rep + "</div>";
   }).join("");
-  return '<div class="card"><h3>🚦 Semáforo del equipo</h3>' + filas
+  return '<div class="card"><h3><span class="secIco">' + icono("equipo") + '</span>Semáforo del equipo</h3>' + filas
     + '<div class="ayuda">Quién está en línea ahora, cuándo se vio por última vez y si ya reportó algo hoy.</div></div>';
 }
 
@@ -3237,18 +3324,18 @@ function bloqueAvisosHtml(){
     btn = "✅ Avisos listos en este teléfono";
   } else if (est === "ok") {
     txt = "Los avisos están permitidos en este aparato. Si aún no llegan, falta desplegar el emisor en la activación (ver informe).";
-    btn = "🔔 Activar avisos";
+    btn = "Activar avisos";
   } else if (est === "instalar") {
     txt = "En iPhone los avisos solo funcionan con la app INSTALADA: Compartir → «Añadir a pantalla de inicio», abre el icono y luego toca el botón.";
-    btn = "🔔 Activar avisos";
+    btn = "Activar avisos";
   } else if (est === "denegado") {
     txt = "El permiso de avisos está denegado: actívalo en los ajustes del sistema para esta app.";
-    btn = "🔔 Activar avisos";
+    btn = "Activar avisos";
   } else {
     txt = "Recibe un aviso en la pantalla cuando entre un reporte nuevo o un mensaje.";
-    btn = "🔔 Activar avisos";
+    btn = "Activar avisos";
   }
-  return '<div class="card"><h3>🔔 Avisos</h3><div class="mut">' + txt + '</div>'
+  return '<div class="card"><h3>Avisos</h3><div class="mut">' + txt + '</div>'
     + '<button class="bGold" id="mnAvisos">' + btn + '</button>'
     + '<div class="ayuda">El permiso se pide solo cuando tocas el botón (regla de Apple). Tu Telegram también puede avisarte: el vínculo se hace en la activación.</div></div>';
 }
@@ -3282,7 +3369,7 @@ registrarModulo({
     var s = semanaActual();
     var h = '<div class="sub">El cierre de la semana (lunes a domingo): tratos cerrados, tu ganancia, comisiones y bonos. El buscador ve SOLO su fila; tu ganancia nunca sale de aquí.</div>'
       + '<div class="card"><h3>Semana del ' + s.inicio + " al " + s.fin + '</h3>'
-      + '<button class="bGold" id="ciGen">📊 Generar / actualizar el cierre de esta semana</button>'
+      + '<button class="bGold" id="ciGen">Generar / actualizar el cierre de esta semana</button>'
       + '<div class="ayuda">Calcula desde los tratos ya publicados y lo guarda. Puedes regenerarlo cuando quieras: se actualiza.</div></div>';
     if (cierresCache === null) h += '<div class="card"><div class="mut">Cargando cierres guardados…</div></div>';
     else if (!cierresCache.length) h += '<div class="card"><div class="mut">Todavía no hay cierres guardados.</div></div>';
@@ -3296,8 +3383,8 @@ registrarModulo({
           }).join("") || "")
         + '<div class="mut">Generado el ' + esc(fechaCorta(c.creado_en)) + ".</div></div>";
     });
-    h += '<div class="card"><h3>⬇️ Respaldo</h3><div class="mut">Descarga el resumen (tarifa, tratos, comisiones y pagos) SIN códigos de acceso: un respaldo con llaves sueltas es un riesgo. El respaldo completo se exporta desde el panel de Supabase.</div>'
-      + '<button class="bGhost" id="ciResp">⬇️ Descargar respaldo</button></div>';
+    h += '<div class="card"><h3>Respaldo</h3><div class="mut">Descarga el resumen (tarifa, tratos, comisiones y pagos) SIN códigos de acceso: un respaldo con llaves sueltas es un riesgo. El respaldo completo se exporta desde el panel de Supabase.</div>'
+      + '<button class="bGhost" id="ciResp">Descargar respaldo</button></div>';
     el.innerHTML = h;
     var g = $("ciGen"); if (g) g.addEventListener("click", generarCierreActual);
     var rb = $("ciResp"); if (rb) rb.addEventListener("click", descargarRespaldo);
@@ -3332,7 +3419,16 @@ registrarModulo({
   alMostrar: function(){ cargarActividad(); }
 });
 
-/* ===== MÓDULO TEXTOS (generador de ofertas; motor compartido) ===== */
+/* ===== MÓDULO TEXTOS (generador de ofertas; motor compartido) =====
+   v8: los <select> se eligen con CHIPS (sistema PRO): el select
+   queda oculto con su mismo id y su .value de siempre — el motor
+   y estilo() leen exactamente igual; los chips solo lo alimentan. */
+function selChips(id, opciones, sel){
+  var opts = opciones.map(function(o){ return '<option value="' + esc(o[0]) + '"' + (o[0] === sel ? " selected" : "") + '>' + esc(o[1]) + '</option>'; }).join("");
+  var ch = opciones.map(function(o){ return '<span class="chip' + (o[0] === sel ? " activa" : "") + '" data-v="' + esc(o[0]) + '">' + esc(o[1]) + '</span>'; }).join("");
+  return '<select id="' + id + '" class="selOculto" tabindex="-1" aria-hidden="true">' + opts + '</select>'
+    + '<div class="chips chipsSel" data-sel="' + id + '">' + ch + '</div>';
+}
 var TEXTOS_LS = "minegocio_textos_v1";
 function textosHist(){ try { return JSON.parse(localStorage.getItem(TEXTOS_LS) || "[]"); } catch(e){ return []; } }
 function textosHistPush(e){ try { localStorage.setItem(TEXTOS_LS, JSON.stringify(TextosMotor.historialPush(textosHist(), e))); } catch(e){} }
@@ -3345,14 +3441,14 @@ registrarModulo({
     var miTel = localStorage.getItem("minegocio_mi_telefono") || "";
     var miZona = localStorage.getItem("minegocio_mi_zona") || "Micro 10, distrito José Martí, Santiago de Cuba";
     var h = '<div class="sub">Escribe SOLO los datos: la app pone las palabras. Tres versiones listas para copiar o mandar a WhatsApp. Funciona sin internet.</div>'
-      + '<div class="card"><h3>✍️ Datos de la oferta</h3>'
-      + '<button class="bGold bMini" id="txSaldo">📱 Texto de saldo (con la tarifa)</button> '
-      + '<button class="bGold bMini" id="txTransf">🏦 Texto de transferencia</button>'
+      + '<div class="card"><h3>Datos de la oferta</h3>'
+      + '<button class="bGold bMini" id="txSaldo">Texto de saldo (con la tarifa)</button> '
+      + '<button class="bGold bMini" id="txTransf">Texto de transferencia</button>'
       + '<div class="ayuda">Estos dos botones rellenan solos con los datos PÚBLICOS de tu tarifa y tu teléfono/zona. Nunca entra ningún número interno (comisiones, piso, tu ganancia).</div>'
-      + '<label>Tipo de oferta</label><select id="txTipo"><option value="vendo">Vendo</option><option value="compro">Compro</option><option value="servicio">Servicio</option><option value="recargo">Recargo o cambio</option><option value="otro">Otro</option></select>'
+      + '<label>Tipo de oferta</label>' + selChips("txTipo", [["vendo", "Vendo"], ["compro", "Compro"], ["servicio", "Servicio"], ["recargo", "Recargo o cambio"], ["otro", "Otro"]], "vendo")
       + '<label>Producto o servicio</label><input id="txProd" placeholder="Ej.: Batería LiFePO4 12.8V 100Ah">'
       + '<label>Precio (vacío si es por privado)</label><input id="txPrecio" type="text" inputmode="decimal" placeholder="Ej.: 45000">'
-      + '<label>Moneda</label><select id="txMoneda"><option>CUP</option><option>USD</option><option>MLC</option><option>QUSD</option></select>'
+      + '<label>Moneda</label>' + selChips("txMoneda", [["CUP", "CUP"], ["USD", "USD"], ["MLC", "MLC"], ["QUSD", "QUSD"]], "CUP")
       + '<label style="display:block;margin-top:8px"><input type="checkbox" id="txPrivado" style="width:auto"> Precio por privado</label>'
       + '<label>Cantidad o disponibilidad (opcional)</label><input id="txCant" placeholder="Ej.: quedan 3">'
       + '<label>Detalles y ventajas</label><input id="txDet" placeholder="Ej.: garantía incluida, domicilio en Santiago">'
@@ -3360,20 +3456,29 @@ registrarModulo({
       + '<label>Teléfono de contacto</label><input id="txTel" value="' + esc(miTel) + '" placeholder="Tu teléfono de ventas">'
       + '<label>Condiciones (opcional)</label><input id="txCond" placeholder="Ej.: domicilio incluido en Santiago">'
       + '<h3 style="margin-top:14px">Estilo</h3>'
-      + '<label>Emojis</label><select id="txEmojis"><option value="muchos">Muchos</option><option value="pocos" selected>Pocos</option><option value="ninguno">Ninguno</option></select>'
-      + '<label>Tono</label><select id="txTono"><option value="humanizado">Humanizado natural</option><option value="comercial">Comercial vendedor</option><option value="formal">Formal serio</option><option value="directo">Directo y corto</option></select>'
-      + '<label>Tamaño</label><select id="txTam"><option value="completo">Completo</option><option value="corto">Corto (estados)</option><option value="muycorto">Muy corto (1-2 líneas)</option></select>'
-      + '<label>Destino</label><select id="txDest"><option value="wa">WhatsApp (*negritas*)</option><option value="fb">Facebook (texto plano)</option></select>'
+      + '<label>Emojis</label>' + selChips("txEmojis", [["muchos", "Muchos"], ["pocos", "Pocos"], ["ninguno", "Ninguno"]], "pocos")
+      + '<label>Tono</label>' + selChips("txTono", [["humanizado", "Humanizado natural"], ["comercial", "Comercial vendedor"], ["formal", "Formal serio"], ["directo", "Directo y corto"]], "humanizado")
+      + '<label>Tamaño</label>' + selChips("txTam", [["completo", "Completo"], ["corto", "Corto (estados)"], ["muycorto", "Muy corto (1-2 líneas)"]], "completo")
+      + '<label>Destino</label>' + selChips("txDest", [["wa", "WhatsApp (*negritas*)"], ["fb", "Facebook (texto plano)"]], "wa")
       + '<label style="display:block;margin-top:8px"><input type="checkbox" id="txMayus" style="width:auto"> Mayúsculas en el título</label>'
       + '<label style="display:block"><input type="checkbox" id="txUrg" style="width:auto"> Línea de urgencia</label>'
       + '<label style="display:block"><input type="checkbox" id="txPriv" style="width:auto"> Llamada a escribir por privado</label>'
       + '<label style="display:block"><input type="checkbox" id="txHash" style="width:auto"> Hashtags al final</label>'
-      + '<button class="bGold" id="txGen">✍️ Generar las 3 versiones</button>'
+      + '<button class="bGold" id="txGen">Generar las 3 versiones</button>'
       + '<div id="txOut"></div></div>'
-      + '<div class="card"><h3>🕘 Historial (últimas 30)</h3><div id="txHist">'
+      + '<div class="card"><h3>Historial (últimas 30)</h3><div id="txHist">'
       + (textosHist().map(function(x, i){ return '<div class="kv">' + esc(x.titulo || "Texto") + ' <button class="bGhost bMini" data-txhist="' + i + '">Copiar</button></div>'; }).join("") || '<div class="mut">Aún no generaste textos.</div>')
       + "</div></div>";
     el.innerHTML = h;
+    el.querySelectorAll(".chipsSel").forEach(function(cont){
+      var selEl = $(cont.getAttribute("data-sel")); if (!selEl) return;
+      cont.querySelectorAll(".chip").forEach(function(c){
+        c.addEventListener("click", function(){
+          selEl.value = c.getAttribute("data-v");
+          cont.querySelectorAll(".chip").forEach(function(x){ x.classList.toggle("activa", x === c); });
+        });
+      });
+    });
     function estilo(){
       return { emojis: $("txEmojis").value, tono: $("txTono").value, tamano: $("txTam").value,
         mayus: $("txMayus").checked, urgencia: $("txUrg").checked, privadoLlamada: $("txPriv").checked,
@@ -3381,7 +3486,7 @@ registrarModulo({
     }
     function pintar(res, tituloBase){
       textosUltimas = res.versiones;
-      var out = (res.avisos.length ? '<div class="mut">⚠️ ' + res.avisos.map(esc).join(" ") + "</div>" : "");
+      var out = (res.avisos.length ? '<div class="mut">' + res.avisos.map(esc).join(" ") + "</div>" : "");
       res.versiones.forEach(function(v, i){
         out += '<div class="card"><h3>Versión ' + (i + 1) + " · " + esc(v.enfoque) + '</h3><div class="kv" style="white-space:pre-wrap">' + esc(v.texto) + '</div>'
           + '<button class="bOk bMini" data-txcopiar="' + i + '">Copiar</button> '
