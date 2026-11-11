@@ -305,10 +305,13 @@ export const LIBRE_DUENO =
    misma fuente (tabla reportes vía admin_reportes, sin filas de
    prueba) y mismas fórmulas del servidor con la tarifa vigente:
      bruta saldo         = (ingreso_ref360 − precio) × cantidad
-     bruta transferencia = (precio × (1 + porc/100) ÷ libro_ref)
-                           × salida_ref − precio
+     bruta transferencia = (efectivo × (1 + porc/100) ÷ libro_ref)
+                           × salida_ref − efectivo
      neta                = bruta − comisión guardada en el trato
-     capital             = saldo: precio × cantidad · transf.: precio
+     capital             = saldo: precio × cantidad · transf.: efectivo
+   (efectivo de transferencia: la forma REAL almacenada lo trae en
+   «cantidad» y «precio» queda null — así lo lee también el cierre
+   del servidor; ver efectivoDe. Arreglo H-1, 2026-11-11.)
    Todo lo de esta sección es PURO (sin red): se prueba en local.
    ===================================================================== */
 
@@ -336,12 +339,23 @@ export interface TarifaFila {
   piso_transf: number;
 }
 
+/* Efectivo de un trato de transferencia (arreglo H-1, 2026-11-11):
+   la forma REAL almacenada lo trae en «cantidad» (precio queda null);
+   se acepta también la forma vieja (efectivo en «precio») para filas
+   históricas. TODA lectura de transferencia pasa por aquí. */
+export function efectivoDe(r: ReporteFila): number {
+  if (r.cantidad !== null && r.cantidad !== undefined) {
+    return Number(r.cantidad) || 0;
+  }
+  return Number(r.precio || 0);
+}
+
 export function brutaDe(r: ReporteFila, t: TarifaFila): number {
   if (r.tipo === "saldo") {
     return (Number(t.ingreso_ref360) - Number(r.precio || 0)) *
       Number(r.cantidad || 1);
   }
-  const ef = Number(r.precio || 0);
+  const ef = efectivoDe(r);
   const pc = Number(r.porc || 0);
   return (ef * (1 + pc / 100) / Number(t.libro_ref)) * Number(t.salida_ref) - ef;
 }
@@ -352,7 +366,7 @@ export function netaDe(r: ReporteFila, t: TarifaFila): number {
 
 export function capitalDe(r: ReporteFila): number {
   if (r.tipo === "saldo") return Number(r.precio || 0) * Number(r.cantidad || 1);
-  return Number(r.precio || 0);
+  return efectivoDe(r);
 }
 
 /* Fecha de pared (America/Havana) de un instante ISO: «2026-11-11». */
@@ -477,7 +491,7 @@ export function conceptoCorto(r: ReporteFila): string {
     return "Saldo · " + miles(r.cantidad || 0) + " recargas · " +
       dinero(r.precio || 0) + " CUP";
   }
-  return "Transferencia · " + dinero(r.precio || 0) + " CUP" +
+  return "Transferencia · " + dinero(efectivoDe(r)) + " CUP" +
     (r.porc != null ? " al " + String(r.porc) + " %" : "");
 }
 
