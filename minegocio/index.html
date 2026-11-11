@@ -67,6 +67,23 @@ button.off, .off { opacity:.45; pointer-events:none; }
 #hojaTxt { margin-bottom:8px; line-height:1.5; }
 #hoja .bGold, #hoja .bOk, #hoja .bBad, #hoja .bGhost { margin-top:10px; }
 .hiloP { margin:8px 0 4px; max-height:52vh; overflow-y:auto; }
+.hiloWA { background:#0B141A; background-image:radial-gradient(rgba(255,255,255,.028) 1px, transparent 1px); background-size:18px 18px; border-radius:16px; padding:10px; max-height:56vh; }
+.chatHead { display:flex; align-items:center; gap:10px; margin-bottom:6px; }
+.chatHeadTx { flex:1; min-width:0; }
+.chatNom { font-weight:800; font-size:16.5px; color:#fff; }
+.chatBuscar { margin-top:8px; }
+.fechaSep { text-align:center; margin:12px 0 4px; }
+.fechaSep span { background:#182229; color:#8696A0; border-radius:8px; padding:4px 12px; font-size:11.5px; }
+.burMeta { float:right; margin:10px 0 0 12px; font-size:10.5px; opacity:.8; display:inline-flex; align-items:center; gap:3px; }
+.burMeta .ticks svg { width:17px; height:11px; }
+.compWA { display:flex; gap:8px; align-items:center; margin-top:10px; }
+.compBox { flex:1; display:flex; align-items:center; background:#0E171F; border:1px solid rgba(255,255,255,.09); border-radius:999px; padding:0 4px 0 16px; }
+.compBox input { flex:1; border:0; background:transparent; margin:0; padding:12px 0; color:#E9EDEF; font-size:15px; }
+.clipBtn { width:40px; height:40px; border-radius:50%; background:transparent; border:0; color:#8696A0; font-size:19px; margin:0; padding:0; flex:0 0 auto; }
+.sendBtn { width:48px; height:48px; border-radius:50%; background:linear-gradient(135deg, #F7C948, #E39A2D); color:#221806; border:0; font-size:19px; font-weight:800; margin:0; padding:0; flex:0 0 auto; }
+.micBtn { width:48px; height:48px; border-radius:50%; background:rgba(255,255,255,.06); color:#D6DEE7; border:1px solid rgba(255,255,255,.09); font-size:18px; margin:0; padding:0; flex:0 0 auto; }
+.adjHojaWA { gap:8px; margin-top:10px; flex-wrap:wrap; }
+.adjHojaWA button { flex:1; min-width:90px; margin:0; }
 .msgSistema { text-align:center; color:var(--t2,#A7B3C4); font-size:12.5px; margin:12px auto; background:var(--bg3,#1A2130); border-radius:999px; padding:6px 14px; max-width:88%; }
 .citaB { display:block; border-left:3px solid var(--oro2,#E8B84B); background:rgba(232,184,75,.12); border-radius:6px; padding:5px 8px; margin-bottom:6px; font-size:12.5px; }
 .reacRow { display:flex; gap:4px; margin-top:3px; flex-wrap:wrap; }
@@ -123,6 +140,7 @@ label { display:block; font-size:13px; color:#8696A0; margin:12px 0 2px; font-we
   <div class="row"><h1>Mi Negocio</h1><button class="bGhost bMini" id="btnAct">⟳ Actualizar</button></div>
   <div class="sub" id="lblEstado">Cargando…</div>
   <div class="offBanner" id="bannerOff"></div>
+  <div class="offBanner" id="bannerAct"></div>
   <div class="tabs" id="tabs"></div>
   <div id="pgInicio"></div>
   <div id="pgCalc" style="display:none"></div>
@@ -194,13 +212,30 @@ var DATOS_JSON_URL = "../buscadores/datos.json";
 var MERCADO_URL = "../datos/ultimo.json";
 function sbHeaders(){ return { "apikey": SB_KEY, "Authorization": "Bearer " + SB_KEY, "Content-Type": "application/json" }; }
 /* La ÚNICA vía de red de la app: resuelve el JSON o rechaza con Error. */
+/* v7: el error lleva status/code y la marca faltaPuerta cuando la
+   puerta RPC no existe en la base (PostgREST: 404 + PGRST202). Así
+   la app distingue «falta activar el paquete» de «sin conexión» y lo
+   dice en humano, sin mensajes técnicos crudos. */
+function esFaltaPuerta(status, j){
+  if (status === 404) return true;
+  var s = ((j && j.message) || "") + " " + ((j && j.code) || "");
+  return /PGRST202|could not find the function/i.test(s);
+}
+var TXT_FALTA_ACTIVAR = "Falta activar el paquete: un solo pegado en Supabase, Máximo te guía";
+var puertasBase = null; /* null sin comprobar · true ok · false faltan puertas base */
 function rpc(puerta, body){
   if (!window.fetch) return Promise.reject(new Error("sin fetch"));
   return fetch(SB_RPC + PUERTAS[puerta], { method: "POST", headers: sbHeaders(), body: JSON.stringify(body || {}) })
     .then(function(r){
       return r.text().then(function(txt){
         var j = null; try { j = JSON.parse(txt); } catch(e){}
-        if (!r.ok) throw new Error((j && j.message) ? j.message : ("Error " + r.status));
+        if (!r.ok) {
+          var err = new Error((j && j.message) ? j.message : ("Error " + r.status));
+          err.status = r.status;
+          err.code = (j && j.code) || null;
+          err.faltaPuerta = esFaltaPuerta(r.status, j);
+          throw err;
+        }
         return j;
       });
     });
@@ -236,6 +271,7 @@ function cargarEstado(){
       state = base;
     }
   } catch(e){}
+  repararPublicar();
 }
 function guardar(){ try { localStorage.setItem(LS_KEY, JSON.stringify(state)); } catch(e){} }
 var online = false;
@@ -254,6 +290,22 @@ function esc(s){ return String(s === null || s === undefined ? "" : s).replace(/
 function r2(n){ return Math.round(n * 100) / 100; }
 function numPos(v){ var n = Number(v); return (isFinite(n) && n > 0) ? n : null; }
 function fechaCorta(iso){ return iso ? String(iso).slice(0, 10) : ""; }
+/* v7: hora como en WhatsApp («3:08 p. m.») y separadores de fecha. */
+function hora12(iso){
+  var d = new Date(iso); if (isNaN(d.getTime())) return "";
+  function p(x){ return (x < 10 ? "0" : "") + x; }
+  var h = d.getHours(); var ap = h < 12 ? "a. m." : "p. m."; var h12 = h % 12 || 12;
+  return h12 + ":" + p(d.getMinutes()) + " " + ap;
+}
+function etiquetaFecha(iso){
+  var d = new Date(iso); if (isNaN(d.getTime())) return "";
+  function clave(x){ return x.getFullYear() + "-" + x.getMonth() + "-" + x.getDate(); }
+  var hoy = new Date(); var ayer = new Date(); ayer.setDate(hoy.getDate() - 1);
+  if (clave(d) === clave(hoy)) return "Hoy";
+  if (clave(d) === clave(ayer)) return "Ayer";
+  var meses = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
+  return d.getDate() + " de " + meses[d.getMonth()] + " de " + d.getFullYear();
+}
 function horaFoto(){
   var d = new Date(); function p(x){ return (x < 10 ? "0" : "") + x; }
   return d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate()) + " " + p(d.getHours()) + ":" + p(d.getMinutes());
@@ -436,9 +488,36 @@ function conceptoDe(r){
   if (r.tipo === "saldo") return "Saldo · " + r.cantidad + " recarga(s) a " + fmt(Number(r.precio)) + " CUP";
   return "Transferencia · " + fmt(Number(r.precio)) + " CUP al " + fmt(Number(r.porc)) + "%";
 }
+/* v7: resolución robusta (igual que PanelPRO v7): código que traiga
+   el reporte, nombre exacto y nombre normalizado. */
+function normNom(s){
+  return String(s === null || s === undefined ? "" : s).trim().toUpperCase()
+    .normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/\s+/g, " ");
+}
 function codigoDe(nombre){
-  var u = state.foto.usuarios.filter(function(x){ return x.nombre === nombre; })[0];
-  return u ? u.codigo : null;
+  var us = state.foto.usuarios || [];
+  var ex = us.filter(function(x){ return x.nombre === nombre; })[0];
+  if (ex) return ex.codigo;
+  var nn = normNom(nombre);
+  var nu = us.filter(function(x){ return normNom(x.nombre) === nn; })[0];
+  return nu ? nu.codigo : null;
+}
+function resolverDeReporte(r){
+  if (!r) return null;
+  if (r.codigo) return r.codigo;
+  return codigoDe(r.nombre || r.buscador);
+}
+/* v7: reparación de la cola al arrancar y tras cada carga fresca. */
+function repararPublicar(){
+  var cambio = false;
+  (state.foto.publicar || []).forEach(function(p){
+    if (!p.codigo) {
+      var cod = p.nombre ? codigoDe(p.nombre) : null;
+      if (cod) { p.codigo = cod; delete p.retenido; cambio = true; }
+      else if (!p.retenido) { p.retenido = true; cambio = true; }
+    } else if (p.retenido) { delete p.retenido; cambio = true; }
+  });
+  if (cambio) guardar();
 }
 
 /* ===== COLA OFFLINE DE ACCIONES =====
@@ -466,7 +545,7 @@ function ejecutarAccion(a){
     case "pagado": return rpc("marcarPagado", { p_codigo: cod, p_id: a.id });
     case "publicar":
       return rpc("guardarTarifa", { p_codigo: cod, p_ingreso: a.payload.tarifa.ingresoRef360, p_libro: a.payload.tarifa.libroRef, p_salida: a.payload.tarifa.salidaRef, p_com_saldo: a.payload.tarifa.pctSaldo, p_com_transf: a.payload.tarifa.pctTransf, p_piso: a.payload.tarifa.pisoTransf })
-        .then(function(){ return rpc("publicarTratos", { p_codigo: cod, p_tratos: a.payload.lista }); });
+        .then(function(){ return rpc("publicarTratos", { p_codigo: cod, p_tratos: (a.payload.lista || []).filter(function(x){ return x && x.codigo; }) }); });
   }
   return Promise.resolve();
 }
@@ -536,6 +615,8 @@ function cargarTodo(silencioso){
     state.foto.cuando = horaFoto();
     state.sellos.bandeja = new Date().toISOString();
     state.sellos.equipo = new Date().toISOString();
+    puertasBase = true;
+    repararPublicar();
     guardar();
     pintarTodo();
     cargarPresencia();
@@ -543,10 +624,14 @@ function cargarTodo(silencioso){
     leerTarifaViva();
     latidoAdmin();
     return despacharCola().then(function(){ return true; });
-  }).catch(function(){
+  }).catch(function(e){
     online = false;
+    if (e && e.faltaPuerta) puertasBase = false;
     pintarTodo();
-    if (!silencioso) toast("📴 Sin conexión: ves la última foto guardada", false);
+    if (!silencioso) {
+      if (e && e.faltaPuerta) toast("🧩 " + TXT_FALTA_ACTIVAR + ". Ves tu última foto guardada.", false);
+      else toast("📴 Sin conexión: ves la última foto guardada", false);
+    }
     return false;
   });
 }
@@ -564,9 +649,10 @@ function cargarPresencia(){
     sinLeerTotal = Number((res[1] && res[1].total) || 0);
     pintarEquipo(); pintarInicioSiVisible();
     if (chatCon) pintarChat();
-  }).catch(function(){
-    puertasChat = false;
-    presenciaMap = {}; sinLeerMap = {}; sinLeerTotal = 0;
+  }).catch(function(e){
+    /* v7: solo la puerta ausente apaga el chat; un fallo de red ya
+       no se disfraza de «falta activar». */
+    if (e && e.faltaPuerta) { puertasChat = false; presenciaMap = {}; sinLeerMap = {}; sinLeerTotal = 0; }
     pintarEquipo(); pintarInicioSiVisible();
   });
 }
@@ -610,24 +696,26 @@ function haceVisible(){
     if (!online && state.codigo) { b.style.display = "block"; b.textContent = "📴 Estás sin conexión: la app trabaja con la última foto guardada (" + selloTexto("bandeja") + "). Lo que hagas queda en cola y se envía solo al volver la red."; }
     else b.style.display = "none";
   }
+  var ba = $("bannerAct");
+  if (ba) {
+    if (puertasBase === false && state.codigo) { ba.style.display = "block"; ba.textContent = "🧩 " + TXT_FALTA_ACTIVAR + ". Mientras tanto, Mi Negocio trabaja con tu foto guardada y guarda todo en cola."; }
+    else ba.style.display = "none";
+  }
 }
 
 /* ===== PRESENCIA Y ESTADOS DEL CHAT «COMO WHATSAPP» =====
    ENTREGADO se define así (y así lo dice la app): el buscador abrió
    su app DESPUÉS de que el mensaje se envió (su latido visto >=
    creado del mensaje) pero aún no abrió el chat → entregado; abrió
-   el chat → leer_chat marca leido=true → «Visto». Si el mensaje trae
-   el sello «recibido» del servidor (marcar_recibidos, SQL v1.3.1),
-   ese sello manda sobre la derivación. */
+   el chat → leer_chat marca leido=true → «Visto». v7 — ESTADOS
+   HONESTOS: «entregado» SOLO con el sello «recibido» del servidor
+   (marcar_recibidos lo estampa cuando la app del buscador recoge
+   sus mensajes). Ya no se deriva nada del latido: abrir la app no
+   es recibir el mensaje. */
 function estadoMsg(m, vistoIso){
   if (m.local) return '<span class="ticks reloj" title="Sin enviar">' + TICK_RELOJ + '</span><span class="sr-only">\uD83D\uDD50 sin enviar</span>';
   if (m.leido) return '<span class="ticks visto" title="Visto">' + TICK_DOBLE + '</span><span class="sr-only">\u2713\u2713 Visto</span>';
-  var entregado = !!m.recibido;
-  if (!entregado && vistoIso) {
-    var v = Date.parse(vistoIso), c = Date.parse(m.creado);
-    if (!isNaN(v) && !isNaN(c) && v >= c) entregado = true;
-  }
-  if (entregado) return '<span class="ticks" title="Entregado">' + TICK_DOBLE + '</span><span class="sr-only">\u2713\u2713 entregado</span>';
+  if (m.recibido) return '<span class="ticks" title="Entregado">' + TICK_DOBLE + '</span><span class="sr-only">\u2713\u2713 entregado</span>';
   return '<span class="ticks" title="Enviado">' + TICK_UNA + '</span><span class="sr-only">\u2713 enviado</span>';
 }
 function textoPresencia(codigo){
@@ -719,7 +807,9 @@ registrarModulo({
       + '<div class="kv">Reportes pendientes de aprobar: <b>' + pendRep + '</b></div>'
       + (puertasChat === true
           ? '<div class="kv">Mensajes sin leer: <b>' + sinLeerTotal + '</b> · Buscadores en línea: <b>' + enLinea + '</b></div>'
-          : '<div class="kv">Chat y presencia: <b>falta activar</b> (se encienden solos con el paquete SQL único)</div>')
+          : (puertasChat === false
+            ? '<div class="kv">Chat y presencia: <b>falta activar</b> (se encienden solos con el paquete SQL único)</div>'
+            : '<div class="kv">Chat y presencia: <b>sin comprobar todavía</b> (se revisa al actualizar con conexión)</div>'))
       + '<div class="ayuda">Los reportes se aprueban en la Bandeja. En línea = abrió su app en los últimos 3 minutos.</div></div>';
     if (pendEnvio > 0) {
       h += '<div class="card"><h3>📤 Pendientes de enviar: ' + pendEnvio + '</h3>'
@@ -875,15 +965,21 @@ function decidirReporte(id, aprobar, comision, motivo){
     : { tipo: "rechazar", id: id, motivo: motivo || "", cuando: new Date().toISOString() };
   /* aplica local y encola: vale igual con red que sin red */
   r.estado = aprobar ? "aprobado" : "rechazado";
+  var retenidoNuevo = false;
   if (aprobar) {
     r.comision = Number(comision) || 0;
-    var cod = r.codigo || codigoDe(r.nombre);
-    if (cod) state.foto.publicar.push({ codigo: cod, nombre: r.nombre, concepto: conceptoDe(r), comision: Number(comision) || 0, fecha: r.creado });
+    var cod = resolverDeReporte(r);
+    /* v7: el trato entra SIEMPRE en la cola; sin código queda
+       retenido con su nombre (antes se perdía en silencio). */
+    var item = { codigo: cod, nombre: r.nombre || r.buscador || "", concepto: conceptoDe(r), comision: Number(comision) || 0, fecha: r.creado };
+    if (!cod) { item.retenido = true; retenidoNuevo = true; }
+    state.foto.publicar.push(item);
   } else r.motivo = motivo || "";
   encolar(accion);
   guardar(); pintarTodo();
   despacharCola();
   toast(online ? "✅ Reporte " + (aprobar ? "aprobado" : "rechazado") : "📴 Guardado sin conexión: saldrá solo cuando vuelva la red");
+  if (retenidoNuevo) setTimeout(function(){ toast("⚠️ El trato quedó RETENIDO sin dueño: asígnalo en la pestaña Tarifa para poder publicarlo.", false); }, 2800);
 }
 function hojaReporte(r){
   var sug = r.estado === "pendiente" ? sugerencia(r) : null;
@@ -1106,8 +1202,8 @@ function cargarChat(){
       .map(function(a){ return { id: "local-" + a.cuando, de: "ADMIN", para: chatCon, texto: a.texto, creado: a.cuando, leido: false, local: true, adj_tipo: a.adj ? a.adj.tipo : null, adj_datos: a.adj ? a.adj.datos : null, adj_nombre: a.adj ? a.adj.nombre : null, resp_texto: a.resp_texto || null }; });
     chatMsgs = propios.concat(enCola);
     pintarChat();
-  }).catch(function(){
-    puertasChat = false;
+  }).catch(function(e){
+    if (e && e.faltaPuerta) puertasChat = false;
     chatMsgs = state.cola.filter(function(a){ return a.tipo === "chat" && a.para === chatCon; })
       .map(function(a){ return { id: "local-" + a.cuando, de: "ADMIN", para: chatCon, texto: a.texto, creado: a.cuando, leido: false, local: true, adj_tipo: a.adj ? a.adj.tipo : null, adj_datos: a.adj ? a.adj.datos : null, adj_nombre: a.adj ? a.adj.nombre : null, resp_texto: a.resp_texto || null }; });
     pintarChat();
@@ -1122,15 +1218,20 @@ function pintarChat(){
   var el = $("pgChat"); if (!el || !chatCon) return;
   var vistoIso = presenciaMap[chatCon];
   var pres = textoPresencia(chatCon);
-  var h = '<div class="card"><div class="row"><h3>💬 ' + esc(chatNombre) + '</h3><span><button class="dots" id="chTempBtn">⏱️</button> <button class="dots" id="chVolver">←</button></span></div>'
-    + '<div class="presChat" id="chPres">' + (pres ? pres : "Cargando presencia…") + '</div>'
+  var perf = perfilDe(chatCon) || {};
+  var h = '<div class="card chatWA"><div class="chatHead">'
+    + avatarHtml(chatNombre, perf.avatar_color, enLineaDe(chatCon) === true)
+    + '<div class="chatHeadTx"><div class="chatNom">' + esc(chatNombre) + '</div><div class="presChat" id="chPres">' + (pres ? pres : "Cargando presencia…") + '</div></div>'
+    + '<span><button class="dots" id="chInfoBtn" title="Qué significan los estados">ℹ️</button> <button class="dots" id="chTempBtn">⏱️</button> <button class="dots" id="chVolver">←</button></span></div>'
     + (chatFijado && !chatFijado.borrado ? '<div class="fijadoBar">📌 ' + esc(chatFijado.texto || "Mensaje fijado") + '</div>' : "")
     + (chatTempSeg ? '<div class="mut">⏱️ Los mensajes de esta conversación desaparecen en ' + (chatTempSeg <= 86400 ? "24 h" : (chatTempSeg <= 7 * 86400 ? "7 días" : "90 días")) + '. Solo tú lo activas; ' + esc(chatNombre) + ' ve el estado pero no lo cambia.</div>' : "")
-    + '<div class="mut">Mantén presionada una burbuja para responder, reaccionar, fijar o (en tus mensajes) editar y eliminar. Estados de TUS mensajes: <b>✓</b> enviado · <b>✓✓</b> entregado (abrió su app) · <span class="estAzul">✓✓ Visto</span> (abrió el chat) · <span class="estCola">🕐 sin enviar</span> (en cola de este teléfono).</div>'
-    + '<input id="chBuscar" type="text" placeholder="🔍 Buscar en el chat…">'
-    + '<div class="hiloP" id="chHilo">';
+    + '<input id="chBuscar" class="chatBuscar" type="text" placeholder="🔍 Buscar en el chat…">'
+    + '<div class="hiloP hiloWA" id="chHilo">';
   if (!chatMsgs.length) h += '<div class="mut">Sin mensajes todavía. Escribe el primero abajo.</div>';
+  var ultimoDia = "";
   chatMsgs.forEach(function(m){
+    var dia = fechaCorta(m.creado);
+    if (dia && dia !== ultimoDia) { h += '<div class="fechaSep"><span>' + esc(etiquetaFecha(m.creado)) + '</span></div>'; ultimoDia = dia; }
     if (m.tipo === "sistema") { h += '<div class="msgSistema">' + esc(m.texto) + '</div>'; return; }
     var mio = m.de === "ADMIN";
     var inner = "";
@@ -1142,29 +1243,37 @@ function pintarChat(){
       else if (m.adj_datos) inner += '<span class="citaB">📎 ' + esc(m.adj_nombre || "Archivo") + '</span>';
       if (m.texto) inner += esc(m.texto);
     }
+    /* v7: hora y palomitas DENTRO de la burbuja, como en WhatsApp. */
+    inner += '<span class="burMeta">' + (m.editado ? '<span class="editado">editado</span> ' : "") + hora12(m.creado) + (mio ? " " + estadoMsg(m) : "") + '</span>';
     var reac = "";
     if (!m.borrado && m.reacciones && m.reacciones.length) {
       reac = '<div class="reacRow">' + m.reacciones.map(function(r){ return "<span>" + r.emoji + " " + r.total + "</span>"; }).join("") + "</div>";
     }
-    h += '<div class="msgP ' + (mio ? "me" : "him") + '" data-mid="' + esc(String(m.id)) + '"><div class="burP">' + inner + '</div>'
-      + '<div class="mhoraP">' + fechaCorta(m.creado) + " " + horaDe(m.creado)
-      + (m.editado ? ' <span class="editado">editado</span>' : "")
-      + (mio ? " · " + estadoMsg(m, vistoIso) : "") + "</div>" + reac + "</div>";
+    h += '<div class="msgP ' + (mio ? "me" : "him") + '" data-mid="' + esc(String(m.id)) + '"><div class="burP">' + inner + '</div>' + reac + "</div>";
   });
   h += '</div>'
     + (chatResp ? '<div class="fijadoBar">↩️ Respondiendo a: «' + esc(String(chatResp.texto || "adjunto").slice(0, 80)) + '» <button class="bGhost bMini" id="chRespX">Quitar</button></div>' : "")
     + (chatAdj ? '<div class="mut">📎 Adjunto listo: ' + esc(chatAdj.nombre || chatAdj.tipo) + ' <button class="bGhost bMini" id="chAdjX">Quitar</button></div>' : "")
-    + '<input id="chTexto" placeholder="Escribe un mensaje…">'
-    + '<div class="filaBtns"><button class="bGhost" id="chFoto">📷 Foto</button><button class="bGhost" id="chArchivo">📎 Archivo</button><button class="bGhost" id="chVoz">🎤 Voz</button><button class="bGold" id="chEnviar">' + (chatEditId ? "💾 Guardar edición" : "📨 Enviar") + '</button></div>'
+    + '<div class="adjHojaWA" id="chAdjHoja" style="display:none"><button class="bGhost" id="chFoto">📷 Foto</button><button class="bGhost" id="chArchivo">📎 Archivo</button><button class="bGhost" id="chVoz">🎤 Nota de voz</button></div>'
+    + '<div class="compWA"><div class="compBox"><input id="chTexto" placeholder="Escribe un mensaje…"><button class="clipBtn" id="chClip" title="Adjuntar foto, archivo o voz">📎</button></div><button class="micBtn" id="chVozBtn" title="Nota de voz">🎤</button><button class="sendBtn" id="chEnviar" title="' + (chatEditId ? "Guardar edición" : "Enviar") + '">' + (chatEditId ? "✓" : "➤") + '</button></div>'
     + '<input id="chFile" type="file" style="display:none">'
-    + '<div class="ayuda">Con la app abierta el chat se refresca solo cada 15 s. Foto: se comprime sola (máx 1280 px). Archivo: hasta 5 MB. Voz: toca 🎤, habla y toca de nuevo para adjuntar (máx 2 min).</div></div>';
+    + '<div class="ayuda">Con la app abierta el chat se refresca solo cada 15 s.</div></div>';
   el.innerHTML = h;
   var v = $("chVolver"); if (v) v.addEventListener("click", volverEquipo);
   var tb = $("chTempBtn"); if (tb) tb.addEventListener("click", hojaTemporalesMN);
+  var ib = $("chInfoBtn"); if (ib) ib.addEventListener("click", function(){
+    abrirHoja("Estados de tus mensajes", "✓ enviado: salió de tu teléfono y quedó guardado en el servidor. ✓✓ entregado: su app recibió el mensaje (sello real del servidor). ✓✓ Visto: abrió este chat y lo leyó. 🕐 sin enviar: está en la cola de este teléfono y sale solo al volver la conexión. Mantén presionada una burbuja para responder, reaccionar, fijar o (en tus mensajes) editar y eliminar. Foto: se comprime sola (máx 1280 px). Archivo: hasta 5 MB. Voz: toca 🎤, habla y toca de nuevo para adjuntar (máx 2 min).", []);
+  });
+  var cp = $("chClip"); if (cp) cp.addEventListener("click", function(){
+    var hoja = $("chAdjHoja"); if (hoja) hoja.style.display = (hoja.style.display === "none" || !hoja.style.display) ? "flex" : "none";
+  });
+  var vb = $("chVozBtn"); if (vb) vb.addEventListener("click", grabarVozMN);
+  var tx = $("chTexto"); if (tx) tx.addEventListener("keydown", function(e){ if (e.key === "Enter") { e.preventDefault(); enviarChatUI(); } });
   var b = $("chEnviar"); if (b) b.addEventListener("click", enviarChatUI);
   var bk = $("chBuscar"); if (bk) bk.addEventListener("input", function(){
     var q = (bk.value || "").toLowerCase();
     el.querySelectorAll("#chHilo .msgP").forEach(function(n){ n.style.display = (!q || n.textContent.toLowerCase().indexOf(q) >= 0) ? "" : "none"; });
+    el.querySelectorAll("#chHilo .fechaSep").forEach(function(n){ n.style.display = q ? "none" : ""; });
   });
   var rx = $("chRespX"); if (rx) rx.addEventListener("click", function(){ chatResp = null; pintarChat(); });
   var ax = $("chAdjX"); if (ax) ax.addEventListener("click", function(){ chatAdj = null; pintarChat(); });
@@ -1329,7 +1438,12 @@ function construirBase(p){
     if (!map[u.codigo]) map[u.codigo] = { codigo: u.codigo, nombre: u.nombre, tratos: [] };
     else map[u.codigo].nombre = u.nombre;
   });
+  ultRetenidosMN = [];
   state.foto.publicar.forEach(function(tr){
+    /* v7: el trato sin código ya no contamina el paquete (antes
+       creaba la clave «undefined» y la puerta rechazaba TODO el
+       lote): queda retenido con nombre y el resto sale normal. */
+    if (!tr.codigo) { ultRetenidosMN.push(tr); return; }
     if (state.foto.borrados.indexOf(tr.codigo) >= 0) return;
     if (!map[tr.codigo]) map[tr.codigo] = { codigo: tr.codigo, nombre: tr.nombre, tratos: [] };
     map[tr.codigo].tratos.push({ fecha: fechaCorta(tr.fecha), concepto: tr.concepto, comision: Number(tr.comision) });
@@ -1341,6 +1455,7 @@ function construirBase(p){
   else if (state.foto.datos && state.foto.datos.apkUrl) out.apkUrl = state.foto.datos.apkUrl;
   return out;
 }
+var ultRetenidosMN = [];
 function listaPublicar(){
   var base = construirBase(tarifa());
   return base.buscadores.map(function(bd){ return { codigo: bd.codigo, nombre: bd.nombre, tratos: bd.tratos }; });
@@ -1365,16 +1480,23 @@ function publicarAhora(){
   rpc("guardarTarifa", { p_codigo: state.codigo, p_ingreso: p.ingresoRef360, p_libro: p.libroRef, p_salida: p.salidaRef, p_com_saldo: p.pctSaldo, p_com_transf: p.pctTransf, p_piso: p.pisoTransf })
     .then(function(){ return rpc("publicarTratos", { p_codigo: state.codigo, p_tratos: payload.lista }); })
     .then(function(){
-      state.foto.publicar = [];
+      /* v7: vaciado PARCIAL: salen solo los tratos con código; los
+         retenidos se quedan en la cola con su nombre. */
+      var quedan = (state.foto.publicar || []).filter(function(x){ return !x.codigo; });
+      state.foto.publicar = quedan;
       state.tarifaViva = { ingresoRef360: p.ingresoRef360, libroRef: p.libroRef, salidaRef: p.salidaRef, pctSaldo: p.pctSaldo, pctTransf: p.pctTransf, pisoTransf: p.pisoTransf };
       state.sellos.tarifa = new Date().toISOString();
       guardar(); pintarTodo();
-      toast("📡 Publicado: la tarifa y los tratos ya viajan a las apps de los buscadores");
+      toast(quedan.length
+        ? "📡 Publicado lo válido. Quedan " + quedan.length + " trato(s) retenido(s) sin dueño: asígnalos en esta pestaña."
+        : "📡 Publicado: la tarifa y los tratos ya viajan a las apps de los buscadores");
     })
-    .catch(function(){
+    .catch(function(e){
       state.publicarPendiente = payload;
       guardar(); pintarTodo();
-      abrirHoja("Publicado en vivo pendiente", "Las puertas de publicar aún no están en tu base (falta el paquete SQL) o falló la red: la tarifa quedó guardada en este teléfono como pendiente. También puedes generar el datos.json de siempre (botón de abajo) y pasarlo por WhatsApp.", [
+      abrirHoja("Publicado en vivo pendiente", (e && e.faltaPuerta)
+        ? "🧩 " + TXT_FALTA_ACTIVAR + ": la tarifa quedó guardada en este teléfono como pendiente y tus tratos siguen en la cola. También puedes generar el datos.json de siempre (botón de abajo) y pasarlo por WhatsApp."
+        : "Falló la red al publicar: la tarifa quedó guardada en este teléfono como pendiente y se reintenta sola. También puedes generar el datos.json de siempre (botón de abajo) y pasarlo por WhatsApp.", [
         { txt: "🧾 Generar datos.json", cls: "bGold", fn: mostrarJsonRespaldo }
       ]);
     });
@@ -1433,12 +1555,43 @@ registrarModulo({
       + (state.publicarPendiente ? '<div class="kv" style="margin-top:8px"><span class="pill pCola">PENDIENTE DE ENVIAR</span> la última tarifa espera conexión o activación.</div>' : "")
       + '<button class="bGhost" id="tfRespaldo">🧾 Respaldo: generar datos.json</button>'
       + '<div class="ayuda">Publicar ahora manda la tarifa y los tratos aprobados a las apps de tus buscadores por el aire. El respaldo genera el datos.json de siempre por si prefieres el camino del repo.</div>'
-      + '<div class="ayuda">Tratos aprobados esperando publicación: <b>' + state.foto.publicar.length + "</b></div></div>";
+      + '<div class="ayuda">Tratos aprobados esperando publicación: <b>' + state.foto.publicar.filter(function(x){ return !!x.codigo; }).length + "</b></div></div>";
+    var retMN = state.foto.publicar.map(function(p, ix){ return { p: p, ix: ix }; }).filter(function(x){ return !x.p.codigo; });
+    if (retMN.length) {
+      h += '<div class="card"><h3>⚠️ Tratos retenidos: ' + retMN.length + '</h3>'
+        + '<div class="mut">Aprobados sin dueño claro: NO se publican hasta asignarlos (los demás sí salen, normal). Asigna cada uno o quítalo de la cola.</div>'
+        + retMN.map(function(x){
+            return '<div class="kv" style="margin-top:10px">🧾 <b>' + esc(x.p.nombre || "Sin nombre") + '</b> · ' + esc(x.p.concepto || "") + ' · ' + fmt(Number(x.p.comision || 0)) + ' CUP</div>'
+              + '<div class="fila" style="gap:8px"><button class="bGold bMini" data-asignar-mn="' + x.ix + '">👤 Asignar a…</button><button class="bGhost bMini" data-quitar-mn="' + x.ix + '">✖ Quitar de la cola</button></div>';
+          }).join("")
+        + '</div>';
+    }
     el.innerHTML = h;
+    el.querySelectorAll("[data-asignar-mn]").forEach(function(b){ b.addEventListener("click", function(){ asignarRetenidoMN(Number(b.getAttribute("data-asignar-mn"))); }); });
+    el.querySelectorAll("[data-quitar-mn]").forEach(function(b){ b.addEventListener("click", function(){
+      var ix = Number(b.getAttribute("data-quitar-mn"));
+      var p = state.foto.publicar[ix]; if (!p) return;
+      state.foto.publicar.splice(ix, 1); guardar(); pintarTodo();
+      toast("✖ Trato de «" + (p.nombre || "Sin nombre") + "» quitado de la cola.");
+    }); });
     var bp = $("tfPub"); if (bp) bp.addEventListener("click", publicarAhora);
     var br = $("tfRespaldo"); if (br) br.addEventListener("click", mostrarJsonRespaldo);
   }
 });
+
+/* v7: asignar un trato retenido a un buscador del equipo. */
+function asignarRetenidoMN(ix){
+  var p = (state.foto.publicar || [])[ix]; if (!p) return;
+  var us = (state.foto.usuarios || []).filter(function(u){ return state.foto.borrados.indexOf(u.codigo) < 0; });
+  if (!us.length) { toast("Todavía no hay equipo cargado: actualiza con conexión.", false); return; }
+  abrirHoja("Asignar trato a…", "Trato de «" + (p.nombre || "Sin nombre") + "» · " + (p.concepto || "") + ". ¿De qué buscador es?", us.map(function(u){
+    return { txt: "👤 " + u.nombre + " · " + u.codigo, cls: "bGhost", fn: function(){
+      p.codigo = u.codigo; p.nombre = u.nombre; delete p.retenido;
+      guardar(); pintarTodo();
+      toast("✅ Trato asignado a " + u.nombre + ". Ya puede publicarse.");
+    } };
+  }));
+}
 
 /* ===== MÓDULO MERCADO (../datos/ultimo.json en palabras claras) =====
    OJO con la unidad: el promedio ETECSA del vigía viene en CUP por
@@ -1520,7 +1673,15 @@ function init(){
     ]);
   });
   $("btnAct").addEventListener("click", function(){
-    cargarTodo(false).then(function(){ if (tabActual === "Mercado") modulo("Mercado").alMostrar(); });
+    /* v7: el botón SIEMPRE da señal de vida: «actualizando…» y al
+       final «actualizado a las HH:MM» (o el aviso humano del fallo). */
+    var b = $("btnAct"); var antes = b.textContent;
+    b.textContent = "⟳ Actualizando…"; b.disabled = true;
+    cargarTodo(false).then(function(okRes){
+      b.disabled = false; b.textContent = antes;
+      if (okRes) toast("✅ Actualizado a las " + horaDe(new Date().toISOString()));
+      if (tabActual === "Mercado") modulo("Mercado").alMostrar();
+    });
   });
   $("hojaFondo").addEventListener("click", function(e){ if (e.target === $("hojaFondo")) cerrarHoja(); });
   document.addEventListener("online", function(){ cargarTodo(true); });
