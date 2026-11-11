@@ -5,7 +5,7 @@
    la app abre SIN internet desde la segunda visita. Los datos
    (Supabase, datos.json, ultimo.json) siempre van a la red primero
    y la app guarda su última foto en localStorage. */
-var CACHE = "minegocio-v2";
+var CACHE = "minegocio-v3";
 var CASCARON = [
   "./",
   "./index.html",
