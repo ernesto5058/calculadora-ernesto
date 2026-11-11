@@ -1,0 +1,50 @@
+name: Bancos automáticos
+
+# Plan PRO (aprobado por Ernesto 2026-11-11): cada cambio en las apps se
+# prueba solo en la nube. Las suites viven en bancos/ (copias de los bancos
+# vivos de research_notes con las rutas adaptadas) y el registro de por qué
+# existe cada chequeo está en CHEQUEOS-ETERNOS.md.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'minegocio/**'
+      - 'buscadores/**'
+      - 'buscadores-app/**'
+      - 'mercado/**'
+      - 'shared/**'
+      - 'datos/**'
+      - 'supabase/functions/**'
+      - 'bancos/**'
+      - '.github/workflows/bancos.yml'
+  workflow_dispatch:
+
+jobs:
+  bancos:
+    name: Bancos de las apps
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar el repo
+        uses: actions/checkout@v4
+
+      - name: Node 24 (el mismo de los bancos locales)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Instalar jsdom (única dependencia de los bancos)
+        working-directory: bancos
+        run: npm install --no-audit --no-fund
+
+      - name: Banco Mi Negocio (223 chequeos)
+        run: node bancos/test-minegocio-banco.mjs
+
+      - name: Banco Mi Trabajo — contrato de puertas RPC sin sobrecargas
+        run: node bancos/prueba-mitrabajo-v144.mjs
+
+      - name: Banco Mi Trabajo v1.4.5 — textos, monedas y App Links
+        run: node bancos/prueba-mitrabajo-v145.mjs
+
+      - name: Banco Mercado v1 — lógica y frescura
+        run: node bancos/prueba-mercado-v1.mjs
