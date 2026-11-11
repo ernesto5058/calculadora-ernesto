@@ -327,6 +327,7 @@ var PUERTAS = {
   mensajesSinLeer: "mensajes_sin_leer",
   marcarRecibidos: "marcar_recibidos",
   guardarTarifa: "admin_guardar_tarifa",
+  mercadoCosto: "mercado_fijar_costo",
   leerPerfil: "leer_perfil",
   publicarTratos: "admin_publicar_tratos",
   leerTarifa: "leer_tarifa",
@@ -381,7 +382,7 @@ var TARIFA_DEF = { ingresoRef360: 1098.68, libroRef: 1069.38, salidaRef: 950, pc
 function fotoVacia(){ return { reportes: [], ayudas: [], usuarios: [], datos: null, cuando: "", publicar: [], borrados: [], tarifaPanel: null, mercado: null, perfiles: {} }; }
 function estadoVacio(){
   return { codigo: "", foto: fotoVacia(), calc: JSON.parse(JSON.stringify(CALC_DEF)),
-    cola: [], sellos: {}, tarifaViva: null, tarifaVivaEn: "", publicarPendiente: null };
+    cola: [], sellos: {}, tarifaViva: null, tarifaVivaEn: "", publicarPendiente: null, calcSync: null };
 }
 var state = estadoVacio();
 function cargarEstado(){
@@ -523,6 +524,50 @@ function waLink(telefono){
   if (!d) return "";
   if (d.length === 8) d = "53" + d;
   return "https://wa.me/" + d;
+}
+/* ===== ENLACE DEL BUSCADOR (v9) =====
+   El botón «📤 Enviar su enlace» de su tarjeta en Equipo: compone el
+   mensaje de WhatsApp con el enlace de descarga LEÍDO EN VIVO de
+   buscadores/datos.json (su apkUrl manda: nunca fijo en código,
+   para que no caduque entre versiones), su código personal y su
+   enlace directo (?codigo=) — que con la app instalada abre la APK
+   ya dentro, en su panel, y sin ella entra por la web. Si el
+   buscador tiene teléfono en su perfil, WhatsApp va dirigido a su
+   número; si no, se abre el compartir genérico y Ernesto elige el
+   contacto. Sin red se usa el último apkUrl bueno conocido y se
+   avisa; si nunca se leyó, se pide conexión (nada de inventar un
+   enlace viejo). */
+var MN_ENLACE_BUSC = "https://ernesto5058.github.io/calculadora-ernesto/buscadores/";
+function enlacePersonalBuscador(u){ return MN_ENLACE_BUSC + "?codigo=" + encodeURIComponent(u.codigo); }
+function mensajeEnlaceBuscador(u, apkUrl){
+  return "👋 Hola, " + nombreVisible(u) + ". Soy Ernesto.\n"
+    + "📲 Instala tu app «Mi Trabajo» desde aquí: " + apkUrl + "\n"
+    + "🔑 Tu código personal es: " + u.codigo + "\n"
+    + "Entra así: instala la app, ábrela y escribe tu código — nada más.\n"
+    + "🎯 Y este es tu enlace directo: con la app ya instalada te la abre por dentro, en tu panel, sin teclear nada: " + enlacePersonalBuscador(u);
+}
+function urlWhatsEnlace(u, apkUrl){
+  var pf = perfilDe(u.codigo) || {};
+  var base = waLink(pf.telefono || "");
+  return (base ? base : "https://wa.me") + "?text=" + encodeURIComponent(mensajeEnlaceBuscador(u, apkUrl));
+}
+function enviarEnlaceBuscador(u){
+  var abrir = function(apkUrl){
+    try { localStorage.setItem("mn_apkurl", apkUrl); } catch(e){}
+    window.open(urlWhatsEnlace(u, apkUrl), "_blank");
+  };
+  fetch("../buscadores/datos.json?t=" + Date.now(), { cache: "no-store" })
+    .then(function(r){ if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
+    .then(function(d){
+      if (d && d.apkUrl) abrir(d.apkUrl);
+      else throw new Error("sin apkUrl");
+    })
+    .catch(function(){
+      var ultimo = "";
+      try { ultimo = localStorage.getItem("mn_apkurl") || ""; } catch(e){}
+      if (ultimo) { toast("Sin red ahora: uso el enlace de descarga de la última vez"); abrir(ultimo); }
+      else toast("Sin conexión: no pude leer el enlace de descarga vivo. Conéctate y toca otra vez.", false);
+    });
 }
 /* Perfiles del equipo (puerta leer_perfil; degrada en silencio si
    perfiles.sql aún no está pegado: el panel sigue sin ellos). */
@@ -713,6 +758,25 @@ function ejecutarAccion(a){
     case "publicar":
       return rpc("guardarTarifa", { p_codigo: cod, p_ingreso: a.payload.tarifa.ingresoRef360, p_libro: a.payload.tarifa.libroRef, p_salida: a.payload.tarifa.salidaRef, p_com_saldo: a.payload.tarifa.pctSaldo, p_com_transf: a.payload.tarifa.pctTransf, p_piso: a.payload.tarifa.pisoTransf })
         .then(function(){ return rpc("publicarTratos", { p_codigo: cod, p_tratos: (a.payload.lista || []).filter(function(x){ return x && x.codigo; }) }); });
+    case "calcTarifa": {
+      /* v9: la salida y el costo de SU Calculadora (sección Saldo)
+         se guardan en la tarifa viva del sistema: la salida por la
+         MISMA puerta de la pestaña Tarifa (admin_guardar_tarifa,
+         con la tarifa vigente y solo p_salida cambiada) y el costo
+         en mercado_config (mercado_fijar_costo), que es lo que lee
+         el lector de Mercado. El sello «guardado» se pinta SOLO
+         aquí, cuando AMBAS puertas confirmaron: nada de sellos
+         fantasma (lección del PAGADO de la Fase 1). */
+      var tA = tarifa();
+      return rpc("guardarTarifa", { p_codigo: cod, p_ingreso: tA.ingresoRef360, p_libro: tA.libroRef, p_salida: a.salida, p_com_saldo: tA.pctSaldo, p_com_transf: tA.pctTransf, p_piso: tA.pisoTransf })
+        .then(function(){ return rpc("mercadoCosto", { p_codigo: cod, p_costo: a.costo }); })
+        .then(function(r){
+          state.calcSync = { salida: a.salida, costo: a.costo, estado: "guardado", cuando: new Date().toISOString() };
+          if (state.tarifaViva) state.tarifaViva.salidaRef = a.salida;
+          guardar(); pintarCalcSync();
+          return r;
+        });
+    }
   }
   return Promise.resolve();
 }
@@ -722,6 +786,7 @@ function despacharCola(){
   if (!state.cola.length) return Promise.resolve(0);
   despachando = true;
   var hechos = 0;
+  var huboVisible = false;
   var chain = Promise.resolve();
   var copia = state.cola.slice();
   copia.forEach(function(a){
@@ -732,6 +797,7 @@ function despacharCola(){
       a.estado = "enviando"; guardar();
       return ejecutarAccion(a).then(function(){
         hechos++;
+        if (a.tipo !== "calcTarifa") huboVisible = true;
         var i = state.cola.indexOf(a); if (i >= 0) state.cola.splice(i, 1);
         if (a.tipo === "publicar") state.publicarPendiente = null;
         guardar();
@@ -746,7 +812,11 @@ function despacharCola(){
   return chain.then(function(){
     despachando = false;
     pintarInicioSiVisible();
-    if (hechos > 0) { toast("📤 Cola despachada: " + hechos + " acción(es) ya están en el sistema"); cargarTodo(true); }
+    /* v9: la sincronización de la calculadora es silenciosa a
+       propósito (es automática, no una acción que Ernesto mandó):
+       refresca igual, pero sin el toast de la cola. */
+    if (huboVisible) toast("📤 Cola despachada: " + hechos + " acción(es) ya están en el sistema");
+    if (hechos > 0) { pintarCalcSync(); cargarTodo(true); }
     return hechos;
   });
 }
@@ -1598,6 +1668,49 @@ function chips(id, valores){
   valores.forEach(function(v){ h += '<span class="chip" data-ch="' + id + ':' + v + '">' + v + '</span>'; });
   return h + "</div>";
 }
+/* ===== v9 · LA CALCULADORA ALIMENTA LA TARIFA DEL SISTEMA =====
+   La salida y el costo de la sección Saldo son los números del día
+   de Ernesto: al cambiarlos, viajan SOLOS a la tarifa viva (la
+   salida a la fila que leen el bot y las apps; el costo a
+   mercado_config, lo que lee el lector de Mercado) por la cola
+   offline de siempre: sin conexión quedan pendientes y se aplican
+   al volver la red, en silencio. El estado se pinta honesto:
+   «pendiente» hasta que el servidor confirma, «✓ guardado» solo
+   tras la confirmación (ver ejecutarAccion «calcTarifa»). */
+function calcSyncObj(){
+  if (!state.calcSync) state.calcSync = { salida: null, costo: null, estado: "", cuando: "" };
+  return state.calcSync;
+}
+function textoCalcSync(){
+  var cs = calcSyncObj();
+  if (cs.estado === "guardado" && cs.cuando) {
+    var d = new Date(cs.cuando);
+    var hh = ("0" + d.getHours()).slice(-2) + ":" + ("0" + d.getMinutes()).slice(-2);
+    return "✓ guardado en la tarifa · " + hh;
+  }
+  if (cs.estado === "pendiente") return online ? "🕐 guardando en la tarifa…" : "🕐 pendiente de conexión — se guarda solo al volver la red";
+  return "Al cambiar la salida o el costo, se guardan solos en la tarifa del sistema.";
+}
+function pintarCalcSync(){
+  var el = document.getElementById("calcSyncEstado");
+  if (el) el.textContent = textoCalcSync();
+}
+var calcSyncTimer = null;
+function programarSyncCalc(){
+  var s = state.calc.saldo || {};
+  var salida = Number(s.salida), costo = Number(s.costo);
+  if (!isFinite(salida) || !isFinite(costo) || salida <= 0 || costo <= 0) return;
+  var cs = calcSyncObj();
+  cs.salida = salida; cs.costo = costo; cs.estado = "pendiente";
+  guardar(); pintarCalcSync();
+  if (calcSyncTimer) clearTimeout(calcSyncTimer);
+  calcSyncTimer = setTimeout(function(){
+    calcSyncTimer = null;
+    state.cola = state.cola.filter(function(a){ return !(a && a.tipo === "calcTarifa" && a.estado === "pendiente"); });
+    encolar({ tipo: "calcTarifa", salida: salida, costo: costo, cuando: new Date().toISOString() });
+    if (online) despacharCola();
+  }, 700);
+}
 function valCalc(grupo, clave, id){ var n = parseFloat(String($(id).value).replace(",", ".")); var v = isFinite(n) ? n : 0; state.calc[grupo][clave] = v; return v; }
 function montarStepsCalc(){
   $("pgCalc").querySelectorAll("[data-st]").forEach(function(b){
@@ -1625,6 +1738,8 @@ function calcHtml(){
     + chips("c_s_salida", [930, 950, 960, 970])
     + campo("c_s_costo", "Tu costo por recarga de 360 (CUP)", s.costo, "Lo que pagaste por cada 360 de saldo.", "Si tu costo sube, tu equilibrio baja: tendrás que vender a menor tasa para no perder.")
     + chips("c_s_costo", [1000, 1040, 1100, 1114])
+    + '<div class="ayuda">Estos números alimentan la tarifa del sistema: el bot y las apps usan esta misma salida.</div>'
+    + '<div class="kv" id="calcSyncEstado"></div>'
     + campo("c_s_tasa", "Tasa a la que vendes en QvaPay (saldo por QUSD)", s.tasa, "El saldo que entregas por cada QUSD.", "Menos tasa = vendes más caro y ganas más por 360, pero la oferta puede tardar más en venderse. Es el número que más mueve tu ganancia: mucho ojo aquí.")
     + chips("c_s_tasa", [300, 320, 340])
     + campo("c_s_saldo", "Saldo total a vender", s.saldo, "Cuánto saldo piensas vender en total.", "La ganancia del monto completo se calcula sobre este total y resta 14,44 CUP del costo de los envíos (cada transferencia de saldo descuenta 5 de principal).")
@@ -1659,9 +1774,11 @@ function renderCalc(outOnly){
           { c_s_salida:"salida", c_s_costo:"costo", c_s_tasa:"tasa", c_s_saldo:"saldo", c_t_efectivo:"efectivo", c_t_porc:"porc", c_t_libro:"libro", c_t_salida:"salida", c_b_precio:"precio", c_b_tasaVenta:"tasaVenta", c_b_efectivo:"efectivo", c_b_porc:"porc", c_b_libro:"libro", c_b_salida:"salida" }[id], id);
         guardar();
         renderCalc(true);
+        if (id === "c_s_salida" || id === "c_s_costo") programarSyncCalc();
       });
     });
     montarStepsCalc();
+    pintarCalcSync();
   }
   var s = state.calc.saldo, t = state.calc.transf, b = state.calc.busc;
   var os = $("c_out_s");
@@ -1914,7 +2031,8 @@ registrarModulo({
         + '<div class="kv">Código: ' + esc(u.codigo) + "</div>" + lineaPresencia(u)
         + '<div class="fila" style="margin-top:8px;gap:8px">'
         + (puertasChat === true ? '<button class="bGold bMini" data-chat="' + esc(u.codigo) + '">Chat' + (badge > 0 ? " · " + badge + " sin leer" : "") + "</button>" : "")
-        + '<button class="bGhost bMini" data-act="' + esc(u.codigo) + '">' + (u.activo ? "Desactivar" : "Activar") + "</button></div></div>";
+        + '<button class="bGhost bMini" data-act="' + esc(u.codigo) + '">' + (u.activo ? "Desactivar" : "Activar") + "</button></div>"
+        + '<div class="fila" style="margin-top:8px"><button class="bGhost bMini" data-enviar="' + esc(u.codigo) + '">📤 Enviar su enlace</button></div></div>';
     });
     if (!state.foto.usuarios.length) h += '<div class="card"><div class="mut">Todavía no hay buscadores en tu equipo.</div></div>';
     h += '<div class="card"><h3>Añadir buscador</h3>'
@@ -1929,6 +2047,7 @@ registrarModulo({
     el.innerHTML = h;
     el.querySelectorAll("[data-chat]").forEach(function(b){ b.addEventListener("click", function(){ var u = state.foto.usuarios.filter(function(x){ return x.codigo === b.getAttribute("data-chat"); })[0]; if (u) abrirChat(u.codigo, u.nombre); }); });
     el.querySelectorAll("[data-act]").forEach(function(b){ b.addEventListener("click", function(){ var u = state.foto.usuarios.filter(function(x){ return x.codigo === b.getAttribute("data-act"); })[0]; if (u) cambiarActivo(u.codigo, !u.activo); }); });
+    el.querySelectorAll("[data-enviar]").forEach(function(b){ b.addEventListener("click", function(){ var u = state.foto.usuarios.filter(function(x){ return x.codigo === b.getAttribute("data-enviar"); })[0]; if (u) enviarEnlaceBuscador(u); }); });
     el.querySelectorAll("[data-udot]").forEach(function(b){ b.addEventListener("click", function(){ var u = state.foto.usuarios.filter(function(x){ return x.codigo === b.getAttribute("data-udot"); })[0]; if (u) hojaUsuario(u); }); });
     el.querySelectorAll("[data-u]").forEach(function(cardEl){ armarPrensa(cardEl, function(){ var u = state.foto.usuarios.filter(function(x){ return x.codigo === cardEl.getAttribute("data-u"); })[0]; if (u) hojaUsuario(u); }); });
     var nb = $("nuBtn"); if (nb) nb.addEventListener("click", guardarNuevoBuscador);
@@ -2651,7 +2770,7 @@ registrarModulo({
       + '<label for="tf_lib">Libro BANK_CUP (CUP por QUSD)</label><input id="tf_lib" type="text" inputmode="decimal" value="' + fmt(Number(t.libroRef)) + '">'
       + '<div class="ayuda">El precio de 1 QUSD pagando por transferencia.</div>'
       + '<label for="tf_sal">Salida de referencia (CUP por QUSD)</label><input id="tf_sal" type="text" inputmode="decimal" value="' + fmt(Number(t.salidaRef)) + '">'
-      + '<div class="ayuda">OJO: esta es la salida que VEN tus buscadores (la referencia con la que se les paga). Tu salida real de negociación no sale de tu Calculadora ni de este panel.</div>'
+      + '<div class="ayuda">OJO: esta es la salida que VEN tus buscadores (la referencia con la que se les paga). Y es la misma tarifa que leen el bot y las apps: la salida de tu Calculadora (sección Saldo) se guarda aquí sola al cambiarla.</div>'
       + '<div class="kv">Comisiones: saldo <b>' + tb.pctSaldo + '%</b> del excedente · transferencia <b>' + tb.pctTransf + '%</b> de la ganancia · piso transf. <b>' + tb.pisoTransf + '%</b></div>'
       + (d ? '<div class="mut">Viene de tu Calculadora ahora mismo (salida ' + fmt(d.salida) + " · tasa de venta " + fmt(d.tasaVenta) + " · libro " + fmt(d.libro) + '). Si escribes a mano aquí, tu número manda y queda guardado.</div>' : "")
       + (state.tarifaVivaEn ? '<div class="mut">Tarifa guardada en la base, actualizada el ' + esc(state.tarifaVivaEn) + ".</div>" : "")
@@ -2774,14 +2893,14 @@ function intentarEntrar(){
    controllerchange recarga la app UNA sola vez (marca en
    sessionStorage por versión: sin bucles). MN_VERSION se sube
    junto con el CACHE de sw.js. */
-var MN_VERSION = "v8";
+var MN_VERSION = "v9";
 /* Sello VISIBLE de compilación (punto 6): Ernesto quejándose con
    razón — «no sé si se actualizó o no». Una sola constante que
    sube con cada publicación; se ve en Inicio y en la hoja ℹ️ del
    chat. Formato: «Mi Negocio · versión 2026-11-11 HH:MM · caché v6»
    (fecha Y HORA de la publicación, para distinguir dos subidas
    del mismo día). La hora es la de Cuba (CST) al compilar. */
-var MN_COMPILACION = "2026-11-11 13:53";
+var MN_COMPILACION = "2026-11-11 14:31";
 function selloVersion(){ return "Mi Negocio · versión " + MN_COMPILACION + " · caché " + MN_VERSION; }
 var regSW = null;
 var swConControladorAlArrancar = false;
