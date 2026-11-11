@@ -443,7 +443,7 @@
       <h2><svg class="ic" aria-hidden="true"><use href="#i-send"/></svg> Textos de ofertas</h2>
       <div class="hint">Un toque y el anuncio sale listo para copiar o mandar a WhatsApp, con los datos de Ernesto ya puestos.</div>
       <button type="button" class="hintBtn" data-hint="h_textos">ⓘ ¿Cómo funciona?</button>
-      <div class="hintFull hide" id="h_textos">Los tres botones arman el anuncio con la tarifa pública vigente y los datos públicos de Ernesto (su teléfono, su zona y el domicilio): tú no tecleas ni un número y el texto sale completo siempre. Cada toque genera versiones distintas, para que no parezca robot. El formulario de abajo queda para casos especiales.</div>
+      <div class="hintFull hide" id="h_textos">Los tres botones arman el anuncio con la tarifa pública vigente y los datos públicos de Ernesto (su teléfono, su zona y el domicilio): tú no tecleas ni un número y el texto sale completo siempre. Cada toque genera versiones distintas, para que no parezca robot.</div>
       <label>Textos listos — un toque y a publicar</label>
       <div class="catBtns">
         <button type="button" id="tx_saldo"><svg class="ic" aria-hidden="true"><use href="#i-phone"/></svg> Compro saldo</button>
@@ -453,37 +453,6 @@
       <label>¿Ya tienes una cantidad de saldo en vista? (opcional)</label>
       <input type="number" id="tx_cant_saldo" inputmode="decimal" placeholder="Ej.: 720">
       <div class="hint" style="margin-top:6px">Si la escribes, el texto de «Compro saldo» incluye cuánto pagas por esa cantidad, calculado con la tasa de hoy.</div>
-      <label>Formulario libre (casos especiales)</label>
-      <div class="chipRow" id="tx_tipo_chips"></div>
-      <input type="hidden" id="tx_tipo" value="compro" class="hide">
-      <label>Producto o servicio</label>
-      <input type="text" id="tx_prod" placeholder="Ej.: saldo móvil (recargas de 360)">
-      <label>Precio (vacío si es por privado)</label>
-      <input type="text" id="tx_precio" inputmode="decimal" placeholder="Ej.: 980">
-      <label>Moneda</label>
-      <select id="tx_moneda"><option>CUP</option><option>USD</option><option>MLC</option><option>QUSD</option></select>
-      <label class="checkLine"><input type="checkbox" id="tx_privado"> Precio por privado</label>
-      <label>Cantidad o disponibilidad (opcional)</label>
-      <input type="text" id="tx_cant" placeholder="Ej.: quedan 3">
-      <label>Detalles y ventajas</label>
-      <input type="text" id="tx_det" placeholder="Ej.: pago al momento, en efectivo">
-      <label>Zona</label>
-      <input type="text" id="tx_zona" placeholder="Tu zona (sale de tu perfil)">
-      <label>Teléfono de contacto</label>
-      <input type="text" id="tx_tel" placeholder="Tu teléfono (sale de tu perfil)">
-      <label>Emojis</label>
-      <select id="tx_emojis"><option value="muchos">Muchos</option><option value="pocos" selected>Pocos</option><option value="ninguno">Ninguno</option></select>
-      <label>Tono</label>
-      <select id="tx_tono"><option value="humanizado">Humanizado natural</option><option value="comercial">Comercial vendedor</option><option value="formal">Formal serio</option><option value="directo">Directo y corto</option></select>
-      <label>Tamaño</label>
-      <select id="tx_tam"><option value="completo">Completo</option><option value="corto">Corto (estados)</option><option value="muycorto">Muy corto (1-2 líneas)</option></select>
-      <label>Destino</label>
-      <select id="tx_dest"><option value="wa">WhatsApp (*negritas*)</option><option value="fb">Facebook (texto plano)</option></select>
-      <label class="checkLine"><input type="checkbox" id="tx_mayus"> Mayúsculas en el título</label>
-      <label class="checkLine"><input type="checkbox" id="tx_urg"> Línea de urgencia</label>
-      <label class="checkLine"><input type="checkbox" id="tx_priv_llamada"> Llamada a escribir por privado</label>
-      <label class="checkLine"><input type="checkbox" id="tx_hash"> Hashtags al final</label>
-      <button class="go" id="tx_gen" type="button"><svg class="ic" aria-hidden="true"><use href="#i-send"/></svg> Generar las 3 versiones</button>
       <div id="tx_out" style="margin-top:12px"></div>
       <label>Historial (últimas 30, en este teléfono)</label>
       <div id="tx_hist"></div>
