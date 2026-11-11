@@ -1,5 +1,5 @@
 "use strict";
-var APP_VERSION = "1.4.0";
+var APP_VERSION = "1.4.1";
 /* Tarifa de respaldo: se usa sin conexión si nunca se ha descargado datos.json.
    La tarifa viva viene de datos.json (la actualiza Ernesto/Máximo). */
 var DEFAULT_TARIFA = { ingresoRef360: 1092.65, libroRef: 1110, salidaRef: 950,
@@ -391,11 +391,16 @@ function checkUpdate(){
    Todas las llamadas a las puertas nuevas fallan EN SILENCIO: si el
    SQL de la v1.3.0 aún no está pegado en Supabase (404) o no hay red,
    la app sigue funcionando igual que en la 1.2.1. */
+/* v1.4.1: se guarda el último error del chat (status HTTP) para
+   poder decir en humano «todavía no está activado» (404 = la puerta
+   no existe) frente a «sin conexión», sin romper el silencio de
+   diseño del resto de llamadas. */
+var ULTIMO_ERR_CHAT = null;
 function rpcChat(fn, body){
   if (!window.fetch) return Promise.resolve(null);
   return fetch(SB_RPC + fn, { method: "POST", headers: sbHeaders(), body: JSON.stringify(body) })
-    .then(function(r){ return r.ok ? r.json() : null; })
-    .catch(function(){ return null; });
+    .then(function(r){ if (!r.ok) ULTIMO_ERR_CHAT = { fn: fn, status: r.status }; return r.ok ? r.json() : null; })
+    .catch(function(){ ULTIMO_ERR_CHAT = { fn: fn, status: 0 }; return null; });
 }
 /* Latido: Ernesto ve en su panel quién está en línea (< 3 min).
    v1.3.1: al abrir la app también se sellan como RECIBIDOS los
@@ -413,23 +418,35 @@ function horaChat(iso){
   function p(x){ return (x < 10 ? "0" : "") + x; }
   return p(d.getHours()) + ":" + p(d.getMinutes());
 }
+/* v1.4.1: hora como en WhatsApp («3:08 p. m.») y separadores. */
+function hora12Chat(iso){
+  var d = new Date(iso); if (isNaN(d.getTime())) return "";
+  function p(x){ return (x < 10 ? "0" : "") + x; }
+  var h = d.getHours(); var ap = h < 12 ? "a. m." : "p. m."; var h12 = h % 12 || 12;
+  return h12 + ":" + p(d.getMinutes()) + " " + ap;
+}
+function etiquetaFechaChat(iso){
+  var d = new Date(iso); if (isNaN(d.getTime())) return "";
+  function clave(x){ return x.getFullYear() + "-" + x.getMonth() + "-" + x.getDate(); }
+  var hoy = new Date(); var ayer = new Date(); ayer.setDate(hoy.getDate() - 1);
+  if (clave(d) === clave(hoy)) return "Hoy";
+  if (clave(d) === clave(ayer)) return "Ayer";
+  var meses = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
+  return d.getDate() + " de " + meses[d.getMonth()] + " de " + d.getFullYear();
+}
 function escChat(x){ return String(x === null || x === undefined ? "" : x).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
-/* ===== Estados del chat «como WhatsApp» (v1.3.1) =====
+/* ===== Estados del chat «como WhatsApp» (v1.3.1, honestos en v1.4.1) =====
    En TUS mensajes: ✓ enviado (guardado, sin constancia de llegada)
-   · ✓✓ entregado · ✓✓ en azul + «Visto». ENTREGADO, definido en la
-   app: Ernesto abrió su panel DESPUÉS de que tu mensaje se envió
-   (su latido visto >= creado del mensaje) pero aún no abrió el chat;
-   abierto el chat, leer_chat marca leido=true -> «Visto». Si el
-   mensaje trae el sello «recibido» del servidor (puerta
-   marcar_recibidos del SQL v1.3.1), ese sello manda sobre la
-   deducción. Los mensajes de Ernesto no llevan estado. */
+   · ✓✓ entregado · ✓✓ en azul + «Visto». v1.4.1 — SOLO DATOS
+   REALES: «entregado» exige el sello «recibido» del servidor (la
+   puerta marcar_recibidos lo estampa cuando el panel de Ernesto
+   recoge sus mensajes) y «Visto» exige leido=true (abrió el chat).
+   Ya NO se deduce del latido de presencia: que Ernesto abra su
+   panel no significa que tu mensaje le haya llegado. Los mensajes
+   de Ernesto no llevan estado. */
 function estadoMsgBusc(m){
   if (m.leido) return ' <span class="estVisto">✓✓ Visto</span>';
   if (m.recibido) return " ✓✓";
-  if (ADMIN_VISTO) {
-    var v = Date.parse(ADMIN_VISTO), c = Date.parse(m.creado);
-    if (!isNaN(v) && !isNaN(c) && v >= c) return " ✓✓";
-  }
   return " ✓";
 }
 /* Cabecera del chat: ¿Ernesto está en línea? Su latido viene de la
@@ -781,9 +798,12 @@ function pintarChat(msgs){
   }
   var filtro = (($("c_buscar") && $("c_buscar").value) || "").trim().toLowerCase();
   var h = "";
+  var ultimoDia = "";
   msgs.forEach(function(m){
     if (m.tipo === "sistema") { h += '<div class="msgSistema">' + escChat(m.texto) + "</div>"; return; }
     if (filtro && String(m.texto || "").toLowerCase().indexOf(filtro) === -1 && !m.adj_tipo) return;
+    var dia = String(m.creado || "").slice(0, 10);
+    if (!filtro && dia && dia !== ultimoDia) { h += '<div class="fechaSep"><span>' + escChat(etiquetaFechaChat(m.creado)) + "</span></div>"; ultimoDia = dia; }
     var mio = m.de === SESION;
     var est = mio ? estadoMsgBusc(m) : "";
     var inner = "";
@@ -795,11 +815,13 @@ function pintarChat(msgs){
       else if (m.adj_datos) inner += '<span class="adjChip">📎 ' + escChat(m.adj_nombre || "Archivo") + "</span>";
       if (m.texto) inner += escChat(m.texto);
     }
+    /* v1.4.1: hora y estado DENTRO de la burbuja, como en WhatsApp. */
+    inner += '<span class="burMeta">' + (m.editado ? '<span class="editadoLab">editado</span> ' : "") + hora12Chat(m.creado) + est + "</span>";
     var reac = "";
     if (!m.borrado && m.reacciones && m.reacciones.length) {
       reac = '<div class="reacRow">' + m.reacciones.map(function(r){ return '<span class="reac">' + r.emoji + " " + r.total + "</span>"; }).join("") + "</div>";
     }
-    h += '<div class="msg ' + (mio ? "me" : "him") + '" data-mid="' + m.id + '"><div class="bur">' + inner + '</div><div class="mhora">' + (mio ? "Tú" : "Ernesto") + " · " + horaChat(m.creado) + (m.editado ? ' <span class="editadoLab">editado</span>' : "") + est + "</div>" + reac + "</div>";
+    h += '<div class="msg ' + (mio ? "me" : "him") + '" data-mid="' + m.id + '"><div class="bur">' + inner + "</div>" + reac + "</div>";
   });
   box.innerHTML = h || '<div class="chatVacio">Ningún mensaje coincide con la búsqueda en lo cargado. Prueba «Buscar más».</div>';
   box.querySelectorAll("[data-mid]").forEach(function(el){
@@ -874,6 +896,13 @@ function chatCargar(){
       CHAT_FIJADO = r.fijado || null;
       CHAT_TEMP_SEG = Number(r.temporal_seg || 0);
       pintarChat(r.mensajes); pintarBadge(0);
+    } else if (!CHAT_MSGS.length) {
+      /* v1.4.1: nada de «Cargando…» eterno: la vista dice en humano
+         si falta activar (404) o si es la conexión. */
+      var box = $("c_hilo");
+      if (box) box.innerHTML = '<div class="chatVacio">' + ((ULTIMO_ERR_CHAT && ULTIMO_ERR_CHAT.status === 404)
+        ? "El chat todavía no está activado en el sistema de Ernesto (falta un paso suyo en la base). Mientras tanto, escríbele por su WhatsApp."
+        : "Sin conexión ahora: el chat se carga solo cuando vuelva la red.") + "</div>";
     }
   });
 }
@@ -1090,6 +1119,18 @@ function showView(v){
     /* Chat: adjuntos, voz, búsqueda */
     $("c_adj_foto").addEventListener("click", function(){ $("c_file_foto").click(); });
     $("c_adj_arch").addEventListener("click", function(){ $("c_file_arch").click(); });
+    /* v1.4.1: el clip del compositor abre la hoja de adjuntos y el
+       botón (i) muestra la explicación breve de estados. */
+    var clipMT = $("c_clip");
+    if (clipMT) clipMT.addEventListener("click", function(){
+      var hoja = $("c_adj_hoja"); if (!hoja) return;
+      hoja.style.display = (hoja.style.display === "flex") ? "none" : "flex";
+    });
+    var infoMT = $("c_info");
+    if (infoMT) infoMT.addEventListener("click", function(){
+      var d = $("c_estados"); if (!d) return;
+      d.style.display = (d.style.display === "block") ? "none" : "block";
+    });
     $("c_file_foto").addEventListener("change", function(){
       var f = $("c_file_foto").files && $("c_file_foto").files[0]; if (!f) return;
       leerArchivoMT(f, true).then(function(a){ CHAT_ADJ = a; $("c_adj_nom").textContent = "📷 Foto lista para enviar."; }).catch(function(e){ chatFallo(e.message); });
@@ -1115,16 +1156,16 @@ function showView(v){
         recMT.ondataavailable = function(e){ if (e.data && e.data.size) chunksMT.push(e.data); };
         recMT.onstop = function(){
           stream.getTracks().forEach(function(t){ t.stop(); });
-          grabando = null; $("c_mic").textContent = "🎤 Nota de voz";
+          grabando = null; $("c_mic").textContent = "🎤";
           var blob = new Blob(chunksMT, { type: recMT.mimeType || "audio/webm" });
           if (blob.size > MAX_ADJ_MT) { chatFallo("La nota pesa más de 5 MB: graba una más corta (máx 2 min)."); return; }
           var fr = new FileReader();
-          fr.onload = function(){ CHAT_ADJ = { tipo: "voz", datos: String(fr.result), nombre: "Nota de voz", tam: blob.size }; $("c_adj_nom").textContent = "🎤 Nota de voz lista — toca «Enviar a Ernesto»."; };
+          fr.onload = function(){ CHAT_ADJ = { tipo: "voz", datos: String(fr.result), nombre: "Nota de voz", tam: blob.size }; $("c_adj_nom").textContent = "🎤 Nota de voz lista: toca el botón dorado de enviar (➤)."; };
           fr.readAsDataURL(blob);
         };
         recMT.start();
         grabando = recMT;
-        $("c_mic").textContent = "⏹️ Detener";
+        $("c_mic").textContent = "⏹️";
         setTimeout(function(){ if (grabando) grabando.stop(); }, 120000);
       }).catch(function(){ chatFallo("Sin permiso de micrófono: actívalo para la app si quieres mandar voz."); });
     });
