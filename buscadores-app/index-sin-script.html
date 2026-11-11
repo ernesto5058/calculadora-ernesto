@@ -11,115 +11,137 @@
 <link rel="icon" href="icon-192.png">
 <link rel="stylesheet" href="tema-pro.css">
 <style>
+  /* ===== v1.4.4: la cara pasa al sistema DISENO-PRO (tokens de
+     tema-pro.css; cero amarillo plano, cero emojis de estructura,
+     rejilla 4/8, cifras tabulares, tab bar de cristal). ===== */
+  :root { --mt-rojo-claro: #FF9AA5; --mt-azul-claro: #A8D8FF; }
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  html, body { background: #0B0E13; overflow-x: hidden; }
-  body { font-family: -apple-system, 'Segoe UI', Roboto, Arial, sans-serif; color: #E8ECF1; min-height: 100vh; padding: 14px 14px 40px; }
+  html, body { background: var(--bg-0); overflow-x: hidden; }
+  body { font-family: var(--fuente); color: var(--txt-1); min-height: 100vh; padding: 14px 14px 104px; }
   img, svg { max-width: 100%; }
   .wrap { max-width: 560px; margin: 0 auto; }
   header { text-align: center; padding: 10px 0 4px; }
-  header .big { color: #F5BC14; }
+  header .big { color: var(--dorado); }
   header .big svg { width: 44px; height: 44px; }
-  h1 { font-size: 24px; font-weight: 800; letter-spacing: .3px; }
-  h1 .gold { color: #F5BC14; }
-  .sub { color: #9AA7B8; font-size: 13px; margin-top: 4px; }
-  .tarifa { margin: 12px 0 4px; background: #12161F; border: 1px solid #232B3A; border-radius: 12px; padding: 10px 12px; font-size: 13px; color: #C7D0DC; line-height: 1.55; }
-  .tarifa b { color: #F5BC14; }
+  h1 { font-size: 24px; font-weight: 800; letter-spacing: -.01em; }
+  h1 .gold { background: var(--dorado-grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .sub { color: var(--txt-2); font-size: 13px; margin-top: 4px; }
+  .tarifa { margin: 12px 0 4px; background: var(--bg-1); border: 1px solid var(--borde); border-radius: var(--r-lg); padding: 12px; font-size: 13px; color: var(--txt-2); line-height: 1.55; }
+  .tarifa b { color: var(--dorado); }
   .freshRow { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 8px; }
-  #freshTxt { color: #7C8AA0; font-size: 12px; min-width: 0; overflow-wrap: anywhere; }
-  .actBtn { background: #1B2233; color: #F5BC14; border: 1px solid #2A3347; border-radius: 999px; padding: 7px 14px; font-weight: 800; font-size: 13px; cursor: pointer; flex: none; }
-  .actBtn svg { width: 14px; height: 14px; vertical-align: -2px; }
-  .actBtn:active { background: #F5BC14; color: #191204; }
-  .tabs { display: flex; gap: 8px; margin: 14px 0; }
-  .tab { flex: 1; min-width: 0; padding: 13px 6px; text-align: center; border-radius: 12px; background: #161C28; color: #9AA7B8; font-weight: 700; font-size: 15px; border: 1px solid #232B3A; cursor: pointer; overflow-wrap: anywhere; }
-  .tab.on { background: #F5BC14; color: #191204; border-color: #F5BC14; }
-  .card { background: #12161F; border: 1px solid #232B3A; border-radius: 16px; padding: 16px; margin-bottom: 14px; }
-  .card h2 { font-size: 17px; margin-bottom: 4px; }
-  .card .hint { color: #9AA7B8; font-size: 13px; line-height: 1.5; margin-bottom: 12px; }
-  label { display: block; font-size: 13px; color: #9AA7B8; margin: 12px 0 6px; font-weight: 600; }
-  input[type=number], input[type=text] { width: 100%; padding: 14px; font-size: 20px; font-weight: 700; color: #fff; background: #0B0E13; border: 1.5px solid #2A3347; border-radius: 12px; outline: none; }
-  input:focus { border-color: #F5BC14; }
-  .chips { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
-  .chip { padding: 8px 14px; border-radius: 999px; background: #1B2233; color: #C7D0DC; font-size: 14px; font-weight: 700; border: 1px solid #2A3347; cursor: pointer; }
-  .chip:active { background: #F5BC14; color: #191204; }
-  input[type=range] { width: 100%; margin-top: 10px; accent-color: #F5BC14; height: 28px; }
-  .res { margin-top: 16px; background: #0E2A1E; border: 1px solid #1E5C40; border-radius: 14px; padding: 14px; text-align: center; }
-  .res .lab { color: #8FD8B6; font-size: 13px; font-weight: 700; }
-  .res .num { font-size: 34px; font-weight: 900; color: #2ECC71; margin: 2px 0; }
-  .res .det { color: #C7D0DC; font-size: 13px; line-height: 1.55; }
-  .warn { margin-top: 16px; background: #2A1414; border: 1px solid #5C2727; color: #FF9A9A; border-radius: 14px; padding: 13px; font-size: 14px; line-height: 1.5; display: none; }
-  .ok { margin-top: 16px; background: #14202A; border: 1px solid #27455C; color: #9ACBFF; border-radius: 14px; padding: 13px; font-size: 14px; line-height: 1.5; display: none; }
-  .bar { height: 14px; background: #232B3A; border-radius: 999px; overflow: hidden; margin: 8px 0 4px; }
-  .bar > div { height: 100%; background: linear-gradient(90deg, #F5BC14, #2ECC71); width: 0%; transition: width .5s; }
-  .trato { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; padding: 10px 2px; border-bottom: 1px solid #1D2536; font-size: 14px; }
+  #freshTxt { color: var(--txt-3); font-size: 12px; min-width: 0; overflow-wrap: anywhere; }
+  .actBtn { background: var(--bg-2); color: var(--dorado); border: 1px solid var(--borde-fuerte); border-radius: var(--r-pildora); padding: 8px 14px; font-weight: 700; font-size: 13px; cursor: pointer; flex: none; display: inline-flex; align-items: center; gap: 6px; }
+  .actBtn svg { width: 14px; height: 14px; }
+  .actBtn:active { transform: scale(.97); }
+  /* Tab bar PRO: fija abajo, de cristal; icono + etiqueta que
+     NUNCA se parte (nowrap, una por celda a cualquier ancho). */
+  .tabbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 50; display: flex; gap: 4px; padding: 8px 8px calc(8px + env(safe-area-inset-bottom)); background: var(--glass); -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px); border-top: 1px solid var(--glass-borde); }
+  .tabbar .tab { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 1px; border-radius: 12px; color: var(--txt-3); cursor: pointer; position: relative; }
+  .tabbar .tab .ic { width: 22px; height: 22px; }
+  .tabbar .tabTx { font-size: 10px; font-weight: 600; white-space: nowrap; letter-spacing: -.01em; line-height: 1.2; }
+  .tabbar .tab.on { color: var(--dorado); }
+  .tabbar .tab.on .tabTx { font-weight: 700; }
+  .tabbar .tab:active { transform: scale(.97); }
+  .cbadge { position: absolute; top: 0; right: calc(50% - 21px); min-width: 20px; padding: 1px 6px; border-radius: var(--r-pildora); background: var(--rojo); color: #fff; font-size: 12px; font-weight: 700; text-align: center; }
+  .card { background: var(--bg-1); border: 1px solid var(--borde); border-radius: var(--r-lg); padding: 16px; margin-bottom: 12px; }
+  .card h2 { font-size: 17px; font-weight: 600; margin-bottom: 4px; display: flex; align-items: center; gap: 8px; }
+  .card h2 .ic { color: var(--dorado); }
+  .card .hint { color: var(--txt-2); font-size: 13px; line-height: 1.5; margin-bottom: 12px; }
+  .hintBtn { background: none; border: 0; color: var(--dorado); font-size: 13px; font-weight: 600; padding: 4px 0; cursor: pointer; margin: -6px 0 10px; display: block; }
+  .hintFull { background: var(--bg-2); border: 1px solid var(--borde); border-radius: 12px; padding: 10px 12px; color: var(--txt-2); font-size: 13px; line-height: 1.55; margin-bottom: 12px; }
+  label { display: block; font-size: 13px; color: var(--txt-2); margin: 12px 0 6px; font-weight: 600; }
+  input[type=number], input[type=text], input[type=tel] { width: 100%; padding: 14px; font-size: 16px; color: var(--txt-1); background: var(--bg-2); border: 1px solid var(--borde-fuerte); border-radius: var(--r-md); outline: none; }
+  input[type=number] { font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  input:focus, textarea:focus { border-color: var(--dorado-borde); box-shadow: 0 0 0 3px var(--dorado-suave); }
+  .chips, .chipRow { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+  .chip { padding: 8px 14px; border-radius: var(--r-pildora); background: var(--bg-2); color: var(--txt-2); font-size: 14px; font-weight: 600; border: 1px solid var(--borde); cursor: pointer; }
+  .chip.on { background: var(--dorado-suave); border-color: var(--dorado-borde); color: var(--dorado-claro); }
+  .chip:active { transform: scale(.97); }
+  input[type=range] { width: 100%; margin-top: 10px; accent-color: var(--dorado); height: 28px; }
+  .res { margin-top: 16px; background: var(--verde-suave); border: 1px solid rgba(47,191,113,.35); border-radius: 16px; padding: 14px; text-align: center; }
+  .res .lab { color: var(--verde); font-size: 13px; font-weight: 700; letter-spacing: .03em; }
+  .res .num { font-family: var(--fuente-num); font-variant-numeric: tabular-nums; font-size: 34px; font-weight: 700; color: var(--verde); margin: 2px 0; }
+  .res .det { color: var(--txt-2); font-size: 13px; line-height: 1.55; }
+  .warn { margin-top: 16px; background: var(--rojo-suave); border: 1px solid rgba(246,70,93,.35); color: var(--mt-rojo-claro); border-radius: 14px; padding: 13px; font-size: 14px; line-height: 1.5; display: none; }
+  .ok { margin-top: 16px; background: rgba(76,195,255,.10); border: 1px solid rgba(76,195,255,.30); color: var(--mt-azul-claro); border-radius: 14px; padding: 13px; font-size: 14px; line-height: 1.5; display: none; }
+  .bar { height: 12px; background: var(--bg-2); border-radius: var(--r-pildora); overflow: hidden; margin: 8px 0 4px; }
+  .bar > div { height: 100%; background: var(--dorado-grad); width: 0%; transition: width .5s; }
+  .trato { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; padding: 10px 2px; border-bottom: 1px solid var(--linea); font-size: 14px; }
   .trato:last-child { border-bottom: none; }
   .trato > span { min-width: 0; overflow-wrap: anywhere; }
-  .trato .f { color: #9AA7B8; }
-  .trato .c { color: #2ECC71; font-weight: 800; }
+  .trato .f { color: var(--txt-3); }
+  .trato .c { color: var(--verde); font-weight: 700; font-family: var(--fuente-num); font-variant-numeric: tabular-nums; }
   .total { text-align: center; padding: 12px 0 2px; }
-  .total .num { font-size: 32px; font-weight: 900; color: #F5BC14; }
-  .total .lab { color: #9AA7B8; font-size: 13px; }
-  button.go { width: 100%; padding: 14px; border: none; border-radius: 12px; background: #F5BC14; color: #191204; font-size: 16px; font-weight: 800; cursor: pointer; margin-top: 10px; }
+  .total .num { font-family: var(--fuente-num); font-variant-numeric: tabular-nums; font-size: 32px; font-weight: 700; background: var(--dorado-grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .total .lab { color: var(--txt-2); font-size: 13px; }
+  button.go { width: 100%; padding: 14px; border: none; border-radius: var(--r-pildora); background: var(--dorado-grad); color: var(--txt-sobre-dorado); font-size: 16px; font-weight: 700; cursor: pointer; margin-top: 12px; box-shadow: 0 6px 18px rgba(232,184,75,.22); display: flex; align-items: center; justify-content: center; gap: 8px; }
+  button.go:active { transform: scale(.98); }
   button.go:disabled { opacity: .55; cursor: wait; }
-  .foot { text-align: center; color: #5C6B82; font-size: 12px; line-height: 1.6; margin-top: 18px; padding: 0 8px; }
+  .foot { text-align: center; color: var(--txt-3); font-size: 12px; line-height: 1.6; margin-top: 20px; padding: 0 8px; }
   .hide { display: none !important; }
-  .upd { margin: 0 0 14px; background: #2A2008; border: 1.5px solid #F5BC14; border-radius: 14px; padding: 14px; }
-  .upd .t { font-weight: 800; color: #F5BC14; font-size: 15px; margin-bottom: 4px; }
-  .upd .d { color: #E8D9A8; font-size: 13px; line-height: 1.5; margin-bottom: 10px; }
-  a.btnUpd { display: block; text-align: center; padding: 13px; border-radius: 12px; background: #F5BC14; color: #191204; font-size: 15px; font-weight: 800; text-decoration: none; }
-  a.wapp { display: block; text-align: center; padding: 14px; border-radius: 12px; background: #25D366; color: #07240F; font-size: 16px; font-weight: 800; text-decoration: none; margin-top: 12px; }
+  .upd { margin: 0 0 12px; background: var(--dorado-suave); border: 1px solid var(--dorado-borde); border-radius: 16px; padding: 14px; }
+  .upd .t { font-weight: 700; color: var(--dorado-claro); font-size: 15px; margin-bottom: 4px; }
+  .upd .d { color: var(--txt-2); font-size: 13px; line-height: 1.5; margin-bottom: 10px; }
+  a.btnUpd { display: block; text-align: center; padding: 13px; border-radius: var(--r-pildora); background: var(--dorado-grad); color: var(--txt-sobre-dorado); font-size: 15px; font-weight: 700; text-decoration: none; }
+  a.wapp { display: flex; align-items: center; justify-content: center; gap: 8px; text-align: center; padding: 14px; border-radius: var(--r-md); background: #25D366; color: #07240F; font-size: 16px; font-weight: 700; text-decoration: none; margin-top: 12px; }
   .tiposel { display: flex; gap: 8px; margin-top: 2px; }
-  .tiposel .tab { font-size: 14px; padding: 11px 6px; }
-  textarea { width: 100%; padding: 12px; font-size: 16px; color: #fff; background: #0B0E13; border: 1.5px solid #2A3347; border-radius: 12px; outline: none; font-family: inherit; }
-  textarea:focus { border-color: #F5BC14; }
-  .rep { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; padding: 10px 2px; border-bottom: 1px solid #1D2536; font-size: 14px; }
+  .tiposel .tab { flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 12px 8px; border-radius: var(--r-md); background: var(--bg-2); color: var(--txt-2); font-weight: 700; font-size: 14px; border: 1px solid var(--borde); cursor: pointer; }
+  .tiposel .tab.on { background: var(--dorado-suave); border-color: var(--dorado-borde); color: var(--dorado-claro); }
+  textarea { width: 100%; padding: 12px; font-size: 16px; color: var(--txt-1); background: var(--bg-2); border: 1px solid var(--borde-fuerte); border-radius: var(--r-md); outline: none; font-family: inherit; }
+  .rep { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; padding: 10px 2px; border-bottom: 1px solid var(--linea); font-size: 14px; }
   .rep:last-child { border-bottom: none; }
   .rep > span { min-width: 0; overflow-wrap: anywhere; }
-  .st { font-weight: 800; text-align: right; }
-  .st.pend { color: #F5BC14; } .st.okk { color: #2ECC71; } .st.no { color: #FF7A7A; }
+  .st { font-weight: 700; text-align: right; }
+  .st.pend { color: var(--ambar); } .st.okk { color: var(--verde); } .st.no { color: var(--rojo); }
   .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: currentColor; margin-right: 6px; flex: none; }
   .ic { width: 18px; height: 18px; vertical-align: -3px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex: none; }
   .ic.mini { width: 15px; height: 15px; vertical-align: -2px; }
-  .card h2 .ic { width: 20px; height: 20px; vertical-align: -4px; }
-  .sesLab { color: #9AA7B8; font-size: 13px; margin: 2px 0 4px; }
-  .sesLab b { color: #E8ECF1; }
-  button.salir { width: 100%; padding: 12px; margin-top: 16px; background: transparent; border: 1px solid #2A3347; border-radius: 12px; color: #9AA7B8; font-size: 14px; font-weight: 700; cursor: pointer; }
-  button.salir:active { border-color: #FF7A7A; color: #FF7A7A; }
+  .card h2 .ic { width: 20px; height: 20px; vertical-align: 0; }
+  .sesLab { color: var(--txt-2); font-size: 13px; margin: 2px 0 4px; }
+  .sesLab b { color: var(--txt-1); }
+  button.salir { width: 100%; padding: 12px; margin-top: 16px; background: transparent; border: 1px solid var(--borde-fuerte); border-radius: var(--r-md); color: var(--txt-2); font-size: 14px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; }
+  button.salir:active { border-color: var(--rojo); color: var(--rojo); }
   /* ===== Pantalla de entrada (login único) ===== */
   body.locked { overflow: hidden; }
   body.locked #appWrap { filter: blur(10px); -webkit-filter: blur(10px); pointer-events: none; user-select: none; -webkit-user-select: none; }
   .gate { position: fixed; inset: 0; z-index: 60; display: flex; align-items: center; justify-content: center; padding: 18px; background: rgba(8, 10, 14, .5); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); overflow-y: auto; }
-  .gateCard { width: 100%; max-width: 380px; background: #12161F; border: 1px solid #2A3347; border-radius: 18px; padding: 24px 18px 20px; text-align: center; }
-  .gateCard .glogo { color: #F5BC14; }
+  .gateCard { width: 100%; max-width: 380px; background: var(--bg-1); border: 1px solid var(--borde-fuerte); border-radius: 20px; padding: 24px 18px 20px; text-align: center; }
+  .gateCard .glogo { color: var(--dorado); }
   .gateCard .glogo svg { width: 46px; height: 46px; }
-  .gateTitle { font-size: 25px; font-weight: 800; letter-spacing: .3px; margin-top: 8px; }
-  .gateTitle .gold { color: #F5BC14; }
-  .gateTxt { color: #9AA7B8; font-size: 13.5px; line-height: 1.55; margin: 10px 0 2px; text-align: left; }
+  .gateTitle { font-size: 25px; font-weight: 800; letter-spacing: -.01em; margin-top: 8px; }
+  .gateTitle .gold { background: var(--dorado-grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .gateTxt { color: var(--txt-2); font-size: 13.5px; line-height: 1.55; margin: 10px 0 2px; text-align: left; }
   .gateCard label { text-align: left; }
   .gateCard .warn { text-align: left; }
   .gateWa { display: block; margin-top: 16px; color: #25D366; font-weight: 700; font-size: 14px; text-decoration: none; line-height: 1.5; }
-  /* ===== Chat con Ernesto (v1.3.0) ===== */
-  .cbadge { display: inline-block; min-width: 20px; padding: 1px 6px; margin-left: 6px; border-radius: 999px; background: #E5484D; color: #fff; font-size: 12px; font-weight: 800; vertical-align: 2px; text-align: center; }
-  .hilo { max-height: 46vh; overflow-y: auto; padding: 4px 2px; }
-  .chatVacio { color: #9AA7B8; font-size: 13px; line-height: 1.5; padding: 10px 2px; }
-  .msg { display: flex; flex-direction: column; margin: 8px 0; }
-  .msg .bur { max-width: 82%; padding: 10px 12px; border-radius: 14px; font-size: 15px; line-height: 1.45; overflow-wrap: anywhere; white-space: pre-wrap; }
-  .msg.me { align-items: flex-end; }
-  .msg.me .bur { background: linear-gradient(135deg, #F5D67B, #E8B84B 55%, #C9962E); color: #191204; border-bottom-right-radius: 4px; }
-  /* ===== v1.4.1: chat estilo WhatsApp ===== */
+  /* ===== Chat con Ernesto (nivel WhatsApp) ===== */
   .chatCard { padding: 0; overflow: hidden; }
-  .chatHead { display: flex; align-items: center; gap: 10px; padding: 14px 16px 10px; }
-  .chatAvatar { width: 42px; height: 42px; border-radius: 50%; background: linear-gradient(145deg, #8A6D1F, #4A380A); color: #F5D67B; font-weight: 900; font-size: 18px; display: flex; align-items: center; justify-content: center; flex: 0 0 auto; }
+  .chatHead { display: flex; align-items: center; gap: 10px; padding: 12px 16px; background: var(--glass); -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px); border-bottom: 1px solid var(--linea); }
+  .chatAvatar { width: 42px; height: 42px; border-radius: 50%; background: var(--burbuja-mia-grad); border: 1px solid var(--dorado-borde); color: var(--dorado-claro); font-weight: 800; font-size: 18px; display: flex; align-items: center; justify-content: center; flex: 0 0 auto; }
   .chatHeadTx { flex: 1; min-width: 0; }
-  .chatNom { font-weight: 800; font-size: 16.5px; color: #fff; }
+  .chatNom { font-weight: 700; font-size: 16.5px; color: var(--txt-1); }
   .chatHead .cpres { margin: 0; }
-  .chatIco { width: 38px; height: 38px; border-radius: 50%; background: rgba(255,255,255,.06); border: 1px solid #2A3347; color: #C7D0DC; font-size: 16px; flex: 0 0 auto; cursor: pointer; }
+  .chatIco { width: 38px; height: 38px; border-radius: 50%; background: var(--bg-2); border: 1px solid var(--borde); color: var(--txt-2); flex: 0 0 auto; cursor: pointer; display: flex; align-items: center; justify-content: center; }
   .chatCard .fijadoBar, .chatCard .tempLinea, .chatCard .hint, .chatCard .respBar, .chatCard .warn, .chatCard .menuMsg { margin-left: 16px; margin-right: 16px; }
-  .chatBuscarRow { display: flex; gap: 8px; align-items: center; padding: 0 16px 8px; }
-  .chatBuscarRow input { flex: 1; margin: 0; }
-  .hiloWA { background: #0B141A; background-image: radial-gradient(rgba(255,255,255,.03) 1px, transparent 1px); background-size: 18px 18px; max-height: 52vh; padding: 12px; }
+  .chatBuscarRow { display: flex; gap: 8px; align-items: center; padding: 10px 16px 8px; }
+  .chatBuscarRow input { flex: 1; margin: 0; font-size: 14px; padding: 10px 12px; }
+  .hilo { max-height: 46vh; overflow-y: auto; padding: 4px 2px; }
+  .hiloWA { background: var(--bg-chat); background-image: radial-gradient(rgba(255,255,255,.03) 1px, transparent 1px); background-size: 18px 18px; max-height: 52vh; padding: 12px; }
+  .chatVacio { color: var(--txt-2); font-size: 13px; line-height: 1.5; padding: 10px 2px; }
   .fechaSep { text-align: center; margin: 12px 0 4px; }
-  .fechaSep span { background: #182229; color: #8696A0; border-radius: 8px; padding: 4px 12px; font-size: 11.5px; }
-  .msg .burMeta { float: right; margin: 10px 0 0 12px; font-size: 10.5px; opacity: .78; }
+  .fechaSep span { background: var(--bg-2); color: var(--txt-2); border-radius: 8px; padding: 4px 12px; font-size: 11.5px; }
+  .msg { display: flex; flex-direction: column; margin: 8px 0; }
+  .msg .bur { max-width: 82%; padding: 10px 12px; border-radius: 18px; font-size: 15px; line-height: 1.45; overflow-wrap: anywhere; white-space: pre-wrap; }
+  .msg.me { align-items: flex-end; }
+  .msg.me .bur { background: var(--burbuja-mia-grad); border: 1px solid var(--dorado-borde); color: var(--txt-1); border-bottom-right-radius: 6px; }
+  .msg.him { align-items: flex-start; }
+  .msg.him .bur { background: var(--burbuja-suya); color: var(--txt-1); border: 1px solid var(--borde); border-bottom-left-radius: 6px; }
+  .msg .burMeta { float: right; margin: 10px 0 0 12px; font-size: 10.5px; color: var(--txt-2); }
+  .msg .mhora { color: var(--txt-3); font-size: 11px; margin-top: 3px; }
+  .msg .estVisto { color: var(--visto); font-weight: 700; }
+  .msg .estCola { opacity: .85; }
+  .cpres { color: var(--txt-2); font-size: 12.5px; margin: -4px 0 10px; }
+  .cpres b { color: var(--txt-1); }
   /* Voz PRO v1.4.2 */
   .vozP{display:flex;align-items:center;gap:9px;min-width:190px;padding:2px 0}
   .vozBtn{flex:0 0 auto;width:36px;height:36px;border-radius:50%;border:0;background:rgba(255,255,255,.92);color:#0B0E13;font-size:14px;line-height:1;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0}
@@ -129,67 +151,68 @@
   .msg.him .vozOnda i{background:rgba(11,14,19,.30)}
   .msg.him .vozOnda i.on{background:#0B0E13}
   .vozT{font-size:11px;opacity:.75;min-width:30px;text-align:right}
-  .micBtn.grabando{background:#E0483E !important;color:#fff;animation:latidoMic 1s infinite}
+  .micBtn.grabando{background:var(--rojo) !important;color:#fff;animation:latidoMic 1s infinite}
   @keyframes latidoMic{0%,100%{transform:scale(1)}50%{transform:scale(1.07)}}
   .adjHoja { display: none; gap: 8px; padding: 0 16px 8px; }
-  .adjHoja button { flex: 1; padding: 10px 6px; border-radius: 10px; background: #1B2233; color: #C7D0DC; border: 1px solid #2A3347; font-weight: 700; font-size: 13px; cursor: pointer; }
-  .compWA { display: flex; gap: 8px; align-items: center; padding: 10px 12px 14px; }
-  .compBox { flex: 1; display: flex; align-items: center; background: #121A28; border: 1px solid #2A3347; border-radius: 999px; padding: 0 4px 0 14px; }
-  .compBox textarea { flex: 1; background: transparent; border: 0; color: #E8ECF1; font-size: 15px; resize: none; max-height: 90px; padding: 10px 0; font-family: inherit; margin: 0; }
-  .clipBtn { background: transparent; border: 0; font-size: 19px; color: #9AA7B8; width: 38px; height: 38px; flex: 0 0 auto; cursor: pointer; }
-  .sendBtn { width: 46px; height: 46px; border-radius: 50%; background: linear-gradient(135deg, #F5D67B, #E8B84B 55%, #C9962E); color: #191204; border: 0; font-size: 18px; font-weight: 800; flex: 0 0 auto; cursor: pointer; }
-  .micBtn { width: 46px; height: 46px; border-radius: 50%; background: #1B2233; border: 1px solid #2A3347; color: #E8ECF1; font-size: 18px; flex: 0 0 auto; cursor: pointer; }
-  .msg.him { align-items: flex-start; }
-  .msg.him .bur { background: #1B2233; color: #E8ECF1; border: 1px solid #2A3347; border-bottom-left-radius: 4px; }
-  .msg .mhora { color: #7C8AA0; font-size: 11px; margin-top: 3px; }
-  .msg .estVisto { color: #53BDEB; font-weight: 800; }
-  .cpres { color: #9AA7B8; font-size: 13px; margin: -4px 0 10px; }
-  /* ===== v1.4.0: chat pro, perfil, textos ===== */
-  .fijadoBar { display: none; background: rgba(232,184,75,.14); border: 1px solid rgba(232,184,75,.45); color: #F5D67B; border-radius: 12px; padding: 9px 12px; font-size: 13px; margin-bottom: 10px; overflow-wrap: anywhere; }
-  .tempLinea { display: none; color: #9AA7B8; font-size: 12px; margin-bottom: 8px; }
-  .msgSistema { text-align: center; color: #9AA7B8; font-size: 12.5px; margin: 12px auto; background: #1A2130; border-radius: 999px; padding: 6px 14px; max-width: 88%; }
-  .msg .cita { display: block; border-left: 3px solid #E8B84B; background: rgba(232,184,75,.12); border-radius: 6px; padding: 5px 8px; margin-bottom: 6px; font-size: 12.5px; opacity: .9; overflow-wrap: anywhere; }
+  .adjHoja button { flex: 1; padding: 10px 6px; border-radius: 10px; background: var(--bg-2); color: var(--txt-1); border: 1px solid var(--borde); font-weight: 600; font-size: 13px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; }
+  .compWA { display: flex; gap: 8px; align-items: center; padding: 10px 12px 14px; background: var(--glass); -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px); border-top: 1px solid var(--linea); }
+  .compBox { flex: 1; display: flex; align-items: center; background: var(--bg-2); border: 1px solid var(--borde-fuerte); border-radius: var(--r-pildora); padding: 0 4px 0 14px; }
+  .compBox textarea { flex: 1; background: transparent; border: 0; color: var(--txt-1); font-size: 15px; resize: none; max-height: 90px; padding: 10px 0; font-family: inherit; margin: 0; box-shadow: none; }
+  .clipBtn { background: transparent; border: 0; color: var(--txt-2); width: 38px; height: 38px; flex: 0 0 auto; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+  .sendBtn { width: 46px; height: 46px; border-radius: 50%; background: var(--dorado-grad); color: var(--txt-sobre-dorado); border: 0; flex: 0 0 auto; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 6px 18px rgba(232,184,75,.22); }
+  .sendBtn .ic { width: 20px; height: 20px; }
+  .micBtn { width: 46px; height: 46px; border-radius: 50%; background: var(--bg-2); border: 1px solid var(--borde-fuerte); color: var(--txt-1); font-size: 12px; font-weight: 700; flex: 0 0 auto; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+  .micBtn .ic { width: 20px; height: 20px; }
+  .fijadoBar { display: none; background: var(--dorado-suave); border: 1px solid var(--dorado-borde); color: var(--dorado-claro); border-radius: 12px; padding: 9px 12px; font-size: 13px; margin-bottom: 10px; overflow-wrap: anywhere; }
+  .tempLinea { display: none; color: var(--txt-3); font-size: 12px; margin-bottom: 8px; }
+  .msgSistema { text-align: center; color: var(--txt-2); font-size: 12.5px; margin: 12px auto; background: var(--bg-2); border-radius: var(--r-pildora); padding: 6px 14px; max-width: 88%; }
+  .msg .cita { display: block; border-left: 3px solid var(--dorado); background: var(--dorado-suave); border-radius: 6px; padding: 5px 8px; margin-bottom: 6px; font-size: 12.5px; opacity: .9; overflow-wrap: anywhere; }
   .msg .eliminado { font-style: italic; opacity: .75; }
   .msg .editadoLab { font-size: 10.5px; opacity: .75; }
   .reacRow { display: flex; gap: 4px; margin-top: 3px; flex-wrap: wrap; }
-  .reacRow .reac { background: #1A2130; border: 1px solid #2A3347; border-radius: 999px; padding: 1px 8px; font-size: 12px; }
-  .adjFoto { max-width: 210px; border-radius: 10px; display: block; margin-bottom: 6px; }
-  .adjChip { display: inline-block; background: rgba(0,0,0,.18); border-radius: 8px; padding: 5px 9px; font-size: 12.5px; margin-bottom: 6px; overflow-wrap: anywhere; }
-  /* KIT DE MEDIOS v1.4.3: foto a ancho de burbuja con visor, previa
-     real antes de enviar y tarjeta de documento con descarga. */
-  .adjFoto { width: 100%; max-width: 260px; border-radius: 12px; cursor: zoom-in; }
-  .prevAdj { display: flex; align-items: center; gap: 10px; background: #1A2130; border: 1px solid #2A3347; border-radius: 14px; padding: 8px 10px; margin-top: 8px; flex-wrap: wrap; }
+  .reacRow .reac { background: var(--bg-2); border: 1px solid var(--borde); border-radius: var(--r-pildora); padding: 1px 8px; font-size: 12px; }
+  /* Kit de medios: foto a ancho de burbuja con visor, previa real
+     antes de enviar y tarjeta de documento con descarga. */
+  .adjFoto { width: 100%; max-width: 260px; border-radius: 12px; display: block; margin-bottom: 6px; cursor: zoom-in; }
+  .adjChip { display: inline-block; background: rgba(255,255,255,.08); border-radius: 8px; padding: 5px 9px; font-size: 12.5px; margin-bottom: 6px; overflow-wrap: anywhere; }
+  .prevAdj { display: flex; align-items: center; gap: 10px; background: var(--bg-2); border: 1px solid var(--borde); border-radius: 14px; padding: 8px 10px; margin-top: 8px; flex-wrap: wrap; }
   .prevFoto { width: 120px; max-height: 120px; object-fit: cover; border-radius: 12px; flex: 0 0 auto; cursor: zoom-in; display: block; }
-  .prevMeta { flex: 1; min-width: 0; font-size: 12.5px; color: #9AA7B8; overflow-wrap: anywhere; }
-  .prevMeta b { display: block; color: #E8ECF1; font-size: 13px; }
-  .docCard { display: flex; align-items: center; gap: 10px; background: rgba(0,0,0,.18); border: 1px solid #2A3347; border-radius: 12px; padding: 9px 11px; margin-bottom: 6px; max-width: 260px; }
-  .docIco { font-size: 26px; flex: 0 0 auto; line-height: 1; }
+  .prevMeta { flex: 1; min-width: 0; font-size: 12.5px; color: var(--txt-2); overflow-wrap: anywhere; }
+  .prevMeta b { display: block; color: var(--txt-1); font-size: 13px; }
+  .docCard { display: flex; align-items: center; gap: 10px; background: rgba(255,255,255,.05); border: 1px solid var(--borde); border-radius: 12px; padding: 9px 11px; margin-bottom: 6px; max-width: 260px; }
+  .docIco { flex: 0 0 auto; line-height: 1; color: var(--dorado-claro); display: flex; }
+  .docIco .ic { width: 26px; height: 26px; }
   .docMeta { flex: 1; min-width: 0; font-size: 12.5px; overflow-wrap: anywhere; opacity: .92; }
   .docMeta b { display: block; font-size: 13px; opacity: 1; }
-  .docDl { flex: 0 0 auto; width: 38px; height: 38px; border-radius: 50%; border: 1px solid #2A3347; background: rgba(255,255,255,.08); color: inherit; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0; margin: 0; }
+  .docDl { flex: 0 0 auto; width: 38px; height: 38px; border-radius: 50%; border: 1px solid var(--borde-fuerte); background: rgba(255,255,255,.08); color: inherit; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0; margin: 0; }
+  .docDl .ic { width: 18px; height: 18px; }
   .visorFoto { position: fixed; inset: 0; z-index: 9999; background: rgba(0,0,0,.94); display: none; flex-direction: column; }
   .visorFoto.abierto { display: flex; }
   .visorBar { display: flex; align-items: center; gap: 10px; padding: 12px 14px; color: #E8ECF1; }
   .visorNom { flex: 1; min-width: 0; font-size: 13.5px; overflow-wrap: anywhere; }
-  .visorBtn { flex: 0 0 auto; border: 1px solid rgba(255,255,255,.3); background: rgba(255,255,255,.08); color: #fff; border-radius: 999px; padding: 8px 14px; font-size: 13px; font-weight: 700; cursor: pointer; text-decoration: none; display: inline-block; }
+  .visorBtn { flex: 0 0 auto; border: 1px solid rgba(255,255,255,.3); background: rgba(255,255,255,.08); color: #fff; border-radius: var(--r-pildora); padding: 8px 14px; font-size: 13px; font-weight: 700; cursor: pointer; text-decoration: none; display: inline-block; }
   .visorImgWrap { flex: 1; display: flex; align-items: center; justify-content: center; overflow: auto; padding: 6px; }
   .visorImg { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 8px; }
   .chatTools { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
-  .chatTools button { flex: 1; min-width: 70px; padding: 10px 6px; border-radius: 10px; background: #1B2233; color: #C7D0DC; border: 1px solid #2A3347; font-weight: 700; font-size: 13px; cursor: pointer; }
-  .respBar { display: none; background: rgba(232,184,75,.12); border: 1px solid rgba(232,184,75,.4); border-radius: 10px; padding: 8px 10px; font-size: 13px; margin-top: 8px; overflow-wrap: anywhere; }
-  .menuMsg { display: none; background: #1A2130; border: 1px solid #2A3347; border-radius: 12px; padding: 8px; margin-top: 8px; }
-  .menuMsg button { display: block; width: 100%; text-align: left; background: transparent; border: none; color: #E8ECF1; padding: 9px 10px; font-size: 14px; cursor: pointer; border-radius: 8px; }
-  .semBar { height: 14px; background: #232B3A; border-radius: 999px; overflow: hidden; margin: 8px 0 4px; }
-  .semBar > div { height: 100%; background: linear-gradient(90deg, #F5D67B, #E8B84B, #C9962E); width: 0%; transition: width .5s; }
+  .chatTools button { flex: 1; min-width: 70px; padding: 10px 6px; border-radius: 10px; background: var(--bg-2); color: var(--txt-1); border: 1px solid var(--borde); font-weight: 600; font-size: 13px; cursor: pointer; }
+  /* Catálogo de Textos: tres botones grandes, un toque y listo */
+  .catBtns { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-top: 8px; }
+  .catBtns button { padding: 12px 6px; border-radius: 14px; background: var(--bg-2); color: var(--txt-1); border: 1px solid var(--borde); font-weight: 700; font-size: 13.5px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+  .catBtns button .ic { width: 22px; height: 22px; color: var(--dorado); }
+  .catBtns button:active { transform: scale(.97); background: var(--dorado-suave); }
+  .respBar { display: none; background: var(--dorado-suave); border: 1px solid var(--dorado-borde); border-radius: 10px; padding: 8px 10px; font-size: 13px; margin-top: 8px; overflow-wrap: anywhere; }
+  .menuMsg { display: none; background: var(--bg-3); border: 1px solid var(--borde-fuerte); border-radius: 12px; padding: 8px; margin-top: 8px; }
+  .menuMsg button { display: block; width: 100%; text-align: left; background: transparent; border: none; color: var(--txt-1); padding: 9px 10px; font-size: 14px; cursor: pointer; border-radius: 8px; }
+  .semBar { height: 12px; background: var(--bg-2); border-radius: var(--r-pildora); overflow: hidden; margin: 8px 0 4px; }
+  .semBar > div { height: 100%; background: var(--dorado-grad); width: 0%; transition: width .5s; }
   .colorRow { display: flex; gap: 8px; margin: 6px 0 4px; }
   .colorDot { width: 34px; height: 34px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; }
-  .colorDot.on { border-color: #F2F5F9; }
-  .miniBtn { padding: 8px 12px; border-radius: 999px; background: #1B2233; color: #C7D0DC; border: 1px solid #2A3347; font-weight: 700; font-size: 13px; cursor: pointer; }
-  .versionTxt { white-space: pre-wrap; background: #0B0E13; border: 1px solid #2A3347; border-radius: 12px; padding: 12px; font-size: 14px; line-height: 1.55; overflow-wrap: anywhere; }
-  select { width: 100%; padding: 12px; font-size: 16px; color: #fff; background: #0B0E13; border: 1.5px solid #2A3347; border-radius: 12px; outline: none; }
-  input[type=checkbox] { width: 20px; height: 20px; vertical-align: -4px; }
-  .checkLine { display: block; font-size: 14px; color: #C7D0DC; margin: 8px 0 0; font-weight: 600; }
-  .cpres b { color: #E8ECF1; }
+  .colorDot.on { border-color: var(--txt-1); }
+  .miniBtn { padding: 8px 12px; border-radius: var(--r-pildora); background: var(--bg-2); color: var(--txt-1); border: 1px solid var(--borde); font-weight: 600; font-size: 13px; cursor: pointer; text-decoration: none; display: inline-block; }
+  .versionTxt { white-space: pre-wrap; background: var(--bg-0); border: 1px solid var(--borde); border-radius: 12px; padding: 12px; font-size: 14px; line-height: 1.55; overflow-wrap: anywhere; }
+  select { width: 100%; padding: 12px; font-size: 16px; color: var(--txt-1); background: var(--bg-2); border: 1px solid var(--borde-fuerte); border-radius: var(--r-md); outline: none; }
+  input[type=checkbox] { width: 20px; height: 20px; vertical-align: -4px; accent-color: var(--dorado); }
+  .checkLine { display: block; font-size: 14px; color: var(--txt-1); margin: 8px 0 0; font-weight: 600; }
 </style>
 </head>
 <body>
@@ -209,6 +232,16 @@
   <symbol id="i-lock" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></symbol>
   <symbol id="i-out" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></symbol>
   <symbol id="i-alert" viewBox="0 0 24 24"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></symbol>
+  <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-6.5 8-6.5s8 2.5 8 6.5"/></symbol>
+  <symbol id="i-bell" viewBox="0 0 24 24"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></symbol>
+  <symbol id="i-key" viewBox="0 0 24 24"><circle cx="7.5" cy="15.5" r="4.5"/><path d="M11 12 21 2"/><path d="M15.5 7.5 19 11"/></symbol>
+  <symbol id="i-clip" viewBox="0 0 24 24"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></symbol>
+  <symbol id="i-mic" viewBox="0 0 24 24"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></symbol>
+  <symbol id="i-cam" viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></symbol>
+  <symbol id="i-doc" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></symbol>
+  <symbol id="i-img" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></symbol>
+  <symbol id="i-file" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></symbol>
+  <symbol id="i-dl" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></symbol>
 </svg>
 <div class="wrap" id="appWrap">
   <header>
@@ -225,13 +258,13 @@
     </div>
   </div>
 
-  <div class="tabs">
-    <div class="tab on" id="tabCalc"><svg class="ic" aria-hidden="true"><use href="#i-calc"/></svg> Calculadora</div>
-    <div class="tab" id="tabRep"><svg class="ic" aria-hidden="true"><use href="#i-send"/></svg> Reportar</div>
-    <div class="tab" id="tabPanel"><svg class="ic" aria-hidden="true"><use href="#i-chart"/></svg> Mi panel</div>
-    <div class="tab" id="tabAyuda"><svg class="ic" aria-hidden="true"><use href="#i-chat"/></svg> Chat<span id="chatBadge" class="cbadge hide">0</span></div>
-    <div class="tab" id="tabTextos"><svg class="ic" aria-hidden="true"><use href="#i-send"/></svg> Textos</div>
-    <div class="tab" id="tabPerfil"><svg class="ic" aria-hidden="true"><use href="#i-brief"/></svg> Mi perfil</div>
+  <div class="tabs tabbar">
+    <div class="tab on" id="tabCalc"><svg class="ic" aria-hidden="true"><use href="#i-calc"/></svg><span class="tabTx">Calculadora</span></div>
+    <div class="tab" id="tabRep"><svg class="ic" aria-hidden="true"><use href="#i-send"/></svg><span class="tabTx">Reportar</span></div>
+    <div class="tab" id="tabPanel"><svg class="ic" aria-hidden="true"><use href="#i-chart"/></svg><span class="tabTx">Mi panel</span></div>
+    <div class="tab" id="tabAyuda"><svg class="ic" aria-hidden="true"><use href="#i-chat"/></svg><span class="tabTx">Chat</span><span id="chatBadge" class="cbadge hide">0</span></div>
+    <div class="tab" id="tabTextos"><svg class="ic" aria-hidden="true"><use href="#i-send"/></svg><span class="tabTx">Textos</span></div>
+    <div class="tab" id="tabPerfil"><svg class="ic" aria-hidden="true"><use href="#i-user"/></svg><span class="tabTx">Mi perfil</span></div>
   </div>
   <div id="updBox" class="upd hide">
     <div class="t">Hay una versión nueva de Mi Trabajo</div>
@@ -243,7 +276,9 @@
   <div id="viewCalc">
     <div class="card">
       <h2><svg class="ic" aria-hidden="true"><use href="#i-phone"/></svg> Saldo — ¿cuánto cobro?</h2>
-      <div class="hint">Consigues una recarga de 360 y cobras el <b>25% del excedente</b>: lo que se gana por encima del precio que pagaste. Pon el precio que lograste y la app te dice tu parte al momento.</div>
+      <div class="hint">Cobras el <b>25% del excedente</b> de cada recarga de 360 que consigas.</div>
+      <button type="button" class="hintBtn" data-hint="h_calc_s">ⓘ ¿Cómo se calcula?</button>
+      <div class="hintFull hide" id="h_calc_s">Consigues una recarga de 360 y cobras el 25% del excedente: lo que se gana por encima del precio que pagaste. Pon el precio que lograste y la app te dice tu parte al momento. Entre más barato consigas la recarga, más cobras tú.</div>
       <label>Precio que conseguiste por la recarga de 360 (CUP)</label>
       <input type="number" id="s_precio" inputmode="decimal" placeholder="Ej: 950">
       <div class="chips">
@@ -264,7 +299,9 @@
 
     <div class="card">
       <h2><svg class="ic" aria-hidden="true"><use href="#i-bank"/></svg> Transferencia — ¿cuánto cobro?</h2>
-      <div class="hint">Traes a una persona conocida que cambia efectivo por transferencia. Cobras el <b>20% de la ganancia</b> de la vuelta completa, cuando la vuelta cierra. Solo se aceptan tratos <b>al 25% o más</b>.</div>
+      <div class="hint">Cobras el <b>20% de la ganancia</b> de la vuelta completa, cuando la vuelta cierra.</div>
+      <button type="button" class="hintBtn" data-hint="h_calc_t">ⓘ ¿Cómo se calcula?</button>
+      <div class="hintFull hide" id="h_calc_t">Traes a una persona conocida que cambia efectivo por transferencia. Cobras el 20% de la ganancia de la vuelta completa, cuando la vuelta cierra. Solo se aceptan tratos <b>al 25% o más</b>: por debajo, la app te avisa y no hay trato.</div>
       <label>Efectivo que entrega la persona (CUP)</label>
       <input type="number" id="t_ef" inputmode="decimal" placeholder="Ej: 5000">
       <label>¿Al cuánto es el trato? (<span id="t_pct_lab">30</span>%)</label>
@@ -290,7 +327,9 @@
   <div id="viewRep" class="hide">
     <div class="card">
       <h2><svg class="ic" aria-hidden="true"><use href="#i-send"/></svg> Reportar una búsqueda</h2>
-      <div class="hint">¿Conseguiste un trato? Repórtalo aquí. Ernesto lo revisa y, si lo confirma, tu comisión aparece en tu panel. El reporte sale con tu sesión: así Ernesto sabe que el trato es tuyo.</div>
+      <div class="hint">Reporta el trato que conseguiste: Ernesto lo confirma y tu comisión cae en tu panel.</div>
+      <button type="button" class="hintBtn" data-hint="h_rep">ⓘ ¿Cómo funciona?</button>
+      <div class="hintFull hide" id="h_rep">¿Conseguiste un trato? Repórtalo aquí con los datos del vendedor. Ernesto lo revisa y, si lo confirma, tu comisión aparece en tu panel. El reporte sale con tu sesión: así Ernesto sabe que el trato es tuyo. Si se va la conexión, el reporte queda guardado en tu teléfono y se envía solo cuando vuelva.</div>
       <label>¿Qué conseguiste?</label>
       <div class="tiposel">
         <div class="tab on" id="r_tipo_s"><svg class="ic" aria-hidden="true"><use href="#i-phone"/></svg> Saldo</div>
@@ -336,29 +375,29 @@
           <div class="chatNom">Ernesto</div>
           <div class="cpres" id="c_pres">Ernesto · —</div>
         </div>
-        <button type="button" class="chatIco" id="c_info" aria-label="Qué significan los estados">ℹ️</button>
+        <button type="button" class="chatIco" id="c_info" aria-label="Qué significan los estados"><svg class="ic" aria-hidden="true"><use href="#i-help"/></svg></button>
       </div>
-      <div class="hint" id="c_estados" style="display:none">Tus mensajes, como en WhatsApp: <b>✓</b> enviado (salió de tu app y quedó guardado) · <b>✓✓</b> entregado (el panel de Ernesto recibió el mensaje) · <b>✓✓ Visto</b> (Ernesto abrió el chat y lo leyó). Toca un mensaje para responder, reaccionar ❤️👍😂👏🔥, o editar/eliminar los tuyos.</div>
+      <div class="hint" id="c_estados" style="display:none">Tus mensajes, como en WhatsApp: <b>✓</b> enviado (salió de tu app y quedó guardado) · <b>✓✓</b> entregado (el panel de Ernesto recibió el mensaje) · <b>✓✓ Visto</b> (Ernesto abrió el chat y lo leyó) · <b>🕐</b> en cola (guardado en tu teléfono: sale solo cuando vuelva la conexión). Toca un mensaje para responder, reaccionar ❤️👍😂👏🔥, o editar/eliminar los tuyos.</div>
       <div class="fijadoBar" id="c_fijado"></div>
       <div class="tempLinea" id="c_temp"></div>
       <div class="chatBuscarRow">
-        <input type="text" id="c_buscar" placeholder="🔍 Buscar en el chat…">
+        <input type="text" id="c_buscar" placeholder="Buscar en el chat…">
         <button type="button" class="miniBtn" id="c_buscar_mas">Buscar más</button>
       </div>
       <div id="c_hilo" class="hilo hiloWA"><div class="chatVacio">Cargando el chat…</div></div>
       <div class="respBar" id="c_resp"></div>
       <div class="hint" id="c_adj_nom"></div>
       <div class="adjHoja" id="c_adj_hoja">
-        <button type="button" id="c_adj_foto">📷 Foto</button>
-        <button type="button" id="c_adj_arch">📎 Archivo</button>
+        <button type="button" id="c_adj_foto"><svg class="ic" aria-hidden="true"><use href="#i-cam"/></svg> Foto</button>
+        <button type="button" id="c_adj_arch"><svg class="ic" aria-hidden="true"><use href="#i-file"/></svg> Archivo</button>
       </div>
       <div class="compWA">
         <div class="compBox">
           <textarea id="c_txt" rows="1" placeholder="Escribe un mensaje…"></textarea>
-          <button type="button" class="clipBtn" id="c_clip" aria-label="Adjuntar">📎</button>
+          <button type="button" class="clipBtn" id="c_clip" aria-label="Adjuntar"><svg class="ic" aria-hidden="true"><use href="#i-clip"/></svg></button>
         </div>
-        <button type="button" class="micBtn" id="c_mic" aria-label="Nota de voz">🎤</button>
-        <button type="button" class="sendBtn" id="c_btn" aria-label="Enviar a Ernesto">➤</button>
+        <button type="button" class="micBtn" id="c_mic" aria-label="Nota de voz"><span id="c_mic_lab"><svg class="ic" aria-hidden="true"><use href="#i-mic"/></svg></span></button>
+        <button type="button" class="sendBtn" id="c_btn" aria-label="Enviar a Ernesto"><svg class="ic" aria-hidden="true"><use href="#i-send"/></svg></button>
       </div>
       <input type="file" id="c_file_foto" accept="image/*" class="hide">
       <input type="file" id="c_file_arch" class="hide">
@@ -366,9 +405,9 @@
       <div class="warn" id="c_warn"></div>
     </div>
     <div class="card">
-      <h2><svg class="ic" aria-hidden="true"><use href="#i-brief"/></svg> ¿Quieres trabajar con Ernesto?</h2>
+      <h2><svg class="ic" aria-hidden="true"><use href="#i-chat"/></svg> ¿Quieres trabajar con Ernesto?</h2>
       <div class="hint">Si quieres sumarte al equipo de buscadores o hablar de trabajo, escríbele directo a su WhatsApp:</div>
-      <a class="wapp" href="https://wa.me/5351231558?text=Hola%20Ernesto%2C%20uso%20tu%20app%20Mi%20Trabajo%20y%20quiero%20hablar%20contigo%20de%20trabajo."><svg class="ic" aria-hidden="true"><use href="#i-chat"/></svg> WhatsApp de Ernesto · 5123 1558</a>
+      <a class="wapp" href="https://wa.me/5351231558?text=Hola%20Ernesto%2C%20uso%20tu%20app%20Mi%20Trabajo%20y%20quiero%20hablar%20de%20trabajo."><svg class="ic" aria-hidden="true"><use href="#i-chat"/></svg> WhatsApp de Ernesto · 5123 1558</a>
     </div>
   </div>
 
@@ -398,28 +437,36 @@
     </div>
   </div>
 
-  <!-- ============ TEXTOS (v1.4.0) ============ -->
+  <!-- ============ TEXTOS INTELIGENTES (v1.4.4) ============ -->
   <div id="viewTextos" class="hide">
     <div class="card">
-      <h2>✍️ Textos de ofertas</h2>
-      <div class="hint">Escribe SOLO los datos y la app pone las palabras: tres versiones listas para copiar o mandar a WhatsApp. Funciona sin internet. Los botones rápidos usan los datos PÚBLICOS de la tarifa y tu perfil — nunca números internos.</div>
-      <div class="chatTools">
-        <button type="button" id="tx_saldo">📱 Texto de saldo</button>
-        <button type="button" id="tx_transf">🏦 Texto de transferencia</button>
+      <h2><svg class="ic" aria-hidden="true"><use href="#i-send"/></svg> Textos de ofertas</h2>
+      <div class="hint">Un toque y el anuncio sale listo para copiar o mandar a WhatsApp, con los datos de Ernesto ya puestos.</div>
+      <button type="button" class="hintBtn" data-hint="h_textos">ⓘ ¿Cómo funciona?</button>
+      <div class="hintFull hide" id="h_textos">Los tres botones arman el anuncio con la tarifa pública vigente y los datos públicos de Ernesto (su teléfono, su zona y el domicilio): tú no tecleas ni un número y el texto sale completo siempre. Cada toque genera versiones distintas, para que no parezca robot. El formulario de abajo queda para casos especiales.</div>
+      <label>Textos listos — un toque y a publicar</label>
+      <div class="catBtns">
+        <button type="button" id="tx_saldo"><svg class="ic" aria-hidden="true"><use href="#i-phone"/></svg> Compro saldo</button>
+        <button type="button" id="tx_recarga"><svg class="ic" aria-hidden="true"><use href="#i-refresh"/></svg> Recarga y cambio</button>
+        <button type="button" id="tx_transf"><svg class="ic" aria-hidden="true"><use href="#i-bank"/></svg> Transferencia</button>
       </div>
-      <label>Tipo de oferta</label>
-      <select id="tx_tipo"><option value="vendo">Vendo</option><option value="compro">Compro</option><option value="servicio">Servicio</option><option value="recargo">Recargo o cambio</option><option value="otro">Otro</option></select>
+      <label>¿Ya tienes una cantidad de saldo en vista? (opcional)</label>
+      <input type="number" id="tx_cant_saldo" inputmode="decimal" placeholder="Ej.: 720">
+      <div class="hint" style="margin-top:6px">Si la escribes, el texto de «Compro saldo» incluye cuánto pagas por esa cantidad, calculado con la tasa de hoy.</div>
+      <label>Formulario libre (casos especiales)</label>
+      <div class="chipRow" id="tx_tipo_chips"></div>
+      <input type="hidden" id="tx_tipo" value="compro" class="hide">
       <label>Producto o servicio</label>
-      <input type="text" id="tx_prod" placeholder="Ej.: Batería LiFePO4 12.8V 100Ah">
+      <input type="text" id="tx_prod" placeholder="Ej.: saldo móvil (recargas de 360)">
       <label>Precio (vacío si es por privado)</label>
-      <input type="text" id="tx_precio" inputmode="decimal" placeholder="Ej.: 45000">
+      <input type="text" id="tx_precio" inputmode="decimal" placeholder="Ej.: 980">
       <label>Moneda</label>
       <select id="tx_moneda"><option>CUP</option><option>USD</option><option>MLC</option><option>QUSD</option></select>
       <label class="checkLine"><input type="checkbox" id="tx_privado"> Precio por privado</label>
       <label>Cantidad o disponibilidad (opcional)</label>
       <input type="text" id="tx_cant" placeholder="Ej.: quedan 3">
       <label>Detalles y ventajas</label>
-      <input type="text" id="tx_det" placeholder="Ej.: garantía incluida, domicilio en Santiago">
+      <input type="text" id="tx_det" placeholder="Ej.: pago al momento, en efectivo">
       <label>Zona</label>
       <input type="text" id="tx_zona" placeholder="Tu zona (sale de tu perfil)">
       <label>Teléfono de contacto</label>
@@ -436,7 +483,7 @@
       <label class="checkLine"><input type="checkbox" id="tx_urg"> Línea de urgencia</label>
       <label class="checkLine"><input type="checkbox" id="tx_priv_llamada"> Llamada a escribir por privado</label>
       <label class="checkLine"><input type="checkbox" id="tx_hash"> Hashtags al final</label>
-      <button class="go" id="tx_gen" type="button">✍️ Generar las 3 versiones</button>
+      <button class="go" id="tx_gen" type="button"><svg class="ic" aria-hidden="true"><use href="#i-send"/></svg> Generar las 3 versiones</button>
       <div id="tx_out" style="margin-top:12px"></div>
       <label>Historial (últimas 30, en este teléfono)</label>
       <div id="tx_hist"></div>
@@ -446,9 +493,11 @@
   <!-- ============ MI PERFIL (v1.4.0) ============ -->
   <div id="viewPerfil" class="hide">
     <div class="card">
-      <h2>👤 Mi perfil</h2>
-      <div class="hint">Esto es lo que Ernesto ve de ti en su panel: tu nombre, tu WhatsApp, tu zona y tu nota. Tu código, tu comisión y tus tratos NO se tocan aquí: eso lo maneja Ernesto.</div>
-      <div class="warn" id="pf_pausa" style="display:none">⏸️ Estás en pausa: puedes ver tu historial y tu perfil, pero no reportar ni escribir por ahora. Habla con Ernesto.</div>
+      <h2><svg class="ic" aria-hidden="true"><use href="#i-user"/></svg> Mi perfil</h2>
+      <div class="hint">Esto es lo que Ernesto ve de ti en su panel.</div>
+      <button type="button" class="hintBtn" data-hint="h_perfil">ⓘ ¿Qué se guarda aquí?</button>
+      <div class="hintFull hide" id="h_perfil">Tu nombre, tu WhatsApp, tu zona y tu nota: con eso Ernesto te reconoce y te contacta. Tu código, tu comisión y tus tratos NO se tocan aquí: eso lo maneja Ernesto.</div>
+      <div class="warn" id="pf_pausa" style="display:none">Estás en pausa: puedes ver tu historial y tu perfil, pero no reportar ni escribir por ahora. Habla con Ernesto.</div>
       <label>Nombre visible</label>
       <input type="text" id="pf_nombre" placeholder="Tu nombre">
       <label>Teléfono / WhatsApp de contacto</label>
@@ -460,17 +509,19 @@
       <label>Color de tu avatar</label>
       <div class="colorRow" id="pf_colores"></div>
       <button class="go" id="pf_btn" type="button">Guardar mi perfil</button>
-      <div class="ok" id="pf_ok" style="display:none">✅ Perfil guardado.</div>
+      <div class="ok" id="pf_ok" style="display:none">Perfil guardado.</div>
       <div class="warn" id="pf_warn"></div>
     </div>
     <div class="card">
-      <h2>🔔 Avisos</h2>
+      <h2><svg class="ic" aria-hidden="true"><use href="#i-bell"/></svg> Avisos</h2>
       <div class="hint" id="pf_push_txt">Recibe un aviso en la pantalla cuando Ernesto apruebe un trato, te pague o te escriba. El permiso se pide solo al tocar el botón.</div>
-      <button class="go" id="pf_push" type="button">🔔 Activar avisos</button>
+      <button class="go" id="pf_push" type="button">Activar avisos</button>
     </div>
     <div class="card">
-      <h2>🔑 Cambiar mi código</h2>
-      <div class="hint">Puedes cambiar tu código personal cuando quieras. El viejo deja de funcionar AL INSTANTE y tu sesión se actualiza sola. Ernesto ve el cambio en su panel.</div>
+      <h2><svg class="ic" aria-hidden="true"><use href="#i-key"/></svg> Cambiar mi código</h2>
+      <div class="hint">Cambia tu código personal cuando quieras: el viejo deja de funcionar al instante.</div>
+      <button type="button" class="hintBtn" data-hint="h_codigo">ⓘ ¿Cómo funciona?</button>
+      <div class="hintFull hide" id="h_codigo">Puedes cambiar tu código personal cuando quieras. El viejo deja de funcionar AL INSTANTE y tu sesión se actualiza sola. Ernesto ve el cambio en su panel. Tu enlace personal de abajo se actualiza con el código nuevo: guárdalo.</div>
       <label>Tu código actual</label>
       <input type="text" id="cc_actual" autocapitalize="characters" spellcheck="false" autocomplete="off">
       <label>Código nuevo (mínimo 6, sin espacios)</label>
@@ -486,7 +537,7 @@
   <div class="foot">
     Las cuentas de esta app usan la tarifa de referencia del día.<br>
     La cuenta final de cada trato la confirma Ernesto con los números reales.<br>
-    Mi Trabajo v<span id="verLab">1.4.1</span> · Hecha para el equipo de Ernesto
+    Mi Trabajo v<span id="verLab">1.4.4</span> · Hecha para el equipo de Ernesto
   </div>
 </div>
 
