@@ -9,18 +9,25 @@
 <link rel="icon" href="icon-192.png">
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  html, body { background: #0B0E13; }
+  html, body { background: #0B0E13; overflow-x: hidden; }
   body { font-family: -apple-system, 'Segoe UI', Roboto, Arial, sans-serif; color: #E8ECF1; min-height: 100vh; padding: 14px 14px 40px; }
+  img, svg { max-width: 100%; }
   .wrap { max-width: 560px; margin: 0 auto; }
   header { text-align: center; padding: 10px 0 4px; }
-  header .big { font-size: 40px; }
+  header .big { color: #F5BC14; }
+  header .big svg { width: 44px; height: 44px; }
   h1 { font-size: 24px; font-weight: 800; letter-spacing: .3px; }
   h1 .gold { color: #F5BC14; }
   .sub { color: #9AA7B8; font-size: 13px; margin-top: 4px; }
   .tarifa { margin: 12px 0 4px; background: #12161F; border: 1px solid #232B3A; border-radius: 12px; padding: 10px 12px; font-size: 13px; color: #C7D0DC; line-height: 1.55; }
   .tarifa b { color: #F5BC14; }
+  .freshRow { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 8px; }
+  #freshTxt { color: #7C8AA0; font-size: 12px; min-width: 0; overflow-wrap: anywhere; }
+  .actBtn { background: #1B2233; color: #F5BC14; border: 1px solid #2A3347; border-radius: 999px; padding: 7px 14px; font-weight: 800; font-size: 13px; cursor: pointer; flex: none; }
+  .actBtn svg { width: 14px; height: 14px; vertical-align: -2px; }
+  .actBtn:active { background: #F5BC14; color: #191204; }
   .tabs { display: flex; gap: 8px; margin: 14px 0; }
-  .tab { flex: 1; padding: 13px 6px; text-align: center; border-radius: 12px; background: #161C28; color: #9AA7B8; font-weight: 700; font-size: 15px; border: 1px solid #232B3A; cursor: pointer; }
+  .tab { flex: 1; min-width: 0; padding: 13px 6px; text-align: center; border-radius: 12px; background: #161C28; color: #9AA7B8; font-weight: 700; font-size: 15px; border: 1px solid #232B3A; cursor: pointer; overflow-wrap: anywhere; }
   .tab.on { background: #F5BC14; color: #191204; border-color: #F5BC14; }
   .card { background: #12161F; border: 1px solid #232B3A; border-radius: 16px; padding: 16px; margin-bottom: 14px; }
   .card h2 { font-size: 17px; margin-bottom: 4px; }
@@ -40,16 +47,18 @@
   .ok { margin-top: 16px; background: #14202A; border: 1px solid #27455C; color: #9ACBFF; border-radius: 14px; padding: 13px; font-size: 14px; line-height: 1.5; display: none; }
   .bar { height: 14px; background: #232B3A; border-radius: 999px; overflow: hidden; margin: 8px 0 4px; }
   .bar > div { height: 100%; background: linear-gradient(90deg, #F5BC14, #2ECC71); width: 0%; transition: width .5s; }
-  .trato { display: flex; justify-content: space-between; gap: 10px; padding: 10px 2px; border-bottom: 1px solid #1D2536; font-size: 14px; }
+  .trato { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; padding: 10px 2px; border-bottom: 1px solid #1D2536; font-size: 14px; }
   .trato:last-child { border-bottom: none; }
-  .trato .f { color: #9AA7B8; white-space: nowrap; }
-  .trato .c { color: #2ECC71; font-weight: 800; white-space: nowrap; }
+  .trato > span { min-width: 0; overflow-wrap: anywhere; }
+  .trato .f { color: #9AA7B8; }
+  .trato .c { color: #2ECC71; font-weight: 800; }
   .total { text-align: center; padding: 12px 0 2px; }
   .total .num { font-size: 32px; font-weight: 900; color: #F5BC14; }
   .total .lab { color: #9AA7B8; font-size: 13px; }
   button.go { width: 100%; padding: 14px; border: none; border-radius: 12px; background: #F5BC14; color: #191204; font-size: 16px; font-weight: 800; cursor: pointer; margin-top: 10px; }
+  button.go:disabled { opacity: .55; cursor: wait; }
   .foot { text-align: center; color: #5C6B82; font-size: 12px; line-height: 1.6; margin-top: 18px; padding: 0 8px; }
-  .hide { display: none; }
+  .hide { display: none !important; }
   .upd { margin: 0 0 14px; background: #2A2008; border: 1.5px solid #F5BC14; border-radius: 14px; padding: 14px; }
   .upd .t { font-weight: 800; color: #F5BC14; font-size: 15px; margin-bottom: 4px; }
   .upd .d { color: #E8D9A8; font-size: 13px; line-height: 1.5; margin-bottom: 10px; }
@@ -59,38 +68,83 @@
   .tiposel .tab { font-size: 14px; padding: 11px 6px; }
   textarea { width: 100%; padding: 12px; font-size: 16px; color: #fff; background: #0B0E13; border: 1.5px solid #2A3347; border-radius: 12px; outline: none; font-family: inherit; }
   textarea:focus { border-color: #F5BC14; }
-  .rep { display: flex; justify-content: space-between; gap: 10px; padding: 10px 2px; border-bottom: 1px solid #1D2536; font-size: 14px; }
+  .rep { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; padding: 10px 2px; border-bottom: 1px solid #1D2536; font-size: 14px; }
   .rep:last-child { border-bottom: none; }
-  .st { font-weight: 800; white-space: nowrap; }
+  .rep > span { min-width: 0; overflow-wrap: anywhere; }
+  .st { font-weight: 800; text-align: right; }
   .st.pend { color: #F5BC14; } .st.okk { color: #2ECC71; } .st.no { color: #FF7A7A; }
+  .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: currentColor; margin-right: 6px; flex: none; }
+  .ic { width: 18px; height: 18px; vertical-align: -3px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+  .ic.mini { width: 15px; height: 15px; vertical-align: -2px; }
+  .card h2 .ic { width: 20px; height: 20px; vertical-align: -4px; }
+  .sesLab { color: #9AA7B8; font-size: 13px; margin: 2px 0 4px; }
+  .sesLab b { color: #E8ECF1; }
+  button.salir { width: 100%; padding: 12px; margin-top: 16px; background: transparent; border: 1px solid #2A3347; border-radius: 12px; color: #9AA7B8; font-size: 14px; font-weight: 700; cursor: pointer; }
+  button.salir:active { border-color: #FF7A7A; color: #FF7A7A; }
+  /* ===== Pantalla de entrada (login único) ===== */
+  body.locked { overflow: hidden; }
+  body.locked #appWrap { filter: blur(10px); -webkit-filter: blur(10px); pointer-events: none; user-select: none; -webkit-user-select: none; }
+  .gate { position: fixed; inset: 0; z-index: 60; display: flex; align-items: center; justify-content: center; padding: 18px; background: rgba(8, 10, 14, .5); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); overflow-y: auto; }
+  .gateCard { width: 100%; max-width: 380px; background: #12161F; border: 1px solid #2A3347; border-radius: 18px; padding: 24px 18px 20px; text-align: center; }
+  .gateCard .glogo { color: #F5BC14; }
+  .gateCard .glogo svg { width: 46px; height: 46px; }
+  .gateTitle { font-size: 25px; font-weight: 800; letter-spacing: .3px; margin-top: 8px; }
+  .gateTitle .gold { color: #F5BC14; }
+  .gateTxt { color: #9AA7B8; font-size: 13.5px; line-height: 1.55; margin: 10px 0 2px; text-align: left; }
+  .gateCard label { text-align: left; }
+  .gateCard .warn { text-align: left; }
+  .gateWa { display: block; margin-top: 16px; color: #25D366; font-weight: 700; font-size: 14px; text-decoration: none; line-height: 1.5; }
 </style>
 </head>
 <body>
-<div class="wrap">
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-brief" viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></symbol>
+  <symbol id="i-calc" viewBox="0 0 24 24"><rect x="4" y="2" width="16" height="20" rx="2" ry="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="16" y1="14" x2="16" y2="18"/><path d="M16 10h.01"/><path d="M12 10h.01"/><path d="M8 10h.01"/><path d="M12 14h.01"/><path d="M8 14h.01"/><path d="M12 18h.01"/><path d="M8 18h.01"/></symbol>
+  <symbol id="i-send" viewBox="0 0 24 24"><path d="M22 2 11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></symbol>
+  <symbol id="i-chart" viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></symbol>
+  <symbol id="i-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></symbol>
+  <symbol id="i-phone" viewBox="0 0 24 24"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></symbol>
+  <symbol id="i-bank" viewBox="0 0 24 24"><line x1="3" y1="22" x2="21" y2="22"/><line x1="6" y1="18" x2="6" y2="11"/><line x1="10" y1="18" x2="10" y2="11"/><line x1="14" y1="18" x2="14" y2="11"/><line x1="18" y1="18" x2="18" y2="11"/><polygon points="12 2 20 7 4 7"/></symbol>
+  <symbol id="i-chat" viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></symbol>
+  <symbol id="i-gift" viewBox="0 0 24 24"><polyline points="20 12 20 22 4 22 4 12"/><rect x="2" y="7" width="20" height="5"/><line x1="12" y1="22" x2="12" y2="7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></symbol>
+  <symbol id="i-refresh" viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></symbol>
+  <symbol id="i-cash" viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2"/><path d="M6 12h.01M18 12h.01"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></symbol>
+  <symbol id="i-out" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></symbol>
+</svg>
+<div class="wrap" id="appWrap">
   <header>
-    <div class="big">💼</div>
+    <div class="big"><svg class="ic" aria-hidden="true"><use href="#i-brief"/></svg></div>
     <h1>MI <span class="gold">TRABAJO</span></h1>
-    <div class="sub">Tu calculadora y tu panel — funciona sin internet 📴</div>
+    <div class="sub">Tu calculadora y tu panel — funciona sin internet</div>
   </header>
 
-  <div class="tarifa" id="tarifaBox">Cargando la tarifa del día…</div>
+  <div class="tarifa" id="tarifaBox">
+    <div id="tarifaTxt">Cargando la tarifa del día…</div>
+    <div class="freshRow">
+      <span id="freshTxt"></span>
+      <button class="actBtn" id="btnAct" type="button"><svg class="ic" aria-hidden="true"><use href="#i-refresh"/></svg> Actualizar</button>
+    </div>
+  </div>
 
   <div class="tabs">
-    <div class="tab on" id="tabCalc">🧮 Calculadora</div>
-    <div class="tab" id="tabRep">📤 Reportar</div>
-    <div class="tab" id="tabPanel">📊 Mi panel</div>
-    <div class="tab" id="tabAyuda">🆘 Ayuda</div>
+    <div class="tab on" id="tabCalc"><svg class="ic" aria-hidden="true"><use href="#i-calc"/></svg> Calculadora</div>
+    <div class="tab" id="tabRep"><svg class="ic" aria-hidden="true"><use href="#i-send"/></svg> Reportar</div>
+    <div class="tab" id="tabPanel"><svg class="ic" aria-hidden="true"><use href="#i-chart"/></svg> Mi panel</div>
+    <div class="tab" id="tabAyuda"><svg class="ic" aria-hidden="true"><use href="#i-help"/></svg> Ayuda</div>
   </div>
   <div id="updBox" class="upd hide">
-    <div class="t">🆕 Hay una versión nueva de Mi Trabajo</div>
+    <div class="t">Hay una versión nueva de Mi Trabajo</div>
     <div class="d" id="updTxt"></div>
-    <a class="btnUpd" id="updLink" href="#">⬇️ Descargar la actualización</a>
+    <a class="btnUpd" id="updLink" href="#">Descargar la actualización</a>
   </div>
 
   <!-- ============ CALCULADORA ============ -->
   <div id="viewCalc">
     <div class="card">
-      <h2>📱 Saldo — ¿cuánto cobro?</h2>
+      <h2><svg class="ic" aria-hidden="true"><use href="#i-phone"/></svg> Saldo — ¿cuánto cobro?</h2>
       <div class="hint">Consigues una recarga de 360 y cobras el <b>25% del excedente</b>: lo que se gana por encima del precio que pagaste. Pon el precio que lograste y la app te dice tu parte al momento.</div>
       <label>Precio que conseguiste por la recarga de 360 (CUP)</label>
       <input type="number" id="s_precio" inputmode="decimal" placeholder="Ej: 950">
@@ -103,7 +157,7 @@
       <label>¿Cuántas recargas de 360 son?</label>
       <input type="number" id="s_cant" inputmode="numeric" value="1">
       <div class="res" id="s_res" style="display:none">
-        <div class="lab">💰 TU COMISIÓN</div>
+        <div class="lab"><svg class="ic mini" aria-hidden="true"><use href="#i-cash"/></svg> TU COMISIÓN</div>
         <div class="num" id="s_fee">$0.00</div>
         <div class="det" id="s_det"></div>
       </div>
@@ -111,7 +165,7 @@
     </div>
 
     <div class="card">
-      <h2>🏦 Transferencia — ¿cuánto cobro?</h2>
+      <h2><svg class="ic" aria-hidden="true"><use href="#i-bank"/></svg> Transferencia — ¿cuánto cobro?</h2>
       <div class="hint">Traes a una persona conocida que cambia efectivo por transferencia. Cobras el <b>20% de la ganancia</b> de la vuelta completa, cuando la vuelta cierra. Solo se aceptan tratos <b>al 25% o más</b>.</div>
       <label>Efectivo que entrega la persona (CUP)</label>
       <input type="number" id="t_ef" inputmode="decimal" placeholder="Ej: 5000">
@@ -125,7 +179,7 @@
         <div class="chip" data-t="40">al 40%</div>
       </div>
       <div class="res" id="t_res" style="display:none">
-        <div class="lab">💰 TU COMISIÓN (al cerrar la vuelta)</div>
+        <div class="lab"><svg class="ic mini" aria-hidden="true"><use href="#i-cash"/></svg> TU COMISIÓN (al cerrar la vuelta)</div>
         <div class="num" id="t_fee">$0.00</div>
         <div class="det" id="t_det"></div>
       </div>
@@ -137,14 +191,12 @@
   <!-- ============ REPORTAR ============ -->
   <div id="viewRep" class="hide">
     <div class="card">
-      <h2>📤 Reportar una búsqueda</h2>
-      <div class="hint">¿Conseguiste un trato? Repórtalo aquí. Ernesto lo revisa y, si lo confirma, tu comisión aparece en tu panel. Tu código va en el reporte: así Ernesto sabe que el trato es tuyo. 🆔</div>
-      <label>Tu código personal (tu identificación)</label>
-      <input type="text" id="r_cod" placeholder="Ej: BRIKU-SEF" autocomplete="off">
+      <h2><svg class="ic" aria-hidden="true"><use href="#i-send"/></svg> Reportar una búsqueda</h2>
+      <div class="hint">¿Conseguiste un trato? Repórtalo aquí. Ernesto lo revisa y, si lo confirma, tu comisión aparece en tu panel. El reporte sale con tu sesión: así Ernesto sabe que el trato es tuyo.</div>
       <label>¿Qué conseguiste?</label>
       <div class="tiposel">
-        <div class="tab on" id="r_tipo_s">📱 Saldo</div>
-        <div class="tab" id="r_tipo_t">🏦 Transferencia</div>
+        <div class="tab on" id="r_tipo_s"><svg class="ic" aria-hidden="true"><use href="#i-phone"/></svg> Saldo</div>
+        <div class="tab" id="r_tipo_t"><svg class="ic" aria-hidden="true"><use href="#i-bank"/></svg> Transferencia</div>
       </div>
       <div id="r_box_s">
         <label>Precio que pide el vendedor por cada recarga de 360 (CUP)</label>
@@ -162,9 +214,9 @@
       <input type="tel" id="r_tel" inputmode="tel" placeholder="Ej: 51234567">
       <label>Nota (opcional)</label>
       <textarea id="r_nota" rows="2" placeholder="Ej: es de Micro 9, tiene saldo hoy"></textarea>
-      <button class="go" id="r_btn">📤 Enviar reporte a Ernesto</button>
+      <button class="go" id="r_btn"><svg class="ic" aria-hidden="true"><use href="#i-send"/></svg> Enviar reporte a Ernesto</button>
       <div class="res" id="r_res" style="display:none">
-        <div class="lab">✅ REPORTE ENVIADO</div>
+        <div class="lab"><svg class="ic mini" aria-hidden="true"><use href="#i-check"/></svg> REPORTE ENVIADO</div>
         <div class="det">Quedó <b>pendiente</b>. Cuando Ernesto lo confirme, tu comisión aparece en «Mi panel».</div>
       </div>
       <div class="warn" id="r_warn"></div>
@@ -176,57 +228,68 @@
   <!-- ============ AYUDA ============ -->
   <div id="viewAyuda" class="hide">
     <div class="card">
-      <h2>🆘 Ayuda y contacto</h2>
-      <div class="hint">¿Algo no funciona, una cuenta sale mal o tienes una idea para mejorar la app? Cuéntaselo a Ernesto por aquí: tu reporte le llega directo y él lo lee. Solo el equipo autorizado usa esta app — si tu código no es válido, el reporte no cuenta.</div>
-      <label>Tu código personal</label>
-      <input type="text" id="a_cod" placeholder="Ej: BRIKU-SEF" autocomplete="off">
+      <h2><svg class="ic" aria-hidden="true"><use href="#i-help"/></svg> Ayuda y contacto</h2>
+      <div class="hint">¿Algo no funciona, una cuenta sale mal o tienes una idea para mejorar la app? Cuéntaselo a Ernesto por aquí: tu reporte le llega directo y él lo lee. Sale con tu sesión, así Ernesto sabe que viene de su equipo autorizado.</div>
       <label>¿Qué pasa? Cuéntalo con tus palabras</label>
       <textarea id="a_msg" rows="3" placeholder="Ej: le doy a enviar y no pasa nada / la cuenta de transferencia me sale rara"></textarea>
-      <button class="go" id="a_btn">📨 Enviar reporte a Ernesto</button>
+      <button class="go" id="a_btn"><svg class="ic" aria-hidden="true"><use href="#i-send"/></svg> Enviar reporte a Ernesto</button>
       <div class="res" id="a_res" style="display:none">
-        <div class="lab">✅ REPORTE ENVIADO</div>
-        <div class="det">Ernesto lo recibe y lo revisa. Gracias por avisar. 🙏</div>
+        <div class="lab"><svg class="ic mini" aria-hidden="true"><use href="#i-check"/></svg> REPORTE ENVIADO</div>
+        <div class="det">Ernesto lo recibe y lo revisa. Gracias por avisar.</div>
       </div>
       <div class="warn" id="a_warn"></div>
       <label>Tus reportes de ayuda (en este teléfono)</label>
       <div id="a_lista"></div>
     </div>
     <div class="card">
-      <h2>💼 ¿Quieres trabajar con Ernesto?</h2>
+      <h2><svg class="ic" aria-hidden="true"><use href="#i-brief"/></svg> ¿Quieres trabajar con Ernesto?</h2>
       <div class="hint">Si quieres sumarte al equipo de buscadores o hablar de trabajo, escríbele directo a su WhatsApp:</div>
-      <a class="wapp" href="https://wa.me/5351231558?text=Hola%20Ernesto%2C%20uso%20tu%20app%20Mi%20Trabajo%20y%20quiero%20hablar%20contigo%20de%20trabajo.">💬 WhatsApp de Ernesto · 5123 1558</a>
+      <a class="wapp" href="https://wa.me/5351231558?text=Hola%20Ernesto%2C%20uso%20tu%20app%20Mi%20Trabajo%20y%20quiero%20hablar%20contigo%20de%20trabajo."><svg class="ic" aria-hidden="true"><use href="#i-chat"/></svg> WhatsApp de Ernesto · 5123 1558</a>
     </div>
   </div>
 
   <!-- ============ PANEL ============ -->
   <div id="viewPanel" class="hide">
     <div class="card">
-      <h2>📊 Mi panel</h2>
-      <div class="hint">Escribe tu código personal una vez — queda guardado en tu teléfono. Aquí ves tus tratos confirmados, lo que has ganado y cómo vas para tu bono. 🎁</div>
-      <label>Tu código personal</label>
-      <input type="text" id="p_code" placeholder="Ej: DEMO-01" autocomplete="off">
-      <button class="go" id="p_btn">Ver mi panel</button>
+      <h2><svg class="ic" aria-hidden="true"><use href="#i-chart"/></svg> Mi panel</h2>
+      <div class="hint">Aquí ves tus tratos confirmados, lo que has ganado y cómo vas para tu bono.</div>
+      <div class="sesLab">Tu sesión: <b id="p_ses">—</b></div>
       <div class="warn" id="p_warn"></div>
       <div id="p_body" class="hide">
         <div class="total">
-          <div class="lab">TOTAL GANADO 💰</div>
+          <div class="lab">TOTAL GANADO</div>
           <div class="num" id="p_total">$0.00</div>
           <div class="lab" id="p_name"></div>
         </div>
-        <label>🎁 Bono de saldo: <span id="p_bs_lab"></span></label>
+        <label><svg class="ic mini" aria-hidden="true"><use href="#i-gift"/></svg> Bono de saldo: <span id="p_bs_lab"></span></label>
         <div class="bar"><div id="p_bs_bar"></div></div>
-        <label>🎁 Bono de transferencia: <span id="p_bt_lab"></span></label>
+        <label><svg class="ic mini" aria-hidden="true"><use href="#i-gift"/></svg> Bono de transferencia: <span id="p_bt_lab"></span></label>
         <div class="bar"><div id="p_bt_bar"></div></div>
         <label>Tus tratos confirmados</label>
         <div id="p_tratos"></div>
       </div>
+      <button class="salir" id="btnSalir" type="button"><svg class="ic mini" aria-hidden="true"><use href="#i-out"/></svg> Salir (cerrar mi sesión)</button>
     </div>
   </div>
 
   <div class="foot">
     Las cuentas de esta app usan la tarifa de referencia del día.<br>
-    La cuenta final de cada trato la confirma Ernesto con los números reales. ✅<br>
-    Mi Trabajo v<span id="verLab">1.1.0</span> · Hecha para el equipo de Ernesto 🦾
+    La cuenta final de cada trato la confirma Ernesto con los números reales.<br>
+    Mi Trabajo v<span id="verLab">1.2.0</span> · Hecha para el equipo de Ernesto
+  </div>
+</div>
+
+<!-- ============ PANTALLA DE ENTRADA (login único) ============ -->
+<div id="loginGate" class="gate">
+  <div class="gateCard">
+    <div class="glogo"><svg class="ic" aria-hidden="true"><use href="#i-lock"/></svg></div>
+    <div class="gateTitle">MI <span class="gold">TRABAJO</span></div>
+    <p class="gateTxt">Para entrar escribe tu <b>código personal</b> — la cuenta que te dio Ernesto. Queda guardado en tu teléfono: solo lo escribes una vez.</p>
+    <label for="l_cod">Tu código personal</label>
+    <input type="text" id="l_cod" placeholder="Ej: BRIKU-SEF" autocapitalize="characters" spellcheck="false" autocomplete="off">
+    <button class="go" id="l_btn" type="button">Entrar</button>
+    <div class="warn" id="l_warn"></div>
+    <a class="gateWa" href="https://wa.me/5351231558?text=Hola%20Ernesto%2C%20no%20puedo%20entrar%20a%20Mi%20Trabajo%2C%20necesito%20mi%20c%C3%B3digo.">¿No tienes código o lo perdiste?<br>Escríbele a Ernesto por WhatsApp</a>
   </div>
 </div>
 
