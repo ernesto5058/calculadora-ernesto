@@ -1,5 +1,5 @@
 "use strict";
-var APP_VERSION = "1.4.4";
+var APP_VERSION = "1.4.5";
 /* Tarifa de respaldo: se usa sin conexión si nunca se ha descargado datos.json.
    La tarifa viva viene de datos.json (la actualiza Ernesto/Máximo). */
 var DEFAULT_TARIFA = { ingresoRef360: 1092.65, libroRef: 1110, salidaRef: 950,
@@ -138,6 +138,7 @@ function entrar(code){
   cargarAdminPres();
   cargarVivo();
   try { despacharChat(); } catch(e){}   /* v1.4.4: al entrar, sale lo que hubiera en cola */
+  try { avisosAutoTrasLogin(); } catch(e){}   /* v1.4.5: la app instalada pide su permiso de notificaciones como cualquier app normal */
 }
 function salir(msg){
   SESION = ""; sesionClear();
@@ -811,13 +812,44 @@ syncReportes();
     try { history.replaceState(null, "", window.location.pathname + window.location.hash); } catch(e){}
     mostrarGate("");
     intentarLogin(urlCod, true).then(function(ok){
-      if (!ok && previa && previa !== urlCod) entrar(previa);   // enlace malo: se respeta la sesión que hubiera
+      if (ok) showView("Panel");   // v1.4.5: quien entra por su enlace aterriza en «Mi panel»
+      else if (previa && previa !== urlCod) entrar(previa);   // enlace malo: se respeta la sesión que hubiera
     });
   } else if (previa) {
     entrar(previa);
   } else {
     mostrarGate("");
   }
+})();
+
+/* ===== ENLACE PROFUNDO (v1.4.5 · Android App Links) =====
+   El enlace personal (?codigo=) también llega DENTRO de la APK:
+   con la app instalada, Android se lo entrega a ella (verificación
+   por assetlinks.json + intent-filter autoVerify en el manifiesto)
+   y el plugin App de Capacitor pasa la URL a este consumidor. Se
+   trata igual que el enlace web: valida el código con el flujo de
+   login único y aterriza en «Mi panel». Si la sesión ya es la del
+   enlace, solo navega. En la web no hay plugin y este bloque no
+   hace nada. */
+function consumirEnlaceApp(url){
+  var cod = "";
+  try { cod = normCod(new URL(String(url || "")).searchParams.get("codigo")); } catch(e){}
+  if (!cod) return;
+  if (SESION && SESION === cod) { showView("Panel"); return; }
+  var previa = SESION;
+  intentarLogin(cod, true).then(function(ok){
+    if (ok) showView("Panel");
+    else if (previa && previa !== cod) entrar(previa);   // enlace malo: se respeta la sesión que hubiera
+  });
+}
+(function(){
+  var P = window.Capacitor && window.Capacitor.Plugins;
+  var App = P && P.App;
+  if (!App) return;
+  try {
+    if (App.getLaunchUrl) App.getLaunchUrl().then(function(r){ if (r && r.url) consumirEnlaceApp(r.url); }).catch(function(){});
+    if (App.addListener) App.addListener("appUrlOpen", function(ev){ if (ev && ev.url) consumirEnlaceApp(ev.url); });
+  } catch(e){}
 })();
 
 /* =====================================================================
@@ -829,8 +861,33 @@ syncReportes();
    SQL único las activa): la app sigue como en la 1.3.1.
    ===================================================================== */
 
-/* ===== Motor de textos y cliente push compartidos (fuente única) ===== */
-/*__MOTOR_TEXTOS__*/
+/* ===== Utilidades de textos (v1.4.5) =====
+   De esta app salió POR COMPLETO el generador genérico de
+   plantillas (formulario libre con tono/tamaño/moneda/producto):
+   los textos del buscador son SOLO las plantillas PRO de abajo,
+   armadas con la tarifa pública viva y los datos públicos de
+   Ernesto. Del motor compartido quedan únicamente las dos
+   utilidades puras que esas plantillas usan (miles e historial),
+   copiadas tal cual de su fuente. El motor completo sigue vivo
+   solo en la app de Ernesto. El cliente push (web) se inyecta
+   como siempre para la versión navegador. */
+var TextosMotor = (function(){
+  "use strict";
+  /* Formato de miles con ESPACIO: 125 000 CUP. */
+  function miles(n){
+    var s = String(Math.round(Number(n) * 100) / 100);
+    var partes = s.split(".");
+    partes[0] = partes[0].replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+    return partes.join(".");
+  }
+  /* Historial local: últimas 30. */
+  function historialPush(hist, entrada){
+    var h = Array.isArray(hist) ? hist.slice() : [];
+    h.unshift(entrada);
+    return h.slice(0, 30);
+  }
+  return { miles: miles, historialPush: historialPush };
+})();
 /*__PUSH_CLIENTE__*/
 
 /* ========== VOZ PRO v1.4.2 + TIMBRE REALTIME (módulo global) ==========
@@ -1421,8 +1478,10 @@ function rellenarPerfil(p){
   if (p.zona) $("pf_zona").value = p.zona;
   if (p.nota) $("pf_nota").value = p.nota;
   if (p.avatar_color && COLORES_AVATAR.indexOf(p.avatar_color) >= 0) { COLOR_SEL = p.avatar_color; pintarColores(); }
-  if (p.telefono && !$("tx_tel").value) $("tx_tel").value = p.telefono;
-  if (p.zona && !$("tx_zona").value) $("tx_zona").value = p.zona;
+  /* v1.4.5: el perfil ya NO se vuelca a ningún formulario de
+     textos (ese vuelco era el que metía un teléfono cualquiera en
+     el generador viejo): los textos inteligentes usan SOLO el
+     bloque público de Ernesto. */
 }
 function pintarEnlace(){
   var el = $("cc_enlace"); if (!el || !SESION) return;
@@ -1458,18 +1517,106 @@ function cambiarCodigo(){
     pintarEnlace(); renderPanel();
   });
 }
+/* ===== AVISOS NATIVOS (v1.4.5 · app instalada en Android) =====
+   Dentro de la APK, los avisos van por el canal NATIVO del sistema
+   (@capacitor/push-notifications): la app pide el permiso de
+   notificaciones de Android como cualquier app normal. La ruta de
+   navegador (Web Push/VAPID) queda SOLO para la versión web: en el
+   WebView de la app esa vía no existe y decir «este aparato no
+   admite avisos» dentro de la app instalada era falso.
+   PUERTA HONESTA: el token nativo lo entrega Firebase (FCM); sin
+   el proyecto Firebase de la app, Android concede el permiso pero
+   NO entrega token (registrationError). En ese caso la tarjeta lo
+   dice tal cual («pendiente de un paso técnico») y jamás pinta un
+   ✓ que no exista. Con token, se guarda por la puerta
+   registrar_push_nativo y la función «avisos» lo usa. */
+function pluginPush(){
+  try { var P = window.Capacitor && window.Capacitor.Plugins; return (P && P.PushNotifications) || null; } catch(e){ return null; }
+}
+function esAppNativa(){ return esNativo() && !!pluginPush(); }
+var PUSH_NATIVO_LS = "busc_push_nativo_v1";
+function pushNativoLocal(){ try { return JSON.parse(localStorage.getItem(PUSH_NATIVO_LS) || "{}"); } catch(e){ return {}; } }
+function pushNativoGuardar(o){ try { localStorage.setItem(PUSH_NATIVO_LS, JSON.stringify(o)); } catch(e){} }
+function pintarAvisos(){
+  var txt = $("pf_push_txt"); if (!txt) return;
+  if (!esAppNativa()) return;   /* web: manda el texto/flujo de siempre */
+  pluginPush().checkPermissions().then(function(p){
+    var est = (p && p.receive) || "prompt";
+    var loc = pushNativoLocal();
+    if (est === "granted" && loc.registrado) txt.textContent = "✓ Avisos activados en este aparato: te llega un aviso cuando Ernesto apruebe un trato, te pague o te escriba.";
+    else if (est === "granted") txt.textContent = "Tienes el permiso de notificaciones dado. La activación del sistema de avisos está pendiente de un paso técnico (lo está cerrando Máximo): mientras tanto, entra a la app para ver tus novedades.";
+    else if (est === "denied") txt.textContent = "Las notificaciones están apagadas para Mi Trabajo. Para encenderlas: Ajustes del teléfono → Aplicaciones → Mi Trabajo → Notificaciones → Permitir. Sin eso, los avisos de Ernesto no te llegan.";
+    else txt.textContent = "Esta app necesita que autorices enviar notificaciones: así te enteras al momento cuando Ernesto apruebe un trato, te pague o te escriba. Toca «Activar avisos» y acepta el permiso del sistema.";
+  }).catch(function(){});
+}
+var pushNativoListeners = false;
+function registrarAvisosNativo(){
+  var PN = pluginPush(); if (!PN || !SESION) return;
+  if (!pushNativoListeners) {
+    pushNativoListeners = true;
+    try {
+      PN.addListener("registration", function(t){
+        var token = t && t.value;
+        if (!token) { pushNativoGuardar({ registrado: false, pendiente: true }); pintarAvisos(); return; }
+        rpcChat("registrar_push_nativo", { p_codigo: SESION, p_token: token, p_plataforma: "android" }).then(function(r){
+          if (r && (r.ok === true || r === true)) pushNativoGuardar({ registrado: true, cuando: new Date().toISOString() });
+          else pushNativoGuardar({ registrado: false, pendiente: true });
+          pintarAvisos();
+        });
+      });
+      PN.addListener("registrationError", function(){
+        pushNativoGuardar({ registrado: false, pendiente: true });
+        pintarAvisos();
+      });
+    } catch(e){}
+  }
+  try { PN.register(); } catch(e){ pushNativoGuardar({ registrado: false, pendiente: true }); pintarAvisos(); }
+}
+function pedirAvisosNativo(){
+  var PN = pluginPush(); if (!PN) return;
+  PN.checkPermissions().then(function(p){
+    var est = (p && p.receive) || "prompt";
+    if (est === "granted") { registrarAvisosNativo(); return; }
+    if (est === "denied") { pintarAvisos(); return; }
+    PN.requestPermissions().then(function(r){
+      if (r && r.receive === "granted") registrarAvisosNativo();
+      pintarAvisos();
+    }).catch(function(){ pintarAvisos(); });
+  }).catch(function(){});
+}
+/* Al entrar (como cualquier app normal): si el permiso nunca se ha
+   pedido, la app lo pide sola UNA vez con el diálogo del sistema;
+   si ya está concedido, refresca el registro en silencio; si está
+   denegado, no insiste (la tarjeta Avisos lo explica). */
+function avisosAutoTrasLogin(){
+  if (!esAppNativa()) return;
+  var PN = pluginPush();
+  PN.checkPermissions().then(function(p){
+    var est = (p && p.receive) || "prompt";
+    if (est === "granted") { registrarAvisosNativo(); return; }
+    if (est !== "prompt") return;
+    var ya = false;
+    try { ya = !!localStorage.getItem("busc_push_pedido_v1"); } catch(e){}
+    if (ya) return;
+    try { localStorage.setItem("busc_push_pedido_v1", "1"); } catch(e){}
+    PN.requestPermissions().then(function(r){
+      if (r && r.receive === "granted") registrarAvisosNativo();
+    }).catch(function(){});
+  }).catch(function(){});
+}
 function activarAvisosMT(){
+  if (esAppNativa()) { pedirAvisosNativo(); return; }
   var txt = $("pf_push_txt");
   var est = estadoPush();
-  if (est === "instalar") { txt.textContent = "En iPhone los avisos solo funcionan con la app instalada en pantalla de inicio. En Android (tu APK) funcionan directo: si no se activan, revisa el permiso de notificaciones de la app."; return; }
-  if (est === "sin-soporte") { txt.textContent = "Este aparato/navegador no admite avisos push."; return; }
+  if (est === "instalar") { txt.textContent = "En iPhone los avisos solo funcionan con la app instalada en pantalla de inicio."; return; }
+  if (est === "sin-soporte") { txt.textContent = "Este navegador no admite avisos push. Abre la app instalada (la APK) para activar los avisos del sistema."; return; }
   activarPush(function(sub){
     return rpcChat("registrar_push", { p_codigo: SESION, p_suscripcion: sub, p_plataforma: /android/i.test(navigator.userAgent || "") ? "android" : (/iphone|ipad/i.test(navigator.userAgent || "") ? "ios" : "web") });
   }).then(function(){ txt.textContent = "Avisos activados en este aparato."; })
     .catch(function(){ txt.textContent = "No se pudo activar: revisa el permiso de notificaciones."; });
 }
 
-/* ===== TEXTOS (generador; motor compartido) ===== */
+/* ===== TEXTOS (v1.4.5: solo textos inteligentes de la tarifa) ===== */
 var TX_LS = "busc_textos_v1";
 function txHist(){ try { return JSON.parse(localStorage.getItem(TX_LS) || "[]"); } catch(e){ return []; } }
 function txHistPintar(){
@@ -1477,11 +1624,6 @@ function txHistPintar(){
   var hs = txHist();
   el.innerHTML = hs.length ? hs.map(function(x, i){ return '<div class="rep"><span>' + escChat(x.titulo || "Texto") + '</span><button type="button" class="miniBtn" data-txh="' + i + '">Copiar</button></div>'; }).join("") : '<div class="rep"><span>Aún no generaste textos.</span></div>';
   el.querySelectorAll("[data-txh]").forEach(function(b){ b.addEventListener("click", function(){ var x = txHist()[Number(b.getAttribute("data-txh"))]; if (x && navigator.clipboard) navigator.clipboard.writeText(x.texto || ""); }); });
-}
-function txEstilo(){
-  return { emojis: $("tx_emojis").value, tono: $("tx_tono").value, tamano: $("tx_tam").value,
-    mayus: $("tx_mayus").checked, urgencia: $("tx_urg").checked, privadoLlamada: $("tx_priv_llamada").checked,
-    hashtags: $("tx_hash").checked, whatsapp: $("tx_dest").value === "wa" };
 }
 var TX_ULT = [];
 function txPintar(res, titulo){
@@ -1497,14 +1639,7 @@ function txPintar(res, titulo){
   try { localStorage.setItem(TX_LS, JSON.stringify(TextosMotor.historialPush(txHist(), { titulo: titulo, cuando: new Date().toISOString(), texto: res.versiones[0].texto }))); } catch(e){}
   txHistPintar();
 }
-function txGenerar(){
-  var precio = parseFloat(String($("tx_precio").value).replace(",", "."));
-  var res = TextosMotor.generar({ tipo: $("tx_tipo").value, producto: $("tx_prod").value,
-    precio: isFinite(precio) ? precio : null, moneda: $("tx_moneda").value, privado: $("tx_privado").checked,
-    cantidad: $("tx_cant").value, detalles: $("tx_det").value, zona: $("tx_zona").value,
-    telefono: $("tx_tel").value, estilo: txEstilo(), quien: txQuienStr() });
-  txPintar(res, $("tx_prod").value || "Oferta");
-}
+
 
 /* ===== v1.4.4: TEXTOS INTELIGENTES — el anuncio de Ernesto =====
    Los textos de catálogo nacen de la CONFIGURACIÓN PÚBLICA del
@@ -1553,7 +1688,9 @@ function txVersionesPRO(cuerpo, ganchos, cierres){
   }) };
 }
 function textoComproSaldoPRO(){
-  var cfg = publicoCfg(), s = cfg.saldo, wa = txEstilo().whatsapp;
+  /* Los textos son para compartir por WhatsApp: el título va con
+     las negritas de WhatsApp (*…*) siempre. */
+  var cfg = publicoCfg(), s = cfg.saldo, wa = true;
   var cuerpo = [(wa ? "*COMPRO SALDO*" : "COMPRO SALDO"),
     "Pago en efectivo al " + fmtTasa(s.tasa) + " 🤑🤑",
     "📲 " + cfg.telefono];
@@ -1607,60 +1744,6 @@ function txRapidoSaldo(){ txPintar(textoComproSaldoPRO(), "Compro saldo"); }
 function txRapidoRecarga(){ txPintar(textoRecargaCambioPRO(), "Recarga y cambio"); }
 function txRapidoTransf(){ txPintar(textoTransferenciaPRO(), "Transferencia"); }
 
-/* Ejemplos del formulario según el tipo: siempre del trabajo de
-   buscador (comprar saldo / cambiar transferencia), jamás productos. */
-var TX_EJEMPLOS = {
-  compro: { prod: "Ej.: saldo móvil (recargas de 360)", precio: "Ej.: 980", det: "Ej.: pago al momento, en efectivo" },
-  recargo: { prod: "Ej.: transferencia por efectivo", precio: "Ej.: por privado", det: "Ej.: trato rápido, solo personas conocidas" },
-  otro: { prod: "Ej.: lo que buscas o lo que ofreces", precio: "Ej.: 1000", det: "Ej.: datos del trato" }
-};
-function txActualizarEjemplos(){
-  var t = ($("tx_tipo") && $("tx_tipo").value) || "compro";
-  var e = TX_EJEMPLOS[t] || TX_EJEMPLOS.otro;
-  if ($("tx_prod")) $("tx_prod").placeholder = e.prod;
-  if ($("tx_precio")) $("tx_precio").placeholder = e.precio;
-  if ($("tx_det")) $("tx_det").placeholder = e.det;
-}
-/* Chips PRO en vez de listas nativas: escriben en el control
-   oculto, así TODA la lógica sigue leyendo el mismo .value. */
-function chipsDesdeSelect(id){
-  var sel = $(id); if (!sel || !sel.options || !sel.parentNode) return;
-  var cont = document.createElement("div"); cont.className = "chipRow"; cont.id = id + "_chips";
-  sel.parentNode.insertBefore(cont, sel.nextSibling);
-  sel.classList.add("hide");
-  function pintar(){
-    cont.innerHTML = "";
-    Array.prototype.forEach.call(sel.options, function(op){
-      var c = document.createElement("button"); c.type = "button";
-      c.className = "chip" + (sel.value === op.value ? " on" : "");
-      c.textContent = op.textContent;
-      c.addEventListener("click", function(){ sel.value = op.value; pintar(); });
-      cont.appendChild(c);
-    });
-  }
-  pintar();
-}
-function initTextosPRO(){
-  try {
-    var cont = $("tx_tipo_chips"), inp = $("tx_tipo");
-    if (cont && inp) {
-      [{ v: "compro", t: "Compro saldo" }, { v: "recargo", t: "Recargo o cambio" }, { v: "otro", t: "Otro" }].forEach(function(o){
-        var c = document.createElement("button"); c.type = "button";
-        c.className = "chip" + (inp.value === o.v ? " on" : "");
-        c.setAttribute("data-txtipo", o.v); c.textContent = o.t;
-        c.addEventListener("click", function(){
-          inp.value = o.v;
-          cont.querySelectorAll(".chip").forEach(function(x){ x.classList.toggle("on", x === c); });
-          txActualizarEjemplos();
-        });
-        cont.appendChild(c);
-      });
-    }
-    ["tx_moneda", "tx_emojis", "tx_tono", "tx_tam", "tx_dest"].forEach(chipsDesdeSelect);
-    txActualizarEjemplos();
-  } catch(e){}
-}
-
 /* ===== Vistas nuevas + cableado v1.4.0 ===== */
 function showView(v){
   ["Calc","Rep","Panel","Ayuda","Textos","Perfil"].forEach(function(x){
@@ -1671,7 +1754,7 @@ function showView(v){
   if (v === "Rep") renderOutbox();
   if (v === "Panel") renderPanel();
   if (v === "Ayuda") chatCargar();
-  if (v === "Perfil") cargarPerfil();
+  if (v === "Perfil") { cargarPerfil(); pintarAvisos(); }
   if (v === "Textos") txHistPintar();
 }
 (function cablearV14(){
@@ -1681,11 +1764,9 @@ function showView(v){
     $("pf_btn").addEventListener("click", guardarPerfil);
     $("cc_btn").addEventListener("click", cambiarCodigo);
     $("pf_push").addEventListener("click", activarAvisosMT);
-    $("tx_gen").addEventListener("click", txGenerar);
     $("tx_saldo").addEventListener("click", txRapidoSaldo);
     $("tx_transf").addEventListener("click", txRapidoTransf);
     var txRec = $("tx_recarga"); if (txRec) txRec.addEventListener("click", txRapidoRecarga);
-    initTextosPRO();
     /* Explicaciones plegables (una línea + «ⓘ»): patrón de la casa. */
     document.querySelectorAll(".hintBtn").forEach(function(b){
       b.addEventListener("click", function(){
