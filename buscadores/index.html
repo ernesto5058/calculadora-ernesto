@@ -102,7 +102,30 @@
   .msg { display: flex; flex-direction: column; margin: 8px 0; }
   .msg .bur { max-width: 82%; padding: 10px 12px; border-radius: 14px; font-size: 15px; line-height: 1.45; overflow-wrap: anywhere; white-space: pre-wrap; }
   .msg.me { align-items: flex-end; }
-  .msg.me .bur { background: #F5BC14; color: #191204; border-bottom-right-radius: 4px; }
+  .msg.me .bur { background: linear-gradient(135deg, #F5D67B, #E8B84B 55%, #C9962E); color: #191204; border-bottom-right-radius: 4px; }
+  /* ===== v1.4.1: chat estilo WhatsApp ===== */
+  .chatCard { padding: 0; overflow: hidden; }
+  .chatHead { display: flex; align-items: center; gap: 10px; padding: 14px 16px 10px; }
+  .chatAvatar { width: 42px; height: 42px; border-radius: 50%; background: linear-gradient(145deg, #8A6D1F, #4A380A); color: #F5D67B; font-weight: 900; font-size: 18px; display: flex; align-items: center; justify-content: center; flex: 0 0 auto; }
+  .chatHeadTx { flex: 1; min-width: 0; }
+  .chatNom { font-weight: 800; font-size: 16.5px; color: #fff; }
+  .chatHead .cpres { margin: 0; }
+  .chatIco { width: 38px; height: 38px; border-radius: 50%; background: rgba(255,255,255,.06); border: 1px solid #2A3347; color: #C7D0DC; font-size: 16px; flex: 0 0 auto; cursor: pointer; }
+  .chatCard .fijadoBar, .chatCard .tempLinea, .chatCard .hint, .chatCard .respBar, .chatCard .warn, .chatCard .menuMsg { margin-left: 16px; margin-right: 16px; }
+  .chatBuscarRow { display: flex; gap: 8px; align-items: center; padding: 0 16px 8px; }
+  .chatBuscarRow input { flex: 1; margin: 0; }
+  .hiloWA { background: #0B141A; background-image: radial-gradient(rgba(255,255,255,.03) 1px, transparent 1px); background-size: 18px 18px; max-height: 52vh; padding: 12px; }
+  .fechaSep { text-align: center; margin: 12px 0 4px; }
+  .fechaSep span { background: #182229; color: #8696A0; border-radius: 8px; padding: 4px 12px; font-size: 11.5px; }
+  .msg .burMeta { float: right; margin: 10px 0 0 12px; font-size: 10.5px; opacity: .78; }
+  .adjHoja { display: none; gap: 8px; padding: 0 16px 8px; }
+  .adjHoja button { flex: 1; padding: 10px 6px; border-radius: 10px; background: #1B2233; color: #C7D0DC; border: 1px solid #2A3347; font-weight: 700; font-size: 13px; cursor: pointer; }
+  .compWA { display: flex; gap: 8px; align-items: center; padding: 10px 12px 14px; }
+  .compBox { flex: 1; display: flex; align-items: center; background: #121A28; border: 1px solid #2A3347; border-radius: 999px; padding: 0 4px 0 14px; }
+  .compBox textarea { flex: 1; background: transparent; border: 0; color: #E8ECF1; font-size: 15px; resize: none; max-height: 90px; padding: 10px 0; font-family: inherit; margin: 0; }
+  .clipBtn { background: transparent; border: 0; font-size: 19px; color: #9AA7B8; width: 38px; height: 38px; flex: 0 0 auto; cursor: pointer; }
+  .sendBtn { width: 46px; height: 46px; border-radius: 50%; background: linear-gradient(135deg, #F5D67B, #E8B84B 55%, #C9962E); color: #191204; border: 0; font-size: 18px; font-weight: 800; flex: 0 0 auto; cursor: pointer; }
+  .micBtn { width: 46px; height: 46px; border-radius: 50%; background: #1B2233; border: 1px solid #2A3347; color: #E8ECF1; font-size: 18px; flex: 0 0 auto; cursor: pointer; }
   .msg.him { align-items: flex-start; }
   .msg.him .bur { background: #1B2233; color: #E8ECF1; border: 1px solid #2A3347; border-bottom-left-radius: 4px; }
   .msg .mhora { color: #7C8AA0; font-size: 11px; margin-top: 3px; }
@@ -274,32 +297,41 @@
 
   <!-- ============ CHAT CON ERNESTO ============ -->
   <div id="viewAyuda" class="hide">
-    <div class="card">
-      <h2><svg class="ic" aria-hidden="true"><use href="#i-chat"/></svg> Chat con Ernesto</h2>
-      <div class="hint">Escríbele directo a Ernesto por aquí: una duda de un trato, algo que no funciona o una idea para mejorar la app. Te responde en este mismo chat. Sale con tu sesión, así Ernesto sabe que viene de su equipo autorizado.</div>
-      <div class="cpres" id="c_pres">Ernesto · —</div>
+    <div class="card chatCard">
+      <div class="chatHead">
+        <div class="chatAvatar">E</div>
+        <div class="chatHeadTx">
+          <div class="chatNom">Ernesto</div>
+          <div class="cpres" id="c_pres">Ernesto · —</div>
+        </div>
+        <button type="button" class="chatIco" id="c_info" aria-label="Qué significan los estados">ℹ️</button>
+      </div>
+      <div class="hint" id="c_estados" style="display:none">Tus mensajes, como en WhatsApp: <b>✓</b> enviado (salió de tu app y quedó guardado) · <b>✓✓</b> entregado (el panel de Ernesto recibió el mensaje) · <b>✓✓ Visto</b> (Ernesto abrió el chat y lo leyó). Toca un mensaje para responder, reaccionar ❤️👍😂👏🔥, o editar/eliminar los tuyos.</div>
       <div class="fijadoBar" id="c_fijado"></div>
       <div class="tempLinea" id="c_temp"></div>
-      <label>Buscar en el chat</label>
-      <input type="text" id="c_buscar" placeholder="Escribe una palabra…">
-      <div class="chatTools"><button type="button" id="c_buscar_mas">Buscar más (en el servidor)</button></div>
-      <div class="hint">Estados de tus mensajes, como en WhatsApp: <b>✓</b> enviado · <b>✓✓</b> entregado (Ernesto abrió su panel) · <b>✓✓ Visto</b> (ya abrió el chat y lo leyó).</div>
-      <div id="c_hilo" class="hilo"><div class="chatVacio">Cargando el chat…</div></div>
+      <div class="chatBuscarRow">
+        <input type="text" id="c_buscar" placeholder="🔍 Buscar en el chat…">
+        <button type="button" class="miniBtn" id="c_buscar_mas">Buscar más</button>
+      </div>
+      <div id="c_hilo" class="hilo hiloWA"><div class="chatVacio">Cargando el chat…</div></div>
       <div class="respBar" id="c_resp"></div>
-      <label>Tu mensaje para Ernesto</label>
-      <textarea id="c_txt" rows="2" placeholder="Ej: conseguí un vendedor pero no sé si el precio sirve"></textarea>
-      <div class="chatTools">
+      <div class="hint" id="c_adj_nom"></div>
+      <div class="adjHoja" id="c_adj_hoja">
         <button type="button" id="c_adj_foto">📷 Foto</button>
         <button type="button" id="c_adj_arch">📎 Archivo</button>
-        <button type="button" id="c_mic">🎤 Nota de voz</button>
       </div>
-      <div class="hint" id="c_adj_nom"></div>
+      <div class="compWA">
+        <div class="compBox">
+          <textarea id="c_txt" rows="1" placeholder="Escribe un mensaje…"></textarea>
+          <button type="button" class="clipBtn" id="c_clip" aria-label="Adjuntar">📎</button>
+        </div>
+        <button type="button" class="micBtn" id="c_mic" aria-label="Nota de voz">🎤</button>
+        <button type="button" class="sendBtn" id="c_btn" aria-label="Enviar a Ernesto">➤</button>
+      </div>
       <input type="file" id="c_file_foto" accept="image/*" class="hide">
       <input type="file" id="c_file_arch" class="hide">
       <div class="menuMsg" id="c_menu"></div>
-      <button class="go" id="c_btn"><svg class="ic" aria-hidden="true"><use href="#i-send"/></svg> Enviar a Ernesto</button>
       <div class="warn" id="c_warn"></div>
-      <div class="hint">Toca un mensaje para responder, reaccionar ❤️👍😂👏🔥, o editar/eliminar los tuyos. Si Ernesto activó los mensajes temporales, arriba verás en cuánto desaparecen.</div>
     </div>
     <div class="card">
       <h2><svg class="ic" aria-hidden="true"><use href="#i-brief"/></svg> ¿Quieres trabajar con Ernesto?</h2>
@@ -442,7 +474,7 @@
 
 <script>
 "use strict";
-var APP_VERSION = "1.4.0";
+var APP_VERSION = "1.4.1";
 /* Tarifa de respaldo: se usa sin conexión si nunca se ha descargado datos.json.
    La tarifa viva viene de datos.json (la actualiza Ernesto/Máximo). */
 var DEFAULT_TARIFA = { ingresoRef360: 1092.65, libroRef: 1110, salidaRef: 950,
@@ -834,11 +866,16 @@ function checkUpdate(){
    Todas las llamadas a las puertas nuevas fallan EN SILENCIO: si el
    SQL de la v1.3.0 aún no está pegado en Supabase (404) o no hay red,
    la app sigue funcionando igual que en la 1.2.1. */
+/* v1.4.1: se guarda el último error del chat (status HTTP) para
+   poder decir en humano «todavía no está activado» (404 = la puerta
+   no existe) frente a «sin conexión», sin romper el silencio de
+   diseño del resto de llamadas. */
+var ULTIMO_ERR_CHAT = null;
 function rpcChat(fn, body){
   if (!window.fetch) return Promise.resolve(null);
   return fetch(SB_RPC + fn, { method: "POST", headers: sbHeaders(), body: JSON.stringify(body) })
-    .then(function(r){ return r.ok ? r.json() : null; })
-    .catch(function(){ return null; });
+    .then(function(r){ if (!r.ok) ULTIMO_ERR_CHAT = { fn: fn, status: r.status }; return r.ok ? r.json() : null; })
+    .catch(function(){ ULTIMO_ERR_CHAT = { fn: fn, status: 0 }; return null; });
 }
 /* Latido: Ernesto ve en su panel quién está en línea (< 3 min).
    v1.3.1: al abrir la app también se sellan como RECIBIDOS los
@@ -856,23 +893,35 @@ function horaChat(iso){
   function p(x){ return (x < 10 ? "0" : "") + x; }
   return p(d.getHours()) + ":" + p(d.getMinutes());
 }
+/* v1.4.1: hora como en WhatsApp («3:08 p. m.») y separadores. */
+function hora12Chat(iso){
+  var d = new Date(iso); if (isNaN(d.getTime())) return "";
+  function p(x){ return (x < 10 ? "0" : "") + x; }
+  var h = d.getHours(); var ap = h < 12 ? "a. m." : "p. m."; var h12 = h % 12 || 12;
+  return h12 + ":" + p(d.getMinutes()) + " " + ap;
+}
+function etiquetaFechaChat(iso){
+  var d = new Date(iso); if (isNaN(d.getTime())) return "";
+  function clave(x){ return x.getFullYear() + "-" + x.getMonth() + "-" + x.getDate(); }
+  var hoy = new Date(); var ayer = new Date(); ayer.setDate(hoy.getDate() - 1);
+  if (clave(d) === clave(hoy)) return "Hoy";
+  if (clave(d) === clave(ayer)) return "Ayer";
+  var meses = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
+  return d.getDate() + " de " + meses[d.getMonth()] + " de " + d.getFullYear();
+}
 function escChat(x){ return String(x === null || x === undefined ? "" : x).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
-/* ===== Estados del chat «como WhatsApp» (v1.3.1) =====
+/* ===== Estados del chat «como WhatsApp» (v1.3.1, honestos en v1.4.1) =====
    En TUS mensajes: ✓ enviado (guardado, sin constancia de llegada)
-   · ✓✓ entregado · ✓✓ en azul + «Visto». ENTREGADO, definido en la
-   app: Ernesto abrió su panel DESPUÉS de que tu mensaje se envió
-   (su latido visto >= creado del mensaje) pero aún no abrió el chat;
-   abierto el chat, leer_chat marca leido=true -> «Visto». Si el
-   mensaje trae el sello «recibido» del servidor (puerta
-   marcar_recibidos del SQL v1.3.1), ese sello manda sobre la
-   deducción. Los mensajes de Ernesto no llevan estado. */
+   · ✓✓ entregado · ✓✓ en azul + «Visto». v1.4.1 — SOLO DATOS
+   REALES: «entregado» exige el sello «recibido» del servidor (la
+   puerta marcar_recibidos lo estampa cuando el panel de Ernesto
+   recoge sus mensajes) y «Visto» exige leido=true (abrió el chat).
+   Ya NO se deduce del latido de presencia: que Ernesto abra su
+   panel no significa que tu mensaje le haya llegado. Los mensajes
+   de Ernesto no llevan estado. */
 function estadoMsgBusc(m){
   if (m.leido) return ' <span class="estVisto">✓✓ Visto</span>';
   if (m.recibido) return " ✓✓";
-  if (ADMIN_VISTO) {
-    var v = Date.parse(ADMIN_VISTO), c = Date.parse(m.creado);
-    if (!isNaN(v) && !isNaN(c) && v >= c) return " ✓✓";
-  }
   return " ✓";
 }
 /* Cabecera del chat: ¿Ernesto está en línea? Su latido viene de la
@@ -1454,9 +1503,12 @@ function pintarChat(msgs){
   }
   var filtro = (($("c_buscar") && $("c_buscar").value) || "").trim().toLowerCase();
   var h = "";
+  var ultimoDia = "";
   msgs.forEach(function(m){
     if (m.tipo === "sistema") { h += '<div class="msgSistema">' + escChat(m.texto) + "</div>"; return; }
     if (filtro && String(m.texto || "").toLowerCase().indexOf(filtro) === -1 && !m.adj_tipo) return;
+    var dia = String(m.creado || "").slice(0, 10);
+    if (!filtro && dia && dia !== ultimoDia) { h += '<div class="fechaSep"><span>' + escChat(etiquetaFechaChat(m.creado)) + "</span></div>"; ultimoDia = dia; }
     var mio = m.de === SESION;
     var est = mio ? estadoMsgBusc(m) : "";
     var inner = "";
@@ -1468,11 +1520,13 @@ function pintarChat(msgs){
       else if (m.adj_datos) inner += '<span class="adjChip">📎 ' + escChat(m.adj_nombre || "Archivo") + "</span>";
       if (m.texto) inner += escChat(m.texto);
     }
+    /* v1.4.1: hora y estado DENTRO de la burbuja, como en WhatsApp. */
+    inner += '<span class="burMeta">' + (m.editado ? '<span class="editadoLab">editado</span> ' : "") + hora12Chat(m.creado) + est + "</span>";
     var reac = "";
     if (!m.borrado && m.reacciones && m.reacciones.length) {
       reac = '<div class="reacRow">' + m.reacciones.map(function(r){ return '<span class="reac">' + r.emoji + " " + r.total + "</span>"; }).join("") + "</div>";
     }
-    h += '<div class="msg ' + (mio ? "me" : "him") + '" data-mid="' + m.id + '"><div class="bur">' + inner + '</div><div class="mhora">' + (mio ? "Tú" : "Ernesto") + " · " + horaChat(m.creado) + (m.editado ? ' <span class="editadoLab">editado</span>' : "") + est + "</div>" + reac + "</div>";
+    h += '<div class="msg ' + (mio ? "me" : "him") + '" data-mid="' + m.id + '"><div class="bur">' + inner + "</div>" + reac + "</div>";
   });
   box.innerHTML = h || '<div class="chatVacio">Ningún mensaje coincide con la búsqueda en lo cargado. Prueba «Buscar más».</div>';
   box.querySelectorAll("[data-mid]").forEach(function(el){
@@ -1547,6 +1601,13 @@ function chatCargar(){
       CHAT_FIJADO = r.fijado || null;
       CHAT_TEMP_SEG = Number(r.temporal_seg || 0);
       pintarChat(r.mensajes); pintarBadge(0);
+    } else if (!CHAT_MSGS.length) {
+      /* v1.4.1: nada de «Cargando…» eterno: la vista dice en humano
+         si falta activar (404) o si es la conexión. */
+      var box = $("c_hilo");
+      if (box) box.innerHTML = '<div class="chatVacio">' + ((ULTIMO_ERR_CHAT && ULTIMO_ERR_CHAT.status === 404)
+        ? "El chat todavía no está activado en el sistema de Ernesto (falta un paso suyo en la base). Mientras tanto, escríbele por su WhatsApp."
+        : "Sin conexión ahora: el chat se carga solo cuando vuelva la red.") + "</div>";
     }
   });
 }
@@ -1763,6 +1824,18 @@ function showView(v){
     /* Chat: adjuntos, voz, búsqueda */
     $("c_adj_foto").addEventListener("click", function(){ $("c_file_foto").click(); });
     $("c_adj_arch").addEventListener("click", function(){ $("c_file_arch").click(); });
+    /* v1.4.1: el clip del compositor abre la hoja de adjuntos y el
+       botón (i) muestra la explicación breve de estados. */
+    var clipMT = $("c_clip");
+    if (clipMT) clipMT.addEventListener("click", function(){
+      var hoja = $("c_adj_hoja"); if (!hoja) return;
+      hoja.style.display = (hoja.style.display === "flex") ? "none" : "flex";
+    });
+    var infoMT = $("c_info");
+    if (infoMT) infoMT.addEventListener("click", function(){
+      var d = $("c_estados"); if (!d) return;
+      d.style.display = (d.style.display === "block") ? "none" : "block";
+    });
     $("c_file_foto").addEventListener("change", function(){
       var f = $("c_file_foto").files && $("c_file_foto").files[0]; if (!f) return;
       leerArchivoMT(f, true).then(function(a){ CHAT_ADJ = a; $("c_adj_nom").textContent = "📷 Foto lista para enviar."; }).catch(function(e){ chatFallo(e.message); });
@@ -1788,16 +1861,16 @@ function showView(v){
         recMT.ondataavailable = function(e){ if (e.data && e.data.size) chunksMT.push(e.data); };
         recMT.onstop = function(){
           stream.getTracks().forEach(function(t){ t.stop(); });
-          grabando = null; $("c_mic").textContent = "🎤 Nota de voz";
+          grabando = null; $("c_mic").textContent = "🎤";
           var blob = new Blob(chunksMT, { type: recMT.mimeType || "audio/webm" });
           if (blob.size > MAX_ADJ_MT) { chatFallo("La nota pesa más de 5 MB: graba una más corta (máx 2 min)."); return; }
           var fr = new FileReader();
-          fr.onload = function(){ CHAT_ADJ = { tipo: "voz", datos: String(fr.result), nombre: "Nota de voz", tam: blob.size }; $("c_adj_nom").textContent = "🎤 Nota de voz lista — toca «Enviar a Ernesto»."; };
+          fr.onload = function(){ CHAT_ADJ = { tipo: "voz", datos: String(fr.result), nombre: "Nota de voz", tam: blob.size }; $("c_adj_nom").textContent = "🎤 Nota de voz lista: toca el botón dorado de enviar (➤)."; };
           fr.readAsDataURL(blob);
         };
         recMT.start();
         grabando = recMT;
-        $("c_mic").textContent = "⏹️ Detener";
+        $("c_mic").textContent = "⏹️";
         setTimeout(function(){ if (grabando) grabando.stop(); }, 120000);
       }).catch(function(){ chatFallo("Sin permiso de micrófono: actívalo para la app si quieres mandar voz."); });
     });
