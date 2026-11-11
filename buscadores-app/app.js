@@ -1,5 +1,5 @@
 "use strict";
-var APP_VERSION = "1.2.0";
+var APP_VERSION = "1.2.1";
 /* Tarifa de respaldo: se usa sin conexión si nunca se ha descargado datos.json.
    La tarifa viva viene de datos.json (la actualiza Ernesto/Máximo). */
 var DEFAULT_TARIFA = { ingresoRef360: 1092.65, libroRef: 1110, salidaRef: 950,
