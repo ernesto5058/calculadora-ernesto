@@ -73,7 +73,9 @@ jobs:
 
       - name: Compilar y firmar el APK (release)
         working-directory: android
-        run: ./gradlew assembleRelease --no-daemon
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleRelease --no-daemon
 
       - name: Preparar la entrega
         id: prep
