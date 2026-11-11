@@ -1,5 +1,5 @@
 "use strict";
-var APP_VERSION = "1.4.3";
+var APP_VERSION = "1.4.4";
 /* Tarifa de respaldo: se usa sin conexión si nunca se ha descargado datos.json.
    La tarifa viva viene de datos.json (la actualiza Ernesto/Máximo). */
 var DEFAULT_TARIFA = { ingresoRef360: 1092.65, libroRef: 1110, salidaRef: 950,
@@ -20,6 +20,21 @@ var SB_URL = "https://otsudfgwpapkluusrlnj.supabase.co/rest/v1/reportes";
 var SB_RPC = SB_URL.replace("/reportes", "/rpc/");
 var SB_KEY = "sb_publishable_Uchl5QnojJkZbXR5ar8vDg_5CXnqi_d";
 function sbHeaders(){ return { "apikey": SB_KEY, "Authorization": "Bearer " + SB_KEY, "Content-Type": "application/json" }; }
+
+/* ===== v1.4.4: red honesta + opId =====
+   ULTIMA_RED_OK = cuándo respondió la API por última vez de verdad.
+   Regla de la casa: UNA sola llamada fallida nunca declara «sin
+   conexión» si la API acaba de responder por otra puerta. El opId
+   (UUID por mensaje/reporte, guardado en la cola) desambigua las
+   puertas con sobrecarga en PostgREST y hace el reintento
+   idempotente: reenviar nunca duplica en el servidor. */
+var ULTIMA_RED_OK = 0;
+function marcarRedOk(){ ULTIMA_RED_OK = Date.now(); }
+function redReciente(ms){ return ULTIMA_RED_OK > 0 && (Date.now() - ULTIMA_RED_OK) < ms; }
+function nuevoOpId(){
+  try { if (window.crypto && crypto.randomUUID) return crypto.randomUUID(); } catch(e){}
+  return "op-" + Date.now().toString(36) + "-" + Math.floor(Math.random() * 1e9).toString(36) + "-" + Math.floor(Math.random() * 1e9).toString(36);
+}
 
 function $(id){ return document.getElementById(id); }
 function num(id){ var v = parseFloat($(id).value); return isNaN(v) ? null : v; }
@@ -92,7 +107,7 @@ function rpcValidar(code){
   if (!window.fetch) return Promise.resolve({ estado: "sinred" });
   return fetch(SB_RPC + "validar_usuario", { method: "POST", headers: sbHeaders(),
       body: JSON.stringify({ p_codigo: code }) })
-    .then(function(r){ return r.ok ? r.json() : Promise.reject(new Error("HTTP " + r.status)); })
+    .then(function(r){ if (r.ok) marcarRedOk(); return r.ok ? r.json() : Promise.reject(new Error("HTTP " + r.status)); })
     .then(function(rows){
       if (rows && rows.length && rows[0].activo !== false)
         return { estado: "ok", codigo: normCod(rows[0].codigo || code), nombre: rows[0].nombre || "" };
@@ -122,6 +137,7 @@ function entrar(code){
   chatBadge();
   cargarAdminPres();
   cargarVivo();
+  try { despacharChat(); } catch(e){}   /* v1.4.4: al entrar, sale lo que hubiera en cola */
 }
 function salir(msg){
   SESION = ""; sesionClear();
@@ -249,7 +265,7 @@ function applyData(d, fresca){
 }
 function fetchDatos(url, fresca){
   return fetch(url, { cache: "no-store" }).then(function(r){ return r.ok ? r.json() : null; })
-    .then(function(d){ if (d) applyData(d, fresca); return !!d; })
+    .then(function(d){ if (d) { marcarRedOk(); applyData(d, fresca); } return !!d; })
     .catch(function(){ return false; });
 }
 function loadData(){
@@ -289,9 +305,16 @@ function renderOutbox(){
 }
 function enviarReporte(rp){
   if (!window.fetch) return Promise.resolve(false);
+  /* v1.4.4: SIEMPRE el juego completo de parámetros + p_op_id. La
+     puerta registrar_reporte tiene 3 sobrecargas en el servidor; con
+     el subconjunto viejo PostgREST no puede elegir (HTTP 300
+     PGRST203) y el reporte nunca salía aunque hubiera internet. */
+  if (!rp.opId) rp.opId = nuevoOpId();
   var cuerpoRep = { p_buscador: rp.buscador, p_tipo: rp.tipo, p_precio: rp.precio, p_porc: rp.porc,
-    p_cantidad: rp.cantidad, p_telefono: rp.telefono || null, p_nota: rp.nota || null };
-  if (rp.adj && rp.adj.datos) { cuerpoRep.p_adj_tipo = rp.adj.tipo || "foto"; cuerpoRep.p_adj_datos = rp.adj.datos; }
+    p_cantidad: rp.cantidad, p_telefono: rp.telefono || null, p_nota: rp.nota || null,
+    p_adj_tipo: (rp.adj && rp.adj.datos) ? (rp.adj.tipo || "foto") : null,
+    p_adj_datos: (rp.adj && rp.adj.datos) ? rp.adj.datos : null,
+    p_op_id: rp.opId };
   return fetch(SB_RPC + "registrar_reporte", { method: "POST", headers: sbHeaders(),
     body: JSON.stringify(cuerpoRep)
   }).then(function(r){
@@ -340,7 +363,7 @@ function reportar(){
   var tel = ($("r_tel").value || "").trim();
   var nota = ($("r_nota").value || "").trim();
   var rp = { buscador: code, tipo: REP_TIPO, precio: null, porc: null, cantidad: null,
-    telefono: tel, nota: nota, estado: "pendiente", enviado: false, id: null,
+    telefono: tel, nota: nota, estado: "pendiente", enviado: false, id: null, opId: nuevoOpId(),
     fecha: new Date().toLocaleDateString("es-ES") };
   if (REP_TIPO === "saldo") {
     var pr = num("r_precio"), ct = num("r_cant") || 1;
@@ -399,7 +422,7 @@ var ULTIMO_ERR_CHAT = null;
 function rpcChat(fn, body){
   if (!window.fetch) return Promise.resolve(null);
   return fetch(SB_RPC + fn, { method: "POST", headers: sbHeaders(), body: JSON.stringify(body) })
-    .then(function(r){ if (!r.ok) ULTIMO_ERR_CHAT = { fn: fn, status: r.status }; return r.ok ? r.json() : null; })
+    .then(function(r){ if (r.ok) marcarRedOk(); if (!r.ok) ULTIMO_ERR_CHAT = { fn: fn, status: r.status }; return r.ok ? r.json() : null; })
     .catch(function(){ ULTIMO_ERR_CHAT = { fn: fn, status: 0 }; return null; });
 }
 /* Latido: Ernesto ve en su panel quién está en línea (< 3 min).
@@ -457,7 +480,7 @@ function textoAdminPres(){
   if (!ADMIN_VISTO) return "Ernesto · —";
   var t = Date.parse(ADMIN_VISTO); if (isNaN(t)) return "Ernesto · —";
   var min = (Date.now() - t) / 60000;
-  if (min < 3) return "Ernesto · 🟢 en línea";
+  if (min < 3) return "Ernesto · ● en línea";
   var d = new Date(t);
   function p2(x){ return (x < 10 ? "0" : "") + x; }
   var base = min < 60 ? "hace " + Math.max(1, Math.floor(min)) + " min"
@@ -495,11 +518,12 @@ function tamDeDatosMT(datos){
   return Math.floor(b64.length * 3 / 4);
 }
 function iconoDocMT(m){
+  /* v1.4.4: icono de trazo (DISENO-PRO §5), no emoji estructural. */
   var mime = String((m && (m.adj_mime || m.mime)) || "").toLowerCase();
   var nom = String((m && (m.adj_nombre || m.nombre)) || "").toLowerCase();
-  if (mime.indexOf("pdf") >= 0 || /\.pdf$/.test(nom)) return "📄";
-  if (mime.indexOf("image/") === 0 || /\.(png|jpe?g|gif|webp)$/.test(nom)) return "🖼";
-  return "📦";
+  if (mime.indexOf("pdf") >= 0 || /\.pdf$/.test(nom)) return ico("i-doc");
+  if (mime.indexOf("image/") === 0 || /\.(png|jpe?g|gif|webp)$/.test(nom)) return ico("i-img");
+  return ico("i-file");
 }
 function datosNormalizadosMT(m){
   var s = String((m && m.adj_datos) || "");
@@ -526,7 +550,7 @@ function tarjetaDocMT(m){
   var tam = m.adj_bytes || m.tam || (m.adj_datos ? tamDeDatosMT(m.adj_datos) : 0);
   return '<span class="docCard"><span class="docIco">' + iconoDocMT(m) + '</span>'
     + '<span class="docMeta"><b>' + escChat(nom) + '</b>' + (tam ? fmtBytesMT(tam) : "Documento") + '</span>'
-    + '<button type="button" class="docDl" data-docdl="' + m.id + '" title="Descargar ' + escChat(nom) + '">⬇</button></span>';
+    + '<button type="button" class="docDl" data-docdl="' + m.id + '" title="Descargar ' + escChat(nom) + '">' + ico("i-dl") + '</button></span>';
 }
 var visorUrlRevocarMT = null;
 function visorElMT(){
@@ -535,7 +559,7 @@ function visorElMT(){
     v = document.createElement("div");
     v.className = "visorFoto"; v.id = "visorFoto";
     v.innerHTML = '<div class="visorBar"><span class="visorNom" id="visorNom"></span>'
-      + '<a class="visorBtn" id="visorDl" download>⬇ Guardar</a>'
+      + '<a class="visorBtn" id="visorDl" download>Guardar</a>'
       + '<button type="button" class="visorBtn" id="visorX">✕ Cerrar</button></div>'
       + '<div class="visorImgWrap"><img class="visorImg" id="visorImg" alt="Foto ampliada"></div>';
     document.body.appendChild(v);
@@ -580,6 +604,13 @@ function descargarDocMT(m){
     if (r.revocar) { try { URL.revokeObjectURL(r.url); } catch(e){} }
   }, 4000);
 }
+/* v1.4.4: la cara del botón de micrófono es un icono de trazo; al
+   grabar, la etiqueta muestra el tiempo (sin emojis de estructura). */
+function micPintarMT(t){
+  var l = $("c_mic_lab"); if (!l) return;
+  if (t === null || t === undefined) l.innerHTML = ico("i-mic");
+  else l.textContent = t;
+}
 function botonQuitarAdjMT(){
   var b = document.createElement("button"); b.type = "button"; b.className = "miniBtn"; b.textContent = "Quitar";
   b.addEventListener("click", function(){ CHAT_ADJ = null; pintarPreviaAdjMT(); });
@@ -598,7 +629,7 @@ function pintarPreviaAdjMT(){
     meta.innerHTML = "<b>" + escChat(CHAT_ADJ.nombre || "Foto") + "</b>" + (fmtBytesMT(CHAT_ADJ.tam || tamDeDatosMT(CHAT_ADJ.datos)) || "") + " · Toca la imagen para verla grande";
     wrap.appendChild(meta);
   } else {
-    var ic = document.createElement("span"); ic.className = "docIco"; ic.textContent = iconoDocMT({ adj_mime: CHAT_ADJ.mime, adj_nombre: CHAT_ADJ.nombre });
+    var ic = document.createElement("span"); ic.className = "docIco"; ic.innerHTML = iconoDocMT({ adj_mime: CHAT_ADJ.mime, adj_nombre: CHAT_ADJ.nombre });
     wrap.appendChild(ic);
     var meta2 = document.createElement("span"); meta2.className = "prevMeta";
     meta2.innerHTML = "<b>" + escChat(CHAT_ADJ.nombre || "Archivo") + "</b>" + (fmtBytesMT(CHAT_ADJ.tam || tamDeDatosMT(CHAT_ADJ.datos)) || "Archivo listo");
@@ -628,7 +659,7 @@ function chatCargar(){
   if (!SESION || chatCargando) return;
   chatCargando = true;
   cargarAdminPres();
-  rpcChat("leer_chat", { p_codigo: SESION, p_con: "ADMIN", p_clave: SESION }).then(function(r){
+  rpcChat("leer_chat", { p_codigo: SESION, p_con: "ADMIN", p_clave: SESION, p_buscar: null }).then(function(r){
     chatCargando = false;
     if (r && r.ok && r.mensajes) { pintarChat(r.mensajes); pintarBadge(0); }  // leer marca leído: el distintivo se apaga
   });
@@ -689,7 +720,7 @@ function chatEnviar(){
   rpcChat("enviar_mensaje", { p_de: SESION, p_para: "ADMIN", p_texto: txt, p_clave: SESION }).then(function(r){
     btn.disabled = false;
     if (r && r.ok) { $("c_txt").value = ""; chatCargar(); }
-    else fallo("No se pudo enviar ahora. Revisa tu conexión y toca Enviar otra vez (el mensaje no se perdió de la caja: vuelve a intentarlo).");
+    else fallo("El mensaje quedó guardado en tu teléfono y se envía solo cuando vuelva la conexión.");
   });
 }
 
@@ -699,7 +730,7 @@ function refrescarTodo(){
   lastRefresh = Date.now();
   var ft = $("freshTxt"); if (ft) ft.textContent = "Actualizando…";
   var p = loadData();
-  syncReportes(); chatBadge(); tocarPresencia(); cargarVivo();
+  syncReportes(); despacharChat(); chatBadge(); tocarPresencia(); cargarVivo();
   if (!$("viewAyuda").classList.contains("hide")) chatCargar();
   if (SESION) rpcValidar(SESION).then(function(v){
     if (v.estado === "no") salir("Tu acceso ya no está activo. Habla con Ernesto.");
@@ -743,8 +774,10 @@ setInterval(function(){
   if (!SESION) return;
   try { chatBadge(); } catch(e){}
   try { cargarAdminPres(); } catch(e){}
+  try { despacharChat(); } catch(e){}
   try { if (!$("viewAyuda").classList.contains("hide")) chatCargar(); } catch(e){}
 }, 20000);
+window.addEventListener("online", function(){ try { despacharChat(); } catch(e){} try { if (SESION) chatCargar(); } catch(e){} });
 setInterval(function(){
   // v1.3.1: con el chat abierto, el hilo se refresca para que los estados
   // (entregado/visto) cambien solos, estilo WhatsApp.
@@ -970,7 +1003,7 @@ function rpcMsg(fn, body){
   return fetch(SB_RPC + fn, { method: "POST", headers: sbHeaders(), body: JSON.stringify(body) })
     .then(function(r){
       return r.json().catch(function(){ return {}; }).then(function(j){
-        if (r.ok) return { ok: true, data: j };
+        if (r.ok) { marcarRedOk(); return { ok: true, data: j }; }
         return { ok: false, error: (j && j.message) || ("HTTP " + r.status), data: j };
       });
     })
@@ -1050,7 +1083,7 @@ function renderPanel(){
     }
     html += '<div class="trato"><span class="f">' + tr.fecha + "</span><span>" +
       (tr.tipo === "saldo" ? ico("i-phone", "mini") + " " : ico("i-bank", "mini") + " ") + (tr.nota || "") +
-      (tr.estado === "pagado" ? '<br><small>💰 Comisión pagada' + (tr.pagado_en ? " el " + tr.pagado_en : "") + "</small>" : "") +
+      (tr.estado === "pagado" ? '<br><small>' + ico("i-check", "mini") + ' Comisión pagada' + (tr.pagado_en ? " el " + tr.pagado_en : "") + "</small>" : "") +
       '</span><span class="c">' + fmt(tr.comision || 0) + "</span></div>";
   });
   if (!html) html = '<div class="trato"><span>Aún no tienes tratos confirmados. ¡A buscar!</span></div>';
@@ -1079,23 +1112,72 @@ var CHAT_FIJADO = null;    /* mensaje fijado por Ernesto */
 var CHAT_TEMP_SEG = 0;     /* mensajes temporales (segundos; 0 = no) */
 var MENU_MSG = null;
 var EMOJIS_REAC = ["❤️", "👍", "😂", "👏", "🔥"];
+
+/* ===== v1.4.4: COLA DE SALIDA DEL CHAT (local-first) =====
+   Enviar NUNCA pierde el mensaje: entra en la cola con su opId y
+   su sello 🕐, y se despacha solo cuando la API responde (al
+   volver la red, al abrir la app, al refrescar). El opId viaja en
+   p_op_id: desambigua la puerta enviar_mensaje y el servidor
+   deduplica — reintentar jamás duplica. */
+var CHAT_OUT_LS = "busc_chat_outbox";
+var CHAT_OUT_MEM = null;
+function chatOutGet(){
+  if (CHAT_OUT_MEM) return CHAT_OUT_MEM;
+  try { CHAT_OUT_MEM = JSON.parse(localStorage.getItem(CHAT_OUT_LS) || "[]"); } catch(e){ CHAT_OUT_MEM = []; }
+  return CHAT_OUT_MEM;
+}
+function chatOutSet(a){
+  CHAT_OUT_MEM = a;
+  try { localStorage.setItem(CHAT_OUT_LS, JSON.stringify(a)); } catch(e){ /* sin espacio: la copia en memoria sigue viva y se despacha igual */ }
+}
+var chatDespachando = false;
+function despacharChat(){
+  if (chatDespachando || EN_PAUSA || !SESION) return;
+  var a = chatOutGet(); if (!a.length) return;
+  var item = a[0];
+  chatDespachando = true;
+  var body = { p_de: SESION, p_para: "ADMIN", p_texto: item.texto || "", p_clave: SESION,
+    p_adj_tipo: item.adj ? item.adj.tipo : null,
+    p_adj_datos: item.adj ? item.adj.datos : null,
+    p_adj_nombre: item.adj ? (item.adj.nombre || null) : null,
+    p_adj_mime: item.adj ? (item.adj.mime || null) : null,
+    p_adj_tam: item.adj ? (item.adj.tam || null) : null,
+    p_resp_de: item.respId || null,
+    p_op_id: item.opId };
+  rpcMsg("enviar_mensaje", body).then(function(r){
+    chatDespachando = false;
+    if (r.ok) {
+      chatOutSet(chatOutGet().filter(function(x){ return x.opId !== item.opId; }));
+      rtTimbreMT();   /* v1.4.2: timbre instantáneo a Mi Negocio de Ernesto */
+      if (chatOutGet().length) { pintarChat(CHAT_MSGS); despacharChat(); }
+      else chatCargar();
+    } else if (marcarPausaSiToca(r.error)) {
+      chatFallo("Estás en pausa: habla con Ernesto");
+    }
+    /* Cualquier otro fallo: el mensaje SE QUEDA en la cola con su
+       🕐 y sale solo en el próximo despacho. Sin carteles de error
+       ni carteles de reintento manual: nada se pierde. */
+  });
+}
 function tempTexto(seg){
   if (!seg) return "";
-  if (seg <= 86400) return "⏱️ Los mensajes desaparecen en 24 h";
-  if (seg <= 7 * 86400) return "⏱️ Los mensajes desaparecen en 7 días";
-  return "⏱️ Los mensajes desaparecen en 90 días";
+  if (seg <= 86400) return "Los mensajes desaparecen en 24 h";
+  if (seg <= 7 * 86400) return "Los mensajes desaparecen en 7 días";
+  return "Los mensajes desaparecen en 90 días";
 }
 function pintarChat(msgs){
   var box = $("c_hilo"); if (!box) return;
-  CHAT_MSGS = msgs || [];
+  msgs = msgs || [];
+  CHAT_MSGS = msgs;
   var fj = $("c_fijado");
   if (fj) {
-    if (CHAT_FIJADO && !CHAT_FIJADO.borrado) { fj.style.display = "block"; fj.textContent = "📌 " + (CHAT_FIJADO.texto || "Mensaje fijado"); }
+    if (CHAT_FIJADO && !CHAT_FIJADO.borrado) { fj.style.display = "block"; fj.textContent = "Fijado: " + (CHAT_FIJADO.texto || "Mensaje fijado"); }
     else fj.style.display = "none";
   }
   var tl = $("c_temp");
   if (tl) { var tt = tempTexto(CHAT_TEMP_SEG); tl.style.display = tt ? "block" : "none"; tl.textContent = tt; }
-  if (!msgs || !msgs.length){
+  var colaChat = chatOutGet();
+  if ((!msgs || !msgs.length) && !colaChat.length){
     box.innerHTML = '<div class="chatVacio">Todavía no hay mensajes. Escríbele a Ernesto lo que necesites: dudas de un trato, algo que no funciona o una idea.</div>';
     return;
   }
@@ -1126,6 +1208,19 @@ function pintarChat(msgs){
     }
     h += '<div class="msg ' + (mio ? "me" : "him") + '" data-mid="' + m.id + '"><div class="bur">' + inner + "</div>" + reac + "</div>";
   });
+  /* v1.4.4: al final del hilo van los mensajes EN COLA (🕐): se
+     ven ya, como en WhatsApp, y salen solos cuando vuelva la red. */
+  if (!filtro && colaChat.length) {
+    colaChat.forEach(function(it){
+      var innerC = "";
+      if (it.adj && it.adj.tipo === "foto" && it.adj.datos) innerC += '<img class="adjFoto" alt="Foto" src="' + it.adj.datos + '">';
+      else if (it.adj && it.adj.tipo === "voz" && it.adj.datos) innerC += '<span class="adjChip">Nota de voz · en cola</span>';
+      else if (it.adj && it.adj.datos) innerC += tarjetaDocMT({ id: "cola-" + it.opId, adj_nombre: it.adj.nombre, adj_datos: it.adj.datos, adj_mime: it.adj.mime, adj_bytes: it.adj.tam });
+      if (it.texto) innerC += escChat(it.texto);
+      innerC += '<span class="burMeta">' + hora12Chat(it.creado) + ' <span class="estCola" title="Sin enviar todavía: sale solo cuando vuelva la conexión">🕐</span></span>';
+      h += '<div class="msg me"><div class="bur">' + innerC + "</div></div>";
+    });
+  }
   box.innerHTML = h || '<div class="chatVacio">Ningún mensaje coincide con la búsqueda en lo cargado. Prueba «Buscar más».</div>';
   vozDatosMT = {}; vozAudiosMT = {};
   var conVoz = (msgs || []).filter(function(m){ return m.adj_tipo === "voz" && m.adj_datos && !m.borrado; });
@@ -1160,12 +1255,12 @@ function abrirMenuMsg(id){
   var mio = m.de === SESION;
   var h = "<b>" + (mio ? "Tu mensaje" : "Mensaje de Ernesto") + "</b>";
   if (!m.borrado) {
-    h += '<button type="button" data-mm="resp">↩️ Responder</button>';
+    h += '<button type="button" data-mm="resp">Responder</button>';
     EMOJIS_REAC.forEach(function(e){ h += '<button type="button" data-mm="reac" data-e="' + e + '">' + e + " Reaccionar</button>"; });
-    h += '<button type="button" data-mm="copiar">📋 Copiar texto</button>';
+    h += '<button type="button" data-mm="copiar">Copiar texto</button>';
     if (mio) {
-      h += '<button type="button" data-mm="editar">✏️ Editar</button>';
-      h += '<button type="button" data-mm="borrar">🗑️ Eliminar para todos</button>';
+      h += '<button type="button" data-mm="editar">Editar</button>';
+      h += '<button type="button" data-mm="borrar">Eliminar para todos</button>';
     }
   }
   h += '<button type="button" data-mm="cerrar">Cerrar</button>';
@@ -1178,7 +1273,7 @@ function abrirMenuMsg(id){
         CHAT_RESP = m;
         var rb = $("c_resp");
         rb.style.display = "block";
-        rb.innerHTML = "↩️ Respondiendo a: «" + escChat(String(m.texto || m.adj_nombre || "adjunto").slice(0, 80)) + "» <button type='button' class='miniBtn' id='c_resp_x'>Quitar</button>";
+        rb.innerHTML = "Respondiendo a: «" + escChat(String(m.texto || m.adj_nombre || "adjunto").slice(0, 80)) + "» <button type='button' class='miniBtn' id='c_resp_x'>Quitar</button>";
         var q = $("c_resp_x"); if (q) q.addEventListener("click", function(){ CHAT_RESP = null; rb.style.display = "none"; });
         $("c_txt").focus();
       } else if (acc === "reac") {
@@ -1210,47 +1305,60 @@ function chatFallo(m){
   warn.style.display = "block"; warn.textContent = m;
 }
 var chatCargando2 = false;
+var chatFallos = 0, chatReintentoT = null;
 function chatCargar(){
   if (!SESION || chatCargando2) return;
   chatCargando2 = true;
   cargarAdminPres();
-  rpcChat("leer_chat", { p_codigo: SESION, p_con: "ADMIN", p_clave: SESION }).then(function(r){
+  /* v1.4.4: p_buscar SIEMPRE presente (aunque sea null): sin él, la
+     sobrecarga nueva de leer_chat hace la puerta ambigua (HTTP 300)
+     y el chat entero caía aunque hubiera internet. */
+  rpcChat("leer_chat", { p_codigo: SESION, p_con: "ADMIN", p_clave: SESION, p_buscar: null }).then(function(r){
     chatCargando2 = false;
     if (r && r.ok && r.mensajes) {
+      chatFallos = 0;
       CHAT_FIJADO = r.fijado || null;
       CHAT_TEMP_SEG = Number(r.temporal_seg || 0);
       pintarChat(r.mensajes); pintarBadge(0);
-    } else if (!CHAT_MSGS.length) {
-      /* v1.4.1: nada de «Cargando…» eterno: la vista dice en humano
-         si falta activar (404) o si es la conexión. */
+      despacharChat();   // si el chat cargó, la red responde: que salga la cola
+    } else if (!CHAT_MSGS.length && !chatOutGet().length) {
       var box = $("c_hilo");
-      if (box) box.innerHTML = '<div class="chatVacio">' + ((ULTIMO_ERR_CHAT && ULTIMO_ERR_CHAT.status === 404)
-        ? "El chat todavía no está activado en el sistema de Ernesto (falta un paso suyo en la base). Mientras tanto, escríbele por su WhatsApp."
-        : "Sin conexión ahora: el chat se carga solo cuando vuelva la red.") + "</div>";
+      if (ULTIMO_ERR_CHAT && ULTIMO_ERR_CHAT.status === 404) {
+        /* La puerta no existe: eso NO es «sin conexión». */
+        if (box) box.innerHTML = '<div class="chatVacio">El chat todavía no está activado en el sistema de Ernesto (falta un paso suyo en la base). Mientras tanto, escríbele por su WhatsApp.</div>';
+      } else {
+        /* Detector honesto: «sin conexión» SOLO si ninguna puerta ha
+           respondido en el último minuto Y ya se reintentó una vez.
+           Un fallo suelto muestra «Cargando…» y reintenta solo. */
+        chatFallos++;
+        if (chatFallos >= 2 && !redReciente(60000)) {
+          if (box) box.innerHTML = '<div class="chatVacio">Sin conexión ahora: el chat se carga solo cuando vuelva la red.</div>';
+        } else {
+          if (box) box.innerHTML = '<div class="chatVacio">Cargando el chat…</div>';
+          if (!chatReintentoT) chatReintentoT = setTimeout(function(){ chatReintentoT = null; chatCargar(); }, 2500);
+        }
+      }
     }
   });
 }
 function chatEnviar(){
-  var warn = $("c_warn"); warn.style.display = "none";
+  var warn = $("c_warn"); if (warn) warn.style.display = "none";
   if (!SESION) return chatFallo("Primero entra con tu código personal desde la pantalla de inicio.");
   if (EN_PAUSA) return chatFallo("Estás en pausa: habla con Ernesto");
   var txt = ($("c_txt").value || "").trim();
   if (!txt && !CHAT_ADJ) return chatFallo("Escribe el mensaje o adjunta algo primero.");
-  var btn = $("c_btn"); btn.disabled = true;
-  var body = { p_de: SESION, p_para: "ADMIN", p_texto: txt, p_clave: SESION };
-  if (CHAT_RESP) body.p_resp_de = CHAT_RESP.id;
-  if (CHAT_ADJ) { body.p_adj_tipo = CHAT_ADJ.tipo; body.p_adj_datos = CHAT_ADJ.datos; body.p_adj_nombre = CHAT_ADJ.nombre || null; body.p_adj_tam = CHAT_ADJ.tam || null; }
-  rpcMsg("enviar_mensaje", body).then(function(r){
-    btn.disabled = false;
-    if (r.ok) {
-      rtTimbreMT();   /* v1.4.2: timbre instantáneo a Mi Negocio de Ernesto */
-      $("c_txt").value = ""; CHAT_RESP = null; CHAT_ADJ = null;
-      var rb = $("c_resp"); if (rb) rb.style.display = "none";
-      var an = $("c_adj_nom"); if (an) an.textContent = "";
-      chatCargar();
-    } else if (marcarPausaSiToca(r.error)) chatFallo("Estás en pausa: habla con Ernesto");
-    else chatFallo("No se pudo enviar ahora. Revisa tu conexión y toca Enviar otra vez.");
-  });
+  /* v1.4.4: el mensaje entra en la COLA con su opId y se ve al
+     momento con 🕐; despacharChat() lo entrega. Sin red no se
+     pierde ni hay que reintentar a mano: sale solo. */
+  var item = { opId: nuevoOpId(), texto: txt, respId: CHAT_RESP ? CHAT_RESP.id : null,
+    adj: CHAT_ADJ ? { tipo: CHAT_ADJ.tipo, datos: CHAT_ADJ.datos, nombre: CHAT_ADJ.nombre || null, tam: CHAT_ADJ.tam || null, mime: CHAT_ADJ.mime || null } : null,
+    creado: new Date().toISOString() };
+  var a = chatOutGet(); a.push(item); chatOutSet(a);
+  $("c_txt").value = ""; CHAT_RESP = null; CHAT_ADJ = null;
+  var rb = $("c_resp"); if (rb) rb.style.display = "none";
+  pintarPreviaAdjMT();
+  pintarChat(CHAT_MSGS);
+  despacharChat();
 }
 
 /* ===== REPORTAR v1.4.0: editar pendiente ===== */
@@ -1346,7 +1454,7 @@ function cambiarCodigo(){
     if (DATA.buscadores && DATA.buscadores[actual]) { DATA.buscadores[nuevo] = DATA.buscadores[actual]; delete DATA.buscadores[actual]; }
     SESION = nuevo; sesionSet(nuevo);
     okEl.style.display = "block";
-    okEl.textContent = "✅ Código cambiado. Tu enlace personal nuevo está abajo: guárdalo.";
+    okEl.textContent = "Código cambiado. Tu enlace personal nuevo está abajo: guárdalo.";
     pintarEnlace(); renderPanel();
   });
 }
@@ -1357,7 +1465,7 @@ function activarAvisosMT(){
   if (est === "sin-soporte") { txt.textContent = "Este aparato/navegador no admite avisos push."; return; }
   activarPush(function(sub){
     return rpcChat("registrar_push", { p_codigo: SESION, p_suscripcion: sub, p_plataforma: /android/i.test(navigator.userAgent || "") ? "android" : (/iphone|ipad/i.test(navigator.userAgent || "") ? "ios" : "web") });
-  }).then(function(){ txt.textContent = "🔔 Avisos activados en este aparato."; })
+  }).then(function(){ txt.textContent = "Avisos activados en este aparato."; })
     .catch(function(){ txt.textContent = "No se pudo activar: revisa el permiso de notificaciones."; });
 }
 
@@ -1394,17 +1502,163 @@ function txGenerar(){
   var res = TextosMotor.generar({ tipo: $("tx_tipo").value, producto: $("tx_prod").value,
     precio: isFinite(precio) ? precio : null, moneda: $("tx_moneda").value, privado: $("tx_privado").checked,
     cantidad: $("tx_cant").value, detalles: $("tx_det").value, zona: $("tx_zona").value,
-    telefono: $("tx_tel").value, estilo: txEstilo(), quien: SESION || "BUSC" });
+    telefono: $("tx_tel").value, estilo: txEstilo(), quien: txQuienStr() });
   txPintar(res, $("tx_prod").value || "Oferta");
 }
-function txRapidoSaldo(){
-  var pub = { precioCompraRecarga: Math.floor(Number(T.ingresoRef360 || 0) * 0.9 / 10) * 10,
-    telefono: $("tx_tel").value, zona: $("tx_zona").value, condicionesSaldo: "Pago en efectivo al momento" };
-  txPintar(TextosMotor.textoRapidoSaldo(pub, txEstilo(), SESION || "BUSC"), "Texto de saldo");
+
+/* ===== v1.4.4: TEXTOS INTELIGENTES — el anuncio de Ernesto =====
+   Los textos de catálogo nacen de la CONFIGURACIÓN PÚBLICA del
+   sistema (datos.json → «publico»: la que ve todo el equipo y se
+   actualiza sin tocar la app), jamás de números internos: tasas
+   públicas de compro saldo (al 2 · más de 5000 al 2.2 · recargas
+   a 720), teléfono y zona públicos de Ernesto, y el piso público
+   de la tarifa viva para transferencia. Sin huecos: el texto sale
+   SIEMPRE completo (teléfono + zona + domicilio). Si datos.json
+   aún no ha bajado, manda el respaldo con los mismos valores
+   públicos confirmados por Ernesto (mismo patrón que la tarifa). */
+var DEFAULT_PUBLICO = { telefono: "51231558", zona: "Micro 10, distrito José Martí, Santiago de Cuba",
+  domicilio: "Domicilio gratis en Santiago de Cuba",
+  saldo: { tasa: 2, tasaAlta: 2.2, desdeAlta: 5000, recarga: 720 } };
+function publicoCfg(){
+  var p = (DATA && DATA.publico) || {};
+  var s = p.saldo || {};
+  function n(x, d){ var v = Number(x); return isFinite(v) && v > 0 ? v : d; }
+  return { telefono: p.telefono || DEFAULT_PUBLICO.telefono,
+    zona: p.zona || DEFAULT_PUBLICO.zona,
+    domicilio: p.domicilio || DEFAULT_PUBLICO.domicilio,
+    saldo: { tasa: n(s.tasa, DEFAULT_PUBLICO.saldo.tasa), tasaAlta: n(s.tasaAlta, DEFAULT_PUBLICO.saldo.tasaAlta),
+      desdeAlta: n(s.desdeAlta, DEFAULT_PUBLICO.saldo.desdeAlta), recarga: n(s.recarga, DEFAULT_PUBLICO.saldo.recarga) } };
 }
-function txRapidoTransf(){
-  var pub = { telefono: $("tx_tel").value, zona: $("tx_zona").value, condicionesTransf: "Solo personas conocidas" };
-  txPintar(TextosMotor.textoRapidoTransf(pub, txEstilo(), SESION || "BUSC"), "Texto de transferencia");
+var TX_ROT_N = 0;
+function txQuienStr(){
+  try { TX_ROT_N = Number(localStorage.getItem("busc_tx_rot") || 0) + 1; localStorage.setItem("busc_tx_rot", String(TX_ROT_N)); }
+  catch(e){ TX_ROT_N++; }
+  return (SESION || "BUSC") + "#" + TX_ROT_N;
+}
+function fmtTasa(x){ return String(Math.round(Number(x) * 100) / 100); }
+/* Arma las 3 versiones rotando gancho/cierre con la sal de la
+   generación: dos generaciones seguidas nunca dan la misma. */
+function txVersionesPRO(cuerpo, ganchos, cierres){
+  txQuienStr();   /* cada generación AVANZA la rotación: dos seguidas nunca dan la misma versión */
+  var enf = ["directo", "vendedor", "humanizado"];
+  return { avisos: [], versiones: enf.map(function(e, i){
+    var lineas = [];
+    var g = ganchos[(TX_ROT_N + i) % ganchos.length];
+    var c = cierres[(TX_ROT_N + i) % cierres.length];
+    if (e === "humanizado") lineas.push("Buenas — " + cuerpo[0].toLowerCase().replace(/\*/g, "") + ", pago en efectivo al momento.");
+    else { if (g) lineas.push(g); lineas.push(cuerpo[0]); }
+    lineas = lineas.concat(cuerpo.slice(1));
+    if (c) lineas.push(c);
+    return { enfoque: e, texto: lineas.join("\n") };
+  }) };
+}
+function textoComproSaldoPRO(){
+  var cfg = publicoCfg(), s = cfg.saldo, wa = txEstilo().whatsapp;
+  var cuerpo = [(wa ? "*COMPRO SALDO*" : "COMPRO SALDO"),
+    "Pago en efectivo al " + fmtTasa(s.tasa) + " 🤑🤑",
+    "📲 " + cfg.telefono];
+  [1000, 2000, 3000, 4000, 5000].forEach(function(c){
+    if (c <= s.desdeAlta) cuerpo.push(c + " X " + Math.round(c * s.tasa) + " 💵");
+  });
+  cuerpo.push((wa ? "*Más de " + s.desdeAlta + " los pago al " + fmtTasa(s.tasaAlta) + "*" : "Más de " + s.desdeAlta + " los pago al " + fmtTasa(s.tasaAlta)));
+  cuerpo.push("Pago las recargas a " + s.recarga + " 😉");
+  /* Cantidad inteligente: la equivalencia la calcula el sistema
+     con la tasa vigente; el buscador no teclea ni una cifra. */
+  var cantEl = $("tx_cant_saldo");
+  var cant = cantEl ? parseFloat(String(cantEl.value || "").replace(",", ".")) : NaN;
+  if (isFinite(cant) && cant > 0) {
+    var tasa = cant > s.desdeAlta ? s.tasaAlta : s.tasa;
+    cuerpo.push("Por " + TextosMotor.miles(cant) + " de saldo te pago " + TextosMotor.miles(Math.round(cant * tasa)) + " CUP en efectivo (al " + fmtTasa(tasa) + ").");
+  }
+  cuerpo.push("Vivo x " + cfg.zona);
+  cuerpo.push(cfg.domicilio);
+  return txVersionesPRO(cuerpo,
+    ["", "¡Pago al momento! 🤑", "¡Te compro tu saldo hoy mismo!"],
+    ["Escríbeme y cerramos hoy 📲", "Sin vueltas: efectivo en mano", ""]);
+}
+function textoRecargaCambioPRO(){
+  var cfg = publicoCfg(), s = cfg.saldo;
+  var cuerpo = ["RECARGA Y CAMBIO DE SALDO",
+    "Pago las recargas a " + s.recarga + " 😉",
+    "Y compro saldo x cantidad: pago en efectivo al " + fmtTasa(s.tasa) + " 🤑🤑",
+    "Más de " + s.desdeAlta + " de saldo, al " + fmtTasa(s.tasaAlta) + ".",
+    "📲 " + cfg.telefono,
+    "Vivo x " + cfg.zona,
+    cfg.domicilio];
+  return txVersionesPRO(cuerpo,
+    ["", "¡Al momento! 🤑", "Recarga y cambio, sin salir de casa"],
+    ["Escríbeme y cerramos hoy 📲", "Efectivo en mano, sin vueltas", ""]);
+}
+function textoTransferenciaPRO(){
+  var cfg = publicoCfg();
+  var piso = Math.round(Number(T.pisoTransf || 25));
+  var cuerpo = ["CAMBIO TRANSFERENCIA POR EFECTIVO 💵",
+    "Compro tu transferencia y te pago en efectivo, al momento.",
+    "Se aceptan tratos al " + piso + "% o más.",
+    "📲 " + cfg.telefono,
+    "Vivo x " + cfg.zona,
+    cfg.domicilio,
+    "Solo personas conocidas."];
+  return txVersionesPRO(cuerpo,
+    ["", "¡Efectivo en mano! 💵", "Trato serio y rápido"],
+    ["Escríbeme y coordinamos 📲", "Sin vueltas: cerramos hoy", ""]);
+}
+function txRapidoSaldo(){ txPintar(textoComproSaldoPRO(), "Compro saldo"); }
+function txRapidoRecarga(){ txPintar(textoRecargaCambioPRO(), "Recarga y cambio"); }
+function txRapidoTransf(){ txPintar(textoTransferenciaPRO(), "Transferencia"); }
+
+/* Ejemplos del formulario según el tipo: siempre del trabajo de
+   buscador (comprar saldo / cambiar transferencia), jamás productos. */
+var TX_EJEMPLOS = {
+  compro: { prod: "Ej.: saldo móvil (recargas de 360)", precio: "Ej.: 980", det: "Ej.: pago al momento, en efectivo" },
+  recargo: { prod: "Ej.: transferencia por efectivo", precio: "Ej.: por privado", det: "Ej.: trato rápido, solo personas conocidas" },
+  otro: { prod: "Ej.: lo que buscas o lo que ofreces", precio: "Ej.: 1000", det: "Ej.: datos del trato" }
+};
+function txActualizarEjemplos(){
+  var t = ($("tx_tipo") && $("tx_tipo").value) || "compro";
+  var e = TX_EJEMPLOS[t] || TX_EJEMPLOS.otro;
+  if ($("tx_prod")) $("tx_prod").placeholder = e.prod;
+  if ($("tx_precio")) $("tx_precio").placeholder = e.precio;
+  if ($("tx_det")) $("tx_det").placeholder = e.det;
+}
+/* Chips PRO en vez de listas nativas: escriben en el control
+   oculto, así TODA la lógica sigue leyendo el mismo .value. */
+function chipsDesdeSelect(id){
+  var sel = $(id); if (!sel || !sel.options || !sel.parentNode) return;
+  var cont = document.createElement("div"); cont.className = "chipRow"; cont.id = id + "_chips";
+  sel.parentNode.insertBefore(cont, sel.nextSibling);
+  sel.classList.add("hide");
+  function pintar(){
+    cont.innerHTML = "";
+    Array.prototype.forEach.call(sel.options, function(op){
+      var c = document.createElement("button"); c.type = "button";
+      c.className = "chip" + (sel.value === op.value ? " on" : "");
+      c.textContent = op.textContent;
+      c.addEventListener("click", function(){ sel.value = op.value; pintar(); });
+      cont.appendChild(c);
+    });
+  }
+  pintar();
+}
+function initTextosPRO(){
+  try {
+    var cont = $("tx_tipo_chips"), inp = $("tx_tipo");
+    if (cont && inp) {
+      [{ v: "compro", t: "Compro saldo" }, { v: "recargo", t: "Recargo o cambio" }, { v: "otro", t: "Otro" }].forEach(function(o){
+        var c = document.createElement("button"); c.type = "button";
+        c.className = "chip" + (inp.value === o.v ? " on" : "");
+        c.setAttribute("data-txtipo", o.v); c.textContent = o.t;
+        c.addEventListener("click", function(){
+          inp.value = o.v;
+          cont.querySelectorAll(".chip").forEach(function(x){ x.classList.toggle("on", x === c); });
+          txActualizarEjemplos();
+        });
+        cont.appendChild(c);
+      });
+    }
+    ["tx_moneda", "tx_emojis", "tx_tono", "tx_tam", "tx_dest"].forEach(chipsDesdeSelect);
+    txActualizarEjemplos();
+  } catch(e){}
 }
 
 /* ===== Vistas nuevas + cableado v1.4.0 ===== */
@@ -1430,13 +1684,21 @@ function showView(v){
     $("tx_gen").addEventListener("click", txGenerar);
     $("tx_saldo").addEventListener("click", txRapidoSaldo);
     $("tx_transf").addEventListener("click", txRapidoTransf);
+    var txRec = $("tx_recarga"); if (txRec) txRec.addEventListener("click", txRapidoRecarga);
+    initTextosPRO();
+    /* Explicaciones plegables (una línea + «ⓘ»): patrón de la casa. */
+    document.querySelectorAll(".hintBtn").forEach(function(b){
+      b.addEventListener("click", function(){
+        var t = $(b.getAttribute("data-hint")); if (t) t.classList.toggle("hide");
+      });
+    });
     pintarColores();
     /* Reportar: foto del comprobante + edición */
     $("r_foto").addEventListener("change", function(){
       var f = $("r_foto").files && $("r_foto").files[0];
       if (!f) { REP_FOTO = null; return; }
-      leerArchivoMT(f, true).then(function(a){ REP_FOTO = a; $("r_foto_nom").textContent = "📷 Foto lista: se enviará con el reporte."; })
-        .catch(function(e){ REP_FOTO = null; $("r_foto_nom").textContent = "⚠️ " + e.message; });
+      leerArchivoMT(f, true).then(function(a){ REP_FOTO = a; $("r_foto_nom").textContent = "Foto lista: se enviará con el reporte."; })
+        .catch(function(e){ REP_FOTO = null; $("r_foto_nom").textContent = e.message; });
     });
     $("r_cancel_edit").addEventListener("click", function(){
       REP_EDIT_ID = null; $("r_editando").style.display = "none"; $("r_btn").textContent = "Enviar reporte a Ernesto";
@@ -1495,7 +1757,7 @@ function showView(v){
         recMT.onstop = function(){
           stream.getTracks().forEach(function(t){ t.stop(); });
           if (grabTickMT) { clearInterval(grabTickMT); grabTickMT = null; }
-          grabando = null; $("c_mic").textContent = "🎤"; $("c_mic").classList.remove("grabando");
+          grabando = null; micPintarMT(null); $("c_mic").classList.remove("grabando");
           var blob = new Blob(chunksMT, { type: recMT.mimeType || mimeMT || "audio/webm" });
           if (blob.size > MAX_ADJ_MT) { chatFallo("La nota pesa más de 5 MB: graba una más corta (máx 2 min)."); return; }
           var fr = new FileReader();
@@ -1504,7 +1766,7 @@ function showView(v){
             /* v1.4.2: vista previa con su propio ▶ para ESCUCHAR antes de enviar */
             var an = $("c_adj_nom");
             an.innerHTML = "";
-            var et = document.createElement("span"); et.textContent = "🎤 Nota de voz lista — escúchala y toca ➤ para enviar: ";
+            var et = document.createElement("span"); et.textContent = "Nota de voz lista — escúchala y toca Enviar: ";
             an.appendChild(et);
             var cont = document.createElement("span");
             cont.innerHTML = reproductorVozHtmlMT({ adj_datos: String(fr.result) });
@@ -1523,8 +1785,8 @@ function showView(v){
         grabando = recMT;
         grabT0MT = Date.now();
         $("c_mic").classList.add("grabando");
-        $("c_mic").textContent = "⏹️ 0:00";
-        grabTickMT = setInterval(function(){ $("c_mic").textContent = "⏹️ " + fmtTiempoVozMT((Date.now() - grabT0MT) / 1000); }, 250);
+        micPintarMT("0:00");
+        grabTickMT = setInterval(function(){ micPintarMT(fmtTiempoVozMT((Date.now() - grabT0MT) / 1000)); }, 250);
         setTimeout(function(){ if (grabando) grabando.stop(); }, 120000);
       }).catch(function(){ chatFallo("Sin permiso de micrófono: actívalo para la app si quieres mandar voz."); });
     });
