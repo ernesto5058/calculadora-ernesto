@@ -56,10 +56,10 @@
 // =====================================================================
 import { JSDOM } from "jsdom";
 import fs from "fs";
-import { pathToFileURL } from "url";
+import { pathToFileURL, fileURLToPath } from "url";
 
 const HOME = process.env.HOME;
-const REPO = (process.env.BANCO_REPO || (HOME + "/workspace/github-calculadora/")).replace(/\/?$/, "/");
+const REPO = (process.env.BANCO_REPO || fileURLToPath(new URL("..", import.meta.url))).replace(/\/?$/, "/");
 
 let pass = 0, fail = 0;
 const fails = [], hallazgos = [];
