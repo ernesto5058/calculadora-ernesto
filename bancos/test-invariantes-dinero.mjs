@@ -10,7 +10,8 @@
 //   · Bot PRO (supabase/functions/_shared/telegram-pro.ts): brutaDe(),
 //     netaDe(), capitalDe() — importadas tal cual
 //   · Bot PRO webhook (telegram-webhook/index.ts): repsBase()/sinPagarDe()
-//   · Servidor (admin_generar_cierre, activacion-completa-v13.sql):
+//   · Servidor (admin_generar_cierre; el fixture refleja la definición
+//     VIVA tras la tanda H-1/H-2/H-3: cierre-h1-h2-h3-sql-2026-11-11.sql):
 //     espejo JS fiel de sus expresiones + ANCLAS TEXTUALES sobre el SQL
 //     para que el espejo no pueda derivar en silencio del original.
 //   · Lector de Mercado (logica.js): equilibrio()
@@ -41,6 +42,15 @@
 // bien o para mal) y el hallazgo se reporta a Ernesto. Las aserciones
 // de hallazgo NO cuentan como FAIL del banco (el banco vigila; el
 // registro CHEQUEOS-ETERNOS.md lleva el estado de cada hallazgo).
+//
+// ACTUALIZACIÓN 2026-11-11 (tanda aprobada por Ernesto): H-1, H-2 y
+// H-3 fueron CORREGIDOS — lectura normalizada del efectivo en panel y
+// bot vía efectivoDe(); el cierre excluye pruebas, ya no clampea las
+// pérdidas y filtra por creado_en (referenciaba r.creado, columna
+// inexistente: la función nunca había podido correr). Sus propiedades
+// pasaron de «hallazgo vigilado» a aserciones BLOQUEANTES (ok) con los
+// mismos contraejemplos. Quedan como observaciones fijadas H-4 e
+// INV-8b.
 //
 //   node research_notes/test-invariantes-dinero.mjs
 // =====================================================================
@@ -116,7 +126,7 @@ const L = await import(pathToFileURL(logicaPath).href);
 const pro = await import(pathToFileURL(REPO + "supabase/functions/_shared/telegram-pro.ts").href);
 
 /* ---------- Mi Negocio: fórmulas reales en sandbox ---------- */
-const MN_NOMBRES = ["numPos", "r2", "tarifaBase", "derivadaCalc", "tarifa", "sugerencia",
+const MN_NOMBRES = ["numPos", "r2", "tarifaBase", "derivadaCalc", "tarifa", "efectivoDe", "sugerencia",
   "contaGananciaBruta", "contaNeta", "contaCapital", "contaRepsBase"];
 const codigoMN = MN_NOMBRES.map(n => extraer(htmlMN, n)).join("\n");
 const stateMN = {
@@ -151,12 +161,12 @@ const WH = sandbox(
 /* ---------- Servidor: espejo fiel de admin_generar_cierre ---------- */
 const norm = s => s.replace(/\s+/g, " ");
 const sqlN = norm(sqlCierre);
-function espejoSaldoNeto(r, t, comision) {  // greatest(ingreso-precio,0)*cant - comision
-  return Math.max(t.ingresoRef360 - Number(r.precio), 0) * (r.cantidad == null ? 1 : Number(r.cantidad)) - (Number(comision) || 0);
+function espejoSaldoNeto(r, t, comision) {  // (ingreso-precio)*cant - comision (sin clamp desde el arreglo H-3)
+  return (t.ingresoRef360 - Number(r.precio)) * (r.cantidad == null ? 1 : Number(r.cantidad)) - (Number(comision) || 0);
 }
-function espejoTransfBruta(r, t) {           // greatest((cant*(1+porc/100)/libro)*salida - cant, 0)
+function espejoTransfBruta(r, t) {           // (cant*(1+porc/100)/libro)*salida - cant (sin clamp desde el arreglo H-3)
   const ef = Number(r.cantidad);
-  return Math.max((ef * (1 + (Number(r.porc) || 0) / 100) / t.libroRef) * t.salidaRef - ef, 0);
+  return (ef * (1 + (Number(r.porc) || 0) / 100) / t.libroRef) * t.salidaRef - ef;
 }
 function espejoTransfNeta(r, t, comision) { return espejoTransfBruta(r, t) - (Number(comision) || 0); }
 function espejoBono(recargasSaldo, nTransf) { // filas del cierre: >=150 → 300 · >=10 → 300
@@ -181,10 +191,15 @@ const PORCS = [0, 5, 16.84, 20, 25, 30, 40, 75];
    ANCLAS del espejo del servidor: si el SQL aplicado cambia, el espejo
    deja de ser fiel y estas aserciones (normales, bloqueantes) saltan.
    ===================================================================== */
-ok(sqlN.includes("greatest(t.ingreso_ref360 - r.precio, 0) * coalesce(r.cantidad, 1) - coalesce(r.comision, 0)"),
-  "ANCLA-SQL-1 el espejo de saldo refleja la expresión viva del cierre");
-ok(sqlN.includes("greatest((r.cantidad * (1 + coalesce(r.porc, 0) / 100.0) / nullif(t.libro_ref, 0)) * t.salida_ref - r.cantidad, 0)"),
-  "ANCLA-SQL-2 el espejo de transferencia refleja la expresión viva del cierre (efectivo en r.cantidad)");
+ok(sqlN.includes("(t.ingreso_ref360 - r.precio) * coalesce(r.cantidad, 1) - coalesce(r.comision, 0)"),
+  "ANCLA-SQL-1 el espejo de saldo refleja la expresión viva del cierre (sin clamp, arreglo H-3)");
+ok(sqlN.includes("(r.cantidad * (1 + coalesce(r.porc, 0) / 100.0) / nullif(t.libro_ref, 0)) * t.salida_ref - r.cantidad"),
+  "ANCLA-SQL-2 el espejo de transferencia refleja la expresión viva del cierre (efectivo en r.cantidad, sin clamp)");
+const iGan = sqlN.indexOf("'tu_ganancia'");
+ok(iGan >= 0 && !sqlN.slice(iGan, iGan + 700).includes("greatest"),
+  "ANCLA-SQL-4 la expresión de tu_ganancia del cierre ya no clampea ningún trato (H-3 corregido)");
+ok(sqlN.includes("r.creado_en::date between"),
+  "ANCLA-SQL-5 el cierre filtra por r.creado_en, la columna real (con r.creado la función no podía correr)");
 ok((sqlN.match(/>= 150/g) || []).length >= 2 && (sqlN.match(/>= 10\)/g) || []).length >= 1 && sqlN.includes("then 300 else 0 end"),
   "ANCLA-SQL-3 el cierre lleva los umbrales del bono (150 recargas · 10 tratos · 300 CUP)");
 ok(srcBusc.includes("bonoSaldoMeta: 150") && srcBusc.includes("bonoTransfMeta: 10") &&
@@ -303,29 +318,41 @@ for (const t of TARIFAS) {
     if (!cerca(feeTr.ganancia, brutaSin)) inv2Tr = false;
   }
 }
-propH("H-1", acuerdoReal,
-  "INV-1/ACUERDO transferencia (forma real almacenada): contaGananciaBruta y brutaDe reproducen la ganancia del servidor",
-  ejReal);
-propH("H-1", ejRealCom === "",
-  "INV-2 transferencia (forma real): la comisión sugerida al aprobar = 20% de la ganancia de la vuelta",
-  ejRealCom);
-propH("H-1", ejRealCap === "",
-  "INV-1 transferencia (forma real): el capital del trato = el efectivo entregado",
-  ejRealCap);
+ok(acuerdoReal,
+  "INV-1/ACUERDO transferencia (forma real almacenada): contaGananciaBruta y brutaDe reproducen la ganancia del servidor (H-1 corregido)" + (ejReal ? " — " + ejReal : ""));
+ok(ejRealCom === "",
+  "INV-2 transferencia (forma real): la comisión sugerida al aprobar = 20% de la ganancia de la vuelta (H-1 corregido)" + (ejRealCom ? " — " + ejRealCom : ""));
+ok(ejRealCap === "",
+  "INV-1 transferencia (forma real): el capital del trato = el efectivo entregado (H-1 corregido)" + (ejRealCap ? " — " + ejRealCap : ""));
 ok(acuerdoCampA, "INV-1/ACUERDO transferencia (forma camp-A, precio=efectivo): las apps sí coinciden con la fórmula entre sí");
 ok(inv2Tr, "INV-2 transferencia: 0 ≤ comisión ≤ ganancia y comisión = % del esquema (apps, forma camp-A)");
 ok(inv3Tr, "INV-3 transferencia: vuelta sin ganancia ⇒ comisión 0 (sugerencia y comisionTransf)");
 
-/* INV-1 · el cierre clampea la bruta por trato (greatest(…,0)) y las
-   apps no: en un trato con pérdida el cierre no resta la pérdida. */
+/* Contraejemplos de H-1 convertidos en aserciones PERMANENTES
+   (tanda 2026-11-11): la forma REAL almacenada da los números del
+   servidor en panel y bot. */
+{
+  const t = TARIFAS[0]; ponerTarifaMN(t); ponerTarifaB(t);
+  const rReal = { tipo: "transferencia", precio: null, cantidad: 5000, porc: 30 };
+  ok(cerca(MN.contaGananciaBruta(rReal, MN.tarifa()), 774.37, 0.01) && cerca(pro.brutaDe(rReal, aBot(t)), 774.37, 0.01),
+    "H-1 PERMANENTE: vuelta real de 5 000 al 30% (efectivo en cantidad, precio null) → bruta 774.37 en Contabilidad y en el bot, como el servidor");
+  ok(cerca(MN.sugerencia(rReal).com, 154.87, 0.02) && MN.contaCapital(rReal) === 5000 && pro.capitalDe(rReal) === 5000,
+    "H-1 PERMANENTE: la misma vuelta → comisión sugerida 154.87 (esquema 20%, ±0.02 por redondeo) y capital 5 000 en panel y bot");
+  const tA = TARIFAS[3]; ponerTarifaMN(tA); ponerTarifaB(tA);
+  const r75 = { tipo: "transferencia", precio: null, cantidad: 100000, porc: 75 };
+  ok(cerca(MN.contaGananciaBruta(r75, MN.tarifa()), 75000, 0.01) && cerca(pro.brutaDe(r75, aBot(tA)), 75000, 0.01) && cerca(MN.sugerencia(r75).com, 15000, 0.01),
+    "H-1 PERMANENTE: vuelta real de 100 000 al 75% con salida = libro → bruta 75 000 y comisión 15 000 en panel y bot");
+}
+
+/* INV-1 · la neta de un trato con pérdida: Contabilidad la resta y,
+   desde el arreglo H-3, el cierre del servidor también (sin clamp). */
 {
   const t = TARIFAS[0];
   const rPerdida = { tipo: "saldo", precio: 1500, cantidad: 1, comision: 0 };
   const netaApp = MN.contaNeta(rPerdida, t);
   const netaSrv = espejoSaldoNeto(rPerdida, t, 0);
-  propH("H-3", cerca(netaApp, netaSrv),
-    "INV-1: la neta de un trato con pérdida coincide entre Contabilidad y el cierre del servidor",
-    `saldo a precio 1500 con ingreso ${t.ingresoRef360}: Contabilidad neta=${netaApp.toFixed(2)} · cierre neta=${netaSrv.toFixed(2)} (el cierre clampea la bruta a 0 y no resta la pérdida de ${(1500 - t.ingresoRef360).toFixed(2)})`);
+  ok(cerca(netaApp, netaSrv) && cerca(netaSrv, -401.32, 0.01),
+    "INV-1: la neta de un trato con pérdida coincide entre Contabilidad y el cierre del servidor (H-3 corregido: ambos restan la pérdida, −401.32)");
   ok(cerca(netaApp, (t.ingresoRef360 - 1500) * 1), "INV-1 fijado: la Contabilidad SÍ deja la neta negativa en un trato con pérdida (comportamiento económico correcto)");
 }
 
@@ -429,9 +456,9 @@ ok(inv3Tr, "INV-3 transferencia: vuelta sin ganancia ⇒ comisión 0 (sugerencia
    Se aserta: inclusión en las cuentas (Contabilidad y bot), membresía
    en «por pagar», regla de signo de la comisión sugerida y la
    inclusión en el resumen del cierre del servidor.
-   (La ganancia de transferencia se construye con la forma camp-A, la
-   que las apps suponen; con la forma real todas las celdas de
-   transferencia colapsan a ganancia 0 — eso es el hallazgo H-1.)
+   (La ganancia de transferencia se construye con la forma camp-A;
+   desde el arreglo H-1 la forma real almacenada da los mismos
+   números en apps y servidor por la lectura normalizada.)
    ===================================================================== */
 {
   const t = TARIFAS[0]; ponerTarifaMN(t); ponerTarifaB(t);
@@ -466,9 +493,8 @@ ok(inv3Tr, "INV-3 transferencia: vuelta sin ganancia ⇒ comisión 0 (sugerencia
   /* La celda del servidor: su resumen filtra SOLO por estado (texto SQL) */
   const iRes = sqlN.indexOf("into v_resumen");
   const whereRes = sqlN.slice(iRes, iRes + 1600);
-  propH("H-2", /prueba/.test(whereRes),
-    "INV-7 (servidor): el resumen del cierre excluye los reportes de prueba como hacen Contabilidad y el bot",
-    "el WHERE del resumen de admin_generar_cierre es «r.estado = 'aprobado'» sin condición de prueba: un reporte de PRUEBA aprobado entra en tu_ganancia y comisiones del cierre (en la base viva hay pruebas aprobadas con comisión 246.70 y 2467.00), mientras contaRepsBase y repsBase las excluyen");
+  ok(/not coalesce\(r\.prueba, false\)/.test(whereRes),
+    "INV-7 (servidor): el resumen del cierre excluye los reportes de prueba como hacen Contabilidad y el bot (H-2 corregido)");
 }
 
 /* =====================================================================
