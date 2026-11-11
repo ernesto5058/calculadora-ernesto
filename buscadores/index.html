@@ -47,6 +47,9 @@
   .card h2 { font-size: 17px; font-weight: 600; margin-bottom: 4px; display: flex; align-items: center; gap: 8px; }
   .card h2 .ic { color: var(--dorado); }
   .card .hint { color: var(--txt-2); font-size: 13px; line-height: 1.5; margin-bottom: 12px; }
+  .guiaRow { display: flex; gap: 10px; margin: 10px 0; font-size: 14px; line-height: 1.5; color: var(--txt-2); }
+  .guiaRow .gIc { flex: 0 0 auto; font-size: 16px; line-height: 1.45; }
+  .guiaRow b { color: var(--txt-1); font-weight: 600; }
   .hintBtn { background: none; border: 0; color: var(--dorado); font-size: 13px; font-weight: 600; padding: 4px 0; cursor: pointer; margin: -6px 0 10px; display: block; }
   .hintFull { background: var(--bg-2); border: 1px solid var(--borde); border-radius: 12px; padding: 10px 12px; color: var(--txt-2); font-size: 13px; line-height: 1.55; margin-bottom: 12px; }
   label { display: block; font-size: 13px; color: var(--txt-2); margin: 12px 0 6px; font-weight: 600; }
@@ -368,6 +371,17 @@
 
   <!-- ============ CHAT CON ERNESTO ============ -->
   <div id="viewAyuda" class="hide">
+    <div class="card">
+      <h2><svg class="ic" aria-hidden="true"><use href="#i-help"/></svg> ¿Para qué es esta app?</h2>
+      <div class="hint">Esta es tu app de trabajo: llevar TUS cuentas claras, sin papel ni memoria. Lo que ganas, lo que te falta para el bono y tus tratos — solo lo ves tú.</div>
+      <div class="guiaRow"><span class="gIc">🧮</span><div><b>Calculadora:</b> escribes el precio del saldo o de la transferencia y te dice al momento cuánto es TU comisión.</div></div>
+      <div class="guiaRow"><span class="gIc">📝</span><div><b>Reportar:</b> conseguiste un trato, lo mandas en segundos con el precio y la cantidad; Ernesto lo confirma y queda registrado.</div></div>
+      <div class="guiaRow"><span class="gIc">💬</span><div><b>Chat:</b> hablas directo con Ernesto dentro de la app, con fotos si hace falta; sin conexión, el mensaje se guarda y sale solo cuando vuelva.</div></div>
+      <div class="guiaRow"><span class="gIc">✍️</span><div><b>Textos:</b> tres botones (Compro saldo · Recarga y cambio · Transferencia) y la app arma el anuncio completo con los datos de Ernesto, listo para copiar o mandar a WhatsApp.</div></div>
+      <div class="guiaRow"><span class="gIc">👤</span><div><b>Mi panel:</b> tu semana — tus tratos, tu total ganado y tu bono (cuánto te falta para los 300 CUP).</div></div>
+      <div class="guiaRow"><span class="gIc">🔔</span><div><b>Avisos:</b> acepta el permiso de notificaciones y te enteras al momento cuando Ernesto apruebe tu reporte.</div></div>
+      <div class="hint" style="margin-top:12px;margin-bottom:0"><b>Regla simple:</b> todo trato va por la app, y la cuenta final la confirma Ernesto con los números reales.</div>
+    </div>
     <div class="card chatCard">
       <div class="chatHead">
         <div class="chatAvatar">E</div>
@@ -526,7 +540,7 @@
 
 <script>
 "use strict";
-var APP_VERSION = "1.4.5";
+var APP_VERSION = "1.4.6";
 /* Tarifa de respaldo: se usa sin conexión si nunca se ha descargado datos.json.
    La tarifa viva viene de datos.json (la actualiza Ernesto/Máximo). */
 var DEFAULT_TARIFA = { ingresoRef360: 1092.65, libroRef: 1110, salidaRef: 950,
