@@ -7,6 +7,7 @@
 <title>Mi Trabajo — Buscadores</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon-192.png">
+<link rel="stylesheet" href="tema-pro.css">
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body { background: #0B0E13; overflow-x: hidden; }
@@ -105,6 +106,35 @@
   .msg.him { align-items: flex-start; }
   .msg.him .bur { background: #1B2233; color: #E8ECF1; border: 1px solid #2A3347; border-bottom-left-radius: 4px; }
   .msg .mhora { color: #7C8AA0; font-size: 11px; margin-top: 3px; }
+  .msg .estVisto { color: #53BDEB; font-weight: 800; }
+  .cpres { color: #9AA7B8; font-size: 13px; margin: -4px 0 10px; }
+  /* ===== v1.4.0: chat pro, perfil, textos ===== */
+  .fijadoBar { display: none; background: rgba(232,184,75,.14); border: 1px solid rgba(232,184,75,.45); color: #F5D67B; border-radius: 12px; padding: 9px 12px; font-size: 13px; margin-bottom: 10px; overflow-wrap: anywhere; }
+  .tempLinea { display: none; color: #9AA7B8; font-size: 12px; margin-bottom: 8px; }
+  .msgSistema { text-align: center; color: #9AA7B8; font-size: 12.5px; margin: 12px auto; background: #1A2130; border-radius: 999px; padding: 6px 14px; max-width: 88%; }
+  .msg .cita { display: block; border-left: 3px solid #E8B84B; background: rgba(232,184,75,.12); border-radius: 6px; padding: 5px 8px; margin-bottom: 6px; font-size: 12.5px; opacity: .9; overflow-wrap: anywhere; }
+  .msg .eliminado { font-style: italic; opacity: .75; }
+  .msg .editadoLab { font-size: 10.5px; opacity: .75; }
+  .reacRow { display: flex; gap: 4px; margin-top: 3px; flex-wrap: wrap; }
+  .reacRow .reac { background: #1A2130; border: 1px solid #2A3347; border-radius: 999px; padding: 1px 8px; font-size: 12px; }
+  .adjFoto { max-width: 210px; border-radius: 10px; display: block; margin-bottom: 6px; }
+  .adjChip { display: inline-block; background: rgba(0,0,0,.18); border-radius: 8px; padding: 5px 9px; font-size: 12.5px; margin-bottom: 6px; overflow-wrap: anywhere; }
+  .chatTools { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+  .chatTools button { flex: 1; min-width: 70px; padding: 10px 6px; border-radius: 10px; background: #1B2233; color: #C7D0DC; border: 1px solid #2A3347; font-weight: 700; font-size: 13px; cursor: pointer; }
+  .respBar { display: none; background: rgba(232,184,75,.12); border: 1px solid rgba(232,184,75,.4); border-radius: 10px; padding: 8px 10px; font-size: 13px; margin-top: 8px; overflow-wrap: anywhere; }
+  .menuMsg { display: none; background: #1A2130; border: 1px solid #2A3347; border-radius: 12px; padding: 8px; margin-top: 8px; }
+  .menuMsg button { display: block; width: 100%; text-align: left; background: transparent; border: none; color: #E8ECF1; padding: 9px 10px; font-size: 14px; cursor: pointer; border-radius: 8px; }
+  .semBar { height: 14px; background: #232B3A; border-radius: 999px; overflow: hidden; margin: 8px 0 4px; }
+  .semBar > div { height: 100%; background: linear-gradient(90deg, #F5D67B, #E8B84B, #C9962E); width: 0%; transition: width .5s; }
+  .colorRow { display: flex; gap: 8px; margin: 6px 0 4px; }
+  .colorDot { width: 34px; height: 34px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; }
+  .colorDot.on { border-color: #F2F5F9; }
+  .miniBtn { padding: 8px 12px; border-radius: 999px; background: #1B2233; color: #C7D0DC; border: 1px solid #2A3347; font-weight: 700; font-size: 13px; cursor: pointer; }
+  .versionTxt { white-space: pre-wrap; background: #0B0E13; border: 1px solid #2A3347; border-radius: 12px; padding: 12px; font-size: 14px; line-height: 1.55; overflow-wrap: anywhere; }
+  select { width: 100%; padding: 12px; font-size: 16px; color: #fff; background: #0B0E13; border: 1.5px solid #2A3347; border-radius: 12px; outline: none; }
+  input[type=checkbox] { width: 20px; height: 20px; vertical-align: -4px; }
+  .checkLine { display: block; font-size: 14px; color: #C7D0DC; margin: 8px 0 0; font-weight: 600; }
+  .cpres b { color: #E8ECF1; }
 </style>
 </head>
 <body>
@@ -145,6 +175,8 @@
     <div class="tab" id="tabRep"><svg class="ic" aria-hidden="true"><use href="#i-send"/></svg> Reportar</div>
     <div class="tab" id="tabPanel"><svg class="ic" aria-hidden="true"><use href="#i-chart"/></svg> Mi panel</div>
     <div class="tab" id="tabAyuda"><svg class="ic" aria-hidden="true"><use href="#i-chat"/></svg> Chat<span id="chatBadge" class="cbadge hide">0</span></div>
+    <div class="tab" id="tabTextos"><svg class="ic" aria-hidden="true"><use href="#i-send"/></svg> Textos</div>
+    <div class="tab" id="tabPerfil"><svg class="ic" aria-hidden="true"><use href="#i-brief"/></svg> Mi perfil</div>
   </div>
   <div id="updBox" class="upd hide">
     <div class="t">Hay una versión nueva de Mi Trabajo</div>
@@ -225,6 +257,10 @@
       <input type="tel" id="r_tel" inputmode="tel" placeholder="Ej: 51234567">
       <label>Nota (opcional)</label>
       <textarea id="r_nota" rows="2" placeholder="Ej: es de Micro 9, tiene saldo hoy"></textarea>
+      <label>Foto del comprobante (opcional)</label>
+      <input type="file" id="r_foto" accept="image/*">
+      <div class="hint" id="r_foto_nom">Si tienes la captura o foto del trato, súbela: Ernesto la ve junto a tu reporte. Se comprime sola.</div>
+      <div class="ok" id="r_editando" style="display:none">Estás corrigiendo un reporte pendiente: al enviar, se actualiza el mismo (Ernesto verá que fue editado). <button type="button" class="miniBtn" id="r_cancel_edit">Cancelar</button></div>
       <button class="go" id="r_btn"><svg class="ic" aria-hidden="true"><use href="#i-send"/></svg> Enviar reporte a Ernesto</button>
       <div class="res" id="r_res" style="display:none">
         <div class="lab"><svg class="ic mini" aria-hidden="true"><use href="#i-check"/></svg> REPORTE ENVIADO</div>
@@ -241,11 +277,29 @@
     <div class="card">
       <h2><svg class="ic" aria-hidden="true"><use href="#i-chat"/></svg> Chat con Ernesto</h2>
       <div class="hint">Escríbele directo a Ernesto por aquí: una duda de un trato, algo que no funciona o una idea para mejorar la app. Te responde en este mismo chat. Sale con tu sesión, así Ernesto sabe que viene de su equipo autorizado.</div>
+      <div class="cpres" id="c_pres">Ernesto · —</div>
+      <div class="fijadoBar" id="c_fijado"></div>
+      <div class="tempLinea" id="c_temp"></div>
+      <label>Buscar en el chat</label>
+      <input type="text" id="c_buscar" placeholder="Escribe una palabra…">
+      <div class="chatTools"><button type="button" id="c_buscar_mas">Buscar más (en el servidor)</button></div>
+      <div class="hint">Estados de tus mensajes, como en WhatsApp: <b>✓</b> enviado · <b>✓✓</b> entregado (Ernesto abrió su panel) · <b>✓✓ Visto</b> (ya abrió el chat y lo leyó).</div>
       <div id="c_hilo" class="hilo"><div class="chatVacio">Cargando el chat…</div></div>
+      <div class="respBar" id="c_resp"></div>
       <label>Tu mensaje para Ernesto</label>
       <textarea id="c_txt" rows="2" placeholder="Ej: conseguí un vendedor pero no sé si el precio sirve"></textarea>
+      <div class="chatTools">
+        <button type="button" id="c_adj_foto">📷 Foto</button>
+        <button type="button" id="c_adj_arch">📎 Archivo</button>
+        <button type="button" id="c_mic">🎤 Nota de voz</button>
+      </div>
+      <div class="hint" id="c_adj_nom"></div>
+      <input type="file" id="c_file_foto" accept="image/*" class="hide">
+      <input type="file" id="c_file_arch" class="hide">
+      <div class="menuMsg" id="c_menu"></div>
       <button class="go" id="c_btn"><svg class="ic" aria-hidden="true"><use href="#i-send"/></svg> Enviar a Ernesto</button>
       <div class="warn" id="c_warn"></div>
+      <div class="hint">Toca un mensaje para responder, reaccionar ❤️👍😂👏🔥, o editar/eliminar los tuyos. Si Ernesto activó los mensajes temporales, arriba verás en cuánto desaparecen.</div>
     </div>
     <div class="card">
       <h2><svg class="ic" aria-hidden="true"><use href="#i-brief"/></svg> ¿Quieres trabajar con Ernesto?</h2>
@@ -271,17 +325,104 @@
         <div class="bar"><div id="p_bs_bar"></div></div>
         <label><svg class="ic mini" aria-hidden="true"><use href="#i-gift"/></svg> Bono de transferencia: <span id="p_bt_lab"></span></label>
         <div class="bar"><div id="p_bt_bar"></div></div>
-        <label>Tus tratos confirmados</label>
+        <label><svg class="ic mini" aria-hidden="true"><use href="#i-chart"/></svg> Mi semana (lunes a domingo)</label>
+        <div id="p_semana"></div>
+        <label>Tus tratos confirmados (tu historial completo)</label>
         <div id="p_tratos"></div>
       </div>
       <button class="salir" id="btnSalir" type="button"><svg class="ic mini" aria-hidden="true"><use href="#i-out"/></svg> Salir (cerrar mi sesión)</button>
     </div>
   </div>
 
+  <!-- ============ TEXTOS (v1.4.0) ============ -->
+  <div id="viewTextos" class="hide">
+    <div class="card">
+      <h2>✍️ Textos de ofertas</h2>
+      <div class="hint">Escribe SOLO los datos y la app pone las palabras: tres versiones listas para copiar o mandar a WhatsApp. Funciona sin internet. Los botones rápidos usan los datos PÚBLICOS de la tarifa y tu perfil — nunca números internos.</div>
+      <div class="chatTools">
+        <button type="button" id="tx_saldo">📱 Texto de saldo</button>
+        <button type="button" id="tx_transf">🏦 Texto de transferencia</button>
+      </div>
+      <label>Tipo de oferta</label>
+      <select id="tx_tipo"><option value="vendo">Vendo</option><option value="compro">Compro</option><option value="servicio">Servicio</option><option value="recargo">Recargo o cambio</option><option value="otro">Otro</option></select>
+      <label>Producto o servicio</label>
+      <input type="text" id="tx_prod" placeholder="Ej.: Batería LiFePO4 12.8V 100Ah">
+      <label>Precio (vacío si es por privado)</label>
+      <input type="text" id="tx_precio" inputmode="decimal" placeholder="Ej.: 45000">
+      <label>Moneda</label>
+      <select id="tx_moneda"><option>CUP</option><option>USD</option><option>MLC</option><option>QUSD</option></select>
+      <label class="checkLine"><input type="checkbox" id="tx_privado"> Precio por privado</label>
+      <label>Cantidad o disponibilidad (opcional)</label>
+      <input type="text" id="tx_cant" placeholder="Ej.: quedan 3">
+      <label>Detalles y ventajas</label>
+      <input type="text" id="tx_det" placeholder="Ej.: garantía incluida, domicilio en Santiago">
+      <label>Zona</label>
+      <input type="text" id="tx_zona" placeholder="Tu zona (sale de tu perfil)">
+      <label>Teléfono de contacto</label>
+      <input type="text" id="tx_tel" placeholder="Tu teléfono (sale de tu perfil)">
+      <label>Emojis</label>
+      <select id="tx_emojis"><option value="muchos">Muchos</option><option value="pocos" selected>Pocos</option><option value="ninguno">Ninguno</option></select>
+      <label>Tono</label>
+      <select id="tx_tono"><option value="humanizado">Humanizado natural</option><option value="comercial">Comercial vendedor</option><option value="formal">Formal serio</option><option value="directo">Directo y corto</option></select>
+      <label>Tamaño</label>
+      <select id="tx_tam"><option value="completo">Completo</option><option value="corto">Corto (estados)</option><option value="muycorto">Muy corto (1-2 líneas)</option></select>
+      <label>Destino</label>
+      <select id="tx_dest"><option value="wa">WhatsApp (*negritas*)</option><option value="fb">Facebook (texto plano)</option></select>
+      <label class="checkLine"><input type="checkbox" id="tx_mayus"> Mayúsculas en el título</label>
+      <label class="checkLine"><input type="checkbox" id="tx_urg"> Línea de urgencia</label>
+      <label class="checkLine"><input type="checkbox" id="tx_priv_llamada"> Llamada a escribir por privado</label>
+      <label class="checkLine"><input type="checkbox" id="tx_hash"> Hashtags al final</label>
+      <button class="go" id="tx_gen" type="button">✍️ Generar las 3 versiones</button>
+      <div id="tx_out" style="margin-top:12px"></div>
+      <label>Historial (últimas 30, en este teléfono)</label>
+      <div id="tx_hist"></div>
+    </div>
+  </div>
+
+  <!-- ============ MI PERFIL (v1.4.0) ============ -->
+  <div id="viewPerfil" class="hide">
+    <div class="card">
+      <h2>👤 Mi perfil</h2>
+      <div class="hint">Esto es lo que Ernesto ve de ti en su panel: tu nombre, tu WhatsApp, tu zona y tu nota. Tu código, tu comisión y tus tratos NO se tocan aquí: eso lo maneja Ernesto.</div>
+      <div class="warn" id="pf_pausa" style="display:none">⏸️ Estás en pausa: puedes ver tu historial y tu perfil, pero no reportar ni escribir por ahora. Habla con Ernesto.</div>
+      <label>Nombre visible</label>
+      <input type="text" id="pf_nombre" placeholder="Tu nombre">
+      <label>Teléfono / WhatsApp de contacto</label>
+      <input type="tel" id="pf_tel" placeholder="Ej: 51234567">
+      <label>Tu zona o barrio</label>
+      <input type="text" id="pf_zona" placeholder="Ej: Micro 9">
+      <label>Nota corta</label>
+      <input type="text" id="pf_nota" placeholder="Ej: trabajo tardes y fines de semana">
+      <label>Color de tu avatar</label>
+      <div class="colorRow" id="pf_colores"></div>
+      <button class="go" id="pf_btn" type="button">Guardar mi perfil</button>
+      <div class="ok" id="pf_ok" style="display:none">✅ Perfil guardado.</div>
+      <div class="warn" id="pf_warn"></div>
+    </div>
+    <div class="card">
+      <h2>🔔 Avisos</h2>
+      <div class="hint" id="pf_push_txt">Recibe un aviso en la pantalla cuando Ernesto apruebe un trato, te pague o te escriba. El permiso se pide solo al tocar el botón.</div>
+      <button class="go" id="pf_push" type="button">🔔 Activar avisos</button>
+    </div>
+    <div class="card">
+      <h2>🔑 Cambiar mi código</h2>
+      <div class="hint">Puedes cambiar tu código personal cuando quieras. El viejo deja de funcionar AL INSTANTE y tu sesión se actualiza sola. Ernesto ve el cambio en su panel.</div>
+      <label>Tu código actual</label>
+      <input type="text" id="cc_actual" autocapitalize="characters" spellcheck="false" autocomplete="off">
+      <label>Código nuevo (mínimo 6, sin espacios)</label>
+      <input type="text" id="cc_nuevo" autocapitalize="characters" spellcheck="false" autocomplete="off">
+      <button class="go" id="cc_btn" type="button">Cambiar mi código</button>
+      <div class="ok" id="cc_ok" style="display:none"></div>
+      <div class="warn" id="cc_warn"></div>
+      <label>Tu enlace personal de entrada</label>
+      <div class="hint" id="cc_enlace">—</div>
+    </div>
+  </div>
+
   <div class="foot">
     Las cuentas de esta app usan la tarifa de referencia del día.<br>
     La cuenta final de cada trato la confirma Ernesto con los números reales.<br>
-    Mi Trabajo v<span id="verLab">1.3.0</span> · Hecha para el equipo de Ernesto
+    Mi Trabajo v<span id="verLab">1.4.0</span> · Hecha para el equipo de Ernesto
   </div>
 </div>
 
