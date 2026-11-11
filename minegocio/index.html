@@ -187,6 +187,7 @@ label { display:block; font-size:13px; color:#8696A0; margin:12px 0 2px; font-we
   <div id="pgEquipo" style="display:none"></div>
   <div id="pgTarifa" style="display:none"></div>
   <div id="pgMercado" style="display:none"></div>
+  <div id="pgContabilidad" style="display:none"></div>
   <div id="pgChat" style="display:none"></div>
   <button class="bGhost" id="btnSalir">❌ Salir de Mi Negocio</button>
 </div>
@@ -614,6 +615,7 @@ function ejecutarAccion(a){
       .then(function(r){ borrarPushPendiente(); return r; });
     case "editarChat": return rpc("editarMensaje", { p_codigo: "ADMIN", p_id: a.id, p_texto: a.texto });
     case "pagado": return rpc("marcarPagado", { p_codigo: cod, p_id: a.id });
+    case "prueba": return rpc("marcarPrueba", { p_codigo: cod, p_id: a.id, p_prueba: a.prueba });
     case "publicar":
       return rpc("guardarTarifa", { p_codigo: cod, p_ingreso: a.payload.tarifa.ingresoRef360, p_libro: a.payload.tarifa.libroRef, p_salida: a.payload.tarifa.salidaRef, p_com_saldo: a.payload.tarifa.pctSaldo, p_com_transf: a.payload.tarifa.pctTransf, p_piso: a.payload.tarifa.pisoTransf })
         .then(function(){ return rpc("publicarTratos", { p_codigo: cod, p_tratos: (a.payload.lista || []).filter(function(x){ return x && x.codigo; }) }); });
@@ -1027,6 +1029,7 @@ function descOp(a){
     case "nuevo": return "➕ Dar de alta a " + (a.nombre || a.codigoUsuario || "");
     case "editarChat": return "✏️ Editar un mensaje";
     case "pagado": return "💵 Marcar comisión pagada";
+    case "prueba": return "🧪 Marcar / quitar marca de prueba";
     case "publicar": return "📣 Publicar tarifa y tratos";
     case "pushReg": return "🔔 Registrar los avisos en el servidor";
   }
@@ -1200,8 +1203,17 @@ function cargarTodo(silencioso){
     /* Las decisiones tomadas en este teléfono (aprobado/rechazado/
        pagado) NO se pierden si la foto del servidor aún no las trae:
        se reaplican sobre la foto nueva mientras el servidor siga
-       viéndolas «pendiente». El servidor manda cuando él confirma. */
+       viéndolas «pendiente». El servidor manda cuando él confirma.
+       FASE 1 CONTABILIDAD — fuente única del sello PAGADO: sobre un
+       reporte que el servidor YA resolvió, el comision_pagada_en de
+       la foto local solo se sostiene mientras la acción «pagado»
+       siga en la cola sin despachar; en cuanto la acción salió del
+       teléfono, manda el servidor (un sello viejo sin su respaldo
+       en la base no puede vivir para siempre como PAGADO). */
     var decisiones = {};
+    var pagadoEnCola = function(id){
+      return (state.cola || []).some(function(a){ return a && a.tipo === "pagado" && String(a.id) === String(id); });
+    };
     state.foto.reportes.forEach(function(r){
       if (r.estado !== "pendiente" || r.comision_pagada_en) {
         decisiones[r.id] = { estado: r.estado, comision: r.comision,
@@ -1214,7 +1226,7 @@ function cargarTodo(silencioso){
         return Object.assign({}, r, { estado: d.estado, comision: d.comision,
           motivo: d.motivo, comision_pagada_en: d.comision_pagada_en || r.comision_pagada_en });
       }
-      if (d && d.comision_pagada_en && !r.comision_pagada_en) {
+      if (d && d.comision_pagada_en && !r.comision_pagada_en && pagadoEnCola(r.id)) {
         return Object.assign({}, r, { comision_pagada_en: d.comision_pagada_en });
       }
       return r;
@@ -1371,7 +1383,7 @@ function pintarTabs(){
     d.className = "tab" + (m.id === tabActual ? " activa" : "");
     var badge = "";
     if (m.id === "Bandeja") {
-      var pend = state.foto.reportes.filter(function(r){ return r.estado === "pendiente"; }).length;
+      var pend = state.foto.reportes.filter(function(r){ return r.estado === "pendiente" && !r.prueba; }).length;
       if (pend > 0) badge = '<span class="badge">' + pend + "</span>";
     }
     if (m.id === "Equipo" && sinLeerTotal > 0) badge = '<span class="badge">' + sinLeerTotal + "</span>";
@@ -1613,6 +1625,7 @@ function hojaReporte(r){
     btns.push({ txt: "✏️ Aprobar con otro monto…", cls: "bGold", fn: function(){ formComision(r); } });
     btns.push({ txt: "❌ Rechazar…", cls: "bBad", fn: function(){ formRechazo(r); } });
   }
+  btns.push({ txt: r.prueba ? "↩️ Quitar marca de prueba" : "🧪 Marcar como prueba", cls: "bGhost", fn: function(){ cerrarHoja(); marcarPrueba(r); } });
   abrirHoja("Reporte de " + r.nombre, txt, btns);
 }
 function formComision(r){
@@ -1678,11 +1691,14 @@ registrarModulo({
   id: "Bandeja", tab: "Bandeja", icono: "bandeja",
   render: function(){
     var el = $("pgBandeja"); if (!el) return;
-    var reps = state.foto.reportes.slice().sort(function(x, y){ return String(y.creado).localeCompare(String(x.creado)); });
+    var todosReps = state.foto.reportes.slice().sort(function(x, y){ return String(y.creado).localeCompare(String(x.creado)); });
+    var reps = todosReps.filter(function(r){ return !r.prueba; });
+    var nPruebas = todosReps.length - reps.length;
     var h = (!online ? '<div class="offBanner" style="display:block">📴 ' + selloTexto("bandeja") + ". Las decisiones que tomes aquí quedan en cola y salen solas.</div>" : "");
     h += '<div class="sub">Reportes pendientes de los buscadores. Aprobar deja la comisión lista para publicarla con 💲 Tarifa → 📡 Publicar ahora.</div>';
     if (!reps.length) h += '<div class="card"><div class="mut">No hay reportes todavía.</div></div>';
     reps.forEach(function(r){ h += tarjetaReporte(r); });
+    if (nPruebas > 0) h += '<div class="mut" style="margin:4px 0 10px">🧪 ' + nPruebas + ' reportes marcados como prueba (ocultos de la Bandeja y de las cuentas).</div>';
     var ays = state.foto.ayudas.slice().sort(function(x, y){ return String(y.creado).localeCompare(String(x.creado)); });
     if (ays.length) { h += '<h3 style="margin:16px 0 8px">💬 Ayudas</h3>'; ays.forEach(function(a){ h += tarjetaAyuda(a); }); }
     el.innerHTML = h;
@@ -2620,14 +2636,14 @@ function intentarEntrar(){
    controllerchange recarga la app UNA sola vez (marca en
    sessionStorage por versión: sin bucles). MN_VERSION se sube
    junto con el CACHE de sw.js. */
-var MN_VERSION = "v5";
+var MN_VERSION = "v6";
 /* Sello VISIBLE de compilación (punto 6): Ernesto quejándose con
    razón — «no sé si se actualizó o no». Una sola constante que
    sube con cada publicación; se ve en Inicio y en la hoja ℹ️ del
-   chat. Formato: «Mi Negocio · versión 2026-11-11 HH:MM · caché v5»
+   chat. Formato: «Mi Negocio · versión 2026-11-11 HH:MM · caché v6»
    (fecha Y HORA de la publicación, para distinguir dos subidas
-   del mismo día). */
-var MN_COMPILACION = "2026-11-11 09:03";
+   del mismo día). La hora es la de Cuba (CST) al compilar. */
+var MN_COMPILACION = "2026-11-11 12:48";
 function selloVersion(){ return "Mi Negocio · versión " + MN_COMPILACION + " · caché " + MN_VERSION; }
 var regSW = null;
 var swConControladorAlArrancar = false;
@@ -3032,6 +3048,7 @@ function bloqueSemaforoHtml(){
 
 /* ===== PUERTAS NUEVAS (se registran en PUERTAS por inyección aquí) ===== */
 PUERTAS.marcarPagado = "admin_marcar_pagado";
+PUERTAS.marcarPrueba = "admin_marcar_prueba";
 PUERTAS.generarCierre = "admin_generar_cierre";
 PUERTAS.cierres = "admin_cierres";
 PUERTAS.actividad = "admin_actividad";
@@ -3044,6 +3061,21 @@ function marcarPagado(r){
   if (!ya) encolar({ tipo: "pagado", id: r.id, cuando: new Date().toISOString() });
   guardar(); pintarTodo(); despacharCola();
   toast("💰 Comisión marcada como pagada" + (online ? "" : " (en cola)"));
+}
+
+/* ===== MARCAR COMO PRUEBA (Fase 1 Contabilidad) =====
+   Un reporte de prueba sale de la Bandeja y de TODAS las cuentas
+   (Contabilidad lo filtra siempre). La marca se aplica local al
+   momento y viaja por la cola offline como cualquier acción. */
+function marcarPrueba(r){
+  if (!r) return;
+  var nuevo = !r.prueba;
+  r.prueba = nuevo;
+  encolar({ tipo: "prueba", id: r.id, prueba: nuevo, cuando: new Date().toISOString() });
+  guardar(); pintarTodo(); despacharCola();
+  toast(nuevo
+    ? "🧪 Marcado como prueba: sale de la Bandeja y de todas las cuentas"
+    : "↩️ Ya no es prueba: vuelve a la Bandeja y a las cuentas");
 }
 
 /* ===== RESPALDO SIN CÓDIGOS (solo Ernesto, en su teléfono) =====
@@ -3345,6 +3377,152 @@ function copiarTexto(t){
     ta.remove();
   }
 }
+
+/* ===== MÓDULO CONTABILIDAD (Fase 1: 100% automático, CERO captura) =====
+   Todo sale de los tratos APROBADOS y sin marca de prueba que ya
+   viven en la foto: la ganancia bruta de cada trato se deriva con
+   la tarifa vigente (las MISMAS fórmulas del servidor, las de
+   sugerencia()) y la comisión que se resta es la GUARDADA en el
+   reporte al aprobarlo — nunca una recalculada. Los filtros del
+   Libro son solo de vista: no cambian ninguna cuenta. */
+var contaFiltros = { periodo: "mes", buscador: "", tipo: "" };
+function contaRepsBase(){
+  return state.foto.reportes.filter(function(r){ return !r.prueba && r.estado === "aprobado"; });
+}
+function contaNombre(r){ return r.nombre || r.buscador || "Sin nombre"; }
+function contaGananciaBruta(r, t){
+  t = t || tarifa();
+  if (r.tipo === "saldo") return (Number(t.ingresoRef360) - Number(r.precio)) * Number(r.cantidad || 1);
+  var ef = Number(r.precio), pc = Number(r.porc || 0);
+  return (ef * (1 + pc / 100) / Number(t.libroRef)) * Number(t.salidaRef) - ef;
+}
+function contaNeta(r, t){ return contaGananciaBruta(r, t) - Number(r.comision || 0); }
+function contaCapital(r){
+  if (r.tipo === "saldo") return Number(r.precio) * Number(r.cantidad || 1);
+  return Number(r.precio);
+}
+function contaSumarDias(fechaStr, dias){
+  var d = new Date(fechaStr + "T12:00:00"); d.setDate(d.getDate() + dias);
+  function p(n){ return (n < 10 ? "0" : "") + n; }
+  return d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate());
+}
+function contaEnPeriodo(r, periodo, hoy, sem){
+  var f = fechaCorta(r.creado);
+  if (periodo === "hoy") return f === hoy;
+  if (periodo === "semana") return f >= sem.inicio && f <= sem.fin;
+  if (periodo === "mes") return f.slice(0, 7) === hoy.slice(0, 7);
+  return true;
+}
+registrarModulo({
+  id: "Contabilidad", tab: "Contabilidad", icono: "mercado",
+  render: function(){
+    var el = $("pgContabilidad"); if (!el) return;
+    var t = tarifa();
+    var reps = contaRepsBase();
+    var hoy = fechaCorta(new Date().toISOString());
+    var mes = hoy.slice(0, 7);
+    var sem = semanaActual();
+    var repsMes = reps.filter(function(r){ return fechaCorta(r.creado).slice(0, 7) === mes; });
+    var ganMes = repsMes.reduce(function(s, r){ return s + contaNeta(r, t); }, 0);
+    var sinPagar = reps.filter(function(r){ return !r.comision_pagada_en; });
+    var porPagar = sinPagar.reduce(function(s, r){ return s + Number(r.comision || 0); }, 0);
+    var capMes = repsMes.reduce(function(s, r){ return s + contaCapital(r); }, 0);
+    var recMes = repsMes.filter(function(r){ return r.tipo === "saldo"; }).reduce(function(s, r){ return s + Number(r.cantidad || 0); }, 0);
+    function netaEntre(ini, fin){
+      return reps.filter(function(r){ var f = fechaCorta(r.creado); return f >= ini && f <= fin; })
+        .reduce(function(s, r){ return s + contaNeta(r, t); }, 0);
+    }
+    var netaSem = netaEntre(sem.inicio, sem.fin);
+    var netaSemAnt = netaEntre(contaSumarDias(sem.inicio, -7), contaSumarDias(sem.inicio, -1));
+    var h = '<div class="sub">Las cuentas de tu negocio, solas: salen de los tratos aprobados que entraron por Mi Trabajo. Aquí nunca escribes un número.</div>';
+    /* --- Bloque 1 · Panel --- */
+    h += '<div class="card"><h3>📊 Panel — cómo va el negocio</h3>'
+      + '<p class="ayuda">Esto se calcula solo, de los tratos aprobados que entraron por Mi Trabajo. No tienes que escribir nada. La ganancia de cada trato se calcula con la tarifa vigente y restando la comisión que ya quedó guardada en el trato. Ojo: esto solo cuenta lo que pasa por el sistema; lo que mueves por fuera (tus ventas directas o la salida con tu comprador) no aparece aquí.</p>';
+    if (!reps.length) {
+      h += '<div class="mut">Sin datos aún: cuando apruebes el primer trato, estas cuentas se llenan solas.</div>';
+    } else {
+      var compSem;
+      if (netaSemAnt === 0) compSem = ' · sin datos la semana anterior';
+      else {
+        var pctSem = (netaSem - netaSemAnt) / Math.abs(netaSemAnt) * 100;
+        compSem = ' · ' + (pctSem >= 0 ? "▲ " : "▼ ") + fmt(Math.abs(pctSem)) + ' %';
+      }
+      h += '<div class="grid"><div class="cell"><div class="v">' + fmt(ganMes) + '</div><div class="k">GANANCIA DEL MES · CUP</div></div>'
+        + '<div class="cell"><div class="v">' + fmt(porPagar) + '</div><div class="k">COMISIONES POR PAGAR · CUP</div></div></div>'
+        + '<div class="grid"><div class="cell"><div class="v">' + fmt(capMes) + '</div><div class="k">CAPITAL MOVIDO (MES) · CUP</div></div>'
+        + '<div class="cell"><div class="v">' + recMes + '</div><div class="k">RECARGAS MOVIDAS (MES)</div></div></div>'
+        + '<div class="mut" style="margin-top:8px">La ganancia del mes sale de ' + repsMes.length + ' tratos aprobados de este mes; las comisiones por pagar, de ' + sinPagar.length + ' comisiones aún sin pagar de todas las fechas.</div>'
+        + '<div class="kv" style="margin-top:6px">Esta semana: <b>' + fmt(netaSem) + ' CUP</b> · La anterior: <b>' + fmt(netaSemAnt) + ' CUP</b>' + compSem + '</div>';
+    }
+    h += '</div>';
+    /* --- Bloque 2 · Libro automático --- */
+    var nombresLibro = [];
+    reps.forEach(function(r){ var n = contaNombre(r); if (nombresLibro.indexOf(n) < 0) nombresLibro.push(n); });
+    nombresLibro.sort();
+    var filtrados = reps.filter(function(r){
+      if (!contaEnPeriodo(r, contaFiltros.periodo, hoy, sem)) return false;
+      if (contaFiltros.buscador && contaNombre(r) !== contaFiltros.buscador) return false;
+      if (contaFiltros.tipo && r.tipo !== contaFiltros.tipo) return false;
+      return true;
+    }).slice().sort(function(x, y){ return String(y.creado).localeCompare(String(x.creado)); });
+    var ganTot = filtrados.reduce(function(s, r){ return s + contaNeta(r, t); }, 0);
+    var comTot = filtrados.reduce(function(s, r){ return s + Number(r.comision || 0); }, 0);
+    function chipsConta(attr, opciones){
+      return '<div class="chips">' + opciones.map(function(o){
+        return '<span class="chip' + (contaFiltros[attr] === o[0] ? " activa" : "") + '" data-conta-' + attr + '="' + esc(o[0]) + '">' + esc(o[1]) + '</span>';
+      }).join("") + '</div>';
+    }
+    h += '<div class="card"><h3>📒 Libro automático</h3>'
+      + '<p class="ayuda">Cada trato aprobado se anota solo en este libro: fecha, buscador, capital, tu ganancia y la comisión. Los filtros solo cambian lo que ves; no cambian ninguna cuenta.</p>'
+      + chipsConta("periodo", [["hoy", "Hoy"], ["semana", "Esta semana"], ["mes", "Este mes"], ["todo", "Todo"]])
+      + chipsConta("tipo", [["", "Todos"], ["saldo", "Saldo"], ["transferencia", "Transferencia"]])
+      + '<label for="contaBusc">Buscador</label><select id="contaBusc"><option value="">Todos</option>'
+      + nombresLibro.map(function(n){ return '<option value="' + esc(n) + '"' + (contaFiltros.buscador === n ? " selected" : "") + '>' + esc(n) + '</option>'; }).join("")
+      + '</select>'
+      + '<div class="kv">' + filtrados.length + ' tratos · Ganancia total: <b>' + fmt(ganTot) + ' CUP</b> · Comisiones: <b>' + fmt(comTot) + ' CUP</b></div>'
+      + (filtrados.length ? filtrados.map(function(r){
+          return '<div class="kv">' + fechaCorta(r.creado) + ' · ' + esc(contaNombre(r)) + ' · ' + esc(conceptoDe(r))
+            + ' · Capital: <b>' + fmt(contaCapital(r)) + ' CUP</b> · Tu ganancia: <b>' + fmt(contaNeta(r, t)) + ' CUP</b> · Comisión: ' + fmt(Number(r.comision || 0)) + ' CUP · '
+            + (r.comision_pagada_en ? '<span class="pill pOk">PAGADO</span>' : '<span class="pill pPend">por pagar</span>') + '</div>';
+        }).join("") : '<div class="mut">Ningún trato con ese filtro.</div>')
+      + '</div>';
+    /* --- Bloque 3 · Por pagar y pagos --- */
+    var grupos = {}, ordenGrupos = [];
+    sinPagar.forEach(function(r){
+      var n = contaNombre(r);
+      if (!grupos[n]) { grupos[n] = { nombre: n, n: 0, total: 0 }; ordenGrupos.push(grupos[n]); }
+      grupos[n].n++; grupos[n].total += Number(r.comision || 0);
+    });
+    ordenGrupos.sort(function(a, b){ return b.total - a.total; });
+    var historial = reps.filter(function(r){ return !!r.comision_pagada_en; })
+      .slice().sort(function(x, y){ return String(y.comision_pagada_en).localeCompare(String(x.comision_pagada_en)); });
+    h += '<div class="card"><h3>💸 Por pagar y pagos</h3>'
+      + '<p class="ayuda">Aquí ves cuánto le debes a cada buscador por comisiones aprobadas que aún no marcas pagadas, y el historial de las que ya pagaste. Para pagar, usa el botón «Ya pagué» del trato en la Bandeja: al tocarlo, esto se actualiza solo.</p>';
+    if (ordenGrupos.length) {
+      h += ordenGrupos.map(function(g){
+        return '<div class="kv">' + esc(g.nombre) + ' — ' + g.n + (g.n === 1 ? ' comisión' : ' comisiones') + ' — <b>' + fmt(g.total) + ' CUP</b></div>';
+      }).join("")
+      + '<div class="kv">Total por pagar: <b>' + fmt(porPagar) + ' CUP</b> (de ' + sinPagar.length + ' comisiones)</div>';
+    } else h += '<div class="mut">No debes ninguna comisión ahora mismo. 🎉</div>';
+    h += '<h3 style="margin-top:14px">Historial de pagos</h3>';
+    if (historial.length) {
+      h += historial.map(function(r){
+        return '<div class="kv">' + esc(contaNombre(r)) + ' · ' + esc(conceptoDe(r)) + ' · Comisión ' + fmt(Number(r.comision || 0)) + ' CUP · pagada el ' + fechaCorta(r.comision_pagada_en) + '</div>';
+      }).join("");
+    } else h += '<div class="mut">Todavía no marcaste ningún pago.</div>';
+    h += '</div>';
+    el.innerHTML = h;
+    el.querySelectorAll("[data-conta-periodo]").forEach(function(c){
+      c.addEventListener("click", function(){ contaFiltros.periodo = c.getAttribute("data-conta-periodo"); modulo("Contabilidad").render(); });
+    });
+    el.querySelectorAll("[data-conta-tipo]").forEach(function(c){
+      c.addEventListener("click", function(){ contaFiltros.tipo = c.getAttribute("data-conta-tipo"); modulo("Contabilidad").render(); });
+    });
+    var selB = $("contaBusc");
+    if (selB) selB.addEventListener("change", function(){ contaFiltros.buscador = selB.value; modulo("Contabilidad").render(); });
+  },
+  alMostrar: function(){ var m = modulo("Contabilidad"); if (m) m.render(); }
+});
 
 /* Al tocar una notificación, el SW avisa a qué pestaña ir. */
 if ("serviceWorker" in navigator) {
