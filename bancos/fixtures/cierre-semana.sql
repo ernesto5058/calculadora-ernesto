@@ -1,11 +1,13 @@
 -- =====================================================================
 -- FIXTURE DE BANCO — NO EJECUTAR EN LA BASE.
--- Bloque EXACTO de admin_generar_cierre tal como vive en el paquete de
--- activación (research_notes/activacion-completa-v13.sql, el mismo texto
--- de chat-pro.sql): el banco de invariantes (test-invariantes-dinero.mjs)
--- lo lee para anclar el espejo JS de la fórmula del cierre del servidor
--- y el WHERE de su resumen. Si la fórmula cambia en la activación, este
--- fixture se regenera del paquete nuevo y las anclas avisan.
+-- Bloque de admin_generar_cierre tal como quedó DESPLEGADO en la base
+-- viva el 2026-11-11 (tanda H-1/H-2/H-3; fuente:
+-- research_notes/cierre-h1-h2-h3-sql-2026-11-11.sql, verificado contra
+-- pg_get_functiondef tras el despliegue): el banco de invariantes
+-- (test-invariantes-dinero.mjs) lo lee para anclar el espejo JS de la
+-- fórmula del cierre del servidor y el WHERE de su resumen. Si la
+-- fórmula cambia en la base, este fixture se regenera de la definición
+-- viva y las anclas avisan.
 -- =====================================================================
 
 create or replace function public.admin_generar_cierre(p_codigo text, p_semana_inicio date)
@@ -50,16 +52,18 @@ begin
        group by p.codigo, p.nombre
     ) s;
 
-  -- Tu ganancia de la semana (reportes aprobados): saldo = excedente
-  -- menos comisión; transferencia = ganancia de la vuelta menos comisión.
+  -- Tu ganancia de la semana (reportes aprobados, sin pruebas): saldo =
+  -- excedente menos comisión; transferencia = ganancia de la vuelta
+  -- menos comisión. Sin clamp: las pérdidas restan, como en la
+  -- Contabilidad (arreglos H-2 y H-3, 2026-11-11).
   select jsonb_build_object(
            'tratos', count(*),
            'tu_ganancia', coalesce(sum(
              case
                when r.tipo = 'saldo' then
-                 greatest(t.ingreso_ref360 - r.precio, 0) * coalesce(r.cantidad, 1) - coalesce(r.comision, 0)
+                 (t.ingreso_ref360 - r.precio) * coalesce(r.cantidad, 1) - coalesce(r.comision, 0)
                when r.tipo = 'transferencia' then
-                 greatest((r.cantidad * (1 + coalesce(r.porc, 0) / 100.0) / nullif(t.libro_ref, 0)) * t.salida_ref - r.cantidad, 0)
+                 ((r.cantidad * (1 + coalesce(r.porc, 0) / 100.0) / nullif(t.libro_ref, 0)) * t.salida_ref - r.cantidad)
                    - coalesce(r.comision, 0)
                else 0 end), 0),
            'comisiones', coalesce(sum(r.comision), 0),
@@ -71,7 +75,8 @@ begin
     cross join (select ingreso_ref360, libro_ref, salida_ref
                   from public.tarifa where id = 1) t
    where r.estado = 'aprobado'
-     and r.creado::date between p_semana_inicio and v_fin;
+     and not coalesce(r.prueba, false)
+     and r.creado_en::date between p_semana_inicio and v_fin;
 
   v_datos := jsonb_build_object(
     'semana_inicio', p_semana_inicio,
