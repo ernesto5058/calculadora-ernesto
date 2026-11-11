@@ -182,12 +182,12 @@ function crear(opts){
 {
   const w = crear({});
   await sleep(300);
-  ok(w.APP_VERSION === "1.4.5", "V1 APP_VERSION 1.4.5");
+  ok(w.APP_VERSION === "1.4.6", "V1 APP_VERSION 1.4.6");
   w.close();
   const sw = fs.readFileSync(HOME + "/buscadores/sw.js", "utf8");
-  ok(sw.includes('CACHE = "mitrabajo-v13"'), "V2 el SW sube a mitrabajo-v13");
+  ok(sw.includes('CACHE = "mitrabajo-v14"'), "V2 el SW sube a mitrabajo-v14");
   const datos = JSON.parse(fs.readFileSync(HOME + "/buscadores/datos.json", "utf8"));
-  ok(datos.versionApp === "1.4.5" && /apk-v1\.4\.5\/Mi-Trabajo-v1\.4\.5\.apk$/.test(datos.apkUrl), "V3 datos.json: versionApp 1.4.5 y apkUrl de la v1.4.5");
+  ok(datos.versionApp === "1.4.6" && /apk-v1\.4\.6\/Mi-Trabajo-v1\.4\.6\.apk$/.test(datos.apkUrl), "V3 datos.json: versionApp 1.4.6 y apkUrl de la v1.4.6");
   ok(datos.tarifa.ingresoRef360 === 1098.68 && datos.tarifa.libroRef === 1069.38 && datos.tarifa.salidaRef === 950 && datos.tarifa.pctSaldo === 25 && datos.tarifa.pisoTransf === 25, "V4 la tarifa de datos.json queda INTACTA");
   ok(datos.publico.telefono === "51231558" && datos.publico.saldo.tasa === 2 && datos.publico.saldo.recarga === 720, "V5 el bloque público queda INTACTO (teléfono de Ernesto, al 2, recargas 720)");
 }
@@ -246,6 +246,6 @@ function huellaDeApk(ruta){
   ok(pkg.dependencies["@capacitor/app"] && pkg.dependencies["@capacitor/push-notifications"], "A7 package.json declara @capacitor/app y @capacitor/push-notifications");
 }
 
-console.log("\nBANCO MI TRABAJO v1.4.5: " + pass + " PASS · " + fail + " FAIL");
+console.log("\nBANCO MI TRABAJO v1.4.5 (regresión en la era v1.4.6): " + pass + " PASS · " + fail + " FAIL");
 if (fails.length) console.log("Fallos:", fails.join(" · "));
 process.exit(fail ? 1 : 0);
