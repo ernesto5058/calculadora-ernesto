@@ -9,6 +9,9 @@ var DATA = { tarifa: DEFAULT_TARIFA, actualizado: "", buscadores: {} };
 var T = DEFAULT_TARIFA;
 var DATA_VERSION = 0;   /* mayor version de datos.json aplicada: la guarda no deja bajar */
 var SESION = "";        /* código personal de la sesión activa ("" = sin entrar) */
+var TARIFA_VIVA = null; /* v1.3.0: tarifa leída en vivo (leer_tarifa); manda sobre datos.json */
+var TARIFA_VIVA_EN = "";/* v1.3.0: ISO de la última publicación de la tarifa viva */
+var PANEL_VIVO = null;  /* v1.3.0: {nombre, tratos} leídos en vivo (leer_panel) */
 
 /* ===== Supabase (clave pública; las puertas RPC validan el código) ===== */
 var SB_URL = "https://otsudfgwpapkluusrlnj.supabase.co/rest/v1/reportes";
@@ -115,9 +118,11 @@ function entrar(code){
   renderPanel();
   tocarPresencia();
   chatBadge();
+  cargarVivo();
 }
 function salir(msg){
   SESION = ""; sesionClear();
+  PANEL_VIVO = null;
   try { $("l_cod").value = ""; } catch(e){}
   pintarBadge(0);
   var body = $("p_body"); if (body) body.classList.add("hide");
@@ -154,7 +159,8 @@ function intentarLogin(codeCrudo, desdeEnlace){
 function renderPanel(){
   var warn = $("p_warn"), body = $("p_body");
   if (!SESION) { body.classList.add("hide"); warn.style.display = "none"; return; }
-  var b = DATA.buscadores ? DATA.buscadores[SESION] : null;
+  var bDatos = DATA.buscadores ? DATA.buscadores[SESION] : null;
+  var b = PANEL_VIVO ? { nombre: PANEL_VIVO.nombre || (bDatos ? bDatos.nombre : ""), tratos: PANEL_VIVO.tratos || [] } : bDatos;
   if (!b) {
     warn.style.display = "block";
     warn.textContent = "Tus datos todavía no cargan en este teléfono. Toca «Actualizar» con conexión.";
@@ -191,6 +197,17 @@ function tarifaText(){
    Si el campo es solo fecha (publicaciones viejas), se muestra tal cual. */
 function pintaFrescura(){
   var el = $("freshTxt"); if (!el) return;
+  if (TARIFA_VIVA_EN) {   // v1.3.0: manda la hora de la tarifa EN VIVO
+    var tv = Date.parse(TARIFA_VIVA_EN);
+    if (!isNaN(tv)) {
+      var minv = Math.max(0, Math.round((Date.now() - tv) / 60000));
+      el.textContent = minv < 1 ? "Tarifa actualizada: ahora mismo"
+        : minv < 60 ? "Tarifa actualizada: hace " + minv + " min"
+        : minv < 1440 ? "Tarifa actualizada: hace " + Math.round(minv / 60) + " h"
+        : "Tarifa actualizada: hace " + Math.round(minv / 1440) + " días";
+      return;
+    }
+  }
   var a = String(DATA.actualizado || "");
   if (!a) { el.textContent = ""; return; }
   if (/^\d{4}-\d{2}-\d{2}$/.test(a)) { el.textContent = "Tarifa publicada: " + a; return; }
@@ -224,6 +241,7 @@ function applyData(d, fresca){
     }
     renderPanel();
   }
+  if (TARIFA_VIVA) aplicarTarifaViva();   // v1.3.0: un datos.json tardío nunca pisa la tarifa viva
 }
 function fetchDatos(url, fresca){
   return fetch(url, { cache: "no-store" }).then(function(r){ return r.ok ? r.json() : null; })
@@ -416,6 +434,41 @@ function chatBadge(){
     if (r && r.ok) pintarBadge(r.sin_leer || 0);
   });
 }
+/* ===== Tarifa y panel EN VIVO (v1.3.0) =====
+   Ernesto publica desde PanelPRO («Publicar ahora») y la app lo lee
+   aquí al abrir y al Actualizar, SIN pasar por GitHub. Si las puertas
+   aún no existen o no hay red, no llega nada y manda datos.json,
+   exactamente como en la 1.2.1 (respaldo intacto). */
+function aplicarTarifaViva(){
+  if (!TARIFA_VIVA) return;
+  T = Object.assign({}, T, TARIFA_VIVA);   // los bonos y demás campos se quedan de datos.json
+  try { $("tarifaTxt").innerHTML = tarifaText(); } catch(e){}
+  pintaFrescura();
+  calcSaldo(); calcTransf();
+  if (SESION) renderPanel();
+}
+function leerTarifaViva(){
+  rpcChat("leer_tarifa", {}).then(function(r){
+    if (r && r.ok && r.ingreso_ref360 !== undefined && r.ingreso_ref360 !== null) {
+      TARIFA_VIVA = { ingresoRef360: Number(r.ingreso_ref360), libroRef: Number(r.libro_ref),
+        salidaRef: Number(r.salida_ref), pctSaldo: Number(r.comision_saldo),
+        pctTransf: Number(r.comision_transf), pisoTransf: Number(r.piso_transf) };
+      TARIFA_VIVA_EN = r.actualizado || "";
+      aplicarTarifaViva();
+    }
+  });
+}
+var panelCargando = false;
+function leerPanelVivo(){
+  if (!SESION || panelCargando) return;
+  panelCargando = true;
+  rpcChat("leer_panel", { p_codigo: SESION }).then(function(r){
+    panelCargando = false;
+    if (r && r.ok) { PANEL_VIVO = { nombre: r.nombre || "", tratos: r.tratos || [] }; renderPanel(); }
+  });
+}
+function cargarVivo(){ leerTarifaViva(); leerPanelVivo(); }
+
 function chatEnviar(){
   var warn = $("c_warn"); warn.style.display = "none";
   function fallo(m){ warn.style.display = "block"; warn.textContent = m; }
@@ -436,7 +489,7 @@ function refrescarTodo(){
   lastRefresh = Date.now();
   var ft = $("freshTxt"); if (ft) ft.textContent = "Actualizando…";
   var p = loadData();
-  syncReportes(); chatBadge(); tocarPresencia();
+  syncReportes(); chatBadge(); tocarPresencia(); cargarVivo();
   if (!$("viewAyuda").classList.contains("hide")) chatCargar();
   if (SESION) rpcValidar(SESION).then(function(v){
     if (v.estado === "no") salir("Tu acceso ya no está activo. Habla con Ernesto.");
@@ -490,6 +543,7 @@ if ("serviceWorker" in navigator && !esNativo()) {
 /* ===== Arranque ===== */
 lastRefresh = Date.now();
 loadData();
+leerTarifaViva();
 renderOutbox();
 syncReportes();
 (function arranque(){
