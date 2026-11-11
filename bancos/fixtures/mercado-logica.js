@@ -18,12 +18,27 @@ export function num(x) {
   return Number.isFinite(n) ? n : null;
 }
 
+// La API /p2p NO trae campo «ratio» (verificado en vivo 2026-11-11
+// contra el libro real, en compra y en venta): la tasa en saldo por
+// QUSD se deriva de receive/amount — el orden que la propia API da
+// con orderBy=ratio sigue exactamente ese cociente en ambos lados
+// (compra desc: 305.08, 301.02, 300.15…; venta asc: 320.00, 324.99…).
+// Si algún día la API trae el campo, manda el campo.
+export function ratioDe(o) {
+  const directa = num(o && o.ratio);
+  if (directa !== null) return directa;
+  const monto = num(o && o.amount);
+  const recibe = num(o && o.receive);
+  if (monto === null || recibe === null || monto <= 0) return null;
+  return recibe / monto;
+}
+
 // Una oferta sirve para los niveles si: ratio válido, no es la trampa,
 // y no es oferta propia de Ernesto (la función marca las suyas con
 // mine=true antes de pasarlas aquí).
 export function ofertaValida(o) {
   if (!o || typeof o !== "object") return false;
-  const r = num(o.ratio);
+  const r = ratioDe(o);
   if (r === null || r <= 0 || r >= TRAMPA_RATIO) return false;
   if (o.mine === true) return false;
   return true;
@@ -43,7 +58,7 @@ export function topCompra(ofertas) {
   let top = null;
   for (const o of ofertas || []) {
     if (!ofertaValida(o)) continue;
-    const r = num(o.ratio);
+    const r = ratioDe(o);
     if (top === null || r > top) top = r;
   }
   return top;
@@ -57,7 +72,7 @@ export function nivel20(ofertas) {
   for (const o of ofertas || []) {
     if (!ofertaValida(o)) continue;
     if (usdDeOferta(o) < 20) continue;
-    const r = num(o.ratio);
+    const r = ratioDe(o);
     if (top === null || r > top) top = r;
   }
   return top;
@@ -68,7 +83,7 @@ export function topVenta(ofertas) {
   let top = null;
   for (const o of ofertas || []) {
     if (!ofertaValida(o)) continue;
-    const r = num(o.ratio);
+    const r = ratioDe(o);
     if (top === null || r < top) top = r;
   }
   return top;
