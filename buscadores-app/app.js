@@ -1,5 +1,5 @@
 "use strict";
-var APP_VERSION = "1.4.1";
+var APP_VERSION = "1.4.2";
 /* Tarifa de respaldo: se usa sin conexión si nunca se ha descargado datos.json.
    La tarifa viva viene de datos.json (la actualiza Ernesto/Máximo). */
 var DEFAULT_TARIFA = { ingresoRef360: 1092.65, libroRef: 1110, salidaRef: 950,
@@ -596,7 +596,7 @@ function showView(v){
 $("tabCalc").addEventListener("click", function(){ showView("Calc"); });
 $("tabRep").addEventListener("click", function(){ showView("Rep"); });
 $("tabPanel").addEventListener("click", function(){ showView("Panel"); });
-$("tabAyuda").addEventListener("click", function(){ showView("Ayuda"); });
+$("tabAyuda").addEventListener("click", function(){ showView("Ayuda"); try { rtSuscribirMT(); } catch(e){} });
 $("r_tipo_s").addEventListener("click", function(){ REP_TIPO = "saldo"; $("r_tipo_s").classList.add("on"); $("r_tipo_t").classList.remove("on"); $("r_box_s").classList.remove("hide"); $("r_box_t").classList.add("hide"); });
 $("r_tipo_t").addEventListener("click", function(){ REP_TIPO = "transferencia"; $("r_tipo_t").classList.add("on"); $("r_tipo_s").classList.remove("on"); $("r_box_t").classList.remove("hide"); $("r_box_s").classList.add("hide"); });
 $("r_btn").addEventListener("click", reportar);
@@ -617,10 +617,18 @@ setInterval(function(){
   try { if (!$("viewAyuda").classList.contains("hide")) chatCargar(); } catch(e){}
 }, 20000);
 setInterval(function(){
-  // v1.3.1: con el chat abierto, el hilo se refresca cada ~15 s para
-  // que los estados (entregado/visto) cambien solos, estilo WhatsApp.
-  try { if (SESION && !$("viewAyuda").classList.contains("hide")) chatCargar(); } catch(e){}
-}, 15000);
+  // v1.3.1: con el chat abierto, el hilo se refresca para que los estados
+  // (entregado/visto) cambien solos, estilo WhatsApp.
+  // v1.4.2: cada 3 s con el chat abierto y la app VISIBLE (antes 15 s);
+  // el timbre Realtime acelera el resto.
+  try { if (SESION && document.visibilityState === "visible" && !$("viewAyuda").classList.contains("hide")) chatCargar(); } catch(e){}
+}, 3000);
+document.addEventListener("visibilitychange", function(){
+  try {
+    if (document.visibilityState !== "visible" || !SESION) return;
+    if (!$("viewAyuda").classList.contains("hide")) { rtSuscribirMT(); chatCargar(); }
+  } catch(e){}
+});
 try { $("verLab").textContent = APP_VERSION; } catch(e){}
 
 if ("serviceWorker" in navigator && !esNativo()) {
@@ -652,6 +660,9 @@ syncReportes();
 
 /* =====================================================================
    v1.4.0 — PERFIL + CHAT PRO + TEXTOS + AVISOS + MI SEMANA
+   v1.4.2 — VOZ PRO (mime real + reproductor estilo WhatsApp vía Blob) y
+   chat casi en vivo: polling de 3 s con el chat abierto y timbre Realtime
+   Broadcast (mismo canal que Mi Negocio) al enviar.
    Todo degrada en silencio si una puerta aún no existe (el paquete
    SQL único las activa): la app sigue como en la 1.3.1.
    ===================================================================== */
@@ -659,6 +670,169 @@ syncReportes();
 /* ===== Motor de textos y cliente push compartidos (fuente única) ===== */
 /*__MOTOR_TEXTOS__*/
 /*__PUSH_CLIENTE__*/
+
+/* ========== VOZ PRO v1.4.2 + TIMBRE REALTIME (módulo global) ==========
+   El formato real manda: notas viejas llegan sin mime y se olfatea por la
+   cabecera base64 (GkX=webm · T2dn=ogg · resto/ftyp=mp4). La reproducción va
+   SIEMPRE por Blob/objectURL (iOS no reproduce bien el src data: directo). */
+var vozDatosMT = {}, vozAudiosMT = {}, vozContadorMT = 0;
+function mimeVozRealMT(datos) {
+  var s = String(datos == null ? "" : datos);
+  var m = s.match(/^data:([^;,]+)/);
+  if (m) return m[1];
+  if (s.indexOf("GkX") === 0) return "audio/webm";
+  if (s.indexOf("T2dn") === 0) return "audio/ogg";
+  return "audio/mp4";
+}
+function datosCuerpoMT(datos) {
+  var s = String(datos == null ? "" : datos);
+  var i = s.indexOf("base64,");
+  return i >= 0 ? s.slice(i + 7) : s;
+}
+function dataUrlVozMT(datos) {
+  var s = String(datos == null ? "" : datos);
+  if (s.indexOf("data:") === 0) return s;
+  return "data:" + mimeVozRealMT(s) + ";base64," + s;
+}
+function fmtTiempoVozMT(seg) {
+  if (!isFinite(seg) || seg == null || seg < 0) seg = 0;
+  seg = Math.floor(seg);
+  var m = Math.floor(seg / 60), ss = seg % 60;
+  return m + ":" + (ss < 10 ? "0" : "") + ss;
+}
+function picosVozMT(semilla, n) {
+  var h = 2166136261, out = [];
+  var s = String(semilla || "");
+  for (var i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
+  for (var j = 0; j < n; j++) {
+    h ^= (h << 13); h ^= (h >>> 17); h ^= (h << 5);
+    out.push(22 + Math.abs(h % 78));
+  }
+  return out;
+}
+function reproductorVozHtmlMT(m) {
+  var id = "m" + (++vozContadorMT);
+  vozDatosMT[id] = m.adj_datos;
+  var picos = picosVozMT(datosCuerpoMT(m.adj_datos).slice(0, 48), 24);
+  var onda = "";
+  for (var i = 0; i < picos.length; i++) onda += '<i style="height:' + picos[i] + '%"></i>';
+  return '<div class="vozP" data-vid="' + id + '"><button type="button" class="vozBtn" data-vplay="' + id + '" aria-label="Escuchar nota de voz">▶</button>' +
+    '<div class="vozOnda">' + onda + '</div><span class="vozT">0:00</span></div>';
+}
+function pararOtrasVocesMT(excepto) {
+  Object.keys(vozAudiosMT).forEach(function (k) {
+    if (k !== excepto && vozAudiosMT[k]) { try { vozAudiosMT[k].pause(); } catch (e) {} }
+  });
+}
+function alistarReproductoresVozMT(raiz) {
+  if (!raiz || !raiz.querySelectorAll) return;
+  var botones = raiz.querySelectorAll("[data-vplay]");
+  Array.prototype.forEach.call(botones, function (btn) {
+    btn.addEventListener("click", function (e) { e.stopPropagation(); alternarVozMT(btn.getAttribute("data-vplay"), btn); });
+  });
+}
+function alternarVozMT(id, btn) {
+  var au = vozAudiosMT[id];
+  if (au) {
+    if (au.paused) { pararOtrasVocesMT(id); au.play(); } else { au.pause(); }
+    return;
+  }
+  var cont = btn.closest ? btn.closest(".vozP") : null;
+  var barras = cont ? cont.querySelectorAll(".vozOnda i") : [];
+  var tiempo = cont ? cont.querySelector(".vozT") : null;
+  var url = dataUrlVozMT(vozDatosMT[id]);
+  var listo = function (src) {
+    var a = new Audio();
+    a.preload = "auto";
+    a.src = src;
+    vozAudiosMT[id] = a;
+    a.addEventListener("loadedmetadata", function () {
+      if (tiempo) tiempo.textContent = fmtTiempoVozMT(a.duration);
+      picosRealesVozMT(dataUrlVozMT(vozDatosMT[id]), barras);
+    });
+    a.addEventListener("timeupdate", function () {
+      if (tiempo) tiempo.textContent = fmtTiempoVozMT(a.currentTime);
+      if (a.duration > 0) {
+        var n = Math.floor((a.currentTime / a.duration) * barras.length);
+        Array.prototype.forEach.call(barras, function (b, bi) { b.classList.toggle("on", bi < n); });
+      }
+    });
+    var fin = function () { btn.textContent = "▶"; Array.prototype.forEach.call(barras, function (b) { b.classList.remove("on"); }); if (tiempo) tiempo.textContent = fmtTiempoVozMT(a.duration); };
+    a.addEventListener("ended", fin);
+    a.addEventListener("pause", function () { btn.textContent = "▶"; });
+    a.addEventListener("play", function () { btn.textContent = "⏸"; });
+    pararOtrasVocesMT(id);
+    var p = a.play();
+    if (p && p.catch) p.catch(function () { btn.textContent = "▶"; });
+  };
+  if (typeof fetch === "function") {
+    fetch(url).then(function (r) { return r.blob(); }).then(function (b) { listo(URL.createObjectURL(b)); }).catch(function () { listo(url); });
+  } else listo(url);
+}
+function picosRealesVozMT(dataUrl, barras) {
+  try {
+    var AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC || !barras || !barras.length || typeof fetch !== "function") return;
+    fetch(dataUrl).then(function (r) { return r.arrayBuffer(); }).then(function (buf) {
+      var ctx = new AC();
+      return ctx.decodeAudioData(buf);
+    }).then(function (audio) {
+      var datos = audio.getChannelData(0), n = barras.length, paso = Math.max(1, Math.floor(datos.length / n));
+      for (var i = 0; i < n; i++) {
+        var max = 0;
+        for (var j = 0; j < paso; j += 97) { var v = Math.abs(datos[i * paso + j] || 0); if (v > max) max = v; }
+        barras[i].style.height = Math.max(14, Math.min(100, Math.round(max * 130))) + "%";
+      }
+    }).catch(function () { /* quedan los picos fijos */ });
+  } catch (e) { /* quedan los picos fijos */ }
+}
+/* Timbre Realtime Broadcast: canal = hash de la pareja ordenada (el mismo
+   cálculo que Mi Negocio) — el timbre no lleva texto; el contenido sigue
+   viajando solo por las puertas RPC. */
+function hashParChatMT(a, b) {
+  var s = [String(a || ""), String(b || "")].sort().join("|");
+  function h(sem) { var x = sem; for (var i = 0; i < s.length; i++) { x = ((x << 5) - x + s.charCodeAt(i)) | 0; } return (x >>> 0).toString(16); }
+  return "chat-" + h(5381) + h(52711);
+}
+function chatCargarMT() { if (typeof chatCargar === "function") chatCargar(); }
+var rtCanalMT = null;
+function urlProyectoMT() { return SB_RPC.split("/rest/v1/")[0]; }
+function rtClienteMT() {
+  try {
+    if (!window.supabase || !window.supabase.createClient) return null;
+    if (!rtClienteMT._c) rtClienteMT._c = window.supabase.createClient(urlProyectoMT(), SB_KEY, { realtime: { params: { eventsPerSecond: 2 } } });
+    return rtClienteMT._c;
+  } catch (e) { return null; }
+}
+function rtSuscribirMT() {
+  var cli = rtClienteMT();
+  if (!cli || !SESION) return;
+  try {
+    if (rtCanalMT) return;
+    rtCanalMT = cli.channel(hashParChatMT(SESION, "ADMIN"), { config: { broadcast: { self: false } } });
+    rtCanalMT.on("broadcast", { event: "nuevo" }, function () {
+      var v = $("viewAyuda");
+      if (v && !v.classList.contains("hide")) chatCargarMT();
+    });
+    rtCanalMT.subscribe();
+  } catch (e) { rtCanalMT = null; }
+}
+function rtTimbreMT() {
+  var cli = rtClienteMT();
+  if (!cli) return;
+  try {
+    var ch = cli.channel(hashParChatMT(SESION, "ADMIN"), { config: { broadcast: { self: false } } });
+    var hecho = false;
+    var cerrar = function () { if (hecho) return; hecho = true; try { cli.removeChannel(ch); } catch (e) {} };
+    ch.subscribe(function (st) {
+      if (st === "SUBSCRIBED") {
+        ch.send({ type: "broadcast", event: "nuevo", payload: {} }).then(cerrar).catch(cerrar);
+        setTimeout(cerrar, 1500);
+      }
+    });
+    setTimeout(cerrar, 6000);
+  } catch (e) {}
+}
 
 /* ===== RPC con mensaje de error (para detectar la pausa) ===== */
 var EN_PAUSA = false;
@@ -811,7 +985,7 @@ function pintarChat(msgs){
     else {
       if (m.resp_texto) inner += '<span class="cita">' + escChat(m.resp_autor === SESION ? "Tú" : (m.resp_autor || "")) + ": " + escChat(String(m.resp_texto).slice(0, 90)) + "</span>";
       if (m.adj_tipo === "foto" && m.adj_datos) inner += '<img class="adjFoto" alt="Foto" src="' + (String(m.adj_datos).indexOf("data:") === 0 ? m.adj_datos : "data:image/jpeg;base64," + m.adj_datos) + '">';
-      else if (m.adj_tipo === "voz" && m.adj_datos) inner += '<audio controls src="' + (String(m.adj_datos).indexOf("data:") === 0 ? m.adj_datos : "data:audio/webm;base64," + m.adj_datos) + '"></audio>';
+      else if (m.adj_tipo === "voz" && m.adj_datos) inner += reproductorVozHtmlMT(m);
       else if (m.adj_datos) inner += '<span class="adjChip">📎 ' + escChat(m.adj_nombre || "Archivo") + "</span>";
       if (m.texto) inner += escChat(m.texto);
     }
@@ -824,6 +998,10 @@ function pintarChat(msgs){
     h += '<div class="msg ' + (mio ? "me" : "him") + '" data-mid="' + m.id + '"><div class="bur">' + inner + "</div>" + reac + "</div>";
   });
   box.innerHTML = h || '<div class="chatVacio">Ningún mensaje coincide con la búsqueda en lo cargado. Prueba «Buscar más».</div>';
+  vozDatosMT = {}; vozAudiosMT = {};
+  var conVoz = (msgs || []).filter(function(m){ return m.adj_tipo === "voz" && m.adj_datos && !m.borrado; });
+  conVoz.forEach(function(m){ reproductorVozHtmlMT(m); });
+  alistarReproductoresVozMT(box);
   box.querySelectorAll("[data-mid]").forEach(function(el){
     el.addEventListener("click", function(){ abrirMenuMsg(Number(el.getAttribute("data-mid"))); });
   });
@@ -919,6 +1097,7 @@ function chatEnviar(){
   rpcMsg("enviar_mensaje", body).then(function(r){
     btn.disabled = false;
     if (r.ok) {
+      rtTimbreMT();   /* v1.4.2: timbre instantáneo a Mi Negocio de Ernesto */
       $("c_txt").value = ""; CHAT_RESP = null; CHAT_ADJ = null;
       var rb = $("c_resp"); if (rb) rb.style.display = "none";
       var an = $("c_adj_nom"); if (an) an.textContent = "";
@@ -1146,26 +1325,54 @@ function showView(v){
         if (r && r.ok && r.mensajes) { CHAT_FIJADO = r.fijado || CHAT_FIJADO; pintarChat(r.mensajes); }
       });
     });
-    var grabando = null, recMT = null, chunksMT = [];
+    var grabando = null, recMT = null, chunksMT = [], grabT0MT = 0, grabTickMT = null;
+    function mejorMimeVozMT(){
+      try {
+        if (window.MediaRecorder && MediaRecorder.isTypeSupported) {
+          if (MediaRecorder.isTypeSupported("audio/mp4")) return "audio/mp4";
+          if (MediaRecorder.isTypeSupported("audio/webm")) return "audio/webm";
+        }
+      } catch(e){}
+      return "";
+    }
     $("c_mic").addEventListener("click", function(){
       if (grabando) { grabando.stop(); return; }
       if (!navigator.mediaDevices || !window.MediaRecorder) { chatFallo("Este aparato no deja grabar voz aquí: manda el mensaje escrito."); return; }
       navigator.mediaDevices.getUserMedia({ audio: true }).then(function(stream){
         chunksMT = [];
-        recMT = new MediaRecorder(stream);
+        /* v1.4.2: mejor mime soportado (iPhone graba mp4/AAC) y 32 kbps:
+           el adjunto guarda el dataURL COMPLETO con el tipo real. */
+        var mimeMT = mejorMimeVozMT();
+        try { recMT = mimeMT ? new MediaRecorder(stream, { mimeType: mimeMT, audioBitsPerSecond: 32000 }) : new MediaRecorder(stream, { audioBitsPerSecond: 32000 }); }
+        catch(e) { recMT = new MediaRecorder(stream); }
         recMT.ondataavailable = function(e){ if (e.data && e.data.size) chunksMT.push(e.data); };
         recMT.onstop = function(){
           stream.getTracks().forEach(function(t){ t.stop(); });
-          grabando = null; $("c_mic").textContent = "🎤";
-          var blob = new Blob(chunksMT, { type: recMT.mimeType || "audio/webm" });
+          if (grabTickMT) { clearInterval(grabTickMT); grabTickMT = null; }
+          grabando = null; $("c_mic").textContent = "🎤"; $("c_mic").classList.remove("grabando");
+          var blob = new Blob(chunksMT, { type: recMT.mimeType || mimeMT || "audio/webm" });
           if (blob.size > MAX_ADJ_MT) { chatFallo("La nota pesa más de 5 MB: graba una más corta (máx 2 min)."); return; }
           var fr = new FileReader();
-          fr.onload = function(){ CHAT_ADJ = { tipo: "voz", datos: String(fr.result), nombre: "Nota de voz", tam: blob.size }; $("c_adj_nom").textContent = "🎤 Nota de voz lista: toca el botón dorado de enviar (➤)."; };
+          fr.onload = function(){
+            CHAT_ADJ = { tipo: "voz", datos: String(fr.result), nombre: "Nota de voz", tam: blob.size };
+            /* v1.4.2: vista previa con su propio ▶ para ESCUCHAR antes de enviar */
+            var an = $("c_adj_nom");
+            an.innerHTML = "";
+            var et = document.createElement("span"); et.textContent = "🎤 Nota de voz lista — escúchala y toca ➤ para enviar: ";
+            an.appendChild(et);
+            var cont = document.createElement("span");
+            cont.innerHTML = reproductorVozHtmlMT({ adj_datos: String(fr.result) });
+            an.appendChild(cont);
+            alistarReproductoresVozMT(an);
+          };
           fr.readAsDataURL(blob);
         };
         recMT.start();
         grabando = recMT;
-        $("c_mic").textContent = "⏹️";
+        grabT0MT = Date.now();
+        $("c_mic").classList.add("grabando");
+        $("c_mic").textContent = "⏹️ 0:00";
+        grabTickMT = setInterval(function(){ $("c_mic").textContent = "⏹️ " + fmtTiempoVozMT((Date.now() - grabT0MT) / 1000); }, 250);
         setTimeout(function(){ if (grabando) grabando.stop(); }, 120000);
       }).catch(function(){ chatFallo("Sin permiso de micrófono: actívalo para la app si quieres mandar voz."); });
     });

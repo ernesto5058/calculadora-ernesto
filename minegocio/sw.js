@@ -5,7 +5,7 @@
    la app abre SIN internet desde la segunda visita. Los datos
    (Supabase, datos.json, ultimo.json) siempre van a la red primero
    y la app guarda su última foto en localStorage. */
-var CACHE = "minegocio-v3";
+var CACHE = "minegocio-v4";
 var CASCARON = [
   "./",
   "./index.html",
@@ -19,6 +19,11 @@ self.addEventListener("install", function(e){
   e.waitUntil(
     caches.open(CACHE).then(function(c){ return c.addAll(CASCARON); }).then(function(){ return self.skipWaiting(); })
   );
+});
+/* La app puede pedir la activación inmediata del SW en espera
+   (botón «⟳ Actualizar»): además del skipWaiting de la instalación. */
+self.addEventListener("message", function(e){
+  if (e.data && e.data.tipo === "SKIP_WAITING") self.skipWaiting();
 });
 self.addEventListener("activate", function(e){
   e.waitUntil(
