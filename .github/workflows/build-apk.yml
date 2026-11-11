@@ -1,6 +1,8 @@
 name: Construir APK Mi Trabajo
 
 on:
+  repository_dispatch:
+    types: [build-apk]
   workflow_dispatch:
     inputs:
       version_name:
@@ -21,6 +23,12 @@ jobs:
     steps:
       - name: Descargar el repo
         uses: actions/checkout@v4
+
+      - name: Resolver versión (en push usa 1.0.0 y 10000)
+        id: ver
+        run: |
+          echo "version_name=${{ inputs.version_name || github.event.client_payload.version_name || '1.0.0' }}" >> "$GITHUB_OUTPUT"
+          echo "version_code=${{ inputs.version_code || github.event.client_payload.version_code || '10000' }}" >> "$GITHUB_OUTPUT"
 
       - name: Node 22
         uses: actions/setup-node@v4
@@ -45,8 +53,8 @@ jobs:
 
       - name: Escribir la versión
         run: |
-          sed -i "s/versionCode [0-9]*/versionCode ${{ inputs.version_code }}/" android/app/build.gradle
-          sed -i "s/versionName \"[^\"]*\"/versionName \"${{ inputs.version_name }}\"/" android/app/build.gradle
+          sed -i "s/versionCode [0-9]*/versionCode ${{ steps.ver.outputs.version_code }}/" android/app/build.gradle
+          sed -i "s/versionName \"[^\"]*\"/versionName \"${{ steps.ver.outputs.version_name }}\"/" android/app/build.gradle
           grep -E "versionCode|versionName" android/app/build.gradle
 
       - name: Restaurar la llave de firma
@@ -72,15 +80,15 @@ jobs:
         run: |
           SRC=android/app/build/outputs/apk/release/app-release.apk
           test -f "$SRC"
-          cp "$SRC" "Mi-Trabajo-v${{ inputs.version_name }}.apk"
-          sha256sum "Mi-Trabajo-v${{ inputs.version_name }}.apk" | tee sha256.txt
-          echo "apk=Mi-Trabajo-v${{ inputs.version_name }}.apk" >> "$GITHUB_OUTPUT"
+          cp "$SRC" "Mi-Trabajo-v${{ steps.ver.outputs.version_name }}.apk"
+          sha256sum "Mi-Trabajo-v${{ steps.ver.outputs.version_name }}.apk" | tee sha256.txt
+          echo "apk=Mi-Trabajo-v${{ steps.ver.outputs.version_name }}.apk" >> "$GITHUB_OUTPUT"
 
       - name: Publicar la Release con el APK
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: "apk-v${{ inputs.version_name }}"
-          name: "Mi Trabajo v${{ inputs.version_name }} (APK)"
+          tag_name: "apk-v${{ steps.ver.outputs.version_name }}"
+          name: "Mi Trabajo v${{ steps.ver.outputs.version_name }} (APK)"
           body: |
             App Android «Mi Trabajo» para los buscadores — APK firmado, instalable directo.
             SHA-256 en sha256.txt adjunto.
