@@ -1,7 +1,7 @@
 /* Mi Trabajo — Buscadores · service worker
    La app (pantalla) se guarda en el teléfono: funciona sin internet.
    Los datos (datos.json) se buscan frescos primero; sin conexión se usa la última copia. */
-var CACHE = "mitrabajo-v5";
+var CACHE = "mitrabajo-v6";
 var SHELL = ["./", "./index.html", "./manifest.webmanifest", "./icon-192.png", "./icon-512.png"];
 
 self.addEventListener("install", function (e) {
