@@ -50,6 +50,11 @@
   button.go { width: 100%; padding: 14px; border: none; border-radius: 12px; background: #F5BC14; color: #191204; font-size: 16px; font-weight: 800; cursor: pointer; margin-top: 10px; }
   .foot { text-align: center; color: #5C6B82; font-size: 12px; line-height: 1.6; margin-top: 18px; padding: 0 8px; }
   .hide { display: none; }
+  .upd { margin: 0 0 14px; background: #2A2008; border: 1.5px solid #F5BC14; border-radius: 14px; padding: 14px; }
+  .upd .t { font-weight: 800; color: #F5BC14; font-size: 15px; margin-bottom: 4px; }
+  .upd .d { color: #E8D9A8; font-size: 13px; line-height: 1.5; margin-bottom: 10px; }
+  a.btnUpd { display: block; text-align: center; padding: 13px; border-radius: 12px; background: #F5BC14; color: #191204; font-size: 15px; font-weight: 800; text-decoration: none; }
+  a.wapp { display: block; text-align: center; padding: 14px; border-radius: 12px; background: #25D366; color: #07240F; font-size: 16px; font-weight: 800; text-decoration: none; margin-top: 12px; }
   .tiposel { display: flex; gap: 8px; margin-top: 2px; }
   .tiposel .tab { font-size: 14px; padding: 11px 6px; }
   textarea { width: 100%; padding: 12px; font-size: 16px; color: #fff; background: #0B0E13; border: 1.5px solid #2A3347; border-radius: 12px; outline: none; font-family: inherit; }
@@ -74,6 +79,12 @@
     <div class="tab on" id="tabCalc">🧮 Calculadora</div>
     <div class="tab" id="tabRep">📤 Reportar</div>
     <div class="tab" id="tabPanel">📊 Mi panel</div>
+    <div class="tab" id="tabAyuda">🆘 Ayuda</div>
+  </div>
+  <div id="updBox" class="upd hide">
+    <div class="t">🆕 Hay una versión nueva de Mi Trabajo</div>
+    <div class="d" id="updTxt"></div>
+    <a class="btnUpd" id="updLink" href="#">⬇️ Descargar la actualización</a>
   </div>
 
   <!-- ============ CALCULADORA ============ -->
@@ -127,7 +138,9 @@
   <div id="viewRep" class="hide">
     <div class="card">
       <h2>📤 Reportar una búsqueda</h2>
-      <div class="hint">¿Conseguiste un trato? Repórtalo aquí. Ernesto lo revisa y, si lo confirma, tu comisión aparece en tu panel. Si no tienes tu código puesto, ve a «Mi panel» y escríbelo primero.</div>
+      <div class="hint">¿Conseguiste un trato? Repórtalo aquí. Ernesto lo revisa y, si lo confirma, tu comisión aparece en tu panel. Tu código va en el reporte: así Ernesto sabe que el trato es tuyo. 🆔</div>
+      <label>Tu código personal (tu identificación)</label>
+      <input type="text" id="r_cod" placeholder="Ej: BRIKU-SEF" autocomplete="off">
       <label>¿Qué conseguiste?</label>
       <div class="tiposel">
         <div class="tab on" id="r_tipo_s">📱 Saldo</div>
@@ -160,6 +173,31 @@
     </div>
   </div>
 
+  <!-- ============ AYUDA ============ -->
+  <div id="viewAyuda" class="hide">
+    <div class="card">
+      <h2>🆘 Ayuda y contacto</h2>
+      <div class="hint">¿Algo no funciona, una cuenta sale mal o tienes una idea para mejorar la app? Cuéntaselo a Ernesto por aquí: tu reporte le llega directo y él lo lee. Solo el equipo autorizado usa esta app — si tu código no es válido, el reporte no cuenta.</div>
+      <label>Tu código personal</label>
+      <input type="text" id="a_cod" placeholder="Ej: BRIKU-SEF" autocomplete="off">
+      <label>¿Qué pasa? Cuéntalo con tus palabras</label>
+      <textarea id="a_msg" rows="3" placeholder="Ej: le doy a enviar y no pasa nada / la cuenta de transferencia me sale rara"></textarea>
+      <button class="go" id="a_btn">📨 Enviar reporte a Ernesto</button>
+      <div class="res" id="a_res" style="display:none">
+        <div class="lab">✅ REPORTE ENVIADO</div>
+        <div class="det">Ernesto lo recibe y lo revisa. Gracias por avisar. 🙏</div>
+      </div>
+      <div class="warn" id="a_warn"></div>
+      <label>Tus reportes de ayuda (en este teléfono)</label>
+      <div id="a_lista"></div>
+    </div>
+    <div class="card">
+      <h2>💼 ¿Quieres trabajar con Ernesto?</h2>
+      <div class="hint">Si quieres sumarte al equipo de buscadores o hablar de trabajo, escríbele directo a su WhatsApp:</div>
+      <a class="wapp" href="https://wa.me/5351231558?text=Hola%20Ernesto%2C%20uso%20tu%20app%20Mi%20Trabajo%20y%20quiero%20hablar%20contigo%20de%20trabajo.">💬 WhatsApp de Ernesto · 5123 1558</a>
+    </div>
+  </div>
+
   <!-- ============ PANEL ============ -->
   <div id="viewPanel" class="hide">
     <div class="card">
@@ -188,7 +226,7 @@
   <div class="foot">
     Las cuentas de esta app usan la tarifa de referencia del día.<br>
     La cuenta final de cada trato la confirma Ernesto con los números reales. ✅<br>
-    Hecha para el equipo de Ernesto 🦾
+    Mi Trabajo v<span id="verLab">1.1.0</span> · Hecha para el equipo de Ernesto 🦾
   </div>
 </div>
 

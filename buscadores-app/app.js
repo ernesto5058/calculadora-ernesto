@@ -1,5 +1,6 @@
 
 "use strict";
+var APP_VERSION = "1.1.0";
 /* Tarifa de respaldo: se usa sin conexión si nunca se ha descargado datos.json.
    La tarifa viva viene de datos.json (la actualiza Ernesto/Máximo). */
 var DEFAULT_TARIFA = { ingresoRef360: 1092.65, libroRef: 1110, salidaRef: 950,
@@ -101,6 +102,7 @@ function tarifaText(){
 
 function applyData(d){
   if (d && d.tarifa) { DATA = d; T = d.tarifa; }
+  checkUpdate();
   $("tarifaBox").innerHTML = tarifaText();
   calcSaldo(); calcTransf();
   if (!$("p_body").classList.contains("hide")) renderPanel();
@@ -140,20 +142,26 @@ function renderOutbox(){
   a.slice().reverse().forEach(function(rp){
     var st = rp.estado === "aprobado" ? '<span class="st okk">✅ Aprobado +' + fmt(rp.comision || 0) + "</span>"
       : rp.estado === "rechazado" ? '<span class="st no">❌ Rechazado' + (rp.motivo ? ": " + rp.motivo : "") + "</span>"
-      : '<span class="st pend">🟡 Pendiente' + (rp.enviado ? "" : " (sin enviar)") + "</span>";
+      : '<span class="st pend">🟡 Pendiente' + (rp.enviado ? "" : " (guardado, sin enviar)") + "</span>";
     h += '<div class="rep"><span>' + repResumen(rp) + "<br><small>" + rp.fecha + "</small></span>" + st + "</div>";
   });
   box.innerHTML = h || '<div class="rep"><span>Todavía no has reportado nada.</span></div>';
 }
 function enviarReporte(rp){
   if (!window.fetch) return Promise.resolve(false);
-  return fetch(SB_URL, { method: "POST",
-    headers: { "apikey": SB_KEY, "Authorization": "Bearer " + SB_KEY, "Content-Type": "application/json", "Prefer": "return=representation" },
-    body: JSON.stringify({ buscador: rp.buscador, tipo: rp.tipo, precio: rp.precio, porc: rp.porc,
-      cantidad: rp.cantidad, telefono_vendedor: rp.telefono || null, nota: rp.nota || null })
-  }).then(function(r){ return r.ok ? r.json() : Promise.reject(new Error("HTTP " + r.status)); })
-    .then(function(rows){
-      if (rows && rows[0] && rows[0].id) { rp.id = rows[0].id; rp.enviado = true; }
+  return fetch(SB_URL.replace("/reportes", "/rpc/registrar_reporte"), { method: "POST",
+    headers: { "apikey": SB_KEY, "Authorization": "Bearer " + SB_KEY, "Content-Type": "application/json" },
+    body: JSON.stringify({ p_buscador: rp.buscador, p_tipo: rp.tipo, p_precio: rp.precio, p_porc: rp.porc,
+      p_cantidad: rp.cantidad, p_telefono: rp.telefono || null, p_nota: rp.nota || null })
+  }).then(function(r){
+      if (r.ok) return r.json();
+      return r.json().catch(function(){ return {}; }).then(function(e){
+        if (e && e.message && e.message.indexOf("no autorizado") !== -1) rp.error = "noautorizado";
+        return Promise.reject(new Error("HTTP " + r.status));
+      });
+    })
+    .then(function(id){
+      if (id) { rp.id = id; rp.enviado = true; }
       return !!rp.id;
     }).catch(function(){ return false; });
 }
@@ -169,7 +177,9 @@ function syncReportes(){
     // refrescar estados de los ya enviados (por si Ernesto ya decidió)
     var ids = a.filter(function(rp){ return rp.enviado && rp.id && rp.estado === "pendiente"; }).map(function(rp){ return rp.id; });
     if (!ids.length || !window.fetch) { renderOutbox(); return; }
-    fetch(SB_URL + "?select=id,estado,comision,motivo&id=in.(" + ids.join(",") + ")", { headers: { "apikey": SB_KEY, "Authorization": "Bearer " + SB_KEY } })
+    fetch(SB_URL.replace("/reportes", "/rpc/estado_reportes"), { method: "POST",
+        headers: { "apikey": SB_KEY, "Authorization": "Bearer " + SB_KEY, "Content-Type": "application/json" },
+        body: JSON.stringify({ p_ids: ids }) })
       .then(function(r){ return r.ok ? r.json() : []; }).then(function(rows){
         var map = {}; (rows || []).forEach(function(x){ map[x.id] = x; });
         a.forEach(function(rp){
@@ -183,11 +193,12 @@ function syncReportes(){
 function reportar(){
   var warn = $("r_warn"), res = $("r_res");
   warn.style.display = "none"; res.style.display = "none";
-  var code = "";
-  try { code = (localStorage.getItem("busc_codigo") || "").trim().toUpperCase(); } catch(e){}
+  var code = ($("r_cod").value || "").trim().toUpperCase();
+  if (!code) { try { code = (localStorage.getItem("busc_codigo") || "").trim().toUpperCase(); } catch(e){} }
   if (!code) code = ($("p_code").value || "").trim().toUpperCase();
+  if (code) { try { localStorage.setItem("busc_codigo", code); } catch(e){} }
   function fallo(msg){ warn.style.display = "block"; warn.textContent = msg; }
-  if (!code) return fallo("⚠️ Primero escribe tu código en «Mi panel» — sin código el reporte no lleva tu nombre.");
+  if (!code) return fallo("⚠️ Escribe tu código personal arriba — sin código el reporte no lleva tu nombre y Ernesto no sabe de quién es.");
   var tel = ($("r_tel").value || "").trim();
   var nota = ($("r_nota").value || "").trim();
   var rp = { buscador: code, tipo: REP_TIPO, precio: null, porc: null, cantidad: null,
@@ -210,9 +221,101 @@ function reportar(){
     if (ok) outboxSet(a); // rp ya trae id y enviado=true (misma referencia dentro de a)
     renderOutbox();
     if (ok) { res.style.display = "block"; }
-    else fallo("📴 Sin internet: el reporte quedó guardado en tu teléfono y se envía solo cuando vuelva la conexión.");
+    else if (rp.error === "noautorizado") fallo("🚫 Tu código no está autorizado en el sistema de Ernesto. Si eres del equipo, revísalo con él: puede estar mal escrito o desactivado.");
+    else fallo("📴 No se pudo enviar ahora: el reporte quedó guardado en tu teléfono y se reintenta solo cuando abras la app con conexión.");
   });
 }
+
+
+/* ===== Actualización de la app (solo APK instalado) ===== */
+function cmpVer(a, b){
+  var pa = String(a).split("."), pb = String(b).split("."), i, x, y;
+  for (i = 0; i < 3; i++){ x = parseInt(pa[i] || "0", 10) || 0; y = parseInt(pb[i] || "0", 10) || 0; if (x !== y) return x > y ? 1 : -1; }
+  return 0;
+}
+function esNativo(){ return !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform()); }
+function checkUpdate(){
+  if (!esNativo()) return;                     // en la web la app se actualiza sola
+  var remota = DATA.versionApp, url = DATA.apkUrl;
+  if (!remota || !url) return;
+  if (cmpVer(remota, APP_VERSION) > 0) {
+    $("updTxt").textContent = "Tienes la versión " + APP_VERSION + " y ya salió la " + remota + ". Actualiza para tener los arreglos y lo nuevo. Toca el botón y luego «Instalar» (te va a pedir permiso: es la misma app, firmada igual).";
+    $("updLink").setAttribute("href", url);
+    $("updBox").classList.remove("hide");
+  }
+}
+
+/* ===== Ayuda / reportes de problemas (Supabase, tabla ayudas) ===== */
+var SB_RPC = SB_URL.replace("/reportes", "/rpc/");
+function ayudaGet(){ try { return JSON.parse(localStorage.getItem("busc_ayuda") || "[]"); } catch(e){ return []; } }
+function ayudaSet(a){ try { localStorage.setItem("busc_ayuda", JSON.stringify(a)); } catch(e){} }
+function renderAyuda(){
+  var a = ayudaGet(), box = $("a_lista"), h = "";
+  a.slice().reverse().forEach(function(it){
+    var st = it.estado === "visto" ? '<span class="st okk">✅ Ernesto ya lo vio</span>'
+      : '<span class="st pend">🟡 Enviado · por leer</span>';
+    if (!it.enviado) st = '<span class="st pend">🟡 Guardado · sin enviar</span>';
+    h += '<div class="rep"><span>' + String(it.mensaje || "").slice(0, 90) + "<br><small>" + it.fecha + "</small></span>" + st + "</div>";
+  });
+  box.innerHTML = h || '<div class="rep"><span>Todavía no has enviado ningún reporte de ayuda.</span></div>';
+}
+function enviarAyuda(it){
+  if (!window.fetch) return Promise.resolve(false);
+  return fetch(SB_RPC + "registrar_ayuda", { method: "POST",
+    headers: { "apikey": SB_KEY, "Authorization": "Bearer " + SB_KEY, "Content-Type": "application/json" },
+    body: JSON.stringify({ p_buscador: it.buscador, p_mensaje: it.mensaje })
+  }).then(function(r){
+      if (r.ok) return r.json();
+      return r.json().catch(function(){ return {}; }).then(function(e){
+        if (e && e.message && e.message.indexOf("no autorizado") !== -1) it.error = "noautorizado";
+        return Promise.reject(new Error("HTTP " + r.status));
+      });
+    })
+    .then(function(id){ if (id) { it.id = id; it.enviado = true; } return !!it.id; })
+    .catch(function(){ return false; });
+}
+function syncAyuda(){
+  var a = ayudaGet(); if (!a.length) { renderAyuda(); return; }
+  var chain = Promise.resolve(), changed = false;
+  a.filter(function(it){ return !it.enviado; }).forEach(function(it){
+    chain = chain.then(function(){ return enviarAyuda(it).then(function(ok){ if (ok) changed = true; }); });
+  });
+  chain.then(function(){
+    if (changed) ayudaSet(a);
+    var ids = a.filter(function(it){ return it.enviado && it.id && it.estado === "pendiente"; }).map(function(it){ return it.id; });
+    if (!ids.length || !window.fetch) { renderAyuda(); return; }
+    fetch(SB_RPC + "estado_ayudas", { method: "POST",
+        headers: { "apikey": SB_KEY, "Authorization": "Bearer " + SB_KEY, "Content-Type": "application/json" },
+        body: JSON.stringify({ p_ids: ids }) })
+      .then(function(r){ return r.ok ? r.json() : []; }).then(function(rows){
+        var map = {}; (rows || []).forEach(function(x){ map[x.id] = x; });
+        a.forEach(function(it){ var s2 = map[it.id]; if (s2 && s2.estado) it.estado = s2.estado; });
+        ayudaSet(a); renderAyuda();
+      }).catch(function(){ renderAyuda(); });
+  });
+}
+function reportarAyuda(){
+  var warn = $("a_warn"), res = $("a_res");
+  warn.style.display = "none"; res.style.display = "none";
+  var code = ($("a_cod").value || "").trim().toUpperCase();
+  if (!code) { try { code = (localStorage.getItem("busc_codigo") || "").trim().toUpperCase(); } catch(e){} }
+  if (code) { try { localStorage.setItem("busc_codigo", code); } catch(e){} }
+  function fallo(m){ warn.style.display = "block"; warn.textContent = m; }
+  if (!code) return fallo("⚠️ Escribe tu código personal — Ernesto solo atiende reportes de su equipo autorizado.");
+  var msg = ($("a_msg").value || "").trim();
+  if (msg.length < 5) return fallo("⚠️ Cuéntale a Ernesto qué pasa, con un poco de detalle (qué tocaste y qué pasó).");
+  var it = { buscador: code, mensaje: msg, estado: "pendiente", enviado: false, id: null,
+    fecha: new Date().toLocaleDateString("es-ES") };
+  var a = ayudaGet(); a.push(it); ayudaSet(a); renderAyuda();
+  enviarAyuda(it).then(function(ok){
+    if (ok) ayudaSet(a);
+    renderAyuda();
+    if (ok) { res.style.display = "block"; $("a_msg").value = ""; }
+    else if (it.error === "noautorizado") fallo("🚫 Tu código no está autorizado en el sistema de Ernesto. Si eres del equipo, revísalo con él.");
+    else fallo("📴 No se pudo enviar ahora: quedó guardado en tu teléfono y se reintenta solo cuando abras la app con conexión.");
+  });
+}
+$("a_btn").addEventListener("click", reportarAyuda);
 
 /* ===== Eventos ===== */
 ["s_precio","s_cant"].forEach(function(id){ $(id).addEventListener("input", calcSaldo); });
@@ -221,20 +324,27 @@ $("t_rng").addEventListener("input", function(){ $("t_pct").value = $("t_rng").v
 document.querySelectorAll(".chip[data-p]").forEach(function(ch){ ch.addEventListener("click", function(){ $("s_precio").value = ch.getAttribute("data-p"); calcSaldo(); }); });
 document.querySelectorAll(".chip[data-t]").forEach(function(ch){ ch.addEventListener("click", function(){ $("t_pct").value = ch.getAttribute("data-t"); $("t_rng").value = ch.getAttribute("data-t"); calcTransf(); }); });
 function showView(v){
-  ["Calc","Rep","Panel"].forEach(function(x){
+  ["Calc","Rep","Panel","Ayuda"].forEach(function(x){
     $("tab" + x).classList.toggle("on", x === v);
     $("view" + x).classList.toggle("hide", x !== v);
   });
   if (v === "Rep") renderOutbox();
+  if (v === "Ayuda") renderAyuda();
 }
 $("tabCalc").addEventListener("click", function(){ showView("Calc"); });
 $("tabRep").addEventListener("click", function(){ showView("Rep"); });
 $("tabPanel").addEventListener("click", function(){ showView("Panel"); });
+$("tabAyuda").addEventListener("click", function(){ showView("Ayuda"); });
 $("r_tipo_s").addEventListener("click", function(){ REP_TIPO = "saldo"; $("r_tipo_s").classList.add("on"); $("r_tipo_t").classList.remove("on"); $("r_box_s").classList.remove("hide"); $("r_box_t").classList.add("hide"); });
 $("r_tipo_t").addEventListener("click", function(){ REP_TIPO = "transferencia"; $("r_tipo_t").classList.add("on"); $("r_tipo_s").classList.remove("on"); $("r_box_t").classList.remove("hide"); $("r_box_s").classList.add("hide"); });
 $("r_btn").addEventListener("click", reportar);
 $("p_btn").addEventListener("click", renderPanel);
-try { var saved = localStorage.getItem("busc_codigo"); if (saved) $("p_code").value = saved; } catch(e){}
+try { var saved = localStorage.getItem("busc_codigo"); if (saved) { $("p_code").value = saved; $("r_cod").value = saved; $("a_cod").value = saved; } } catch(e){}
+try { $("verLab").textContent = APP_VERSION; } catch(e){}
+$("r_cod").addEventListener("change", function(){
+  var c = ($("r_cod").value || "").trim().toUpperCase();
+  if (c) { try { localStorage.setItem("busc_codigo", c); } catch(e){} $("p_code").value = c; }
+});
 
 if ("serviceWorker" in navigator && !(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform())) {
   window.addEventListener("load", function(){ navigator.serviceWorker.register("sw.js").catch(function(){}); });
@@ -242,3 +352,5 @@ if ("serviceWorker" in navigator && !(window.Capacitor && window.Capacitor.isNat
 loadData();
 renderOutbox();
 syncReportes();
+renderAyuda();
+syncAyuda();
