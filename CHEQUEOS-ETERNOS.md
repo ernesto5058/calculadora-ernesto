@@ -118,8 +118,8 @@ de invariantes con los mismos contraejemplos. Quedan abiertos H-4 e INV-8b.
   actualizaron a 1.4.6/v14 (las corridas salían en rojo solo por V1–V3); el
   fixture `bancos/fixtures/mercado-logica.js` se refrescó con la lógica
   corregida del lector (la de `ratioDe()`); el fixture del cierre se regeneró
-  de la definición VIVA desplegada. Suites: local 428 chequeos verdes y
-  simulación exacta del repo 464, todo en verde salvo el hallazgo vigilado
+  de la definición VIVA desplegada. Suites: 464 chequeos verdes en local
+  y 464 en la simulación exacta del repo, todo en verde salvo el hallazgo vigilado
   H-4. La cola de GitHub se liberó durante la propia tanda (~21:52 UTC) y
   la corrida final 43107334440 (commit `8cab4f6a6c`) cerró el workflow
   completo en verde — ver la resolución en la nota siguiente.
