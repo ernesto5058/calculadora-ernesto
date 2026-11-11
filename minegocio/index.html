@@ -656,6 +656,15 @@ function tarifa(){
   }
   return out;
 }
+/* Efectivo de un trato de transferencia (arreglo H-1, 2026-11-11): la
+   forma REAL almacenada lo trae en «cantidad» y «precio» queda null —
+   así lo guarda Mi Trabajo y así lo lee el cierre del servidor. Se
+   acepta también la forma vieja (efectivo en «precio») para filas
+   históricas. TODA lectura de transferencia pasa por aquí. */
+function efectivoDe(r){
+  if (r.cantidad !== null && r.cantidad !== undefined && r.cantidad !== "") return Number(r.cantidad) || 0;
+  return Number(r.precio) || 0;
+}
 /* Comisión sugerida del esquema v2 (idéntica a PanelPRO). */
 function sugerencia(r){
   var t = tarifa();
@@ -663,7 +672,7 @@ function sugerencia(r){
     var ex = (Number(t.ingresoRef360) - Number(r.precio)) * Number(r.cantidad || 1);
     return { com: ex > 0 ? Math.round(ex * Number(t.pctSaldo || 25)) / 100 : 0, aviso: ex > 0 ? "" : "Sin excedente con la tarifa de hoy: comisión 0." };
   }
-  var ef = Number(r.precio), pc = Number(r.porc || 0);
+  var ef = efectivoDe(r), pc = Number(r.porc || 0);
   var gan = (ef * (1 + pc / 100) / Number(t.libroRef)) * Number(t.salidaRef) - ef;
   var bajoPiso = pc < Number(t.pisoTransf || 25);
   return { com: gan > 0 ? Math.round(gan * Number(t.pctTransf || 20)) / 100 : 0,
@@ -671,7 +680,7 @@ function sugerencia(r){
 }
 function conceptoDe(r){
   if (r.tipo === "saldo") return "Saldo · " + r.cantidad + " recarga(s) a " + fmt(Number(r.precio)) + " CUP";
-  return "Transferencia · " + fmt(Number(r.precio)) + " CUP al " + fmt(Number(r.porc)) + "%";
+  return "Transferencia · " + fmt(efectivoDe(r)) + " CUP al " + fmt(Number(r.porc)) + "%";
 }
 /* v7: resolución robusta (igual que PanelPRO v7): código que traiga
    el reporte, nombre exacto y nombre normalizado. */
@@ -3668,13 +3677,13 @@ function contaNombre(r){ return r.nombre || r.buscador || "Sin nombre"; }
 function contaGananciaBruta(r, t){
   t = t || tarifa();
   if (r.tipo === "saldo") return (Number(t.ingresoRef360) - Number(r.precio)) * Number(r.cantidad || 1);
-  var ef = Number(r.precio), pc = Number(r.porc || 0);
+  var ef = efectivoDe(r), pc = Number(r.porc || 0);
   return (ef * (1 + pc / 100) / Number(t.libroRef)) * Number(t.salidaRef) - ef;
 }
 function contaNeta(r, t){ return contaGananciaBruta(r, t) - Number(r.comision || 0); }
 function contaCapital(r){
   if (r.tipo === "saldo") return Number(r.precio) * Number(r.cantidad || 1);
-  return Number(r.precio);
+  return efectivoDe(r);
 }
 function contaSumarDias(fechaStr, dias){
   var d = new Date(fechaStr + "T12:00:00"); d.setDate(d.getDate() + dias);
