@@ -447,7 +447,7 @@ function pestaña(w, nombre){ [...w.document.querySelectorAll(".tab")].forEach(t
   R.usuarios = [ { codigo: "BUSC-1", nombre: "Busc Uno", activo: true } ];
   R.reportes = [
     { id: 41, codigo: "BUSC-1", nombre: "Busc Uno", tipo: "saldo", cantidad: 10, precio: 1000, estado: "aprobado", comision: 500, creado: hoyISO },
-    { id: 42, codigo: "BUSC-1", nombre: "Busc Uno", tipo: "transferencia", precio: 5000, porc: 30, estado: "aprobado", comision: 300, creado: hoyISO },
+    { id: 42, codigo: "BUSC-1", nombre: "Busc Uno", tipo: "transferencia", cantidad: 5000, precio: null, porc: 30, estado: "aprobado", comision: 300, creado: hoyISO },
     { id: 43, codigo: "BUSC-1", nombre: "Busc Uno", tipo: "saldo", cantidad: 2, precio: 1000, estado: "pendiente", creado: hoyISO }
   ];
   R.ayudas = [];
@@ -775,7 +775,7 @@ function pestaña(w, nombre){ [...w.document.querySelectorAll(".tab")].forEach(t
   R.usuarios = [ { codigo: "BRIKU-SEF", nombre: "BRIKU-SEF", activo: true }, { codigo: "ABRAHAM-5ZU", nombre: "ABRAHAM-5ZU", activo: true } ];
   R.reportes = [
     { id: "r1", codigo: "BRIKU-SEF", nombre: "BRIKU-SEF", tipo: "saldo", cantidad: 100, precio: 1000, porc: null, telefono: "5", nota: "", estado: "aprobado", comision: 2467, comision_pagada_en: "2026-11-06T10:00:00.000Z", creado: "2026-11-05T10:00:00.000Z" },
-    { id: "r2", codigo: "BRIKU-SEF", nombre: "BRIKU-SEF", tipo: "transferencia", cantidad: null, precio: 5000, porc: 30, telefono: "5", nota: "", estado: "aprobado", comision: 154.88, comision_pagada_en: null, creado: "2026-11-10T10:00:00.000Z" },
+    { id: "r2", codigo: "BRIKU-SEF", nombre: "BRIKU-SEF", tipo: "transferencia", cantidad: 5000, precio: null, porc: 30, telefono: "5", nota: "", estado: "aprobado", comision: 154.88, comision_pagada_en: null, creado: "2026-11-10T10:00:00.000Z" },
     { id: "r3", codigo: "ABRAHAM-5ZU", nombre: "ABRAHAM-5ZU", tipo: "saldo", cantidad: 50, precio: 900, porc: null, telefono: "5", nota: "", estado: "aprobado", comision: 2483.50, comision_pagada_en: null, creado: "2026-11-10T11:00:00.000Z" },
     { id: "r4", codigo: "BRIKU-SEF", nombre: "BRIKU-SEF", tipo: "saldo", cantidad: 100, precio: 1000, porc: null, telefono: "5", nota: "", estado: "aprobado", comision: 2467, comision_pagada_en: null, prueba: true, creado: "2026-11-10T12:00:00.000Z" },
     { id: "r5", codigo: "BRIKU-SEF", nombre: "BRIKU-SEF", tipo: "saldo", cantidad: 10, precio: 1000, porc: null, telefono: "5", nota: "", estado: "pendiente", comision: null, comision_pagada_en: null, creado: "2026-11-10T13:00:00.000Z" },
@@ -794,9 +794,9 @@ function pestaña(w, nombre){ [...w.document.querySelectorAll(".tab")].forEach(t
      espec esperaba bruta 774.42 para r2, pero SU fórmula exacta
      (5000×1.30÷1069.38)×950−5000 = 774.3739… → 774.37. La fórmula
      del servidor manda; las constantes de abajo son las suyas. */
-  ok(cerca(w.contaGananciaBruta({ tipo: "transferencia", precio: 5000, porc: 30 }), 774.37) && cerca(w.contaNeta({ tipo: "transferencia", precio: 5000, porc: 30, comision: 154.88 }), 619.49), "F1-4 transferencia r2: bruta 774.37 · neta 619.49 (±0.01, fórmula exacta del servidor)");
+  ok(cerca(w.contaGananciaBruta({ tipo: "transferencia", cantidad: 5000, precio: null, porc: 30 }), 774.37) && cerca(w.contaNeta({ tipo: "transferencia", cantidad: 5000, precio: null, porc: 30, comision: 154.88 }), 619.49), "F1-4 transferencia r2 (forma real: efectivo en cantidad, precio null): bruta 774.37 · neta 619.49 (±0.01, fórmula exacta del servidor)");
   ok(cerca(w.contaNeta({ tipo: "saldo", precio: 900, cantidad: 50, comision: 2483.50 }), 7450.50) && cerca(w.contaNeta({ tipo: "saldo", precio: 1000, cantidad: 10, comision: 246.70 }), 740.10), "F1-5 netas de r3 (7450.50) y r7 (740.10)");
-  ok(w.contaCapital({ tipo: "saldo", precio: 1000, cantidad: 100 }) === 100000 && w.contaCapital({ tipo: "transferencia", precio: 5000 }) === 5000, "F1-6 capital: saldo = precio × cantidad · transferencia = precio");
+  ok(w.contaCapital({ tipo: "saldo", precio: 1000, cantidad: 100 }) === 100000 && w.contaCapital({ tipo: "transferencia", cantidad: 5000, precio: null }) === 5000, "F1-6 capital: saldo = precio × cantidad · transferencia = el efectivo (en cantidad, la forma real almacenada)");
   /* Bloque 1 · Panel */
   pestaña(w, "Contabilidad");
   await sleep(80);
@@ -924,7 +924,7 @@ function pestaña(w, nombre){ [...w.document.querySelectorAll(".tab")].forEach(t
   R.usuarios = [ { codigo: "BRIKU-SEF", nombre: "BRIKU-SEF", activo: true }, { codigo: "ABRAHAM-5ZU", nombre: "ABRAHAM-5ZU", activo: true } ];
   const fixture21 = () => [
     { id: "r1", codigo: "BRIKU-SEF", nombre: "BRIKU-SEF", tipo: "saldo", cantidad: 100, precio: 1000, porc: null, telefono: "5", nota: "", estado: "aprobado", comision: 2467, comision_pagada_en: "2026-11-06T10:00:00.000Z", creado: "2026-11-05T10:00:00.000Z" },
-    { id: "r2", codigo: "BRIKU-SEF", nombre: "BRIKU-SEF", tipo: "transferencia", cantidad: null, precio: 5000, porc: 30, telefono: "5", nota: "", estado: "aprobado", comision: 154.88, comision_pagada_en: null, creado: "2026-11-10T10:00:00.000Z" },
+    { id: "r2", codigo: "BRIKU-SEF", nombre: "BRIKU-SEF", tipo: "transferencia", cantidad: 5000, precio: null, porc: 30, telefono: "5", nota: "", estado: "aprobado", comision: 154.88, comision_pagada_en: null, creado: "2026-11-10T10:00:00.000Z" },
     { id: "r3", codigo: "ABRAHAM-5ZU", nombre: "ABRAHAM-5ZU", tipo: "saldo", cantidad: 50, precio: 900, porc: null, telefono: "5", nota: "", estado: "aprobado", comision: 2483.50, comision_pagada_en: null, creado: "2026-11-10T11:00:00.000Z" },
     { id: "r4", codigo: "BRIKU-SEF", nombre: "BRIKU-SEF", tipo: "saldo", cantidad: 100, precio: 1000, porc: null, telefono: "5", nota: "", estado: "aprobado", comision: 2467, comision_pagada_en: null, prueba: true, creado: "2026-11-10T12:00:00.000Z" },
     { id: "r5", codigo: "BRIKU-SEF", nombre: "BRIKU-SEF", tipo: "saldo", cantidad: 10, precio: 1000, porc: null, telefono: "5", nota: "", estado: "pendiente", comision: null, comision_pagada_en: null, creado: "2026-11-10T13:00:00.000Z" },
