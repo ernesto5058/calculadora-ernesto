@@ -1,0 +1,92 @@
+-- =====================================================================
+-- FIXTURE DE BANCO — NO EJECUTAR EN LA BASE.
+-- Bloque EXACTO de admin_generar_cierre tal como vive en el paquete de
+-- activación (research_notes/activacion-completa-v13.sql, el mismo texto
+-- de chat-pro.sql): el banco de invariantes (test-invariantes-dinero.mjs)
+-- lo lee para anclar el espejo JS de la fórmula del cierre del servidor
+-- y el WHERE de su resumen. Si la fórmula cambia en la activación, este
+-- fixture se regenera del paquete nuevo y las anclas avisan.
+-- =====================================================================
+
+create or replace function public.admin_generar_cierre(p_codigo text, p_semana_inicio date)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_fin    date := p_semana_inicio + 6;
+  v_datos  jsonb;
+  v_filas  jsonb;
+  v_resumen jsonb;
+begin
+  perform public.chat_identidad('ADMIN', p_codigo);
+  if extract(isodow from p_semana_inicio) <> 1 then
+    raise exception 'la semana empieza el lunes';
+  end if;
+
+  -- Filas por buscador desde los tratos PUBLICADOS de la semana.
+  select coalesce(jsonb_agg(fila order by fila ->> 'nombre'), '[]'::jsonb)
+    into v_filas
+    from (
+      select jsonb_build_object(
+               'codigo', p.codigo,
+               'nombre', coalesce(p.nombre, ''),
+               'tratos', count(t),
+               'comisiones', coalesce(sum((t ->> 'comision')::numeric), 0),
+               'bono_saldo', (coalesce(sum(case when (t ->> 'tipo') = 'saldo'
+                                                then (t ->> 'recargas')::numeric else 0 end), 0) >= 150),
+               'bono_transf', (count(*) filter (where (t ->> 'tipo') = 'transferencia') >= 10),
+               'bonos', (case when coalesce(sum(case when (t ->> 'tipo') = 'saldo'
+                                                     then (t ->> 'recargas')::numeric else 0 end), 0) >= 150
+                              then 300 else 0 end)
+                      + (case when count(*) filter (where (t ->> 'tipo') = 'transferencia') >= 10
+                              then 300 else 0 end)
+             ) as fila
+        from public.paneles p
+        left join lateral jsonb_array_elements(p.tratos) t
+          on (t ->> 'fecha') ~ '^\d{4}-\d{2}-\d{2}$'
+         and (t ->> 'fecha')::date between p_semana_inicio and v_fin
+       group by p.codigo, p.nombre
+    ) s;
+
+  -- Tu ganancia de la semana (reportes aprobados): saldo = excedente
+  -- menos comisión; transferencia = ganancia de la vuelta menos comisión.
+  select jsonb_build_object(
+           'tratos', count(*),
+           'tu_ganancia', coalesce(sum(
+             case
+               when r.tipo = 'saldo' then
+                 greatest(t.ingreso_ref360 - r.precio, 0) * coalesce(r.cantidad, 1) - coalesce(r.comision, 0)
+               when r.tipo = 'transferencia' then
+                 greatest((r.cantidad * (1 + coalesce(r.porc, 0) / 100.0) / nullif(t.libro_ref, 0)) * t.salida_ref - r.cantidad, 0)
+                   - coalesce(r.comision, 0)
+               else 0 end), 0),
+           'comisiones', coalesce(sum(r.comision), 0),
+           'pagadas', count(*) filter (where r.comision_pagada_en is not null),
+           'pendientes_pago', count(*) filter (where r.comision_pagada_en is null)
+         )
+    into v_resumen
+    from public.reportes r
+    cross join (select ingreso_ref360, libro_ref, salida_ref
+                  from public.tarifa where id = 1) t
+   where r.estado = 'aprobado'
+     and r.creado::date between p_semana_inicio and v_fin;
+
+  v_datos := jsonb_build_object(
+    'semana_inicio', p_semana_inicio,
+    'semana_fin', v_fin,
+    'resumen', coalesce(v_resumen, '{}'::jsonb),
+    'buscadores', v_filas);
+
+  insert into public.cierres_semanales (semana_inicio, datos)
+  values (p_semana_inicio, v_datos)
+  on conflict (semana_inicio) do update
+    set datos = excluded.datos, creado_en = now();
+
+  perform public.registrar_actividad('ADMIN', 'generar_cierre',
+    jsonb_build_object('semana_inicio', p_semana_inicio));
+
+  return v_datos;
+end;
+$$;
