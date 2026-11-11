@@ -1,0 +1,2091 @@
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0B0E13">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Mi Negocio">
+<title>Mi Negocio — Ernesto</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" href="icon-192.png">
+<link rel="stylesheet" href="./tema-pro.css">
+<style>
+/* ===== DISEÑO MODERNO (pedido de Ernesto 2026-11-11) =====
+   Oscuro elegante tipo WhatsApp/Telegram: fondo con profundidad,
+   tarjetas redondeadas con bordes sutiles y sombras suaves,
+   espaciados generosos, dorado en degradado refinado y burbujas
+   de chat modernas. SOLO capa visual: ni una función cambia. */
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin:0; padding:0; background:#0B141A; }
+body { font-family:-apple-system, Helvetica, Arial, sans-serif; color:#E9EDEF; -webkit-font-smoothing:antialiased; background:radial-gradient(1100px 520px at 50% -8%, #182635 0%, #0B141A 58%) fixed, #0B141A; min-height:100vh; }
+#app { max-width:640px; margin:0 auto; padding:18px 16px 52px; }
+h1 { font-size:22px; margin:2px 0 4px; color:#F5C451; letter-spacing:-.3px; font-weight:800; }
+.sub { color:#8696A0; font-size:12.5px; margin-bottom:14px; line-height:1.45; }
+.card { background:linear-gradient(180deg, #18222C 0%, #131C24 100%); border:1px solid rgba(255,255,255,.06); border-radius:20px; padding:16px; margin-bottom:14px; box-shadow:0 10px 28px rgba(0,0,0,.38); }
+.card h3 { margin:0 0 8px; font-size:16.5px; font-weight:700; letter-spacing:-.2px; }
+.mut { color:#8696A0; font-size:12.5px; line-height:1.45; }
+.ayuda { font-size:12.5px; color:#7E97AD; line-height:1.5; margin:0 0 12px; }
+.big { font-size:32px; font-weight:800; letter-spacing:-.6px; }
+input, textarea, select { width:100%; background:#0E171F; border:1px solid rgba(255,255,255,.09); color:#E9EDEF; border-radius:14px; padding:13px; font-size:16px; margin:8px 0; }
+button { border:0; border-radius:14px; padding:14px; font-size:15px; font-weight:700; width:100%; margin-top:10px; cursor:pointer; letter-spacing:.2px; }
+.bGold { background:linear-gradient(135deg, #F7C948 0%, #E39A2D 100%); color:#221806; box-shadow:0 8px 20px rgba(227,154,45,.32); }
+.bOk { background:linear-gradient(135deg, #2BC07F 0%, #12805A 100%); color:#fff; box-shadow:0 8px 20px rgba(18,128,90,.30); }
+.bBad { background:rgba(255,92,108,.10); color:#FF8A96; border:1px solid rgba(255,92,108,.35); }
+.bGhost { background:rgba(255,255,255,.05); color:#D6DEE7; border:1px solid rgba(255,255,255,.09); }
+button.off, .off { opacity:.45; pointer-events:none; }
+.bMini { width:auto; padding:9px 15px; font-size:13px; margin:0; border-radius:12px; }
+.tabs { display:flex; gap:8px; margin-bottom:14px; flex-wrap:wrap; }
+.tab { flex:1 1 30%; text-align:center; padding:11px 2px; border-radius:999px; background:rgba(255,255,255,.045); border:1px solid rgba(255,255,255,.06); font-size:13px; font-weight:700; color:#8696A0; cursor:pointer; }
+.tab.on { background:linear-gradient(135deg, #F7C948 0%, #E39A2D 100%); color:#221806; border-color:transparent; box-shadow:0 6px 16px rgba(227,154,45,.30); }
+.pill { display:inline-block; padding:3px 9px; border-radius:999px; font-size:11px; font-weight:700; }
+.pPend { background:rgba(245,188,20,.14); color:#F7C948; }
+.pOk { background:rgba(46,204,113,.14); color:#3ED598; }
+.pBad { background:rgba(255,92,108,.14); color:#FF8A96; }
+.pChat { background:#E5484D; color:#fff; }
+.pCola { background:rgba(245,188,20,.14); color:#F7C948; }
+.err { background:rgba(255,92,108,.10); border:1px solid rgba(255,92,108,.35); color:#FFB3BC; border-radius:14px; padding:12px; font-size:13px; margin:10px 0; display:none; line-height:1.45; }
+.info { background:rgba(83,189,235,.09); border:1px solid rgba(83,189,235,.28); color:#BFE0FF; border-radius:14px; padding:12px; font-size:13px; margin:10px 0; line-height:1.45; }
+.row { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+.fila { display:inline-flex; align-items:center; gap:8px; }
+.switch { position:relative; width:52px; height:30px; flex:0 0 auto; }
+.switch input { opacity:0; width:0; height:0; }
+.sl { position:absolute; inset:0; background:rgba(255,255,255,.14); border-radius:999px; }
+.sl:before { content:""; position:absolute; width:24px; height:24px; left:3px; top:3px; background:#fff; border-radius:50%; box-shadow:0 2px 6px rgba(0,0,0,.35); }
+.switch input:checked + .sl { background:linear-gradient(135deg, #2BC07F, #12805A); }
+.switch input:checked + .sl:before { transform:translateX(22px); }
+.kv { font-size:14.5px; margin:4px 0; line-height:1.5; }
+.kv b { color:#fff; }
+#toast { position:fixed; left:16px; right:16px; bottom:20px; background:linear-gradient(135deg, #2BC07F, #12805A); color:#fff; padding:14px; border-radius:16px; font-weight:700; text-align:center; display:none; z-index:99; box-shadow:0 12px 30px rgba(0,0,0,.45); max-width:608px; margin:0 auto; }
+.prensable { -webkit-touch-callout:none; -webkit-user-select:none; user-select:none; }
+.prensable.prensando { border-color:rgba(245,196,81,.55); filter:brightness(1.15); }
+.dots { width:auto; margin:0; padding:3px 11px; background:rgba(255,255,255,.06); color:#AEBAC1; border:1px solid rgba(255,255,255,.08); border-radius:12px; font-size:17px; font-weight:700; line-height:1.3; flex:0 0 auto; }
+#hojaFondo { position:fixed; inset:0; background:rgba(3,8,12,.62); display:none; z-index:60; }
+#hoja { position:absolute; left:0; right:0; bottom:0; background:#16212B; border-top:1px solid rgba(255,255,255,.09); border-radius:26px 26px 0 0; padding:18px 16px 26px; max-height:84%; overflow-y:auto; max-width:640px; margin:0 auto; box-shadow:0 -14px 40px rgba(0,0,0,.5); }
+#hojaTit { font-size:17px; font-weight:800; margin-bottom:6px; letter-spacing:-.2px; }
+#hojaTxt { margin-bottom:8px; line-height:1.5; }
+#hoja .bGold, #hoja .bOk, #hoja .bBad, #hoja .bGhost { margin-top:10px; }
+.hiloP { margin:8px 0 4px; max-height:52vh; overflow-y:auto; }
+.msgSistema { text-align:center; color:var(--t2,#A7B3C4); font-size:12.5px; margin:12px auto; background:var(--bg3,#1A2130); border-radius:999px; padding:6px 14px; max-width:88%; }
+.citaB { display:block; border-left:3px solid var(--oro2,#E8B84B); background:rgba(232,184,75,.12); border-radius:6px; padding:5px 8px; margin-bottom:6px; font-size:12.5px; }
+.reacRow { display:flex; gap:4px; margin-top:3px; flex-wrap:wrap; }
+.msgP.me .reacRow { justify-content:flex-end; }
+.reacRow span { background:var(--bg3,#1A2130); border:1px solid rgba(255,255,255,.08); border-radius:999px; padding:1px 8px; font-size:12px; }
+.fijadoBar { background:rgba(232,184,75,.14); border:1px solid rgba(232,184,75,.45); color:var(--oro1,#F5D67B); border-radius:12px; padding:9px 12px; font-size:13px; margin:8px 0; }
+.adjFoto { max-width:210px; border-radius:10px; display:block; margin-bottom:6px; }
+.msgP .editado { font-size:10.5px; opacity:.75; }
+.msgP .eliminado { font-style:italic; opacity:.75; }
+.filaBtns { display:flex; gap:8px; margin-top:8px; flex-wrap:wrap; }
+.filaBtns button { flex:1; min-width:70px; }
+.msgP { display:flex; flex-direction:column; margin:10px 0; }
+.msgP .burP { max-width:82%; padding:11px 13px; border-radius:18px; font-size:14.5px; line-height:1.5; white-space:pre-wrap; overflow-wrap:anywhere; box-shadow:0 3px 10px rgba(0,0,0,.28); }
+.msgP.me { align-items:flex-end; }
+.msgP.me .burP { background:linear-gradient(135deg, #F2B33D 0%, #DE9426 100%); color:#241A05; border-bottom-right-radius:6px; }
+.msgP.him { align-items:flex-start; }
+.msgP.him .burP { background:#1C2934; border:1px solid rgba(255,255,255,.05); color:#E9EDEF; border-bottom-left-radius:6px; }
+.msgP .mhoraP { color:#8696A0; font-size:11px; margin-top:4px; }
+.presChat { font-size:13.5px; margin:2px 0 6px; }
+.estAzul { color:#53BDEB; font-weight:700; }
+.estCola { color:#F5C451; }
+.sema { margin-top:10px; border-radius:16px; padding:12px 10px; font-size:15px; font-weight:800; text-align:center; }
+.sema.ok { background:rgba(46,204,113,.13); color:#2ECC71; border:1px solid rgba(46,204,113,.45); }
+.sema.bad { background:rgba(255,92,92,.10); color:#FF6B6B; border:1px solid rgba(255,92,92,.45); }
+.grid { display:flex; gap:10px; margin-top:10px; }
+.cell { flex:1; background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.06); border-radius:16px; padding:12px 4px; text-align:center; }
+.cell .v { font-size:19px; font-weight:800; letter-spacing:-.3px; }
+.cell .k { font-size:11px; color:#8696A0; margin-top:3px; font-weight:600; }
+.stepRow { display:flex; align-items:center; gap:8px; }
+.step { width:46px; height:50px; flex:0 0 auto; margin:0; border-radius:14px; border:1px solid rgba(46,204,172,.25); background:rgba(46,204,172,.08); color:#2ECCAC; font-size:22px; font-weight:800; }
+.numIn { flex:1; min-width:0; text-align:center; font-size:19px; font-weight:700; }
+.chips { display:flex; gap:8px; margin:8px 0 2px; flex-wrap:wrap; }
+.chip { padding:8px 14px; border-radius:999px; background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.08); color:#C9D4E3; font-size:13px; font-weight:700; cursor:pointer; }
+label { display:block; font-size:13px; color:#8696A0; margin:12px 0 2px; font-weight:600; }
+.offBanner { background:rgba(245,188,20,.10); border:1px solid rgba(245,188,20,.35); color:#F5D67A; border-radius:14px; padding:12px; font-size:13px; margin-bottom:14px; display:none; line-height:1.45; }
+.logoMN { width:68px; height:68px; border-radius:20px; background:linear-gradient(135deg, rgba(247,201,72,.20), rgba(227,154,45,.06)); border:1px solid rgba(245,196,81,.5); color:#F5C451; font-size:27px; font-weight:900; display:flex; align-items:center; justify-content:center; margin:10px auto 12px; box-shadow:0 10px 26px rgba(227,154,45,.18); }
+</style></head><body>
+<div id="app">
+<div id="scrAcceso">
+  <div class="logoMN">MN</div>
+  <h1 style="text-align:center">Mi Negocio</h1>
+  <div class="sub" style="text-align:center">Tu centro de mando: calculadora, equipo, tarifa y mercado en una sola app.</div>
+  <div class="card">
+    <h3>🔑 Tu código de administrador</h3>
+    <div class="mut">Lo pones una sola vez y queda guardado solo en este teléfono. Sin él nadie puede abrir tu negocio aquí.</div>
+    <input id="inCodigo" type="text" autocomplete="off" autocapitalize="characters" placeholder="Ej.: XXXX-XXXX">
+    <div id="errAcceso" class="err"></div>
+    <button class="bGold" id="btnEntrar">Entrar a Mi Negocio</button>
+    <div class="ayuda" style="margin-top:10px">Instalación: abre este enlace en Safari, entra con tu código, luego toca Compartir → «Añadir a pantalla de inicio»: queda como una app más, a pantalla completa y sin caducidad.</div>
+  </div>
+</div>
+
+<div id="scrPanel" style="display:none">
+  <div class="row"><h1>Mi Negocio</h1><button class="bGhost bMini" id="btnAct">⟳ Actualizar</button></div>
+  <div class="sub" id="lblEstado">Cargando…</div>
+  <div class="offBanner" id="bannerOff"></div>
+  <div class="tabs" id="tabs"></div>
+  <div id="pgInicio"></div>
+  <div id="pgCalc" style="display:none"></div>
+  <div id="pgBandeja" style="display:none"></div>
+  <div id="pgEquipo" style="display:none"></div>
+  <div id="pgTarifa" style="display:none"></div>
+  <div id="pgMercado" style="display:none"></div>
+  <div id="pgChat" style="display:none"></div>
+  <button class="bGhost" id="btnSalir">❌ Salir de Mi Negocio</button>
+</div>
+</div>
+<div id="toast"></div>
+<div id="hojaFondo"><div id="hoja"><div id="hojaTit"></div><div id="hojaTxt"></div><div id="hojaBtns"></div></div></div>
+<script id="appjs">
+"use strict";
+/* =====================================================================
+   «Mi Negocio» — la app de administración de Ernesto (PWA instalable)
+   ---------------------------------------------------------------------
+   ARQUITECTURA MODULAR (apertura pedida por Ernesto, 2026-11-11):
+   - UNA sola capa de datos: el cliente rpc() + la lista PUERTAS de
+     abajo. Ningún módulo llama a fetch por su cuenta.
+   - Registro de módulos/pestañas (MODULOS): cada pestaña es un
+     objeto { id, tab, titulo, render(), alMostrar() } que se
+     registra con registrarModulo(). El núcleo solo conoce la lista.
+   CÓMO AÑADIR UNA PESTAÑA NUEVA (sin tocar el núcleo):
+     1) Añade en index-sin-script.html un <div id="pgTuId"> vacío.
+     2) Al final de este archivo, define el módulo con
+        registrarModulo({ id: "TuId", tab: "🆕 Nombre", ... }) usando
+        rpc(), guardar(), toast() y las ayudas de formato.
+     3) Si necesita una puerta nueva de Supabase, añádela a PUERTAS.
+   OFFLINE: el cascarón lo cachea sw.js (scope solo minegocio/); los
+   datos viven en localStorage (clave minegocio_v1): última foto por
+   pestaña con su sello de tiempo, y una COLA de acciones (state.cola)
+   que se despacha sola al volver la conexión.
+   ===================================================================== */
+
+/* ===== CAPA DE DATOS: puertas RPC de Supabase (ÚNICO lugar) ===== */
+var SB_RPC = "https://otsudfgwpapkluusrlnj.supabase.co/rest/v1/rpc/";
+var SB_KEY = "sb_publishable_Uchl5QnojJkZbXR5ar8vDg_5CXnqi_d"; // llave pública; cada puerta valida el código
+var PUERTAS = {
+  validar: "admin_validar",
+  reportes: "admin_reportes",
+  ayudas: "admin_ayudas",
+  usuarios: "admin_usuarios",
+  aprobar: "admin_aprobar",
+  rechazar: "admin_rechazar",
+  ayudaVista: "admin_ayuda_vista",
+  usuarioActivo: "admin_usuario_activo",
+  usuarioNuevo: "admin_usuario_nuevo",
+  usuarioBorrar: "admin_usuario_borrar",
+  tocarPresencia: "tocar_presencia",
+  verPresencia: "ver_presencia",
+  enviarMensaje: "enviar_mensaje",
+  leerChat: "leer_chat",
+  mensajesSinLeer: "mensajes_sin_leer",
+  marcarRecibidos: "marcar_recibidos",
+  guardarTarifa: "admin_guardar_tarifa",
+  leerPerfil: "leer_perfil",
+  publicarTratos: "admin_publicar_tratos",
+  leerTarifa: "leer_tarifa",
+  leerPanel: "leer_panel",
+  editarMensaje: "editar_mensaje",
+  borrarMensaje: "borrar_mensaje",
+  reaccionar: "reaccionar",
+  fijarMensaje: "fijar_mensaje",
+  guardarTemporal: "guardar_temporal"
+};
+var DATOS_JSON_URL = "../buscadores/datos.json";
+var MERCADO_URL = "../datos/ultimo.json";
+function sbHeaders(){ return { "apikey": SB_KEY, "Authorization": "Bearer " + SB_KEY, "Content-Type": "application/json" }; }
+/* La ÚNICA vía de red de la app: resuelve el JSON o rechaza con Error. */
+function rpc(puerta, body){
+  if (!window.fetch) return Promise.reject(new Error("sin fetch"));
+  return fetch(SB_RPC + PUERTAS[puerta], { method: "POST", headers: sbHeaders(), body: JSON.stringify(body || {}) })
+    .then(function(r){
+      return r.text().then(function(txt){
+        var j = null; try { j = JSON.parse(txt); } catch(e){}
+        if (!r.ok) throw new Error((j && j.message) ? j.message : ("Error " + r.status));
+        return j;
+      });
+    });
+}
+
+/* ===== ESTADO (localStorage) ===== */
+var LS_KEY = "minegocio_v1";
+var CALC_DEF = {
+  saldo: { salida: 950, costo: 1040, tasa: 320, saldo: 3600 },
+  transf: { efectivo: 5000, porc: 30, libro: 1130, salida: 950 },
+  busc: { precio: 950, tasaVenta: 313, efectivo: 5000, porc: 30, libro: 1110, salida: 950 }
+};
+var TARIFA_DEF = { ingresoRef360: 1098.68, libroRef: 1069.38, salidaRef: 950, pctSaldo: 25, pctTransf: 20, pisoTransf: 25 };
+function fotoVacia(){ return { reportes: [], ayudas: [], usuarios: [], datos: null, cuando: "", publicar: [], borrados: [], tarifaPanel: null, mercado: null, perfiles: {} }; }
+function estadoVacio(){
+  return { codigo: "", foto: fotoVacia(), calc: JSON.parse(JSON.stringify(CALC_DEF)),
+    cola: [], sellos: {}, tarifaViva: null, tarifaVivaEn: "", publicarPendiente: null };
+}
+var state = estadoVacio();
+function cargarEstado(){
+  try {
+    var raw = localStorage.getItem(LS_KEY);
+    if (raw) {
+      var s = JSON.parse(raw);
+      var base = estadoVacio();
+      Object.keys(base).forEach(function(k){ if (s[k] !== undefined) base[k] = s[k]; });
+      if (!base.foto) base.foto = fotoVacia();
+      ["reportes","ayudas","usuarios","publicar","borrados"].forEach(function(k){ if (!Array.isArray(base.foto[k])) base.foto[k] = []; });
+      if (!base.foto.perfiles || typeof base.foto.perfiles !== "object") base.foto.perfiles = {};
+      if (!Array.isArray(base.cola)) base.cola = [];
+      if (!base.calc) base.calc = JSON.parse(JSON.stringify(CALC_DEF));
+      ["saldo","transf","busc"].forEach(function(k){ if (!base.calc[k]) base.calc[k] = JSON.parse(JSON.stringify(CALC_DEF[k])); });
+      state = base;
+    }
+  } catch(e){}
+}
+function guardar(){ try { localStorage.setItem(LS_KEY, JSON.stringify(state)); } catch(e){} }
+var online = false;
+var datosLive = null;
+var presenciaMap = {};   /* codigo -> ISO de su última vez */
+var sinLeerMap = {};     /* codigo -> mensajes sin leer */
+var sinLeerTotal = 0;
+var puertasChat = null;  /* null sin comprobar · true activas · false falta activar */
+var chatCon = null, chatNombre = "", chatMsgs = [], chatTimer = null;
+var chatFijado = null, chatTempSeg = 0, chatResp = null, chatAdj = null, chatEditId = null, grabandoVoz = null;
+
+/* ===== AYUDAS DE FORMATO ===== */
+function $(id){ return document.getElementById(id); }
+function fmt(n){ if (n === null || n === undefined || isNaN(n)) return "—"; return (Math.round(n * 100) / 100).toFixed(2); }
+function esc(s){ return String(s === null || s === undefined ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+function r2(n){ return Math.round(n * 100) / 100; }
+function numPos(v){ var n = Number(v); return (isFinite(n) && n > 0) ? n : null; }
+function fechaCorta(iso){ return iso ? String(iso).slice(0, 10) : ""; }
+function horaFoto(){
+  var d = new Date(); function p(x){ return (x < 10 ? "0" : "") + x; }
+  return d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate()) + " " + p(d.getHours()) + ":" + p(d.getMinutes());
+}
+function haceCuanto(iso){
+  var t = Date.parse(iso); if (isNaN(t)) return "";
+  var min = Math.floor((Date.now() - t) / 60000);
+  if (min < 1) return "ahora mismo";
+  if (min < 60) return "hace " + min + " min";
+  var h = Math.floor(min / 60);
+  if (h < 24) return "hace " + h + " h";
+  return "hace " + Math.floor(h / 24) + " d";
+}
+function horaDe(iso){
+  var d = new Date(iso); if (isNaN(d.getTime())) return "";
+  function p(x){ return (x < 10 ? "0" : "") + x; }
+  return p(d.getHours()) + ":" + p(d.getMinutes());
+}
+function toast(msg, ok){
+  var t = $("toast"); if (!t) return;
+  t.textContent = msg; t.style.background = ok === false ? "var(--rojo)" : "var(--verde)";
+  t.style.display = "block"; setTimeout(function(){ t.style.display = "none"; }, 2800);
+}
+/* Sello «hace X min» de una pestaña para el aviso offline. */
+function selloTexto(clave){
+  var iso = state.sellos[clave] || state.foto.cuando;
+  if (!iso) return "todavía no hay datos guardados: abre la app con internet una primera vez";
+  var t = Date.parse(String(iso).replace(" ", "T"));
+  if (isNaN(t)) return "datos guardados el " + iso;
+  return "sin conexión — datos de " + haceCuanto(new Date(t).toISOString());
+}
+
+/* ===== ICONOS SVG DE TRAZO FINO (DISENO-PRO: cero emojis
+   estructurales; un solo set, grosor 1.7, extremos redondeados) ===== */
+var ICONOS = {
+  inicio: '<svg viewBox="0 0 24 24"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/></svg>',
+  calc: '<svg viewBox="0 0 24 24"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M8 6h8"/><path d="M8 11h.01M12 11h.01M16 11h.01M8 15h.01M12 15h.01M16 15h.01M8 19h.01M12 19h.01M16 19h.01"/></svg>',
+  bandeja: '<svg viewBox="0 0 24 24"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.5 5.1 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.5-6.9A2 2 0 0 0 16.7 4H7.3a2 2 0 0 0-1.8 1.1z"/></svg>',
+  equipo: '<svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.9"/><path d="M16 3.1a4 4 0 0 1 0 7.8"/></svg>',
+  tarifa: '<svg viewBox="0 0 24 24"><path d="M12 1v22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>',
+  mercado: '<svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>',
+  chat: '<svg viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 0 1-8.5 8.5 8.5 8.5 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 8.5-8.5 8.38 8.38 0 0 1 8.5 8.5z"/></svg>',
+  volver: '<svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg>',
+  enviar: '<svg viewBox="0 0 24 24"><path d="M3.4 20.4 21.8 12 3.4 3.6l-.01 6.53L14 12 3.39 13.87z"/></svg>',
+  puntos: '<svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><circle cx="12" cy="5" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="12" cy="19" r="1.8"/></svg>',
+  telefono: '<svg viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/></svg>',
+  pin: '<svg viewBox="0 0 24 24"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0z"/><circle cx="12" cy="10" r="3"/></svg>'
+};
+function icono(n){ return ICONOS[n] || ""; }
+/* Palomitas del chat (DISENO-PRO §6): SVG de trazo fino + el nombre
+   del estado como texto accesible oculto (lector de pantalla). */
+var TICK_DOBLE = '<svg viewBox="0 0 20 13"><path d="M1 7.2 4.6 10.8 11.8 2.6"/><path d="M8.6 10.8 10.4 12.6 17.6 4.4" transform="translate(1.4 -1.8)"/></svg>';
+var TICK_UNA = '<svg viewBox="0 0 20 13"><path d="M2 7.4 6.4 11.6 16.5 2.2"/></svg>';
+var TICK_RELOJ = '<svg viewBox="0 0 14 14"><circle cx="7" cy="7" r="5.6"/><path d="M7 4.4V7l1.8 1.2"/></svg>';
+/* Avatares del sistema: inicial sobre degradado; el color lo elige
+   cada buscador en su perfil (avatar_color de la tabla perfiles). */
+var AVATARES = {
+  dorado: "linear-gradient(145deg,#8A6D1F,#4A380A)",
+  azul: "linear-gradient(145deg,#2A4A6B,#16283D)",
+  verde: "linear-gradient(145deg,#1E7A4C,#0E3D27)",
+  rojo: "linear-gradient(145deg,#8C2B3A,#3D1220)",
+  violeta: "linear-gradient(145deg,#5B3A8C,#241239)",
+  gris: "linear-gradient(145deg,#2A3448,#1A2130)"
+};
+function avatarHtml(nombre, color, enLinea){
+  var ini = esc(String(nombre || "?").trim().charAt(0).toUpperCase() || "?");
+  var bg = AVATARES[color] || AVATARES.gris;
+  return '<div class="avatar" style="background:' + bg + '">' + ini
+    + (enLinea === true ? '<span class="presencia"></span>' : (enLinea === false ? '<span class="presencia fuera"></span>' : "")) + "</div>";
+}
+function perfilDe(codigo){ return (state.foto.perfiles || {})[codigo] || null; }
+function nombreVisible(u){ var pf = perfilDe(u.codigo); return (pf && pf.nombre) ? pf.nombre : u.nombre; }
+function waLink(telefono){
+  var d = String(telefono || "").replace(/\D/g, "");
+  if (!d) return "";
+  if (d.length === 8) d = "53" + d;
+  return "https://wa.me/" + d;
+}
+/* Perfiles del equipo (puerta leer_perfil; degrada en silencio si
+   perfiles.sql aún no está pegado: el panel sigue sin ellos). */
+function cargarPerfiles(){
+  if (!state.codigo) return;
+  state.foto.usuarios.forEach(function(u){
+    rpc("leerPerfil", { p_codigo: u.codigo }).then(function(r){
+      if (r && r.ok) {
+        if (r.perfil) state.foto.perfiles[u.codigo] = r.perfil;
+        else delete state.foto.perfiles[u.codigo];
+        guardar();
+        pintarEquipo(); pintarInicioSiVisible();
+        if (chatCon) pintarChat();
+      }
+    }).catch(function(){});
+  });
+}
+
+/* ===== HOJA DE OPCIONES + PRESIÓN LARGA (patrón PanelPRO) ===== */
+function abrirHoja(titulo, textoHtml, botones){
+  $("hojaTit").textContent = titulo;
+  var tx = $("hojaTxt"); tx.innerHTML = textoHtml || ""; tx.style.display = textoHtml ? "block" : "none";
+  var cont = $("hojaBtns"); cont.innerHTML = "";
+  (botones || []).forEach(function(b){
+    var btn = document.createElement("button");
+    btn.className = b.cls || "bGhost"; btn.textContent = b.txt;
+    if (b.off) btn.classList.add("off");
+    btn.addEventListener("click", function(){ cerrarHoja(); if (b.fn) b.fn(); });
+    cont.appendChild(btn);
+  });
+  var c = document.createElement("button");
+  c.className = "bGhost"; c.textContent = "Cancelar";
+  c.addEventListener("click", cerrarHoja);
+  cont.appendChild(c);
+  $("hojaFondo").style.display = "block";
+}
+function cerrarHoja(){ $("hojaFondo").style.display = "none"; }
+function armarPrensa(el, abrir){
+  if (!el) return;
+  el.classList.add("prensable");
+  var timer = null, x0 = 0, y0 = 0, listo = false;
+  function limpiar(){ if (timer) { clearTimeout(timer); timer = null; } el.classList.remove("prensando"); }
+  el.addEventListener("pointerdown", function(e){
+    if (e.target.closest("input, textarea, select, button, label, a")) return;
+    x0 = e.clientX; y0 = e.clientY; listo = false;
+    el.classList.add("prensando");
+    timer = setTimeout(function(){ timer = null; listo = true; el.classList.remove("prensando"); abrir(); }, 550);
+  });
+  el.addEventListener("pointermove", function(e){
+    if (timer && (Math.abs(e.clientX - x0) > 10 || Math.abs(e.clientY - y0) > 10)) limpiar();
+  });
+  ["pointerup","pointercancel","pointerleave"].forEach(function(ev){ el.addEventListener(ev, limpiar); });
+  el.addEventListener("contextmenu", function(e){ e.preventDefault(); });
+  el.addEventListener("click", function(e){ if (listo) { listo = false; e.preventDefault(); e.stopPropagation(); } }, true);
+}
+
+/* ===== TARIFA (misma cadena de prioridad que PanelPRO) =====
+   1) ajuste manual guardado (foto.tarifaPanel) · 2) derivada de la
+   Calculadora (sección Buscadores del estado calc) · 3) tarifa viva
+   de Supabase (leer_tarifa) o la publicada en datos.json. */
+function tarifaBase(){
+  if (state.tarifaViva) return state.tarifaViva;
+  if (datosLive && datosLive.tarifa) return datosLive.tarifa;
+  if (state.foto.datos && state.foto.datos.tarifa) return state.foto.datos.tarifa;
+  return TARIFA_DEF;
+}
+function derivadaCalc(){
+  var b = (state.calc && state.calc.busc) || {}, t = (state.calc && state.calc.transf) || {}, s = (state.calc && state.calc.saldo) || {};
+  var salida = numPos(b.salida) || numPos(t.salida) || numPos(s.salida);
+  var libro = numPos(b.libro) || numPos(t.libro);
+  var tasaVenta = numPos(b.tasaVenta);
+  if (!salida || !libro || !tasaVenta) return null;
+  return { ingresoRef360: r2((360 / tasaVenta) * salida), libroRef: libro, salidaRef: salida, salida: salida, tasaVenta: tasaVenta, libro: libro };
+}
+function tarifa(){
+  var base = tarifaBase();
+  var out = { ingresoRef360: base.ingresoRef360, libroRef: base.libroRef, salidaRef: base.salidaRef,
+    pctSaldo: base.pctSaldo, pctTransf: base.pctTransf, pisoTransf: base.pisoTransf };
+  var d = derivadaCalc();
+  if (d) { out.ingresoRef360 = d.ingresoRef360; out.libroRef = d.libroRef; out.salidaRef = d.salidaRef; }
+  var tp = state.foto.tarifaPanel;
+  if (tp) {
+    if (numPos(tp.ingresoRef360)) out.ingresoRef360 = Number(tp.ingresoRef360);
+    if (numPos(tp.libroRef)) out.libroRef = Number(tp.libroRef);
+    if (numPos(tp.salidaRef)) out.salidaRef = Number(tp.salidaRef);
+  }
+  return out;
+}
+/* Comisión sugerida del esquema v2 (idéntica a PanelPRO). */
+function sugerencia(r){
+  var t = tarifa();
+  if (r.tipo === "saldo") {
+    var ex = (Number(t.ingresoRef360) - Number(r.precio)) * Number(r.cantidad || 1);
+    return { com: ex > 0 ? Math.round(ex * Number(t.pctSaldo || 25)) / 100 : 0, aviso: ex > 0 ? "" : "Sin excedente con la tarifa de hoy: comisión 0." };
+  }
+  var ef = Number(r.precio), pc = Number(r.porc || 0);
+  var gan = (ef * (1 + pc / 100) / Number(t.libroRef)) * Number(t.salidaRef) - ef;
+  var bajoPiso = pc < Number(t.pisoTransf || 25);
+  return { com: gan > 0 ? Math.round(gan * Number(t.pctTransf || 20)) / 100 : 0,
+    aviso: (gan <= 0 ? "La vuelta no deja ganancia con la tarifa de hoy: comisión 0." : (bajoPiso ? "Ojo: viene por debajo del piso del " + t.pisoTransf + "%." : "")) };
+}
+function conceptoDe(r){
+  if (r.tipo === "saldo") return "Saldo · " + r.cantidad + " recarga(s) a " + fmt(Number(r.precio)) + " CUP";
+  return "Transferencia · " + fmt(Number(r.precio)) + " CUP al " + fmt(Number(r.porc)) + "%";
+}
+function codigoDe(nombre){
+  var u = state.foto.usuarios.filter(function(x){ return x.nombre === nombre; })[0];
+  return u ? u.codigo : null;
+}
+
+/* ===== COLA OFFLINE DE ACCIONES =====
+   Las acciones sin conexión NO se pierden: se aplican a la foto
+   local (Ernesto las ve hechas) y quedan en state.cola, visibles en
+   Inicio («Pendientes de enviar»), para despacharse solas al volver
+   la red. EXCEPCIÓN deliberada: eliminar un usuario NO se encola
+   (es irreversible): se bloquea offline con explicación. */
+function encolar(accion){ state.cola.push(accion); guardar(); pintarInicioSiVisible(); }
+function ejecutarAccion(a){
+  var cod = state.codigo;
+  switch (a.tipo) {
+    case "aprobar": return rpc("aprobar", { p_codigo: cod, p_id: a.id, p_comision: a.comision });
+    case "rechazar": return rpc("rechazar", { p_codigo: cod, p_id: a.id, p_motivo: a.motivo || "" });
+    case "ayudaVista": return rpc("ayudaVista", { p_codigo: cod, p_id: a.id });
+    case "activo": return rpc("usuarioActivo", { p_codigo: cod, p_codigo_usuario: a.codigoUsuario, p_activo: a.activo });
+    case "nuevo": return rpc("usuarioNuevo", { p_codigo: cod, p_codigo_usuario: a.codigoUsuario, p_nombre: a.nombre });
+    case "chat": {
+      var cuerpoC = { p_de: "ADMIN", p_para: a.para, p_texto: a.texto, p_clave: cod };
+      if (a.resp_de) cuerpoC.p_resp_de = a.resp_de;
+      if (a.adj) { cuerpoC.p_adj_tipo = a.adj.tipo; cuerpoC.p_adj_datos = a.adj.datos; cuerpoC.p_adj_nombre = a.adj.nombre || null; cuerpoC.p_adj_tam = a.adj.tam || null; }
+      return rpc("enviarMensaje", cuerpoC);
+    }
+    case "editarChat": return rpc("editarMensaje", { p_codigo: "ADMIN", p_id: a.id, p_texto: a.texto });
+    case "pagado": return rpc("marcarPagado", { p_codigo: cod, p_id: a.id });
+    case "publicar":
+      return rpc("guardarTarifa", { p_codigo: cod, p_ingreso: a.payload.tarifa.ingresoRef360, p_libro: a.payload.tarifa.libroRef, p_salida: a.payload.tarifa.salidaRef, p_com_saldo: a.payload.tarifa.pctSaldo, p_com_transf: a.payload.tarifa.pctTransf, p_piso: a.payload.tarifa.pisoTransf })
+        .then(function(){ return rpc("publicarTratos", { p_codigo: cod, p_tratos: a.payload.lista }); });
+  }
+  return Promise.resolve();
+}
+var despachando = false;
+function despacharCola(){
+  if (despachando || !state.codigo) return Promise.resolve(0);
+  if (!state.cola.length) return Promise.resolve(0);
+  despachando = true;
+  var hechos = 0;
+  var chain = Promise.resolve();
+  var copia = state.cola.slice();
+  copia.forEach(function(a){
+    chain = chain.then(function(){
+      return ejecutarAccion(a).then(function(){
+        hechos++;
+        var i = state.cola.indexOf(a); if (i >= 0) state.cola.splice(i, 1);
+        if (a.tipo === "publicar") state.publicarPendiente = null;
+        guardar();
+      }).catch(function(){ /* se queda en la cola para el próximo intento */ });
+    });
+  });
+  return chain.then(function(){
+    despachando = false;
+    pintarInicioSiVisible();
+    if (hechos > 0) { toast("📤 Cola despachada: " + hechos + " acción(es) ya están en el sistema"); cargarTodo(true); }
+    return hechos;
+  });
+}
+
+/* ===== CARGA DE DATOS + PRESENCIA ===== */
+function cargarTodo(silencioso){
+  var codigo = state.codigo;
+  if (!codigo) return Promise.resolve(false);
+  return Promise.all([
+    rpc("reportes", { p_codigo: codigo }),
+    rpc("ayudas", { p_codigo: codigo }),
+    rpc("usuarios", { p_codigo: codigo }),
+    fetch(DATOS_JSON_URL + "?t=" + Date.now()).then(function(r){ return r.ok ? r.json() : null; }).catch(function(){ return null; })
+  ]).then(function(res){
+    online = true;
+    /* Las decisiones tomadas en este teléfono (aprobado/rechazado/
+       pagado) NO se pierden si la foto del servidor aún no las trae:
+       se reaplican sobre la foto nueva mientras el servidor siga
+       viéndolas «pendiente». El servidor manda cuando él confirma. */
+    var decisiones = {};
+    state.foto.reportes.forEach(function(r){
+      if (r.estado !== "pendiente" || r.comision_pagada_en) {
+        decisiones[r.id] = { estado: r.estado, comision: r.comision,
+          motivo: r.motivo, comision_pagada_en: r.comision_pagada_en };
+      }
+    });
+    state.foto.reportes = (Array.isArray(res[0]) ? res[0] : []).map(function(r){
+      var d = decisiones[r.id];
+      if (d && r.estado === "pendiente") {
+        return Object.assign({}, r, { estado: d.estado, comision: d.comision,
+          motivo: d.motivo, comision_pagada_en: d.comision_pagada_en || r.comision_pagada_en });
+      }
+      if (d && d.comision_pagada_en && !r.comision_pagada_en) {
+        return Object.assign({}, r, { comision_pagada_en: d.comision_pagada_en });
+      }
+      return r;
+    });
+    state.foto.ayudas = Array.isArray(res[1]) ? res[1] : [];
+    state.foto.usuarios = Array.isArray(res[2]) ? res[2] : [];
+    state.foto.borrados = state.foto.borrados.filter(function(cod){ return !state.foto.usuarios.some(function(u){ return u.codigo === cod; }); });
+    if (res[3]) { datosLive = res[3]; state.foto.datos = res[3]; }
+    state.foto.cuando = horaFoto();
+    state.sellos.bandeja = new Date().toISOString();
+    state.sellos.equipo = new Date().toISOString();
+    guardar();
+    pintarTodo();
+    cargarPresencia();
+    cargarPerfiles();
+    leerTarifaViva();
+    latidoAdmin();
+    return despacharCola().then(function(){ return true; });
+  }).catch(function(){
+    online = false;
+    pintarTodo();
+    if (!silencioso) toast("📴 Sin conexión: ves la última foto guardada", false);
+    return false;
+  });
+}
+/* Presencia/chat cargan APARTE a propósito: si las puertas nuevas aún
+   no existen (SQL sin pegar), esto falla solo y el resto sigue. */
+function cargarPresencia(){
+  return Promise.all([
+    rpc("verPresencia", { p_codigo: state.codigo }),
+    rpc("mensajesSinLeer", { p_codigo: "ADMIN", p_clave: state.codigo })
+  ]).then(function(res){
+    puertasChat = true;
+    presenciaMap = {};
+    ((res[0] && res[0].usuarios) || []).forEach(function(u){ if (u.visto) presenciaMap[u.codigo] = u.visto; });
+    sinLeerMap = (res[1] && res[1].por_usuario) || {};
+    sinLeerTotal = Number((res[1] && res[1].total) || 0);
+    pintarEquipo(); pintarInicioSiVisible();
+    if (chatCon) pintarChat();
+  }).catch(function(){
+    puertasChat = false;
+    presenciaMap = {}; sinLeerMap = {}; sinLeerTotal = 0;
+    pintarEquipo(); pintarInicioSiVisible();
+  });
+}
+function leerTarifaViva(){
+  rpc("leerTarifa", {}).then(function(r){
+    if (r && r.ok && r.ingreso_ref360 !== undefined && r.ingreso_ref360 !== null) {
+      state.tarifaViva = { ingresoRef360: Number(r.ingreso_ref360), libroRef: Number(r.libro_ref),
+        salidaRef: Number(r.salida_ref), pctSaldo: Number(r.comision_saldo),
+        pctTransf: Number(r.comision_transf), pisoTransf: Number(r.piso_transf) };
+      state.tarifaVivaEn = r.actualizado || "";
+      state.sellos.tarifa = new Date().toISOString();
+      guardar();
+      pintarTarifa(); pintarInicioSiVisible();
+    }
+  }).catch(function(){});
+}
+/* Latido de Ernesto: con el SQL v1.3.1 queda la fila 'ADMIN' en
+   presencia (la app del buscador muestra si Ernesto está en línea).
+   Si la puerta aún rechaza el código admin, el fallo es silencioso. */
+var latidoTimer = null;
+function latidoAdmin(){
+  if (!state.codigo) return;
+  rpc("tocarPresencia", { p_codigo: state.codigo }).catch(function(){});
+  rpc("marcarRecibidos", { p_codigo: "ADMIN", p_clave: state.codigo }).catch(function(){});
+}
+function arrancarLatido(){
+  latidoAdmin();
+  if (latidoTimer) clearInterval(latidoTimer);
+  latidoTimer = setInterval(latidoAdmin, 60000);
+}
+function haceVisible(){
+  var lbl = $("lblEstado");
+  if (lbl) {
+    var pend = state.foto.reportes.filter(function(r){ return r.estado === "pendiente"; }).length;
+    lbl.textContent = online
+      ? "🟢 En línea · " + pend + " reporte(s) por aprobar"
+      : "📴 " + (state.foto.cuando ? ("Sin conexión · foto del " + state.foto.cuando) : "Sin conexión · aún sin foto guardada");
+  }
+  var b = $("bannerOff");
+  if (b) {
+    if (!online && state.codigo) { b.style.display = "block"; b.textContent = "📴 Estás sin conexión: la app trabaja con la última foto guardada (" + selloTexto("bandeja") + "). Lo que hagas queda en cola y se envía solo al volver la red."; }
+    else b.style.display = "none";
+  }
+}
+
+/* ===== PRESENCIA Y ESTADOS DEL CHAT «COMO WHATSAPP» =====
+   ENTREGADO se define así (y así lo dice la app): el buscador abrió
+   su app DESPUÉS de que el mensaje se envió (su latido visto >=
+   creado del mensaje) pero aún no abrió el chat → entregado; abrió
+   el chat → leer_chat marca leido=true → «Visto». Si el mensaje trae
+   el sello «recibido» del servidor (marcar_recibidos, SQL v1.3.1),
+   ese sello manda sobre la derivación. */
+function estadoMsg(m, vistoIso){
+  if (m.local) return '<span class="ticks reloj" title="Sin enviar">' + TICK_RELOJ + '</span><span class="sr-only">\uD83D\uDD50 sin enviar</span>';
+  if (m.leido) return '<span class="ticks visto" title="Visto">' + TICK_DOBLE + '</span><span class="sr-only">\u2713\u2713 Visto</span>';
+  var entregado = !!m.recibido;
+  if (!entregado && vistoIso) {
+    var v = Date.parse(vistoIso), c = Date.parse(m.creado);
+    if (!isNaN(v) && !isNaN(c) && v >= c) entregado = true;
+  }
+  if (entregado) return '<span class="ticks" title="Entregado">' + TICK_DOBLE + '</span><span class="sr-only">\u2713\u2713 entregado</span>';
+  return '<span class="ticks" title="Enviado">' + TICK_UNA + '</span><span class="sr-only">\u2713 enviado</span>';
+}
+function textoPresencia(codigo){
+  if (puertasChat !== true) return "";
+  var visto = presenciaMap[codigo];
+  if (!visto) return "Sin registro de presencia";
+  var t = Date.parse(visto); if (isNaN(t)) return "";
+  var min = (Date.now() - t) / 60000;
+  if (min < 3) return '<span class="punto-linea"></span>En línea';
+  return "Última vez " + haceCuanto(visto) + " · a las " + horaDe(visto);
+}
+function enLineaDe(codigo){
+  if (puertasChat !== true) return null;
+  var visto = presenciaMap[codigo];
+  if (!visto) return null;
+  var t = Date.parse(visto); if (isNaN(t)) return null;
+  return (Date.now() - t) / 60000 < 3;
+}
+function lineaPresencia(u){
+  if (puertasChat !== true) return "";
+  var visto = presenciaMap[u.codigo];
+  if (!visto) return '<div class="t-sub">Sin registro de presencia</div>';
+  var min = (Date.now() - Date.parse(visto)) / 60000;
+  if (isNaN(min)) return "";
+  if (min < 3) return '<div class="t-sub"><span class="punto-linea"></span>En línea</div>';
+  return '<div class="t-sub">Última vez ' + haceCuanto(visto) + '</div>';
+}
+/* ===== REGISTRO DE MÓDULOS (la apertura a más funciones) ===== */
+var MODULOS = [];
+function registrarModulo(m){ MODULOS.push(m); }
+function modulo(id){ return MODULOS.filter(function(m){ return m.id === id; })[0]; }
+var tabActual = "Inicio";
+function pintarTabs(){
+  var cont = $("tabs"); cont.innerHTML = "";
+  MODULOS.forEach(function(m){
+    var d = document.createElement("button");
+    d.className = "tab" + (m.id === tabActual ? " activa" : "");
+    var badge = "";
+    if (m.id === "Bandeja") {
+      var pend = state.foto.reportes.filter(function(r){ return r.estado === "pendiente"; }).length;
+      if (pend > 0) badge = '<span class="badge">' + pend + "</span>";
+    }
+    if (m.id === "Equipo" && sinLeerTotal > 0) badge = '<span class="badge">' + sinLeerTotal + "</span>";
+    d.innerHTML = icono(m.icono || "inicio") + "<span>" + m.tab + "</span>" + badge;
+    d.addEventListener("click", function(){ irA(m.id); });
+    cont.appendChild(d);
+  });
+}
+/* La vista de Chat pertenece al módulo Equipo (no es una pestaña). */
+function irA(id){
+  if (id !== "Equipo") detenerChat();
+  tabActual = id;
+  MODULOS.forEach(function(m){ var pg = $("pg" + m.id); if (pg) pg.style.display = m.id === id ? "block" : "none"; });
+  var ch = $("pgChat"); if (ch) ch.style.display = "none";
+  pintarTabs(); pintarTodo();
+  var m = modulo(id);
+  if (m && m.alMostrar) m.alMostrar();
+}
+function pintarTodo(){
+  if (!state.codigo) return;
+  haceVisible();
+  MODULOS.forEach(function(m){ try { m.render(); } catch(e){} });
+}
+function pintarInicioSiVisible(){ if (tabActual === "Inicio") { var m = modulo("Inicio"); if (m) m.render(); } pintarTabs(); }
+function pintarEquipo(){ var m = modulo("Equipo"); if (m && tabActual === "Equipo") m.render(); }
+function pintarTarifa(){ var m = modulo("Tarifa"); if (m && tabActual === "Tarifa") m.render(); }
+
+/* ===== MÓDULO INICIO ===== */
+registrarModulo({
+  id: "Inicio", tab: "Inicio", icono: "inicio",
+  render: function(){
+    var el = $("pgInicio"); if (!el) return;
+    var t = tarifa();
+    var enLinea = 0;
+    if (puertasChat === true) Object.keys(presenciaMap).forEach(function(c){
+      var ms = Date.parse(presenciaMap[c]);
+      if (!isNaN(ms) && (Date.now() - ms) < 3 * 60000) enLinea++;
+    });
+    var pendRep = state.foto.reportes.filter(function(r){ return r.estado === "pendiente"; }).length;
+    var pendEnvio = state.cola.length + (state.publicarPendiente ? 1 : 0);
+    var h = "";
+    h += '<div class="card"><h3>💲 Tarifa viva</h3>'
+      + '<div class="kv">Ingreso por recarga de 360: <b>' + fmt(Number(t.ingresoRef360)) + ' CUP</b></div>'
+      + '<div class="kv">Libro (CUP por QUSD): <b>' + fmt(Number(t.libroRef)) + '</b> · Salida de referencia: <b>' + fmt(Number(t.salidaRef)) + '</b></div>'
+      + '<div class="kv">Comisiones: saldo <b>' + t.pctSaldo + '%</b> · transferencia <b>' + t.pctTransf + '%</b> · piso <b>' + t.pisoTransf + '%</b></div>'
+      + (state.tarifaViva ? '<div class="mut">Viene de la tarifa guardada en la base' + (state.tarifaVivaEn ? ", actualizada el " + esc(state.tarifaVivaEn) : "") + '.</div>' : "")
+      + '<div class="ayuda">Es la tarifa que tus buscadores ven. La ajustas en la pestaña 💲 Tarifa.</div></div>';
+    h += '<div class="card"><h3>📥 Por atender</h3>'
+      + '<div class="kv">Reportes pendientes de aprobar: <b>' + pendRep + '</b></div>'
+      + (puertasChat === true
+          ? '<div class="kv">Mensajes sin leer: <b>' + sinLeerTotal + '</b> · Buscadores en línea: <b>' + enLinea + '</b></div>'
+          : '<div class="kv">Chat y presencia: <b>falta activar</b> (se encienden solos con el paquete SQL único)</div>')
+      + '<div class="ayuda">Los reportes se aprueban en la Bandeja. En línea = abrió su app en los últimos 3 minutos.</div></div>';
+    if (pendEnvio > 0) {
+      h += '<div class="card"><h3>📤 Pendientes de enviar: ' + pendEnvio + '</h3>'
+        + '<div class="mut">Acciones hechas sin conexión o sin confirmar. Se envían solas cuando vuelva la red.</div>'
+        + '<button class="bGold" id="inReintentar">📤 Reintentar ahora</button>'
+        + '<div class="ayuda">La cola vive en este teléfono: nada de lo que hagas sin internet se pierde en silencio.</div></div>';
+    }
+    h += '<div class="card"><h3>🕐 Estado de los datos</h3>'
+      + '<div class="kv">' + (online ? "🟢 En línea: datos frescos de ahora." : ("📴 " + selloTexto("bandeja") + ".")) + '</div>'
+      + '<div class="ayuda">Con poca cobertura, Mi Negocio sigue abriendo y trabajando con la última foto guardada de cada pestaña.</div></div>';
+    el.innerHTML = h + bloqueSemaforoHtml() + bloqueCuentasHtml() + bloqueAvisosHtml();
+    var rb = $("inReintentar");
+    if (rb) rb.addEventListener("click", function(){ despacharCola().then(function(){ cargarTodo(true); }); });
+  }
+});
+
+/* ===== MÓDULO CALCULADORA (v14 completa; 100% offline) ===== */
+function campo(id, label, valor, ayuda){
+  return '<label for="' + id + '">' + label + '</label>'
+    + '<div class="stepRow"><button type="button" class="step" data-st="' + id + ':-1">−</button>'
+    + '<input class="numIn" id="' + id + '" type="text" inputmode="decimal" value="' + valor + '">'
+    + '<button type="button" class="step" data-st="' + id + ':1">+</button></div>'
+    + '<div class="ayuda">' + ayuda + '</div>';
+}
+function chips(id, valores){
+  var h = '<div class="chips">';
+  valores.forEach(function(v){ h += '<span class="chip" data-ch="' + id + ':' + v + '">' + v + '</span>'; });
+  return h + "</div>";
+}
+function valCalc(grupo, clave, id){ var n = parseFloat(String($(id).value).replace(",", ".")); var v = isFinite(n) ? n : 0; state.calc[grupo][clave] = v; return v; }
+function montarStepsCalc(){
+  $("pgCalc").querySelectorAll("[data-st]").forEach(function(b){
+    b.addEventListener("click", function(){
+      var partes = b.getAttribute("data-st").split(":");
+      var inp = $(partes[0]); var dir = Number(partes[1]);
+      var v = parseFloat(String(inp.value).replace(",", ".")); if (!isFinite(v)) v = 0;
+      inp.value = Math.round((v + dir) * 100) / 100;
+      inp.dispatchEvent(new Event("input"));
+    });
+  });
+  $("pgCalc").querySelectorAll("[data-ch]").forEach(function(c){
+    c.addEventListener("click", function(){
+      var partes = c.getAttribute("data-ch").split(":");
+      var inp = $(partes[0]); inp.value = partes[1];
+      inp.dispatchEvent(new Event("input"));
+    });
+  });
+}
+function calcHtml(){
+  var s = state.calc.saldo, t = state.calc.transf, b = state.calc.busc;
+  var h = '<div class="card"><h3>📱 Saldo (ETECSA)</h3>'
+    + campo("c_s_salida", "Precio de salida del QUSD (CUP)", s.salida, "A cuánto te pagan 1 QUSD al venderlo. Completa el equilibrio.")
+    + chips("c_s_salida", [930, 950, 960, 970])
+    + campo("c_s_costo", "Tu costo por recarga de 360 (CUP)", s.costo, "Lo que pagaste por cada 360 de saldo. Completa el equilibrio.")
+    + chips("c_s_costo", [1000, 1040, 1100, 1114])
+    + campo("c_s_tasa", "Tasa a la que vendes en QvaPay (saldo por QUSD)", s.tasa, "Menos tasa = vendes más caro. Mucho ojo aquí.")
+    + chips("c_s_tasa", [300, 320, 340])
+    + campo("c_s_saldo", "Saldo total a vender", s.saldo, "Cuánto saldo piensas vender en total.")
+    + '<div id="c_out_s"></div></div>';
+  h += '<div class="card"><h3>🏦 Transferencia</h3>'
+    + campo("c_t_efectivo", "Efectivo a entregar (CUP)", t.efectivo, "El dinero en efectivo que das en mano en este trato.")
+    + campo("c_t_porc", "Te pagan AL % (prima por transferencia)", t.porc, "Cuánta transferencia extra recibes. En la calle se oye hasta el 40%.")
+    + chips("c_t_porc", [20, 25, 30, 35, 40])
+    + campo("c_t_libro", "Libro BANK_CUP (CUP por QUSD)", t.libro, "Precio de 1 QUSD pagando por transferencia (libro en vivo de QvaPay).")
+    + chips("c_t_libro", [1030, 1100, 1130])
+    + campo("c_t_salida", "Precio de salida del QUSD (CUP)", t.salida, "A cuánto te pagan 1 QUSD al venderlo por efectivo.")
+    + '<div id="c_out_t"></div></div>';
+  h += '<div class="card"><h3>🤝 Buscadores (esquema v2)</h3>'
+    + campo("c_b_precio", "Precio que te trae el buscador (efectivo, por 360)", b.precio, "El buscador te trae saldo a este precio. La comisión se saca del excedente.")
+    + campo("c_b_tasaVenta", "Tasa de venta en QvaPay (saldo por QUSD)", b.tasaVenta, "La tasa a la que vas a vender ese saldo en QvaPay.")
+    + campo("c_b_efectivo", "Efectivo de la vuelta de transferencia (CUP)", b.efectivo, "Para el cálculo de transferencia del buscador.")
+    + campo("c_b_porc", "Prima de la vuelta (%)", b.porc, "La prima al % de esa vuelta de transferencia.")
+    + campo("c_b_libro", "Libro BANK_CUP de la vuelta", b.libro, "Precio de 1 QUSD por transferencia en esa vuelta.")
+    + campo("c_b_salida", "Salida del QUSD (CUP)", b.salida, "Sirve para saldo y transferencia: ingreso y ganancia salen de aquí.")
+    + '<div id="c_out_b"></div></div>';
+  h += '<div class="ayuda">La calculadora trabaja 100% sin internet y guarda tus números en este teléfono. La sección Buscadores alimenta la tarifa derivada de la pestaña 💲 Tarifa.</div>';
+  return h;
+}
+function renderCalc(outOnly){
+  if (!outOnly) {
+    $("pgCalc").innerHTML = calcHtml();
+    ["c_s_salida","c_s_costo","c_s_tasa","c_s_saldo","c_t_efectivo","c_t_porc","c_t_libro","c_t_salida","c_b_precio","c_b_tasaVenta","c_b_efectivo","c_b_porc","c_b_libro","c_b_salida"].forEach(function(id){
+      $(id).addEventListener("input", function(){
+        valCalc(id.split("_")[1] === "s" ? "saldo" : (id.split("_")[1] === "t" ? "transf" : "busc"),
+          { c_s_salida:"salida", c_s_costo:"costo", c_s_tasa:"tasa", c_s_saldo:"saldo", c_t_efectivo:"efectivo", c_t_porc:"porc", c_t_libro:"libro", c_t_salida:"salida", c_b_precio:"precio", c_b_tasaVenta:"tasaVenta", c_b_efectivo:"efectivo", c_b_porc:"porc", c_b_libro:"libro", c_b_salida:"salida" }[id], id);
+        guardar();
+        renderCalc(true);
+      });
+    });
+    montarStepsCalc();
+  }
+  var s = state.calc.saldo, t = state.calc.transf, b = state.calc.busc;
+  var os = $("c_out_s");
+  if (os && Number(s.costo) > 0 && Number(s.tasa) > 0) {
+    var eq = 360 * Number(s.salida) / Number(s.costo);
+    var g360 = (360 / Number(s.tasa)) * Number(s.salida) - Number(s.costo);
+    var total = g360 * (Number(s.saldo) / 360) - 14.44;
+    os.innerHTML = '<div class="big">' + fmt(total) + ' CUP</div><div class="mut">ganancia del monto completo</div>'
+      + '<div class="grid"><div class="cell"><div class="v">' + fmt(eq) + '</div><div class="k">EQUILIBRIO · tasa</div></div>'
+      + '<div class="cell"><div class="v">' + fmt(g360) + '</div><div class="k">GANA / 360</div></div></div>'
+      + (Number(s.tasa) <= eq
+        ? '<div class="sema ok">🟢 VENDE — la tasa ' + fmt(Number(s.tasa)) + ' está por debajo del equilibrio ' + fmt(eq) + '</div>'
+        : '<div class="sema bad">🔴 NO VENDAS a ' + fmt(Number(s.tasa)) + ' — pierdes ' + fmt(Math.abs(g360)) + ' CUP por cada 360</div>');
+  }
+  var ot = $("c_out_t");
+  if (ot && Number(t.libro) > 0) {
+    var rec = Number(t.efectivo) * (1 + Number(t.porc) / 100);
+    var qusd = rec / Number(t.libro);
+    var reg = qusd * Number(t.salida);
+    var gan = reg - Number(t.efectivo);
+    var eqp = (Number(t.libro) / Number(t.salida) - 1) * 100;
+    var mg = ((1 + Number(t.porc) / 100) * Number(t.salida) / Number(t.libro) - 1) * 100;
+    ot.innerHTML = '<div class="big">' + fmt(gan) + ' CUP</div><div class="mut">ganancia de la vuelta</div>'
+      + '<div class="grid"><div class="cell"><div class="v">' + fmt(rec) + '</div><div class="k">RECIBES TRANSF.</div></div>'
+      + '<div class="cell"><div class="v">' + fmt(qusd) + '</div><div class="k">COMPRAS QUSD</div></div>'
+      + '<div class="cell"><div class="v">' + fmt(reg) + '</div><div class="k">REGRESA EFECT.</div></div></div>'
+      + '<div class="mut" style="margin-top:8px">Equilibrio: al ' + fmt(eqp) + '% · Tu margen al ' + fmt(Number(t.porc)) + '%: ' + fmt(mg) + '%</div>'
+      + (Number(t.porc) > eqp
+        ? '<div class="sema ok">🟢 DALE — estás por encima del equilibrio (al ' + fmt(eqp) + '%)</div>'
+        : '<div class="sema bad">🔴 NO CONVIENE — necesitas más del ' + fmt(eqp) + '% y te dan el ' + fmt(Number(t.porc)) + '%</div>');
+  }
+  var ob = $("c_out_b");
+  if (ob) {
+    var t2 = tarifa();
+    var ing2 = (360 / Number(b.tasaVenta)) * Number(b.salida);
+    var exc2 = ing2 - Number(b.precio);
+    var comS2 = exc2 > 0 ? exc2 * Number(t2.pctSaldo) / 100 : 0;
+    var recB = Number(b.efectivo) * (1 + Number(b.porc) / 100);
+    var ganB = (recB / Number(b.libro)) * Number(b.salida) - Number(b.efectivo);
+    var comT2 = ganB > 0 ? ganB * Number(t2.pctTransf) / 100 : 0;
+    ob.innerHTML = '<div class="grid"><div class="cell"><div class="v">' + fmt(ing2) + '</div><div class="k">INGRESO / 360</div></div>'
+      + '<div class="cell"><div class="v">' + fmt(comS2) + '</div><div class="k">PAGA SALDO ' + t2.pctSaldo + '%</div></div></div>'
+      + '<div class="grid"><div class="cell"><div class="v">' + fmt(ganB) + '</div><div class="k">GANANCIA VUELTA</div></div>'
+      + '<div class="cell"><div class="v">' + fmt(comT2) + '</div><div class="k">PAGA TRANSF. ' + t2.pctTransf + '%</div></div></div>'
+      + '<div class="ayuda" style="margin-top:8px">Saldo: el buscador gana el ' + t2.pctSaldo + '% del excedente. Transferencia: el ' + t2.pctTransf + '% de la ganancia de la vuelta, solo al cerrar.</div>';
+  }
+}
+registrarModulo({
+  id: "Calc", tab: "Calculadora", icono: "calc",
+  render: function(){
+    if (!$("c_out_s")) renderCalc(false);
+  },
+  alMostrar: function(){ renderCalc(false); }
+});
+
+/* ===== ACCIONES DE BANDEJA (con cola offline) ===== */
+function buscarReporte(id){ return state.foto.reportes.filter(function(x){ return x.id === id; })[0]; }
+function decidirReporte(id, aprobar, comision, motivo){
+  var r = buscarReporte(id); if (!r) return;
+  comision = Math.round((Number(comision) || 0) * 100) / 100;
+  var accion = aprobar
+    ? { tipo: "aprobar", id: id, comision: comision, cuando: new Date().toISOString() }
+    : { tipo: "rechazar", id: id, motivo: motivo || "", cuando: new Date().toISOString() };
+  /* aplica local y encola: vale igual con red que sin red */
+  r.estado = aprobar ? "aprobado" : "rechazado";
+  if (aprobar) {
+    r.comision = Number(comision) || 0;
+    var cod = r.codigo || codigoDe(r.nombre);
+    if (cod) state.foto.publicar.push({ codigo: cod, nombre: r.nombre, concepto: conceptoDe(r), comision: Number(comision) || 0, fecha: r.creado });
+  } else r.motivo = motivo || "";
+  encolar(accion);
+  guardar(); pintarTodo();
+  despacharCola();
+  toast(online ? "✅ Reporte " + (aprobar ? "aprobado" : "rechazado") : "📴 Guardado sin conexión: saldrá solo cuando vuelva la red");
+}
+function hojaReporte(r){
+  var sug = r.estado === "pendiente" ? sugerencia(r) : null;
+  var txt = esc(conceptoDe(r)) + " · " + fechaCorta(r.creado) + "<br>Teléfono: " + esc(r.telefono || "—") + "<br>Nota: " + esc(r.nota || "—");
+  if (r.estado !== "pendiente") txt += "<br>Estado: " + esc(r.estado) + (r.comision !== null && r.comision !== undefined && r.estado === "aprobado" ? " · Comisión: " + fmt(Number(r.comision)) + " CUP" : "") + (r.motivo ? " · Motivo: " + esc(r.motivo) : "");
+  var btns = [];
+  if (r.estado === "pendiente") {
+    btns.push({ txt: "✅ Aprobar con la sugerencia: " + fmt(sug.com) + " CUP", cls: "bOk", fn: function(){ decidirReporte(r.id, true, sug.com); } });
+    btns.push({ txt: "✏️ Aprobar con otro monto…", cls: "bGold", fn: function(){ formComision(r); } });
+    btns.push({ txt: "❌ Rechazar…", cls: "bBad", fn: function(){ formRechazo(r); } });
+  }
+  abrirHoja("Reporte de " + r.nombre, txt, btns);
+}
+function formComision(r){
+  var sug = sugerencia(r);
+  $("hojaTit").textContent = "Comisión para " + r.nombre;
+  var tx = $("hojaTxt"); tx.style.display = "block";
+  tx.innerHTML = '<div class="mut">Sugerencia del esquema v2: <b>' + fmt(sug.com) + ' CUP</b>' + (sug.aviso ? "<br>" + esc(sug.aviso) : "") + '</div><input id="hCom" type="text" inputmode="decimal" value="' + fmt(sug.com) + '">';
+  var cont = $("hojaBtns"); cont.innerHTML = "";
+  var b = document.createElement("button"); b.className = "bOk"; b.textContent = "✅ Aprobar con este monto";
+  b.addEventListener("click", function(){
+    var v = parseFloat(String($("hCom").value).replace(",", "."));
+    cerrarHoja(); decidirReporte(r.id, true, isFinite(v) ? v : sug.com);
+  });
+  cont.appendChild(b);
+  var c = document.createElement("button"); c.className = "bGhost"; c.textContent = "Cancelar";
+  c.addEventListener("click", cerrarHoja); cont.appendChild(c);
+  $("hojaFondo").style.display = "block";
+}
+function formRechazo(r){
+  $("hojaTit").textContent = "Rechazar reporte de " + r.nombre;
+  var tx = $("hojaTxt"); tx.style.display = "block";
+  tx.innerHTML = '<div class="mut">Motivo (opcional): explícalo en una línea para que el buscador entienda.</div><input id="hMot" type="text" placeholder="Por qué se rechaza">';
+  var cont = $("hojaBtns"); cont.innerHTML = "";
+  var b = document.createElement("button"); b.className = "bBad"; b.textContent = "❌ Rechazar";
+  b.addEventListener("click", function(){
+    var v = $("hMot").value || "";
+    cerrarHoja(); decidirReporte(r.id, false, 0, v);
+  });
+  cont.appendChild(b);
+  var c = document.createElement("button"); c.className = "bGhost"; c.textContent = "Cancelar";
+  c.addEventListener("click", cerrarHoja); cont.appendChild(c);
+  $("hojaFondo").style.display = "block";
+}
+function tarjetaReporte(r){
+  var sug = r.estado === "pendiente" ? sugerencia(r) : null;
+  var pill = (r.estado === "aprobado" && r.comision_pagada_en) ? '<span class="pill pOk">PAGADO</span>'
+    : (r.estado === "pendiente" ? '<span class="pill pPend">PENDIENTE</span>' : (r.estado === "aprobado" ? '<span class="pill pOk">APROBADO</span>' : '<span class="pill pBad">RECHAZADO</span>'));
+  if (r.editado) pill += ' <span class="pill pPend">EDITADO</span>';
+  var h = '<div class="card prensable" data-rep="' + r.id + '"><div class="row"><h3>' + esc(r.nombre || "Sin nombre") + '</h3><span class="fila">' + pill + '<button class="dots" data-repdot="' + r.id + '">⋯</button></span></div>'
+    + '<div class="kv">' + esc(conceptoDe(r)) + " · " + fechaCorta(r.creado) + '</div>'
+    + '<div class="kv">Teléfono: ' + esc(r.telefono || "—") + (r.nota ? ' · Nota: ' + esc(r.nota) : '') + '</div>'
+    + (r.estado === "aprobado" && r.comision !== null && r.comision !== undefined ? '<div class="kv">Comisión: <b>' + fmt(Number(r.comision)) + ' CUP</b></div>' : "")
+    + (r.comision_pagada_en ? '<div class="kv">💰 Comisión pagada el ' + fechaCorta(r.comision_pagada_en) + " " + horaDe(r.comision_pagada_en) + '</div>' : "")
+    + (r.adj_datos ? '<img class="adj-foto" alt="Comprobante del reporte" src="' + (String(r.adj_datos).indexOf("data:") === 0 ? r.adj_datos : "data:image/jpeg;base64," + r.adj_datos) + '">' : "")
+    + (r.estado === "aprobado" && !r.comision_pagada_en ? '<div class="fila" style="margin-top:8px"><button class="bOk bMini" data-pagar="' + r.id + '">💰 Ya pagué</button></div><div class="ayuda">Al pagarla, el buscador ve «Comisión pagada» en su trato y la cuenta de la semana baja sola.</div>' : "")
+    + (r.estado === "rechazado" && r.motivo ? '<div class="kv">Motivo: ' + esc(r.motivo) + '</div>' : "")
+    + (sug ? '<div class="kv">Comisión sugerida: <b>' + fmt(sug.com) + ' CUP</b></div>' + (sug.aviso ? '<div class="mut">' + esc(sug.aviso) + '</div>' : "") : "")
+    + (r.estado === "pendiente" ? '<div class="fila" style="margin-top:8px;gap:8px"><button class="bOk bMini" data-ap="' + r.id + '">✅ Aprobar</button><button class="bBad bMini" data-rj="' + r.id + '">❌ Rechazar…</button></div>'
+      + '<div class="ayuda">Mantén presionada la tarjeta (o toca ⋯) para aprobar con otro monto. Lo sin red no se pierde: va a la cola.</div>' : "")
+    + "</div>";
+  return h;
+}
+function tarjetaAyuda(a){
+  var pill = a.estado === "visto" ? '<span class="pill pOk">VISTA</span>' : '<span class="pill pChat">NUEVA</span>';
+  var h = '<div class="card"><div class="row"><h3>' + esc(a.nombre || "Sin nombre") + '</h3>' + pill + '</div>'
+    + '<div class="kv"><b>' + esc(a.tema || "Ayuda") + "</b> · " + fechaCorta(a.creado) + '</div>'
+    + '<div class="kv">' + esc(a.mensaje || "") + '</div>'
+    + (a.telefono ? '<div class="kv">Teléfono: ' + esc(a.telefono) + '</div>' : "");
+  if (a.estado !== "visto") h += '<button class="bGhost" data-vista="' + a.id + '">✔️ Marcar como vista</button>';
+  return h + "</div>";
+}
+registrarModulo({
+  id: "Bandeja", tab: "Bandeja", icono: "bandeja",
+  render: function(){
+    var el = $("pgBandeja"); if (!el) return;
+    var reps = state.foto.reportes.slice().sort(function(x, y){ return String(y.creado).localeCompare(String(x.creado)); });
+    var h = (!online ? '<div class="offBanner" style="display:block">📴 ' + selloTexto("bandeja") + ". Las decisiones que tomes aquí quedan en cola y salen solas.</div>" : "");
+    h += '<div class="sub">Reportes pendientes de los buscadores. Aprobar deja la comisión lista para publicarla con 💲 Tarifa → 📡 Publicar ahora.</div>';
+    if (!reps.length) h += '<div class="card"><div class="mut">No hay reportes todavía.</div></div>';
+    reps.forEach(function(r){ h += tarjetaReporte(r); });
+    var ays = state.foto.ayudas.slice().sort(function(x, y){ return String(y.creado).localeCompare(String(x.creado)); });
+    if (ays.length) { h += '<h3 style="margin:16px 0 8px">💬 Ayudas</h3>'; ays.forEach(function(a){ h += tarjetaAyuda(a); }); }
+    el.innerHTML = h;
+    el.querySelectorAll("[data-ap]").forEach(function(b){ b.addEventListener("click", function(){ var r = buscarReporte(b.getAttribute("data-ap")); if (r) decidirReporte(r.id, true, sugerencia(r).com); }); });
+    el.querySelectorAll("[data-rj]").forEach(function(b){ b.addEventListener("click", function(){ var r = buscarReporte(b.getAttribute("data-rj")); if (r) formRechazo(r); }); });
+    el.querySelectorAll("[data-repdot]").forEach(function(b){ b.addEventListener("click", function(){ var r = buscarReporte(b.getAttribute("data-repdot")); if (r) hojaReporte(r); }); });
+    el.querySelectorAll("[data-rep]").forEach(function(cardEl){ armarPrensa(cardEl, function(){ var r = buscarReporte(cardEl.getAttribute("data-rep")); if (r) hojaReporte(r); }); });
+    el.querySelectorAll("[data-pagar]").forEach(function(b){ b.addEventListener("click", function(){ var r = buscarReporte(b.getAttribute("data-pagar")); if (r) marcarPagado(r); }); });
+    el.querySelectorAll("[data-vista]").forEach(function(b){ b.addEventListener("click", function(){
+      var id = b.getAttribute("data-vista");
+      var a = state.foto.ayudas.filter(function(x){ return x.id === id; })[0];
+      if (a) { a.estado = "visto"; encolar({ tipo: "ayudaVista", id: id, cuando: new Date().toISOString() }); guardar(); pintarTodo(); despacharCola(); }
+      toast("✔️ Ayuda marcada como vista");
+    }); });
+  }
+});
+
+/* ===== ACCIONES DE EQUIPO (con cola offline; eliminar NO se encola) ===== */
+function hojaUsuario(u){
+  var btns = [];
+  if (puertasChat === true) btns.push({ txt: "💬 Abrir chat", cls: "bGold", fn: function(){ abrirChat(u.codigo, u.nombre); } });
+  btns.push({ txt: u.activo ? "🚫 Desactivar (bloquear su app)" : "🔓 Activar de nuevo", cls: "bGhost", fn: function(){ cambiarActivo(u.codigo, !u.activo); } });
+  btns.push({ txt: "🗑️ Eliminar buscador…", cls: "bBad", fn: function(){ confirmarEliminar(u); } });
+  abrirHoja(u.nombre + " (" + u.codigo + ")", (u.activo ? "Buscador ACTIVO. Ve todo el panel: su tarifa, sus tratos y su comisión." : "Buscador DESACTIVADO: su app le dice que no tiene acceso."), btns);
+}
+function cambiarActivo(codigo, on){
+  var u = state.foto.usuarios.filter(function(x){ return x.codigo === codigo; })[0];
+  if (u) { u.activo = on; }
+  encolar({ tipo: "activo", codigoUsuario: codigo, activo: on, cuando: new Date().toISOString() });
+  guardar(); pintarTodo(); despacharCola();
+  toast(on ? "🔓 Buscador activado" : "🚫 Buscador desactivado" + (online ? "" : " (en cola)"));
+}
+function confirmarEliminar(u){
+  if (!online) {
+    abrirHoja("Eliminar necesita conexión", "Borrado total y definitivo de " + esc(u.nombre) + ": por seguridad NO se pone en cola — con conexión vuelves a intentarlo y borra de una vez.", []);
+    return;
+  }
+  abrirHoja("¿Eliminar a " + u.nombre + "?", "Se borra TODO lo suyo: su acceso, sus reportes y sus ayudas. Los tratos ya aprobados que estén en su panel se quedan. No se puede deshacer.", [
+    { txt: "🗑️ Sí, eliminar", cls: "bBad", fn: function(){ eliminarUsuario(u); } }
+  ]);
+}
+function eliminarUsuario(u){
+  rpc("usuarioBorrar", { p_codigo: state.codigo, p_codigo_usuario: u.codigo }).then(function(){
+    state.foto.usuarios = state.foto.usuarios.filter(function(x){ return x.codigo !== u.codigo; });
+    if (state.foto.borrados.indexOf(u.codigo) < 0) state.foto.borrados.push(u.codigo);
+    guardar(); pintarTodo();
+    toast("🗑️ " + u.nombre + " eliminado del equipo");
+  }).catch(function(){
+    abrirHoja("Falta activar el borrado", "La puerta de borrado aún no está en tu base: pega el paquete SQL actualizado (un solo pegado) y eliminar funcionará desde aquí.", []);
+  });
+}
+function guardarNuevoBuscador(){
+  var cod = ($("nuCod").value || "").trim().toUpperCase();
+  var nom = ($("nuNom").value || "").trim();
+  if (!cod || !nom) { toast("Escribe el código y el nombre", false); return; }
+  if (state.foto.usuarios.some(function(x){ return x.codigo === cod; })) { toast("Ese código ya existe en tu equipo", false); return; }
+  state.foto.usuarios.push({ codigo: cod, nombre: nom, activo: true });
+  encolar({ tipo: "nuevo", codigoUsuario: cod, nombre: nom, cuando: new Date().toISOString() });
+  guardar(); pintarTodo(); despacharCola();
+  toast("✅ " + nom + " añadido al equipo" + (online ? "" : " (en cola: se crea al volver la red)"));
+}
+registrarModulo({
+  id: "Equipo", tab: "Equipo", icono: "equipo",
+  render: function(){
+    var el = $("pgEquipo"); if (!el) return;
+    var h = (!online ? '<div class="offBanner" style="display:block">📴 ' + selloTexto("equipo") + ". Chat y presencia vuelven con la red; las altas y bajas quedan en cola.</div>" : "");
+    if (puertasChat === false) h += '<div class="info">💬 Chat y presencia todavía no están activados en tu base: se encienden solos con el paquete SQL único. El resto del equipo funciona igual.</div>';
+    h += '<div class="sub">Tus buscadores: quién está en línea, su chat y su acceso. Mantén presionada una tarjeta (o toca ⋯) para las acciones.</div>';
+    state.foto.usuarios.forEach(function(u){
+      var badge = Number(sinLeerMap[u.codigo] || 0);
+      h += '<div class="card prensable" data-u="' + esc(u.codigo) + '"><div class="row"><h3>' + esc(u.nombre) + '</h3><span class="fila">'
+        + (u.activo ? '<span class="pill pOk">ACTIVO</span>' : '<span class="pill pBad">BLOQUEADO</span>')
+        + (badge > 0 ? '<span class="pill pChat">💬 ' + badge + '</span>' : "")
+        + '<button class="dots" data-udot="' + esc(u.codigo) + '">⋯</button></span></div>'
+        + '<div class="kv">Código: ' + esc(u.codigo) + "</div>" + lineaPresencia(u)
+        + '<div class="fila" style="margin-top:8px;gap:8px">'
+        + (puertasChat === true ? '<button class="bGold bMini" data-chat="' + esc(u.codigo) + '">💬 Chat' + (badge > 0 ? " · " + badge + " sin leer" : "") + "</button>" : "")
+        + '<button class="bGhost bMini" data-act="' + esc(u.codigo) + '">' + (u.activo ? "🚫 Desactivar" : "🔓 Activar") + "</button></div></div>";
+    });
+    if (!state.foto.usuarios.length) h += '<div class="card"><div class="mut">Todavía no hay buscadores en tu equipo.</div></div>';
+    h += '<div class="card"><h3>➕ Añadir buscador</h3>'
+      + '<input id="nuCod" placeholder="Código que TÚ le entregas (ej.: PALABRA-123)" autocapitalize="characters">'
+      + '<div class="ayuda">Invéntalo tú: una palabra y un número. Ese código es su llave de entrada a «Mi Trabajo».</div>'
+      + '<input id="nuNom" placeholder="Nombre (ej.: un apodo)">'
+      + '<button class="bOk" id="nuBtn">Añadir al equipo</button>'
+      + '<div class="ayuda">El alta queda registrada y su app entra con ese código en cuanto la base la confirma.</div></div>';
+    h += '<div class="card"><h3>🔑 Tu acceso</h3><div class="mut">Tu código de administrador vive solo en este teléfono.</div>'
+      + '<button class="bGhost" id="btnBorrarCodigo">Borrar mi código de este teléfono</button>'
+      + '<div class="ayuda">Cerrar sesión: al volver a abrir Mi Negocio te lo pide de nuevo. Útil si prestas el teléfono.</div></div>';
+    el.innerHTML = h;
+    el.querySelectorAll("[data-chat]").forEach(function(b){ b.addEventListener("click", function(){ var u = state.foto.usuarios.filter(function(x){ return x.codigo === b.getAttribute("data-chat"); })[0]; if (u) abrirChat(u.codigo, u.nombre); }); });
+    el.querySelectorAll("[data-act]").forEach(function(b){ b.addEventListener("click", function(){ var u = state.foto.usuarios.filter(function(x){ return x.codigo === b.getAttribute("data-act"); })[0]; if (u) cambiarActivo(u.codigo, !u.activo); }); });
+    el.querySelectorAll("[data-udot]").forEach(function(b){ b.addEventListener("click", function(){ var u = state.foto.usuarios.filter(function(x){ return x.codigo === b.getAttribute("data-udot"); })[0]; if (u) hojaUsuario(u); }); });
+    el.querySelectorAll("[data-u]").forEach(function(cardEl){ armarPrensa(cardEl, function(){ var u = state.foto.usuarios.filter(function(x){ return x.codigo === cardEl.getAttribute("data-u"); })[0]; if (u) hojaUsuario(u); }); });
+    var nb = $("nuBtn"); if (nb) nb.addEventListener("click", guardarNuevoBuscador);
+    var bc = $("btnBorrarCodigo"); if (bc) bc.addEventListener("click", function(){
+      abrirHoja("¿Borrar tu código de este teléfono?", "Mi Negocio se cierra y al abrirlo te pide el código otra vez. La base no cambia: solo se olvida en este aparato.", [
+        { txt: "🔒 Sí, borrar y salir", cls: "bBad", fn: function(){
+          state.codigo = ""; guardar();
+          try { localStorage.removeItem(LS_KEY); } catch(e){}
+          state = estadoVacio();
+          $("scrPanel").style.display = "none"; $("scrAcceso").style.display = "block";
+        } }
+      ]);
+    });
+  }
+});
+
+/* ===== CHAT «COMO WHATSAPP» (vista del módulo Equipo) =====
+   Cabecera con la presencia del buscador; cada mensaje propio lleva
+   su estado (✓ / ✓✓ / ✓✓ Visto / 🕐 si está en la cola); refresco al
+   abrir y cada 15 s mientras el chat está abierto. ENTREGADO =
+   abrió su app tras el envío (sello recibido o latido >= creado)
+   sin abrir el chat; VISTO = leido=true tras abrir el chat. */
+function abrirChat(codigo, nombre){
+  chatCon = codigo; chatNombre = nombre; chatMsgs = [];
+  MODULOS.forEach(function(m){ var pg = $("pg" + m.id); if (pg) pg.style.display = "none"; });
+  $("pgChat").style.display = "block";
+  pintarChat();
+  cargarChat();
+  detenerChat();
+  chatTimer = setInterval(function(){ cargarChat(); }, 15000);
+}
+function detenerChat(){ if (chatTimer) { clearInterval(chatTimer); chatTimer = null; } }
+function volverEquipo(){
+  detenerChat(); chatCon = null; chatMsgs = [];
+  irA("Equipo");
+  cargarPresencia();
+}
+function cargarChat(){
+  if (!chatCon) return;
+  rpc("marcarRecibidos", { p_codigo: "ADMIN", p_clave: state.codigo }).catch(function(){});
+  rpc("leerChat", { p_codigo: "ADMIN", p_con: chatCon, p_clave: state.codigo }).then(function(r){
+    puertasChat = true;
+    chatFijado = (r && r.fijado) || null;
+    chatTempSeg = Number((r && r.temporal_seg) || 0);
+    var propios = (r && r.mensajes) || [];
+    var enCola = state.cola.filter(function(a){ return a.tipo === "chat" && a.para === chatCon; })
+      .map(function(a){ return { id: "local-" + a.cuando, de: "ADMIN", para: chatCon, texto: a.texto, creado: a.cuando, leido: false, local: true, adj_tipo: a.adj ? a.adj.tipo : null, adj_datos: a.adj ? a.adj.datos : null, adj_nombre: a.adj ? a.adj.nombre : null, resp_texto: a.resp_texto || null }; });
+    chatMsgs = propios.concat(enCola);
+    pintarChat();
+  }).catch(function(){
+    puertasChat = false;
+    chatMsgs = state.cola.filter(function(a){ return a.tipo === "chat" && a.para === chatCon; })
+      .map(function(a){ return { id: "local-" + a.cuando, de: "ADMIN", para: chatCon, texto: a.texto, creado: a.cuando, leido: false, local: true, adj_tipo: a.adj ? a.adj.tipo : null, adj_datos: a.adj ? a.adj.datos : null, adj_nombre: a.adj ? a.adj.nombre : null, resp_texto: a.resp_texto || null }; });
+    pintarChat();
+  });
+  rpc("verPresencia", { p_codigo: state.codigo }).then(function(r){
+    ((r && r.usuarios) || []).forEach(function(u){ if (u.visto) presenciaMap[u.codigo] = u.visto; });
+    var p = $("chPres");
+    if (p && chatCon) p.innerHTML = textoPresencia(chatCon);
+  }).catch(function(){});
+}
+function pintarChat(){
+  var el = $("pgChat"); if (!el || !chatCon) return;
+  var vistoIso = presenciaMap[chatCon];
+  var pres = textoPresencia(chatCon);
+  var h = '<div class="card"><div class="row"><h3>💬 ' + esc(chatNombre) + '</h3><span><button class="dots" id="chTempBtn">⏱️</button> <button class="dots" id="chVolver">←</button></span></div>'
+    + '<div class="presChat" id="chPres">' + (pres ? pres : "Cargando presencia…") + '</div>'
+    + (chatFijado && !chatFijado.borrado ? '<div class="fijadoBar">📌 ' + esc(chatFijado.texto || "Mensaje fijado") + '</div>' : "")
+    + (chatTempSeg ? '<div class="mut">⏱️ Los mensajes de esta conversación desaparecen en ' + (chatTempSeg <= 86400 ? "24 h" : (chatTempSeg <= 7 * 86400 ? "7 días" : "90 días")) + '. Solo tú lo activas; ' + esc(chatNombre) + ' ve el estado pero no lo cambia.</div>' : "")
+    + '<div class="mut">Mantén presionada una burbuja para responder, reaccionar, fijar o (en tus mensajes) editar y eliminar. Estados de TUS mensajes: <b>✓</b> enviado · <b>✓✓</b> entregado (abrió su app) · <span class="estAzul">✓✓ Visto</span> (abrió el chat) · <span class="estCola">🕐 sin enviar</span> (en cola de este teléfono).</div>'
+    + '<input id="chBuscar" type="text" placeholder="🔍 Buscar en el chat…">'
+    + '<div class="hiloP" id="chHilo">';
+  if (!chatMsgs.length) h += '<div class="mut">Sin mensajes todavía. Escribe el primero abajo.</div>';
+  chatMsgs.forEach(function(m){
+    if (m.tipo === "sistema") { h += '<div class="msgSistema">' + esc(m.texto) + '</div>'; return; }
+    var mio = m.de === "ADMIN";
+    var inner = "";
+    if (m.borrado) inner = '<span class="eliminado">Este mensaje fue eliminado</span>';
+    else {
+      if (m.resp_texto) inner += '<span class="citaB">' + esc(m.resp_autor === "ADMIN" ? "Tú" : chatNombre) + ": " + esc(String(m.resp_texto).slice(0, 90)) + '</span>';
+      if (m.adj_tipo === "foto" && m.adj_datos) inner += '<img class="adjFoto" alt="Foto" src="' + (String(m.adj_datos).indexOf("data:") === 0 ? m.adj_datos : "data:image/jpeg;base64," + m.adj_datos) + '">';
+      else if (m.adj_tipo === "voz" && m.adj_datos) inner += '<audio controls src="' + (String(m.adj_datos).indexOf("data:") === 0 ? m.adj_datos : "data:audio/webm;base64," + m.adj_datos) + '"></audio>';
+      else if (m.adj_datos) inner += '<span class="citaB">📎 ' + esc(m.adj_nombre || "Archivo") + '</span>';
+      if (m.texto) inner += esc(m.texto);
+    }
+    var reac = "";
+    if (!m.borrado && m.reacciones && m.reacciones.length) {
+      reac = '<div class="reacRow">' + m.reacciones.map(function(r){ return "<span>" + r.emoji + " " + r.total + "</span>"; }).join("") + "</div>";
+    }
+    h += '<div class="msgP ' + (mio ? "me" : "him") + '" data-mid="' + esc(String(m.id)) + '"><div class="burP">' + inner + '</div>'
+      + '<div class="mhoraP">' + fechaCorta(m.creado) + " " + horaDe(m.creado)
+      + (m.editado ? ' <span class="editado">editado</span>' : "")
+      + (mio ? " · " + estadoMsg(m, vistoIso) : "") + "</div>" + reac + "</div>";
+  });
+  h += '</div>'
+    + (chatResp ? '<div class="fijadoBar">↩️ Respondiendo a: «' + esc(String(chatResp.texto || "adjunto").slice(0, 80)) + '» <button class="bGhost bMini" id="chRespX">Quitar</button></div>' : "")
+    + (chatAdj ? '<div class="mut">📎 Adjunto listo: ' + esc(chatAdj.nombre || chatAdj.tipo) + ' <button class="bGhost bMini" id="chAdjX">Quitar</button></div>' : "")
+    + '<input id="chTexto" placeholder="Escribe un mensaje…">'
+    + '<div class="filaBtns"><button class="bGhost" id="chFoto">📷 Foto</button><button class="bGhost" id="chArchivo">📎 Archivo</button><button class="bGhost" id="chVoz">🎤 Voz</button><button class="bGold" id="chEnviar">' + (chatEditId ? "💾 Guardar edición" : "📨 Enviar") + '</button></div>'
+    + '<input id="chFile" type="file" style="display:none">'
+    + '<div class="ayuda">Con la app abierta el chat se refresca solo cada 15 s. Foto: se comprime sola (máx 1280 px). Archivo: hasta 5 MB. Voz: toca 🎤, habla y toca de nuevo para adjuntar (máx 2 min).</div></div>';
+  el.innerHTML = h;
+  var v = $("chVolver"); if (v) v.addEventListener("click", volverEquipo);
+  var tb = $("chTempBtn"); if (tb) tb.addEventListener("click", hojaTemporalesMN);
+  var b = $("chEnviar"); if (b) b.addEventListener("click", enviarChatUI);
+  var bk = $("chBuscar"); if (bk) bk.addEventListener("input", function(){
+    var q = (bk.value || "").toLowerCase();
+    el.querySelectorAll("#chHilo .msgP").forEach(function(n){ n.style.display = (!q || n.textContent.toLowerCase().indexOf(q) >= 0) ? "" : "none"; });
+  });
+  var rx = $("chRespX"); if (rx) rx.addEventListener("click", function(){ chatResp = null; pintarChat(); });
+  var ax = $("chAdjX"); if (ax) ax.addEventListener("click", function(){ chatAdj = null; pintarChat(); });
+  var ff = $("chFoto"); if (ff) ff.addEventListener("click", function(){ var f = $("chFile"); f.setAttribute("accept", "image/*"); f.click(); });
+  var fa = $("chArchivo"); if (fa) fa.addEventListener("click", function(){ var f = $("chFile"); f.setAttribute("accept", ".pdf,.doc,.docx,.txt,.zip,.jpg,.jpeg,.png"); f.click(); });
+  var fv = $("chVoz"); if (fv) fv.addEventListener("click", grabarVozMN);
+  var fi = $("chFile"); if (fi) fi.addEventListener("change", function(){
+    var f = fi.files && fi.files[0]; if (!f) return;
+    prepararAdjuntoMN(f).then(function(a){ chatAdj = a; pintarChat(); }).catch(function(e){ toast(e.message, false); });
+  });
+  el.querySelectorAll("[data-mid]").forEach(function(n){
+    var id = n.getAttribute("data-mid");
+    armarPrensa(n, function(){
+      var m = chatMsgs.filter(function(x){ return String(x.id) === String(id); })[0];
+      if (m) hojaMensajeMN(m);
+    });
+  });
+  var hilo = $("chHilo"); if (hilo) hilo.scrollTop = hilo.scrollHeight;
+}
+function prepararAdjuntoMN(file){
+  var MAXA = 5 * 1024 * 1024;
+  if (file.size > MAXA) return Promise.reject(new Error("Pesa más de 5 MB: no se puede adjuntar."));
+  var esFoto = String(file.type || "").indexOf("image/") === 0;
+  if (esFoto) {
+    return new Promise(function(res, rej){
+      var url = URL.createObjectURL(file);
+      var img = new Image();
+      img.onload = function(){
+        var max = 1280, w = img.width, h = img.height;
+        if (w > max || h > max) { var k = max / Math.max(w, h); w = Math.round(w * k); h = Math.round(h * k); }
+        var c = document.createElement("canvas"); c.width = w; c.height = h;
+        c.getContext("2d").drawImage(img, 0, 0, w, h);
+        URL.revokeObjectURL(url);
+        res({ tipo: "foto", datos: c.toDataURL("image/jpeg", 0.8), nombre: file.name || "Foto" });
+      };
+      img.onerror = function(){ URL.revokeObjectURL(url); rej(new Error("foto no válida")); };
+      img.src = url;
+    });
+  }
+  return new Promise(function(res, rej){
+    var fr = new FileReader();
+    fr.onload = function(){ res({ tipo: "archivo", datos: String(fr.result), nombre: file.name || "Archivo", tam: file.size }); };
+    fr.onerror = function(){ rej(new Error("no se pudo leer el archivo")); };
+    fr.readAsDataURL(file);
+  });
+}
+function grabarVozMN(){
+  if (grabandoVoz) { grabandoVoz.stop(); return; }
+  if (!navigator.mediaDevices || !window.MediaRecorder) { toast("Este navegador no deja grabar voz aquí", false); return; }
+  navigator.mediaDevices.getUserMedia({ audio: true }).then(function(stream){
+    var mr = new MediaRecorder(stream);
+    var chunks = [];
+    mr.ondataavailable = function(e){ if (e.data && e.data.size) chunks.push(e.data); };
+    mr.onstop = function(){
+      stream.getTracks().forEach(function(t){ t.stop(); });
+      grabandoVoz = null;
+      var blob = new Blob(chunks, { type: mr.mimeType || "audio/webm" });
+      if (blob.size > 5 * 1024 * 1024) { toast("La nota pesa más de 5 MB: grábala más corta", false); return; }
+      var fr = new FileReader();
+      fr.onload = function(){ chatAdj = { tipo: "voz", datos: String(fr.result), nombre: "Nota de voz" }; pintarChat(); toast("🎤 Nota de voz lista para enviar"); };
+      fr.readAsDataURL(blob);
+    };
+    grabandoVoz = mr;
+    mr.start();
+    toast("🔴 Grabando… toca 🎤 Voz de nuevo para terminar (máx 2 min)");
+    setTimeout(function(){ if (grabandoVoz === mr) mr.stop(); }, 120000);
+  }).catch(function(){ toast("Sin permiso de micrófono no se puede grabar", false); });
+}
+function hojaMensajeMN(m){
+  var mio = m.de === "ADMIN";
+  var btns = [];
+  if (m.local) {
+    btns.push({ txt: "🗑️ Quitar de la cola (no se envía)", cls: "bBad", fn: function(){
+      state.cola = state.cola.filter(function(a){ return !(a.tipo === "chat" && a.cuando === m.creado); });
+      guardar(); cargarChat(); toast("Mensaje de la cola eliminado");
+    } });
+    btns.push({ txt: "📋 Copiar texto", cls: "bGhost", fn: function(){ copiarTexto(m.texto || ""); } });
+    abrirHoja(mio ? "Tu mensaje (en cola)" : "Mensaje", '<div class="kv">' + esc(m.texto || "(adjunto)") + '</div>', btns);
+    return;
+  }
+  if (!m.borrado) {
+    btns.push({ txt: "↩️ Responder", cls: "bGhost", fn: function(){ chatResp = m; pintarChat(); } });
+    ["❤️", "👍", "😂", "👏", "🔥"].forEach(function(e){
+      btns.push({ txt: e + " Reaccionar", cls: "bGhost", fn: function(){
+        rpc("reaccionar", { p_codigo: "ADMIN", p_id: m.id, p_emoji: e }).then(function(){ cargarChat(); }).catch(function(){ toast("Falta activar las reacciones (pegado SQL único)", false); });
+      } });
+    });
+    btns.push({ txt: "📋 Copiar texto", cls: "bGhost", fn: function(){ copiarTexto(m.texto || ""); } });
+    if (chatFijado && chatFijado.id === m.id) btns.push({ txt: "📌 Desfijar", cls: "bGhost", fn: function(){ fijarMN(m, false); } });
+    else btns.push({ txt: "📌 Fijar", cls: "bGhost", fn: function(){ fijarMN(m, true); } });
+    if (mio) {
+      btns.push({ txt: "✏️ Editar", cls: "bGhost", fn: function(){ chatEditId = m.id; pintarChat(); var t = $("chTexto"); if (t) { t.value = m.texto || ""; t.focus(); } } });
+      btns.push({ txt: "🗑️ Eliminar para todos", cls: "bBad", fn: function(){
+        rpc("borrarMensaje", { p_codigo: "ADMIN", p_id: m.id }).then(function(){ cargarChat(); }).catch(function(){ toast("No se pudo eliminar", false); });
+      } });
+    }
+  }
+  abrirHoja(mio ? "Tu mensaje" : "Mensaje de " + chatNombre, '<div class="kv">' + esc(m.borrado ? "Este mensaje fue eliminado" : (m.texto || "(adjunto)")) + '</div>', btns);
+}
+function fijarMN(m, fijar){
+  rpc("fijarMensaje", { p_codigo: state.codigo, p_con: chatCon, p_id: fijar ? m.id : null }).then(function(){ cargarChat(); toast(fijar ? "📌 Mensaje fijado" : "📌 Fijado retirado"); })
+    .catch(function(){ toast("Falta activar los fijados (pegado SQL único)", false); });
+}
+function hojaTemporalesMN(){
+  var opciones = [
+    { txt: "Desactivado", horas: null },
+    { txt: "24 horas", horas: 24 },
+    { txt: "7 días", horas: 168 },
+    { txt: "90 días", horas: 2160 }
+  ];
+  abrirHoja("⏱️ Mensajes temporales con " + chatNombre,
+    '<div class="mut">Con una ventana activa, los mensajes más viejos que ella se eliminan para ambos solos. Solo tú lo activas; el buscador ve el estado pero no lo cambia.</div>',
+    opciones.map(function(o){
+      return { txt: o.txt, cls: "bGhost", fn: function(){
+        rpc("guardarTemporal", { p_codigo: state.codigo, p_con: chatCon, p_horas: o.horas }).then(function(){ cargarChat(); toast("⏱️ Temporales: " + o.txt); })
+          .catch(function(){ toast("Falta activar los temporales (pegado SQL único)", false); });
+      } };
+    }));
+}
+function copiarTexto(t){
+  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(t).then(function(){ toast("📋 Texto copiado"); }).catch(function(){});
+}
+function enviarChatUI(){
+  var texto = ($("chTexto").value || "").trim();
+  if (chatEditId) {
+    if (!texto) { toast("Escribe el texto corregido", false); return; }
+    var idEd = chatEditId; chatEditId = null;
+    if (!online) {
+      encolar({ tipo: "editarChat", id: idEd, texto: texto, cuando: new Date().toISOString() });
+      guardar(); pintarChat();
+      toast("📴 Sin conexión: la edición quedó en cola y se aplica al volver la red");
+      return;
+    }
+    rpc("editarMensaje", { p_codigo: "ADMIN", p_id: idEd, p_texto: texto }).then(function(){ cargarChat(); })
+      .catch(function(){ toast("No se pudo editar (¿falta el pegado SQL único?)", false); pintarChat(); });
+    return;
+  }
+  if (!texto && !chatAdj) { toast("Escribe algo o adjunta una foto, archivo o voz primero", false); return; }
+  if (!chatCon) return;
+  var para = chatCon;
+  var accion = { tipo: "chat", para: para, texto: texto, cuando: new Date().toISOString() };
+  if (chatResp) { accion.resp_de = chatResp.id; accion.resp_texto = chatResp.texto || ""; }
+  if (chatAdj) accion.adj = chatAdj;
+  chatResp = null; chatAdj = null;
+  encolar(accion);
+  guardar(); cargarChat();
+  despacharCola().then(function(){ setTimeout(cargarChat, 600); });
+}
+
+/* ===== MÓDULO TARIFA (derivada + ajuste manual + Publicar) ===== */
+function leerCampoTarifa(id, def){ var n = parseFloat(String($(id).value).replace(",", ".")); return isFinite(n) ? n : def; }
+function construirBase(p){
+  var base = datosLive || state.foto.datos || {};
+  var out = JSON.parse(JSON.stringify(base));
+  out.tarifa = { version: (base.tarifa && base.tarifa.version || 4) + 1, ingresoRef360: p.ingresoRef360, libroRef: p.libroRef,
+    salidaRef: p.salidaRef, pctSaldo: p.pctSaldo, pctTransf: p.pctTransf, pisoTransf: p.pisoTransf,
+    bonoSaldoRecargas: 150, bonoSaldoCUP: 300, bonoTransfTratos: 10, bonoTransfCUP: 300 };
+  var map = {};
+  ((base.buscadores) || []).forEach(function(bd){ map[bd.codigo] = { codigo: bd.codigo, nombre: bd.nombre, tratos: (bd.tratos || []).slice() }; });
+  state.foto.usuarios.forEach(function(u){
+    if (state.foto.borrados.indexOf(u.codigo) >= 0) return;
+    if (!map[u.codigo]) map[u.codigo] = { codigo: u.codigo, nombre: u.nombre, tratos: [] };
+    else map[u.codigo].nombre = u.nombre;
+  });
+  state.foto.publicar.forEach(function(tr){
+    if (state.foto.borrados.indexOf(tr.codigo) >= 0) return;
+    if (!map[tr.codigo]) map[tr.codigo] = { codigo: tr.codigo, nombre: tr.nombre, tratos: [] };
+    map[tr.codigo].tratos.push({ fecha: fechaCorta(tr.fecha), concepto: tr.concepto, comision: Number(tr.comision) });
+  });
+  out.buscadores = Object.keys(map).map(function(k){ return map[k]; });
+  out.version = (base.version || 4) + 1;
+  out.versionApp = (datosLive && datosLive.versionApp) || (state.foto.datos && state.foto.datos.versionApp) || "1.3.0";
+  if (datosLive && datosLive.apkUrl) out.apkUrl = datosLive.apkUrl;
+  else if (state.foto.datos && state.foto.datos.apkUrl) out.apkUrl = state.foto.datos.apkUrl;
+  return out;
+}
+function listaPublicar(){
+  var base = construirBase(tarifa());
+  return base.buscadores.map(function(bd){ return { codigo: bd.codigo, nombre: bd.nombre, tratos: bd.tratos }; });
+}
+function publicarAhora(){
+  var p = {
+    ingresoRef360: leerCampoTarifa("tf_ing", tarifa().ingresoRef360),
+    libroRef: leerCampoTarifa("tf_lib", tarifa().libroRef),
+    salidaRef: leerCampoTarifa("tf_sal", tarifa().salidaRef),
+    pctSaldo: tarifaBase().pctSaldo, pctTransf: tarifaBase().pctTransf, pisoTransf: tarifaBase().pisoTransf
+  };
+  state.foto.tarifaPanel = { ingresoRef360: p.ingresoRef360, libroRef: p.libroRef, salidaRef: p.salidaRef };
+  var payload = { tarifa: p, lista: listaPublicar() };
+  guardar();
+  if (!online) {
+    state.publicarPendiente = payload;
+    encolar({ tipo: "publicar", payload: payload, cuando: new Date().toISOString() });
+    guardar(); pintarTodo();
+    toast("📴 Sin conexión: la tarifa quedó en cola y se publica sola al volver la red");
+    return;
+  }
+  rpc("guardarTarifa", { p_codigo: state.codigo, p_ingreso: p.ingresoRef360, p_libro: p.libroRef, p_salida: p.salidaRef, p_com_saldo: p.pctSaldo, p_com_transf: p.pctTransf, p_piso: p.pisoTransf })
+    .then(function(){ return rpc("publicarTratos", { p_codigo: state.codigo, p_tratos: payload.lista }); })
+    .then(function(){
+      state.foto.publicar = [];
+      state.tarifaViva = { ingresoRef360: p.ingresoRef360, libroRef: p.libroRef, salidaRef: p.salidaRef, pctSaldo: p.pctSaldo, pctTransf: p.pctTransf, pisoTransf: p.pisoTransf };
+      state.sellos.tarifa = new Date().toISOString();
+      guardar(); pintarTodo();
+      toast("📡 Publicado: la tarifa y los tratos ya viajan a las apps de los buscadores");
+    })
+    .catch(function(){
+      state.publicarPendiente = payload;
+      guardar(); pintarTodo();
+      abrirHoja("Publicado en vivo pendiente", "Las puertas de publicar aún no están en tu base (falta el paquete SQL) o falló la red: la tarifa quedó guardada en este teléfono como pendiente. También puedes generar el datos.json de siempre (botón de abajo) y pasarlo por WhatsApp.", [
+        { txt: "🧾 Generar datos.json", cls: "bGold", fn: mostrarJsonRespaldo }
+      ]);
+    });
+}
+function mostrarJsonRespaldo(){
+  var p = {
+    ingresoRef360: state.foto.tarifaPanel ? state.foto.tarifaPanel.ingresoRef360 : tarifa().ingresoRef360,
+    libroRef: state.foto.tarifaPanel ? state.foto.tarifaPanel.libroRef : tarifa().libroRef,
+    salidaRef: state.foto.tarifaPanel ? state.foto.tarifaPanel.salidaRef : tarifa().salidaRef,
+    pctSaldo: tarifaBase().pctSaldo, pctTransf: tarifaBase().pctTransf, pisoTransf: tarifaBase().pisoTransf
+  };
+  var datos = construirBase(p);
+  $("hojaTit").textContent = "datos.json de respaldo";
+  var tx = $("hojaTxt"); tx.style.display = "block";
+  tx.innerHTML = '<textarea id="hJson" rows="9" readonly>' + esc(JSON.stringify(datos, null, 1)) + "</textarea>";
+  var cont = $("hojaBtns"); cont.innerHTML = "";
+  var b = document.createElement("button"); b.className = "bGold"; b.textContent = "📋 Copiar el datos.json";
+  b.addEventListener("click", function(){
+    var ta = $("hJson"); ta.select(); ta.setSelectionRange(0, 999999);
+    var hecho = false;
+    try { hecho = document.execCommand("copy"); } catch(e){}
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(ta.value).catch(function(){});
+    cerrarHoja();
+    toast(hecho ? "📋 datos.json copiado: pégalo en buscadores/datos.json del repo" : "Selecciona el texto y cópialo a mano", hecho);
+  });
+  cont.appendChild(b);
+  var v = document.createElement("button"); v.className = "bGhost"; v.textContent = "🧹 Vaciar cola de publicación";
+  v.addEventListener("click", function(){
+    state.foto.publicar = []; state.publicarPendiente = null;
+    state.cola = state.cola.filter(function(a){ return a.tipo !== "publicar"; });
+    guardar(); cerrarHoja(); pintarTodo();
+    toast("Cola de publicación vaciada");
+  });
+  cont.appendChild(v);
+  var c = document.createElement("button"); c.className = "bGhost"; c.textContent = "Cancelar";
+  c.addEventListener("click", cerrarHoja); cont.appendChild(c);
+  $("hojaFondo").style.display = "block";
+}
+registrarModulo({
+  id: "Tarifa", tab: "Tarifa", icono: "tarifa",
+  render: function(){
+    var el = $("pgTarifa"); if (!el) return;
+    var t = tarifa(), tb = tarifaBase(), d = derivadaCalc();
+    var h = (!online ? '<div class="offBanner" style="display:block">📴 ' + selloTexto("tarifa") + ". Puedes dejar la tarifa preparada: quedará en cola.</div>" : "");
+    h += '<div class="card"><h3>Tarifa para los buscadores</h3>'
+      + '<label for="tf_ing">Ingreso por recarga de 360 (CUP)</label><input id="tf_ing" type="text" inputmode="decimal" value="' + fmt(Number(t.ingresoRef360)) + '">'
+      + '<div class="ayuda">Cuánto te rinde una recarga de 360 vendida donde calculas. Sube con tu salida; baja si vendes más barato. Lo que cobras sobre esto define el excedente.</div>'
+      + '<label for="tf_lib">Libro BANK_CUP (CUP por QUSD)</label><input id="tf_lib" type="text" inputmode="decimal" value="' + fmt(Number(t.libroRef)) + '">'
+      + '<div class="ayuda">El precio de 1 QUSD pagando por transferencia. Lo usa la vuelta de transferencia de tus buscadores.</div>'
+      + '<label for="tf_sal">Salida de referencia (CUP por QUSD)</label><input id="tf_sal" type="text" inputmode="decimal" value="' + fmt(Number(t.salidaRef)) + '">'
+      + '<div class="ayuda">OJO: esta es la salida que VEN tus buscadores (la referencia con la que se les paga). Tu salida real de negociación no sale de tu Calculadora ni de este panel.</div>'
+      + '<div class="kv">Comisiones: saldo <b>' + tb.pctSaldo + '%</b> del excedente · transferencia <b>' + tb.pctTransf + '%</b> de la ganancia · piso transf. <b>' + tb.pisoTransf + '%</b></div>'
+      + (d ? '<div class="mut">📟 Viene de tu Calculadora ahora mismo (salida ' + fmt(d.salida) + " · tasa de venta " + fmt(d.tasaVenta) + " · libro " + fmt(d.libro) + '). Si escribes a mano aquí, tu número manda y queda guardado.</div>' : "")
+      + (state.tarifaVivaEn ? '<div class="mut">Tarifa guardada en la base, actualizada el ' + esc(state.tarifaVivaEn) + ".</div>" : "")
+      + '<button class="bGold" id="tfPub">📡 Publicar ahora</button>'
+      + (state.publicarPendiente ? '<div class="kv" style="margin-top:8px"><span class="pill pCola">PENDIENTE DE ENVIAR</span> la última tarifa espera conexión o activación.</div>' : "")
+      + '<button class="bGhost" id="tfRespaldo">🧾 Respaldo: generar datos.json</button>'
+      + '<div class="ayuda">Publicar ahora manda la tarifa y los tratos aprobados a las apps de tus buscadores por el aire. El respaldo genera el datos.json de siempre por si prefieres el camino del repo.</div>'
+      + '<div class="ayuda">Tratos aprobados esperando publicación: <b>' + state.foto.publicar.length + "</b></div></div>";
+    el.innerHTML = h;
+    var bp = $("tfPub"); if (bp) bp.addEventListener("click", publicarAhora);
+    var br = $("tfRespaldo"); if (br) br.addEventListener("click", mostrarJsonRespaldo);
+  }
+});
+
+/* ===== MÓDULO MERCADO (../datos/ultimo.json en palabras claras) =====
+   OJO con la unidad: el promedio ETECSA del vigía viene en CUP por
+   cada 100 de saldo. Una recarga de 360 rinde promedio × 3.6.        */
+function pintarMercado(){
+  modulo("Mercado").render();
+}
+registrarModulo({
+  id: "Mercado", tab: "Mercado", icono: "mercado",
+  render: function(){
+    var el = $("pgMercado"); if (!el) return;
+    var m = state.foto.mercado;
+    if (!m) {
+      el.innerHTML = '<div class="card"><h3>📊 Mercado</h3><div class="mut">' + (online ? "Cargando la foto del mercado…" : "Sin conexión y todavía no hay foto guardada del mercado: abre esta pestaña una vez con internet.") + '</div></div>';
+      return;
+    }
+    var e = m.ETECSA || {}, b = m.BANK_CUP || {};
+    var ing360 = (e.average !== null && e.average !== undefined) ? Number(e.average) * 3.6 : null;
+    var h = (!online ? '<div class="offBanner" style="display:block">📴 ' + selloTexto("mercado") + ".</div>" : "");
+    h += '<div class="card"><h3>📊 El mercado, en claro</h3>'
+      + (ing360 !== null ? '<div class="big">' + fmt(ing360) + ' CUP</div><div class="mut">rinde en promedio una recarga de 360 en el mercado</div>' : "")
+      + '<div class="ayuda">El vigía revisa las ofertas de QvaPay cada hora. El promedio ETECSA se cotiza por cada 100 de saldo: por eso la recarga de 360 rinde el promedio × 3.6.</div>'
+      + '<div class="kv">Saldo (ETECSA): promedio <b>' + fmt(Number(e.average)) + '</b> por cada 100 · compra <b>' + fmt(Number(e.average_buy)) + '</b> · venta <b>' + fmt(Number(e.average_sell)) + '</b> · ofertas contadas: <b>' + (e.count !== undefined ? e.count : "—") + '</b></div>'
+      + '<div class="kv">Transferencia (BANK_CUP): promedio <b>' + fmt(Number(b.average)) + '</b> CUP por QUSD · compra <b>' + fmt(Number(b.average_buy)) + '</b> · venta <b>' + fmt(Number(b.average_sell)) + '</b> · ofertas contadas: <b>' + (b.count !== undefined ? b.count : "—") + '</b></div>'
+      + '<div class="mut">Foto del vigía: ' + esc(m.ts || "—") + (m.ts ? " (" + haceCuanto(m.ts) + ")" : "") + '</div>'
+      + '<div class="ayuda">Esto es la foto del mercado, no tu orden: tus números reales viven en tu Calculadora y mandan sobre cualquier promedio.</div></div>';
+    el.innerHTML = h;
+  },
+  alMostrar: function(){
+    if (!window.fetch) return;
+    fetch(MERCADO_URL + "?t=" + Date.now()).then(function(r){ return r.ok ? r.json() : null; }).then(function(j){
+      if (j) {
+        state.foto.mercado = j;
+        state.sellos.mercado = new Date().toISOString();
+        guardar();
+        pintarMercado();
+      }
+    }).catch(function(){ pintarMercado(); });
+  }
+});
+
+/* ===== ENTRADA (login) Y ARRANQUE ===== */
+function entrar(){
+  $("scrAcceso").style.display = "none";
+  $("scrPanel").style.display = "block";
+  irA("Inicio");
+  arrancarLatido();
+  cargarTodo(true);
+}
+function intentarEntrar(){
+  var cod = ($("inCodigo").value || "").trim().toUpperCase();
+  var err = $("errAcceso");
+  if (!cod) { err.style.display = "block"; err.textContent = "Escribe tu código de administrador."; return; }
+  rpc("validar", { p_codigo: cod }).then(function(okFlag){
+    if (okFlag === true) {
+      state.codigo = cod; guardar();
+      err.style.display = "none";
+      entrar();
+    } else {
+      err.style.display = "block";
+      err.textContent = "Ese código no es el de administrador. Revísalo y prueba otra vez.";
+    }
+  }).catch(function(){
+    err.style.display = "block";
+    err.textContent = "No se pudo comprobar: parece que no hay conexión. Mi Negocio necesita internet solo para esta primera comprobación; después trabaja con la foto guardada.";
+  });
+}
+function init(){
+  cargarEstado();
+  $("btnEntrar").addEventListener("click", intentarEntrar);
+  $("inCodigo").addEventListener("keydown", function(e){ if (e.key === "Enter") intentarEntrar(); });
+  $("btnSalir").addEventListener("click", function(){
+    abrirHoja("¿Salir de Mi Negocio?", "La app deja de mostrar tu panel en esta pantalla. Tu código sigue guardado en este teléfono: al volver, entras directo.", [
+      { txt: "Salir por ahora", cls: "bGhost", fn: function(){
+        detenerChat();
+        $("scrPanel").style.display = "none"; $("scrAcceso").style.display = "block";
+        if (state.codigo) $("inCodigo").value = state.codigo;
+      } }
+    ]);
+  });
+  $("btnAct").addEventListener("click", function(){
+    cargarTodo(false).then(function(){ if (tabActual === "Mercado") modulo("Mercado").alMostrar(); });
+  });
+  $("hojaFondo").addEventListener("click", function(e){ if (e.target === $("hojaFondo")) cerrarHoja(); });
+  document.addEventListener("online", function(){ cargarTodo(true); });
+  document.addEventListener("click", function(e){ if (e.target && e.target.id === "mnAvisos") activarAvisosMN(); });
+  if ("serviceWorker" in navigator) {
+    /* scope automático = la carpeta minegocio/: jamás toca el SW de buscadores/ */
+    navigator.serviceWorker.register("sw.js").catch(function(){});
+  }
+  if (state.codigo) {
+    $("inCodigo").value = state.codigo;
+    entrar();
+  }
+  setInterval(function(){ haceVisible(); }, 60000);
+}
+document.addEventListener("DOMContentLoaded", init);
+
+/* =====================================================================
+   PAQUETE 2026-11-11 (segunda tanda + generador + avisos):
+   módulos Cierre y Actividad, «Ya pagué», cuentas de la semana en
+   Inicio, semáforo del equipo, búsqueda en el chat, foto del
+   comprobante en la bandeja, respaldo SIN códigos, pestaña Textos
+   (motor compartido) y botón de avisos (Web Push propio).
+   ===================================================================== */
+
+/* ===== Motor de textos compartido (fuente: ~/workspace/shared/) ===== */
+/* =====================================================================
+   MOTOR DE TEXTOS DE OFERTAS — «el trabajador pone SOLO LOS DATOS,
+   la app pone LAS PALABRAS» (prompt maestro v1, 2026-11-11).
+   Motor de plantillas 100% en el cliente: SIN APIs externas, SIN IA
+   de pago, offline total. Este archivo es la ÚNICA fuente del motor:
+   lo comparten «Mi Trabajo» (buscadores) y «Mi Negocio» (Ernesto);
+   el banco de pruebas lo carga tal cual, sin copiar lógica.
+   ===================================================================== */
+var TextosMotor = (function(){
+  "use strict";
+
+  /* Formato de miles con ESPACIO (regla del prompt): 125 000 CUP. */
+  function miles(n){
+    var s = String(Math.round(Number(n) * 100) / 100);
+    var partes = s.split(".");
+    partes[0] = partes[0].replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+    return partes.join(".");
+  }
+  /* Semilla estable: mismo trabajador + mismos datos = misma variante;
+     otro trabajador u otros datos = otro texto. */
+  function semillaDe(str){
+    var h = 2166136261;
+    var s = String(str || "");
+    for (var i = 0; i < s.length; i++){ h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
+    return (h >>> 0);
+  }
+  function rng(seed){
+    var a = seed >>> 0;
+    return function(){
+      a |= 0; a = (a + 0x6D2B79F5) | 0;
+      var t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  function pick(r, arr){ return arr[Math.floor(r() * arr.length) % arr.length]; }
+
+  var VERBO = { vendo: "SE VENDE", compro: "COMPRO", servicio: "SERVICIO", recargo: "RECARGA Y CAMBIO", otro: "OFERTA" };
+  var GANCHO = {
+    vendo: ["¡Aprovecha!", "¡No te lo pierdas!", "Oportunidad de las buenas", "¡Corre, que vuelan!"],
+    compro: ["¡Pago al momento!", "¡Te lo compro hoy mismo!", "Dinero en mano, sin vueltas", "¡Escríbeme y cerramos hoy!"],
+    servicio: ["¡Trabajo garantizado!", "Servicio de confianza", "Calidad y buen precio", "¡Pide tu turno hoy!"],
+    recargo: ["¡Al momento!", "Rápido y seguro", "Sin salir de casa", "¡Recarga ya!"],
+    otro: ["¡Aprovecha!", "¡Escríbeme!", "Oportunidad", "¡No te quedes fuera!"]
+  };
+  var APERTURA = {
+    directo: ["{V}: {P}.", "{P} — {V}.", "{V} {P}."],
+    vendedor: ["{G} {V}: {P}.", "{G} Tengo para ti: {P}.", "{G} {P} en oferta."],
+    humanizado: ["Hola, {v} {p}, por si a alguien le hace falta.", "Buenas, tengo {p} disponible.", "Vecinos, {v} {p}."]
+  };
+  var CIERRE = {
+    directo: ["Interesados al privado.", "Escríbeme y coordinamos.", "Respondo rápido."],
+    vendedor: ["¡No te quedes sin el tuyo!", "Quedan pocos: asegura el tuyo hoy.", "¡Haz tu pedido ahora mismo!"],
+    humanizado: ["Cualquier duda me escriben, sin compromiso.", "Me escriben y nos ponemos de acuerdo.", "Aquí estoy para lo que necesiten."]
+  };
+
+  /* d = { tipo, producto, precio (num|null), moneda, privado (bool),
+         cantidad, detalles, zona, telefono, condiciones,
+         estilo: { emojis: 'muchos'|'pocos'|'ninguno',
+                   tono: 'humanizado'|'comercial'|'formal'|'directo',
+                   tamano: 'completo'|'corto'|'muycorto',
+                   mayus, urgencia, privadoLlamada, hashtags, whatsapp (bool) },
+         quien (semilla del trabajador), frases: {urgencia, cierre} opc. }
+     Devuelve { versiones: [{enfoque, texto} x3], avisos: [] } */
+  function generar(d){
+    var avisos = [];
+    var tipo = VERBO[d.tipo] ? d.tipo : "otro";
+    var est = d.estilo || {};
+    var em = est.emojis || "pocos";
+    var E = function(x){ return em === "ninguno" ? "" : x; };
+    var muchos = em === "muchos";
+    var producto = String(d.producto || "").trim();
+    if (!producto) avisos.push("Falta el producto o servicio: sin eso no hay anuncio.");
+    var precioTxt = "";
+    if (d.privado) {
+      precioTxt = "";
+    } else if (d.precio !== null && d.precio !== undefined && d.precio !== "" && isFinite(Number(d.precio))) {
+      precioTxt = miles(d.precio) + " " + (d.moneda || "CUP");
+    } else {
+      avisos.push("Sin precio: el texto sale sin precio (si es «por privado», márcalo).");
+    }
+    if (!d.telefono) avisos.push("Falta tu teléfono: el texto sale SIN teléfono.");
+    if (!d.zona) avisos.push("Falta la zona: el texto sale sin zona.");
+    var seed = semillaDe([d.quien || "", tipo, producto, precioTxt, d.zona || ""].join("|"));
+    var enfoques = ["directo", "vendedor", "humanizado"];
+    var versiones = enfoques.map(function(enf, idx){
+      var r = rng(seed + idx * 7919);
+      var titulo = (VERBO[tipo] + " " + producto).trim();
+      if (est.mayus) titulo = titulo.toUpperCase();
+      var tituloFmt = est.whatsapp ? "*" + titulo + "*" : titulo;
+      var gancho = pick(r, GANCHO[tipo]);
+      var ap = pick(r, APERTURA[enf])
+        .replace("{V}", VERBO[tipo]).replace("{v}", VERBO[tipo].toLowerCase())
+        .replace("{P}", producto).replace("{p}", producto)
+        .replace("{G}", gancho);
+      var lineas = [];
+      if (est.tamano === "muycorto") {
+        var l1 = (muchos ? "🔥 " : "") + ap;
+        if (precioTxt) l1 += " " + (est.whatsapp ? "*" + precioTxt + "*" : "Precio: " + precioTxt) + ".";
+        if (d.privado) l1 += " Precio por privado.";
+        if (d.telefono) l1 += " " + E("📲 ") + d.telefono;
+        lineas.push(l1);
+        return { enfoque: enf, texto: lineas.join("\n") };
+      }
+      lineas.push((muchos ? "🔥 " : (em === "pocos" ? "📌 " : "")) + tituloFmt + (enf === "vendedor" ? " " + gancho : ""));
+      lineas.push("");
+      lineas.push(ap);
+      if (d.cantidad) lineas.push(E("📦 ") + "Disponible: " + d.cantidad + ".");
+      if (d.detalles) lineas.push(E("✅ ") + d.detalles);
+      if (precioTxt) lineas.push(E("💰 ") + "Precio: " + (est.whatsapp ? "*" + precioTxt + "*" : precioTxt));
+      if (d.privado) lineas.push(E("💬 ") + "El precio se habla por privado: escríbeme y te digo al momento.");
+      if (est.urgencia) lineas.push(E("⏰ ") + ((d.frases && d.frases.urgencia) || "¡Corre, que vuelan!"));
+      if (d.condiciones) lineas.push(E("🤝 ") + d.condiciones);
+      if (d.zona) lineas.push(E("📍 ") + d.zona);
+      if (d.telefono) lineas.push(E("📲 ") + "Teléfono / WhatsApp: " + d.telefono);
+      if (est.privadoLlamada) lineas.push(E("✉️ ") + "Escríbeme al privado y coordinamos.");
+      lineas.push(pick(r, CIERRE[enf]));
+      if (est.tamano === "corto") {
+        lineas = lineas.filter(function(l){
+          return l !== "" && l.indexOf("Disponible:") !== 0 && l.indexOf("✅") !== 0;
+        });
+        if (lineas.length > 6) lineas = lineas.slice(0, 6);
+      }
+      if (est.hashtags) {
+        var tags = ["#" + (producto.split(" ")[0] || "Oferta").replace(/[^A-Za-zÁÉÍÓÚáéíóúÑñ0-9]/g, ""), "#SantiagoDeCuba", "#Ventas"];
+        lineas.push(tags.join(" "));
+      }
+      return { enfoque: enf, texto: lineas.join("\n") };
+    });
+    return { versiones: versiones, avisos: avisos };
+  }
+
+  /* Historial local: últimas 30 (regla del prompt). */
+  function historialPush(hist, entrada){
+    var h = Array.isArray(hist) ? hist.slice() : [];
+    h.unshift(entrada);
+    return h.slice(0, 30);
+  }
+
+  /* ===== TEXTOS RÁPIDOS DE LA TARIFA (la magia, SOLO datos públicos) =====
+     Recibe EXCLUSIVAMENTE los campos publicables de la tarifa y del
+     perfil: precio público de compra por recarga, condiciones públicas,
+     teléfono y zona. Ningún dato interno (comisión, piso, ganancia)
+     existe en este objeto: no puede colarse porque no llega. */
+  function textoRapidoSaldo(pub, estilo, quien){
+    return generar({
+      tipo: "compro", producto: "saldo móvil (recargas de 360)",
+      precio: pub.precioCompraRecarga, moneda: "CUP", privado: false,
+      cantidad: "", detalles: "Compro saldo móvil todos los días. Pago al momento, en efectivo.",
+      zona: pub.zona || "", telefono: pub.telefono || "",
+      condiciones: pub.condicionesSaldo || "Pago en efectivo al momento",
+      estilo: estilo, quien: quien || ""
+    });
+  }
+  function textoRapidoTransf(pub, estilo, quien){
+    return generar({
+      tipo: "recargo", producto: "transferencia por efectivo",
+      precio: null, moneda: "CUP", privado: true,
+      cantidad: "", detalles: "Cambio tu transferencia por efectivo, trato serio y rápido.",
+      zona: pub.zona || "", telefono: pub.telefono || "",
+      condiciones: pub.condicionesTransf || "Solo personas conocidas",
+      estilo: estilo, quien: quien || ""
+    });
+  }
+
+  return { generar: generar, miles: miles, semillaDe: semillaDe,
+           historialPush: historialPush,
+           textoRapidoSaldo: textoRapidoSaldo, textoRapidoTransf: textoRapidoTransf };
+})();
+
+
+/* ===== Cliente de avisos compartido (fuente: ~/workspace/shared/) ===== */
+/* =====================================================================
+   AVISOS — cliente Web Push propio (VAPID) compartido por las dos PWA.
+   La clave PÚBLICA VAPID no es secreta: va aquí y en el cliente.
+   La PRIVADA vive SOLO como secreto de la Edge Function «avisos».
+   Reglas de Apple (WebKit): el permiso se pide SOLO tras un toque del
+   usuario y solo funciona desde la app INSTALADA (iOS 16.4+).
+   La registración de la suscripción la hace cada app con SU puerta
+   (registrar_push / registrar_push_admin): este módulo solo sabe
+   pedir permiso y suscribir; el guardado lo inyecta la app.
+   ===================================================================== */
+var VAPID_PUBLICA = "BFkHoyMQce-Nm3HBK7sStWyiQsIVxeJ7w41yWD3qTCwQWhqv7F4V3UcqP0Lrgb8WWG_u-z3begmlF4LKL9L5toM";
+
+function vapidBytes(base64url){
+  var pad = "=".repeat((4 - (base64url.length % 4)) % 4);
+  var b64 = (base64url + pad).replace(/-/g, "+").replace(/_/g, "/");
+  var raw = atob(b64);
+  var arr = new Uint8Array(raw.length);
+  for (var i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i);
+  return arr;
+}
+function esIOS(){
+  return /iphone|ipad|ipod/i.test(navigator.userAgent || "");
+}
+function estaInstalada(){
+  try {
+    if (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches) return true;
+    if (window.navigator.standalone === true) return true; /* iOS clásico */
+  } catch(e){}
+  return false;
+}
+/* Estado para pintar el botón: 'ok' | 'denegado' | 'instalar' | 'navegador' | 'sin-soporte' */
+function estadoPush(){
+  if (!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) {
+    if (esIOS() && !estaInstalada()) return "instalar";
+    return "sin-soporte";
+  }
+  if (Notification.permission === "denied") return "denegado";
+  if (Notification.permission === "granted") return "ok";
+  if (esIOS() && !estaInstalada()) return "instalar";
+  return "pedir";
+}
+/* Debe llamarse DENTRO del toque del usuario (requisito Apple).
+   guardar(suscripcionJson, plataforma) -> Promise de la app. */
+function activarPush(guardar){
+  if (!("serviceWorker" in navigator)) return Promise.reject(new Error("sin service worker"));
+  return navigator.serviceWorker.ready.then(function(reg){
+    return Notification.requestPermission().then(function(perm){
+      if (perm !== "granted") throw new Error("permiso no concedido");
+      return reg.pushManager.getSubscription().then(function(sub){
+        if (sub) return sub;
+        return reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: vapidBytes(VAPID_PUBLICA)
+        });
+      });
+    }).then(function(sub){
+      var plataforma = esIOS() ? "ios" : (/android/i.test(navigator.userAgent || "") ? "android" : "web");
+      return guardar(sub.toJSON(), plataforma);
+    });
+  });
+}
+
+
+/* ===== SEMÁFORO DEL EQUIPO + CUENTAS DE LA SEMANA (Inicio) ===== */
+function semanaActual(){
+  var d = new Date(); d.setHours(0, 0, 0, 0);
+  var dow = (d.getDay() + 6) % 7; /* lunes = 0 */
+  var ini = new Date(d); ini.setDate(d.getDate() - dow);
+  var fin = new Date(ini); fin.setDate(ini.getDate() + 6);
+  function f(x){ function p(n){ return (n < 10 ? "0" : "") + n; } return x.getFullYear() + "-" + p(x.getMonth() + 1) + "-" + p(x.getDate()); }
+  return { inicio: f(ini), fin: f(fin) };
+}
+function hoyReporto(codigo){
+  var hoy = fechaCorta(new Date().toISOString());
+  return state.foto.reportes.some(function(r){ return r.codigo === codigo && fechaCorta(r.creado) === hoy; });
+}
+function cuentasSemana(){
+  var por = {}, total = 0;
+  state.foto.reportes.forEach(function(r){
+    if (r.estado === "aprobado" && !r.comision_pagada_en) {
+      var cod = r.codigo || codigoDe(r.nombre) || "?";
+      por[cod] = (por[cod] || 0) + (Number(r.comision) || 0);
+      total += Number(r.comision) || 0;
+    }
+  });
+  return { por: por, total: total };
+}
+function bloqueCuentasHtml(){
+  var c = cuentasSemana();
+  var nombres = {};
+  state.foto.usuarios.forEach(function(u){ nombres[u.codigo] = nombreVisible(u); });
+  var filas = Object.keys(c.por).map(function(cod){
+    return '<div class="kv">' + esc(nombres[cod] || cod) + ': <b>' + fmt(c.por[cod]) + ' CUP</b> por pagar</div>';
+  }).join("");
+  return '<div class="card"><h3>💰 Cuentas de la semana</h3>'
+    + (filas || '<div class="mut">No debes ninguna comisión ahora mismo: todo lo aprobado está pagado. 🎉</div>')
+    + (c.total > 0 ? '<div class="kv">Total pendiente de pago: <b>' + fmt(c.total) + ' CUP</b></div>' : "")
+    + '<div class="ayuda">Es la suma de las comisiones de los tratos aprobados que aún no marcas «Ya pagué». Al pagar, toca el botón en la Bandeja y la cuenta baja sola.</div></div>';
+}
+function bloqueSemaforoHtml(){
+  if (!state.foto.usuarios.length) return "";
+  var filas = state.foto.usuarios.map(function(u){
+    var enL = enLineaDe(u.codigo);
+    var estado = enL === true ? '<span class="punto-linea"></span>En línea'
+      : (presenciaMap[u.codigo] ? "Última vez " + haceCuanto(presenciaMap[u.codigo]) : "Sin registro");
+    var rep = hoyReporto(u.codigo) ? '<span class="pill pOk">HOY REPORTÓ</span>' : '<span class="pill pPend">HOY SIN REPORTE</span>';
+    return '<div class="equipo-linea">' + avatarHtml(nombreVisible(u), (perfilDe(u.codigo) || {}).avatar_color, enL === true)
+      + '<div class="eq-info"><div class="eq-nombre">' + esc(nombreVisible(u)) + '</div><div class="mut">' + estado + '</div></div>' + rep + "</div>";
+  }).join("");
+  return '<div class="card"><h3>🚦 Semáforo del equipo</h3>' + filas
+    + '<div class="ayuda">Quién está en línea ahora, cuándo se vio por última vez y si ya reportó algo hoy.</div></div>';
+}
+
+/* ===== PUERTAS NUEVAS (se registran en PUERTAS por inyección aquí) ===== */
+PUERTAS.marcarPagado = "admin_marcar_pagado";
+PUERTAS.generarCierre = "admin_generar_cierre";
+PUERTAS.cierres = "admin_cierres";
+PUERTAS.actividad = "admin_actividad";
+PUERTAS.registrarPushAdmin = "registrar_push_admin";
+
+/* ===== «YA PAGUÉ» (Bandeja) ===== */
+function marcarPagado(r){
+  var ya = !!r.comision_pagada_en;
+  r.comision_pagada_en = r.comision_pagada_en || new Date().toISOString();
+  if (!ya) encolar({ tipo: "pagado", id: r.id, cuando: new Date().toISOString() });
+  guardar(); pintarTodo(); despacharCola();
+  toast("💰 Comisión marcada como pagada" + (online ? "" : " (en cola)"));
+}
+
+/* ===== RESPALDO SIN CÓDIGOS (solo Ernesto, en su teléfono) =====
+   Decisión documentada: el respaldo descargable NO lleva códigos de
+   acceso (ni de buscadores ni el admin): un archivo con llaves sueltas
+   es un riesgo. Lleva tarifa, tratos aprobados con comisiones y pagos,
+   y usuarios por NOMBRE. El respaldo completo (con códigos) se hace
+   desde el panel de Supabase exportando las tablas. */
+function respaldoSinCodigos(){
+  return {
+    generado: new Date().toISOString(),
+    nota: "Respaldo SIN códigos de acceso (a propósito). El completo se exporta desde Supabase.",
+    tarifa: tarifa(),
+    usuarios: state.foto.usuarios.map(function(u){ return { nombre: u.nombre, activo: u.activo }; }),
+    tratos: state.foto.reportes.filter(function(r){ return r.estado === "aprobado"; }).map(function(r){
+      return { buscador: r.nombre, concepto: conceptoDe(r), comision: Number(r.comision || 0),
+               fecha: fechaCorta(r.creado), pagado: !!r.comision_pagada_en,
+               pagado_en: r.comision_pagada_en ? fechaCorta(r.comision_pagada_en) : null };
+    }),
+    pendientes: state.foto.reportes.filter(function(r){ return r.estado === "pendiente"; }).length
+  };
+}
+function descargarRespaldo(){
+  var datos = respaldoSinCodigos();
+  var blob = new Blob([JSON.stringify(datos, null, 1)], { type: "application/json" });
+  var a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "respaldo-minegocio-" + fechaCorta(new Date().toISOString()) + ".json";
+  document.body.appendChild(a); a.click();
+  setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); }, 800);
+  toast("⬇️ Respaldo descargado (sin códigos, a propósito)");
+}
+
+/* ===== AVISOS (Web Push propio) ===== */
+function plataformaPush(){
+  if (/iphone|ipad|ipod/i.test(navigator.userAgent || "")) return "ios";
+  if (/android/i.test(navigator.userAgent || "")) return "android";
+  return "web";
+}
+function activarAvisosMN(){
+  var est = estadoPush();
+  if (est === "instalar") { toast("Primero instala Mi Negocio: Compartir → «Añadir a pantalla de inicio» y abre la app desde el icono.", false); return; }
+  if (est === "sin-soporte") { toast("Este navegador no admite avisos push.", false); return; }
+  activarPush(function(sub){
+    return rpc("registrarPushAdmin", { p_codigo: state.codigo, p_suscripcion: sub, p_plataforma: plataformaPush() });
+  }).then(function(){ toast("🔔 Avisos activados en este teléfono"); pintarInicioSiVisible(); })
+    .catch(function(){ toast("No se pudo activar: revisa el permiso de notificaciones", false); });
+}
+function bloqueAvisosHtml(){
+  var est = estadoPush();
+  var txt = est === "ok" ? "Los avisos están permitidos en este aparato. Si aún no llegan, falta desplegar el emisor en la activación (ver informe)."
+    : est === "instalar" ? "En iPhone los avisos solo funcionan con la app INSTALADA: Compartir → «Añadir a pantalla de inicio», abre el icono y luego toca el botón."
+    : est === "denegado" ? "El permiso de avisos está denegado: actívalo en los ajustes del sistema para esta app."
+    : "Recibe un aviso en la pantalla cuando entre un reporte nuevo o un mensaje.";
+  return '<div class="card"><h3>🔔 Avisos</h3><div class="mut">' + txt + '</div>'
+    + '<button class="bGold" id="mnAvisos">🔔 Activar avisos</button>'
+    + '<div class="ayuda">El permiso se pide solo cuando tocas el botón (regla de Apple). Tu Telegram también puede avisarte: el vínculo se hace en la activación.</div></div>';
+}
+
+/* ===== MÓDULO CIERRE ===== */
+var cierresCache = null;
+function lunesDe(iso){
+  var d = new Date(iso + "T12:00:00"); var dow = (d.getDay() + 6) % 7; d.setDate(d.getDate() - dow);
+  function p(n){ return (n < 10 ? "0" : "") + n; }
+  return d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate());
+}
+function generarCierreActual(){
+  var ini = semanaActual().inicio;
+  rpc("generarCierre", { p_codigo: state.codigo, p_semana_inicio: ini }).then(function(r){
+    toast("📊 Cierre de la semana generado");
+    cierresCache = null; cargarCierres();
+  }).catch(function(){
+    abrirHoja("Falta activar el cierre", "La puerta del cierre aún no está en tu base: viene en el paquete SQL único. Cuando lo pegues, este botón calcula la semana solo.", []);
+  });
+}
+function cargarCierres(){
+  rpc("cierres", { p_codigo: state.codigo }).then(function(r){
+    cierresCache = Array.isArray(r) ? r : [];
+    var m = modulo("Cierre"); if (m && tabActual === "Cierre") m.render();
+  }).catch(function(){ cierresCache = []; var m = modulo("Cierre"); if (m && tabActual === "Cierre") m.render(); });
+}
+registrarModulo({
+  id: "Cierre", tab: "Cierre", icono: "mercado",
+  render: function(){
+    var el = $("pgCierre"); if (!el) return;
+    var s = semanaActual();
+    var h = '<div class="sub">El cierre de la semana (lunes a domingo): tratos cerrados, tu ganancia, comisiones y bonos. El buscador ve SOLO su fila; tu ganancia nunca sale de aquí.</div>'
+      + '<div class="card"><h3>Semana del ' + s.inicio + " al " + s.fin + '</h3>'
+      + '<button class="bGold" id="ciGen">📊 Generar / actualizar el cierre de esta semana</button>'
+      + '<div class="ayuda">Calcula desde los tratos ya publicados y lo guarda. Puedes regenerarlo cuando quieras: se actualiza.</div></div>';
+    if (cierresCache === null) h += '<div class="card"><div class="mut">Cargando cierres guardados…</div></div>';
+    else if (!cierresCache.length) h += '<div class="card"><div class="mut">Todavía no hay cierres guardados.</div></div>';
+    else cierresCache.forEach(function(c){
+      var d = c.datos || {}, r = d.resumen || {};
+      h += '<div class="card"><h3>Semana del ' + esc(d.semana_inicio || c.semana_inicio) + '</h3>'
+        + '<div class="kv">Tratos cerrados: <b>' + (r.tratos || 0) + '</b> · Tu ganancia: <b>' + fmt(Number(r.tu_ganancia || 0)) + ' CUP</b></div>'
+        + '<div class="kv">Comisiones totales: <b>' + fmt(Number(r.comisiones || 0)) + ' CUP</b> · pagadas: <b>' + (r.pagadas || 0) + '</b> · pendientes: <b>' + (r.pendientes_pago || 0) + '</b></div>'
+        + ((d.buscadores || []).map(function(b){
+            return '<div class="kv">' + esc(b.nombre || b.codigo) + ': ' + (b.tratos || 0) + ' trato(s) · comisión <b>' + fmt(Number(b.comisiones || 0)) + ' CUP</b> · bonos <b>' + fmt(Number(b.bonos || 0)) + ' CUP</b></div>';
+          }).join("") || "")
+        + '<div class="mut">Generado el ' + esc(fechaCorta(c.creado_en)) + ".</div></div>";
+    });
+    h += '<div class="card"><h3>⬇️ Respaldo</h3><div class="mut">Descarga el resumen (tarifa, tratos, comisiones y pagos) SIN códigos de acceso: un respaldo con llaves sueltas es un riesgo. El respaldo completo se exporta desde el panel de Supabase.</div>'
+      + '<button class="bGhost" id="ciResp">⬇️ Descargar respaldo</button></div>';
+    el.innerHTML = h;
+    var g = $("ciGen"); if (g) g.addEventListener("click", generarCierreActual);
+    var rb = $("ciResp"); if (rb) rb.addEventListener("click", descargarRespaldo);
+  },
+  alMostrar: function(){ cargarCierres(); }
+});
+
+/* ===== MÓDULO ACTIVIDAD (auditoría solo-admin) ===== */
+var actividadCache = null, actividadFiltro = "";
+function cargarActividad(){
+  rpc("actividad", { p_codigo: state.codigo, p_quien: actividadFiltro || null, p_accion: null }).then(function(r){
+    actividadCache = Array.isArray(r) ? r : [];
+    var m = modulo("Actividad"); if (m && tabActual === "Actividad") m.render();
+  }).catch(function(){ actividadCache = []; var m = modulo("Actividad"); if (m && tabActual === "Actividad") m.render(); });
+}
+registrarModulo({
+  id: "Actividad", tab: "Actividad", icono: "bandeja",
+  render: function(){
+    var el = $("pgActividad"); if (!el) return;
+    var h = '<div class="sub">Registro de actividad: qué pasó en tu sistema y cuándo (cambios de tarifa, tratos, códigos, pausas, pagos, cierres). Solo lo ves tú.</div>'
+      + '<div class="card"><label for="acFiltro">Filtrar por buscador</label><input id="acFiltro" placeholder="Código del buscador (vacío = todos)" value="' + esc(actividadFiltro) + '">'
+      + '<button class="bGhost" id="acBtn">Filtrar</button></div>';
+    if (actividadCache === null) h += '<div class="card"><div class="mut">Cargando actividad…</div></div>';
+    else if (!actividadCache.length) h += '<div class="card"><div class="mut">Sin actividad registrada todavía (o falta pegar el paquete SQL único).</div></div>';
+    else h += '<div class="card">' + actividadCache.map(function(a){
+      return '<div class="kv"><b>' + esc(a.accion) + '</b> · ' + esc(a.quien) + " · " + fechaCorta(a.creado_en) + " " + horaDe(a.creado_en)
+        + '<div class="mut">' + esc(JSON.stringify(a.detalle || {})) + "</div></div>";
+    }).join("") + "</div>";
+    el.innerHTML = h;
+    var b = $("acBtn"); if (b) b.addEventListener("click", function(){ actividadFiltro = ($("acFiltro").value || "").trim().toUpperCase(); cargarActividad(); });
+  },
+  alMostrar: function(){ cargarActividad(); }
+});
+
+/* ===== MÓDULO TEXTOS (generador de ofertas; motor compartido) ===== */
+var TEXTOS_LS = "minegocio_textos_v1";
+function textosHist(){ try { return JSON.parse(localStorage.getItem(TEXTOS_LS) || "[]"); } catch(e){ return []; } }
+function textosHistPush(e){ try { localStorage.setItem(TEXTOS_LS, JSON.stringify(TextosMotor.historialPush(textosHist(), e))); } catch(e){} }
+var textosUltimas = [];
+registrarModulo({
+  id: "Textos", tab: "Textos", icono: "chat",
+  render: function(){
+    var el = $("pgTextos"); if (!el) return;
+    var pf = perfilDe("ADMIN") || {};
+    var miTel = localStorage.getItem("minegocio_mi_telefono") || "";
+    var miZona = localStorage.getItem("minegocio_mi_zona") || "Micro 10, distrito José Martí, Santiago de Cuba";
+    var h = '<div class="sub">Escribe SOLO los datos: la app pone las palabras. Tres versiones listas para copiar o mandar a WhatsApp. Funciona sin internet.</div>'
+      + '<div class="card"><h3>✍️ Datos de la oferta</h3>'
+      + '<button class="bGold bMini" id="txSaldo">📱 Texto de saldo (con la tarifa)</button> '
+      + '<button class="bGold bMini" id="txTransf">🏦 Texto de transferencia</button>'
+      + '<div class="ayuda">Estos dos botones rellenan solos con los datos PÚBLICOS de tu tarifa y tu teléfono/zona. Nunca entra ningún número interno (comisiones, piso, tu ganancia).</div>'
+      + '<label>Tipo de oferta</label><select id="txTipo"><option value="vendo">Vendo</option><option value="compro">Compro</option><option value="servicio">Servicio</option><option value="recargo">Recargo o cambio</option><option value="otro">Otro</option></select>'
+      + '<label>Producto o servicio</label><input id="txProd" placeholder="Ej.: Batería LiFePO4 12.8V 100Ah">'
+      + '<label>Precio (vacío si es por privado)</label><input id="txPrecio" type="text" inputmode="decimal" placeholder="Ej.: 45000">'
+      + '<label>Moneda</label><select id="txMoneda"><option>CUP</option><option>USD</option><option>MLC</option><option>QUSD</option></select>'
+      + '<label style="display:block;margin-top:8px"><input type="checkbox" id="txPrivado" style="width:auto"> Precio por privado</label>'
+      + '<label>Cantidad o disponibilidad (opcional)</label><input id="txCant" placeholder="Ej.: quedan 3">'
+      + '<label>Detalles y ventajas</label><input id="txDet" placeholder="Ej.: garantía incluida, domicilio en Santiago">'
+      + '<label>Zona</label><input id="txZona" value="' + esc(miZona) + '">'
+      + '<label>Teléfono de contacto</label><input id="txTel" value="' + esc(miTel) + '" placeholder="Tu teléfono de ventas">'
+      + '<label>Condiciones (opcional)</label><input id="txCond" placeholder="Ej.: domicilio incluido en Santiago">'
+      + '<h3 style="margin-top:14px">Estilo</h3>'
+      + '<label>Emojis</label><select id="txEmojis"><option value="muchos">Muchos</option><option value="pocos" selected>Pocos</option><option value="ninguno">Ninguno</option></select>'
+      + '<label>Tono</label><select id="txTono"><option value="humanizado">Humanizado natural</option><option value="comercial">Comercial vendedor</option><option value="formal">Formal serio</option><option value="directo">Directo y corto</option></select>'
+      + '<label>Tamaño</label><select id="txTam"><option value="completo">Completo</option><option value="corto">Corto (estados)</option><option value="muycorto">Muy corto (1-2 líneas)</option></select>'
+      + '<label>Destino</label><select id="txDest"><option value="wa">WhatsApp (*negritas*)</option><option value="fb">Facebook (texto plano)</option></select>'
+      + '<label style="display:block;margin-top:8px"><input type="checkbox" id="txMayus" style="width:auto"> Mayúsculas en el título</label>'
+      + '<label style="display:block"><input type="checkbox" id="txUrg" style="width:auto"> Línea de urgencia</label>'
+      + '<label style="display:block"><input type="checkbox" id="txPriv" style="width:auto"> Llamada a escribir por privado</label>'
+      + '<label style="display:block"><input type="checkbox" id="txHash" style="width:auto"> Hashtags al final</label>'
+      + '<button class="bGold" id="txGen">✍️ Generar las 3 versiones</button>'
+      + '<div id="txOut"></div></div>'
+      + '<div class="card"><h3>🕘 Historial (últimas 30)</h3><div id="txHist">'
+      + (textosHist().map(function(x, i){ return '<div class="kv">' + esc(x.titulo || "Texto") + ' <button class="bGhost bMini" data-txhist="' + i + '">Copiar</button></div>'; }).join("") || '<div class="mut">Aún no generaste textos.</div>')
+      + "</div></div>";
+    el.innerHTML = h;
+    function estilo(){
+      return { emojis: $("txEmojis").value, tono: $("txTono").value, tamano: $("txTam").value,
+        mayus: $("txMayus").checked, urgencia: $("txUrg").checked, privadoLlamada: $("txPriv").checked,
+        hashtags: $("txHash").checked, whatsapp: $("txDest").value === "wa" };
+    }
+    function pintar(res, tituloBase){
+      textosUltimas = res.versiones;
+      var out = (res.avisos.length ? '<div class="mut">⚠️ ' + res.avisos.map(esc).join(" ") + "</div>" : "");
+      res.versiones.forEach(function(v, i){
+        out += '<div class="card"><h3>Versión ' + (i + 1) + " · " + esc(v.enfoque) + '</h3><div class="kv" style="white-space:pre-wrap">' + esc(v.texto) + '</div>'
+          + '<button class="bOk bMini" data-txcopiar="' + i + '">Copiar</button> '
+          + '<a class="bGold bMini" target="_blank" rel="noopener" href="https://wa.me/?text=' + encodeURIComponent(v.texto) + '">Compartir a WhatsApp</a></div>';
+      });
+      $("txOut").innerHTML = out;
+      $("txOut").querySelectorAll("[data-txcopiar]").forEach(function(b){
+        b.addEventListener("click", function(){ copiarTexto(textosUltimas[Number(b.getAttribute("data-txcopiar"))].texto); });
+      });
+      textosHistPush({ titulo: tituloBase, cuando: new Date().toISOString(), texto: res.versiones[0].texto });
+    }
+    $("txGen").addEventListener("click", function(){
+      var precio = parseFloat(String($("txPrecio").value).replace(",", "."));
+      localStorage.setItem("minegocio_mi_telefono", $("txTel").value || "");
+      localStorage.setItem("minegocio_mi_zona", $("txZona").value || "");
+      var res = TextosMotor.generar({
+        tipo: $("txTipo").value, producto: $("txProd").value,
+        precio: isFinite(precio) ? precio : null, moneda: $("txMoneda").value,
+        privado: $("txPrivado").checked, cantidad: $("txCant").value,
+        detalles: $("txDet").value, zona: $("txZona").value, telefono: $("txTel").value,
+        condiciones: $("txCond").value, estilo: estilo(), quien: "ADMIN"
+      });
+      pintar(res, $("txProd").value || "Oferta");
+    });
+    $("txSaldo").addEventListener("click", function(){
+      var pub = { precioCompraRecarga: Math.floor(tarifa().ingresoRef360 * 0.9 / 10) * 10, telefono: $("txTel").value, zona: $("txZona").value, condicionesSaldo: "Pago en efectivo al momento" };
+      pintar(TextosMotor.textoRapidoSaldo(pub, estilo(), "ADMIN"), "Texto de saldo");
+    });
+    $("txTransf").addEventListener("click", function(){
+      var pub = { telefono: $("txTel").value, zona: $("txZona").value, condicionesTransf: "Solo personas conocidas" };
+      pintar(TextosMotor.textoRapidoTransf(pub, estilo(), "ADMIN"), "Texto de transferencia");
+    });
+    el.querySelectorAll("[data-txhist]").forEach(function(b){
+      b.addEventListener("click", function(){ var x = textosHist()[Number(b.getAttribute("data-txhist"))]; if (x) copiarTexto(x.texto); });
+    });
+  }
+});
+function copiarTexto(t){
+  function hecho(){ toast("📋 Texto copiado"); }
+  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(t).then(hecho).catch(function(){ toast("No se pudo copiar", false); });
+  else {
+    var ta = document.createElement("textarea"); ta.value = t; document.body.appendChild(ta);
+    ta.select(); try { document.execCommand("copy"); hecho(); } catch(e){ toast("No se pudo copiar", false); }
+    ta.remove();
+  }
+}
+
+/* Al tocar una notificación, el SW avisa a qué pestaña ir. */
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.addEventListener("message", function(e){
+    if (e.data && e.data.tipo === "push-tab" && e.data.tab) { try { irA(e.data.tab); } catch(err){} }
+  });
+}
+
+</script>
+</body></html>
