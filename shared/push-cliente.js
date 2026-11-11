@@ -8,7 +8,7 @@
    (registrar_push / registrar_push_admin): este módulo solo sabe
    pedir permiso y suscribir; el guardado lo inyecta la app.
    ===================================================================== */
-var VAPID_PUBLICA = "BFkHoyMQce-Nm3HBK7sStWyiQsIVxeJ7w41yWD3qTCwQWhqv7F4V3UcqP0Lrgb8WWG_u-z3begmlF4LKL9L5toM";
+var VAPID_PUBLICA = "BJ67VUe8_m2Jgvj1S-CIJwhpR_Pt0BgS8nzUHa1JRkrXYF4mntKK5CdU7KQZGIMGJixx13RxHLR7fB0luZoMD9o";
 
 function vapidBytes(base64url){
   var pad = "=".repeat((4 - (base64url.length % 4)) % 4);
