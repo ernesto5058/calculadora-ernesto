@@ -1,5 +1,5 @@
 "use strict";
-var APP_VERSION = "1.2.1";
+var APP_VERSION = "1.3.0";
 /* Tarifa de respaldo: se usa sin conexión si nunca se ha descargado datos.json.
    La tarifa viva viene de datos.json (la actualiza Ernesto/Máximo). */
 var DEFAULT_TARIFA = { ingresoRef360: 1092.65, libroRef: 1110, salidaRef: 950,
@@ -113,10 +113,13 @@ function entrar(code){
   gateMsg("");
   try { $("l_cod").value = ""; } catch(e){}
   renderPanel();
+  tocarPresencia();
+  chatBadge();
 }
 function salir(msg){
   SESION = ""; sesionClear();
   try { $("l_cod").value = ""; } catch(e){}
+  pintarBadge(0);
   var body = $("p_body"); if (body) body.classList.add("hide");
   mostrarGate(msg || "");
 }
@@ -355,69 +358,75 @@ function checkUpdate(){
   }
 }
 
-/* ===== Ayuda / reportes de problemas (Supabase, tabla ayudas) ===== */
-function ayudaGet(){ try { return JSON.parse(localStorage.getItem("busc_ayuda") || "[]"); } catch(e){ return []; } }
-function ayudaSet(a){ try { localStorage.setItem("busc_ayuda", JSON.stringify(a)); } catch(e){} }
-function renderAyuda(){
-  var a = ayudaGet(), box = $("a_lista"), h = "";
-  a.slice().reverse().forEach(function(it){
-    var st = it.estado === "visto" ? '<span class="st okk"><span class="dot"></span>Ernesto ya lo vio</span>'
-      : '<span class="st pend"><span class="dot"></span>Enviado · por leer</span>';
-    if (!it.enviado) st = '<span class="st pend"><span class="dot"></span>Guardado · sin enviar</span>';
-    h += '<div class="rep"><span>' + String(it.mensaje || "").slice(0, 90) + "<br><small>" + it.fecha + "</small></span>" + st + "</div>";
-  });
-  box.innerHTML = h || '<div class="rep"><span>Todavía no has enviado ningún reporte de ayuda.</span></div>';
+/* ===== Chat con Ernesto + presencia (v1.3.0, Supabase) =====
+   El viejo formulario de ayuda (registrar_ayuda) sale del flujo: la
+   pestaña «Ayuda» ahora es este chat. Los mensajes viejos quedan en la
+   tabla ayudas y Ernesto los sigue viendo en su panel.
+   Todas las llamadas a las puertas nuevas fallan EN SILENCIO: si el
+   SQL de la v1.3.0 aún no está pegado en Supabase (404) o no hay red,
+   la app sigue funcionando igual que en la 1.2.1. */
+function rpcChat(fn, body){
+  if (!window.fetch) return Promise.resolve(null);
+  return fetch(SB_RPC + fn, { method: "POST", headers: sbHeaders(), body: JSON.stringify(body) })
+    .then(function(r){ return r.ok ? r.json() : null; })
+    .catch(function(){ return null; });
 }
-function enviarAyuda(it){
-  if (!window.fetch) return Promise.resolve(false);
-  return fetch(SB_RPC + "registrar_ayuda", { method: "POST", headers: sbHeaders(),
-    body: JSON.stringify({ p_buscador: it.buscador, p_mensaje: it.mensaje })
-  }).then(function(r){
-      if (r.ok) return r.json();
-      return r.json().catch(function(){ return {}; }).then(function(e){
-        if (e && e.message && e.message.indexOf("no autorizado") !== -1) it.error = "noautorizado";
-        return Promise.reject(new Error("HTTP " + r.status));
-      });
-    })
-    .then(function(id){ if (id) { it.id = id; it.enviado = true; } return !!it.id; })
-    .catch(function(){ return false; });
+/* Latido: Ernesto ve en su panel quién está en línea (< 3 min). */
+function tocarPresencia(){
+  if (!SESION) return;
+  rpcChat("tocar_presencia", { p_codigo: SESION });
 }
-function syncAyuda(){
-  var a = ayudaGet(); if (!a.length) { renderAyuda(); return; }
-  var chain = Promise.resolve(), changed = false;
-  a.filter(function(it){ return !it.enviado; }).forEach(function(it){
-    chain = chain.then(function(){ return enviarAyuda(it).then(function(ok){ if (ok) changed = true; }); });
+function horaChat(iso){
+  var d = new Date(iso); if (isNaN(d.getTime())) return "";
+  function p(x){ return (x < 10 ? "0" : "") + x; }
+  return p(d.getHours()) + ":" + p(d.getMinutes());
+}
+function escChat(x){ return String(x === null || x === undefined ? "" : x).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+function pintarChat(msgs){
+  var box = $("c_hilo"); if (!box) return;
+  if (!msgs || !msgs.length){
+    box.innerHTML = '<div class="chatVacio">Todavía no hay mensajes. Escríbele a Ernesto lo que necesites: dudas de un trato, algo que no funciona o una idea.</div>';
+    return;
+  }
+  var h = "";
+  msgs.forEach(function(m){
+    var mio = m.de === SESION;
+    h += '<div class="msg ' + (mio ? "me" : "him") + '"><div class="bur">' + escChat(m.texto) + '</div><div class="mhora">' + (mio ? "Tú" : "Ernesto") + " · " + horaChat(m.creado) + "</div></div>";
   });
-  chain.then(function(){
-    if (changed) ayudaSet(a);
-    var ids = a.filter(function(it){ return it.enviado && it.id && it.estado === "pendiente"; }).map(function(it){ return it.id; });
-    if (!ids.length || !window.fetch) { renderAyuda(); return; }
-    fetch(SB_RPC + "estado_ayudas", { method: "POST", headers: sbHeaders(),
-        body: JSON.stringify({ p_ids: ids }) })
-      .then(function(r){ return r.ok ? r.json() : []; }).then(function(rows){
-        var map = {}; (rows || []).forEach(function(x){ map[x.id] = x; });
-        a.forEach(function(it){ var s2 = map[it.id]; if (s2 && s2.estado) it.estado = s2.estado; });
-        ayudaSet(a); renderAyuda();
-      }).catch(function(){ renderAyuda(); });
+  box.innerHTML = h;
+  try { box.scrollTop = box.scrollHeight; } catch(e){}
+}
+var chatCargando = false;
+function chatCargar(){
+  if (!SESION || chatCargando) return;
+  chatCargando = true;
+  rpcChat("leer_chat", { p_codigo: SESION, p_con: "ADMIN", p_clave: SESION }).then(function(r){
+    chatCargando = false;
+    if (r && r.ok && r.mensajes) { pintarChat(r.mensajes); pintarBadge(0); }  // leer marca leído: el distintivo se apaga
   });
 }
-function reportarAyuda(){
-  var warn = $("a_warn"), res = $("a_res");
-  warn.style.display = "none"; res.style.display = "none";
+function pintarBadge(n){
+  var b = $("chatBadge"); if (!b) return;
+  if (n > 0) { b.textContent = n > 99 ? "99+" : String(n); b.classList.remove("hide"); }
+  else b.classList.add("hide");
+}
+function chatBadge(){
+  if (!SESION) { pintarBadge(0); return; }
+  rpcChat("mensajes_sin_leer", { p_codigo: SESION, p_clave: SESION }).then(function(r){
+    if (r && r.ok) pintarBadge(r.sin_leer || 0);
+  });
+}
+function chatEnviar(){
+  var warn = $("c_warn"); warn.style.display = "none";
   function fallo(m){ warn.style.display = "block"; warn.textContent = m; }
-  var code = SESION;
-  if (!code) return fallo("Primero entra con tu código personal desde la pantalla de inicio.");
-  var msg = ($("a_msg").value || "").trim();
-  if (msg.length < 5) return fallo("Cuéntale a Ernesto qué pasa, con un poco de detalle (qué tocaste y qué pasó).");
-  var it = { buscador: code, mensaje: msg, estado: "pendiente", enviado: false, id: null,
-    fecha: new Date().toLocaleDateString("es-ES") };
-  var a = ayudaGet(); a.push(it); ayudaSet(a); renderAyuda();
-  enviarAyuda(it).then(function(ok){
-    if (ok) ayudaSet(a);
-    renderAyuda();
-    if (ok) { res.style.display = "block"; $("a_msg").value = ""; }
-    else if (it.error === "noautorizado") fallo("Tu código no está autorizado en el sistema de Ernesto. Si eres del equipo, revísalo con él.");
-    else fallo("No se pudo enviar ahora: quedó guardado en tu teléfono y se reintenta solo cuando abras la app con conexión.");
+  if (!SESION) return fallo("Primero entra con tu código personal desde la pantalla de inicio.");
+  var txt = ($("c_txt").value || "").trim();
+  if (!txt) return fallo("Escribe el mensaje primero.");
+  var btn = $("c_btn"); btn.disabled = true;
+  rpcChat("enviar_mensaje", { p_de: SESION, p_para: "ADMIN", p_texto: txt, p_clave: SESION }).then(function(r){
+    btn.disabled = false;
+    if (r && r.ok) { $("c_txt").value = ""; chatCargar(); }
+    else fallo("No se pudo enviar ahora. Revisa tu conexión y toca Enviar otra vez (el mensaje no se perdió de la caja: vuelve a intentarlo).");
   });
 }
 
@@ -427,7 +436,8 @@ function refrescarTodo(){
   lastRefresh = Date.now();
   var ft = $("freshTxt"); if (ft) ft.textContent = "Actualizando…";
   var p = loadData();
-  syncReportes(); syncAyuda();
+  syncReportes(); chatBadge(); tocarPresencia();
+  if (!$("viewAyuda").classList.contains("hide")) chatCargar();
   if (SESION) rpcValidar(SESION).then(function(v){
     if (v.estado === "no") salir("Tu acceso ya no está activo. Habla con Ernesto.");
   });
@@ -447,7 +457,7 @@ function showView(v){
   });
   if (v === "Rep") renderOutbox();
   if (v === "Panel") renderPanel();
-  if (v === "Ayuda") renderAyuda();
+  if (v === "Ayuda") chatCargar();   // al leer, el propio hilo apaga el distintivo (leer marca leído)
 }
 $("tabCalc").addEventListener("click", function(){ showView("Calc"); });
 $("tabRep").addEventListener("click", function(){ showView("Rep"); });
@@ -456,7 +466,8 @@ $("tabAyuda").addEventListener("click", function(){ showView("Ayuda"); });
 $("r_tipo_s").addEventListener("click", function(){ REP_TIPO = "saldo"; $("r_tipo_s").classList.add("on"); $("r_tipo_t").classList.remove("on"); $("r_box_s").classList.remove("hide"); $("r_box_t").classList.add("hide"); });
 $("r_tipo_t").addEventListener("click", function(){ REP_TIPO = "transferencia"; $("r_tipo_t").classList.add("on"); $("r_tipo_s").classList.remove("on"); $("r_box_t").classList.remove("hide"); $("r_box_s").classList.add("hide"); });
 $("r_btn").addEventListener("click", reportar);
-$("a_btn").addEventListener("click", reportarAyuda);
+$("c_btn").addEventListener("click", chatEnviar);
+$("c_txt").addEventListener("keydown", function(ev){ if (ev.key === "Enter" && !ev.shiftKey) { ev.preventDefault(); chatEnviar(); } });
 $("btnSalir").addEventListener("click", function(){ salir(""); });
 $("l_btn").addEventListener("click", function(){ intentarLogin($("l_cod").value, false); });
 $("l_cod").addEventListener("keydown", function(ev){ if (ev.key === "Enter") { ev.preventDefault(); intentarLogin($("l_cod").value, false); } });
@@ -464,7 +475,12 @@ $("btnAct").addEventListener("click", refrescarTodo);
 document.addEventListener("visibilitychange", function(){
   if (!document.hidden && Date.now() - lastRefresh > 60000) refrescarTodo();
 });
-setInterval(function(){ try { pintaFrescura(); } catch(e){} }, 60000);
+setInterval(function(){ try { pintaFrescura(); } catch(e){} try { tocarPresencia(); } catch(e){} }, 60000);
+setInterval(function(){
+  if (!SESION) return;
+  try { chatBadge(); } catch(e){}
+  try { if (!$("viewAyuda").classList.contains("hide")) chatCargar(); } catch(e){}
+}, 20000);
 try { $("verLab").textContent = APP_VERSION; } catch(e){}
 
 if ("serviceWorker" in navigator && !esNativo()) {
@@ -476,8 +492,6 @@ lastRefresh = Date.now();
 loadData();
 renderOutbox();
 syncReportes();
-renderAyuda();
-syncAyuda();
 (function arranque(){
   var previa = sesionGet();
   var urlCod = "";
