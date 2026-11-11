@@ -1,0 +1,378 @@
+/* ============================================================================
+   TEMA PRO — Sistema de diseño del proyecto de Ernesto
+   Oscuro premium · dorado refinado · base Apple HIG + Material 3 + WhatsApp/
+   Telegram (chat) + TradingView (datos) + fintech oscura (Binance/Revolut).
+   Uso: pega este archivo (o enlázalo) ANTES del CSS propio de cada pantalla.
+   Ningún componente del proyecto debe usar colores sueltos: solo var(--…).
+   Documento completo: DISENO-PRO.md (misma carpeta).
+   ========================================================================== */
+
+:root {
+  /* ---- Capas de fondo (elevación por tono, como Material 3) ---- */
+  --bg-0: #0B0E13;            /* fondo de la app: el más profundo */
+  --bg-1: #12161F;            /* superficie base: tarjetas */
+  --bg-2: #1A2130;            /* superficie elevada: tarjetas sobre tarjetas, inputs */
+  --bg-3: #232E42;            /* superficie alta: menús, hojas, elementos flotantes */
+  --bg-chat: #0E1319;         /* fondo del área de chat (más profundo que la app) */
+
+  /* ---- Cristal (solo capa de navegación, estilo Liquid Glass) ---- */
+  --glass: rgba(18, 22, 31, 0.72);          /* tab bar / cabeceras flotantes */
+  --glass-borde: rgba(255, 255, 255, 0.08);
+
+  /* ---- Bordes (sutiles, nunca gruesos) ---- */
+  --borde: rgba(255, 255, 255, 0.07);       /* borde normal de tarjeta */
+  --borde-fuerte: rgba(255, 255, 255, 0.12);/* inputs, énfasis */
+  --linea: rgba(255, 255, 255, 0.06);       /* separadores de lista (hairline) */
+
+  /* ---- Texto (jerarquía por opacidad, como Apple) ---- */
+  --txt-1: #F2F5F9;           /* principal */
+  --txt-2: rgba(235, 240, 248, 0.62);  /* secundario */
+  --txt-3: rgba(235, 240, 248, 0.40);  /* terciario: horas, notas */
+  --txt-sobre-dorado: #1A1405;         /* texto sobre botón dorado */
+
+  /* ---- Marca: dorado refinado (NUNCA amarillo plano) ---- */
+  --dorado: #E8B84B;
+  --dorado-claro: #F5D67B;
+  --dorado-oscuro: #B98A1E;
+  --dorado-grad: linear-gradient(135deg, #F5D67B 0%, #E8B84B 45%, #C9962E 100%);
+  --dorado-suave: rgba(232, 184, 75, 0.14);  /* fondos tenues de acento */
+  --dorado-borde: rgba(232, 184, 75, 0.35);
+
+  /* ---- Semánticos (baja saturación, nivel TradingView) ---- */
+  --verde: #2FBF71;           /* sube / ganancia / éxito */
+  --verde-suave: rgba(47, 191, 113, 0.14);
+  --rojo: #F6465D;            /* baja / pérdida / peligro (tono Binance) */
+  --rojo-suave: rgba(246, 70, 93, 0.12);
+  --ambar: #F0B90B;           /* aviso / pendiente */
+  --ambar-suave: rgba(240, 185, 11, 0.12);
+  --azul: #4CC3FF;            /* enlaces, info, «visto» en chat */
+  --en-linea: #31C453;        /* punto de presencia (verde iOS) */
+
+  /* ---- Chat ---- */
+  --burbuja-mia: #3D2E07;             /* saliente: dorado muy oscuro y cálido */
+  --burbuja-mia-grad: linear-gradient(160deg, #4A380A 0%, #33270A 100%);
+  --burbuja-suya: #1C2534;            /* entrante: superficie azul-gris */
+  --visto: #4CC3FF;                   /* palomitas de leído */
+  --no-visto: rgba(235, 240, 248, 0.45); /* palomitas enviado/entregado */
+
+  /* ---- Tipografía (sistema del teléfono: SF en iOS, Roboto en Android) ---- */
+  --fuente: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI",
+            Roboto, "Helvetica Neue", Arial, sans-serif;
+  --fuente-num: ui-monospace, "SF Mono", "Roboto Mono", Menlo, monospace;
+  --t-display: 700 32px/1.15 var(--fuente);   /* cifra o título héroe */
+  --t-titulo:  700 22px/1.25 var(--fuente);   /* título de pantalla */
+  --t-seccion: 600 17px/1.3  var(--fuente);   /* título de tarjeta/sección */
+  --t-cuerpo:  400 16px/1.45 var(--fuente);   /* texto normal */
+  --t-cuerpo-f:600 16px/1.45 var(--fuente);   /* fila importante */
+  --t-sub:     400 14px/1.4  var(--fuente);   /* texto secundario */
+  --t-nota:    400 12px/1.35 var(--fuente);   /* horas, notas al pie */
+  --t-micro:   600 11px/1.3  var(--fuente);   /* etiquetas en mayúscula */
+
+  /* ---- Espaciado: rejilla 4/8 (prohibido valores arbitrarios) ---- */
+  --e-1: 4px;  --e-2: 8px;  --e-3: 12px; --e-4: 16px;
+  --e-5: 24px; --e-6: 32px; --e-7: 48px;
+
+  /* ---- Radios (concéntricos: el interior = exterior − padding) ---- */
+  --r-sm: 10px;   /* chips, badges grandes */
+  --r-md: 14px;   /* inputs, botones */
+  --r-lg: 20px;   /* tarjetas */
+  --r-xl: 28px;   /* hojas y tarjetas héroe */
+  --r-pildora: 999px;
+
+  /* ---- Sombras (oscuras, suaves, con tinte del fondo; nunca negras puras) ---- */
+  --sombra-1: 0 1px 2px rgba(2, 4, 8, 0.35);
+  --sombra-2: 0 8px 24px rgba(2, 4, 8, 0.40);
+  --sombra-dorada: 0 6px 18px rgba(232, 184, 75, 0.22);
+
+  /* ---- Movimiento (resortes suaves, nada brusco) ---- */
+  --anim-rapida: 150ms ease-out;
+  --anim-media: 250ms cubic-bezier(0.32, 0.72, 0, 1);
+  --anim-entrada: 320ms cubic-bezier(0.32, 0.72, 0, 1);
+
+  /* ---- Medidas ---- */
+  --toque: 44px;        /* objetivo táctil mínimo (Apple HIG) */
+  --tabbar-h: 64px;     /* alto de la barra de pestañas sin zona segura */
+  --cabecera-h: 56px;
+}
+
+/* ============================ BASE ============================ */
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; padding: 0; }
+body {
+  background: var(--bg-0);
+  color: var(--txt-1);
+  font: var(--t-cuerpo);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+::selection { background: var(--dorado-suave); }
+
+/* Contenedor de pantalla móvil */
+.pantalla {
+  max-width: 560px; margin: 0 auto; min-height: 100dvh;
+  padding: var(--e-4); padding-bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom) + var(--e-5));
+}
+
+/* Utilidades de texto */
+.t-display { font: var(--t-display); letter-spacing: -0.02em; }
+.t-titulo  { font: var(--t-titulo);  letter-spacing: -0.01em; }
+.t-seccion { font: var(--t-seccion); }
+.t-sub     { font: var(--t-sub); color: var(--txt-2); }
+.t-nota    { font: var(--t-nota); color: var(--txt-3); }
+.t-micro   { font: var(--t-micro); letter-spacing: 0.08em; text-transform: uppercase; color: var(--txt-3); }
+.num       { font-family: var(--fuente-num); font-variant-numeric: tabular-nums; }
+.dorado    { color: var(--dorado); }
+.verde     { color: var(--verde); }
+.rojo      { color: var(--rojo); }
+
+/* ============================ CABECERA ============================ */
+.cabecera {
+  position: sticky; top: 0; z-index: 20;
+  display: flex; align-items: center; gap: var(--e-3);
+  min-height: var(--cabecera-h); padding: var(--e-2) var(--e-4);
+  background: var(--glass); -webkit-backdrop-filter: blur(18px) saturate(1.4);
+  backdrop-filter: blur(18px) saturate(1.4);
+  border-bottom: 1px solid var(--glass-borde);
+}
+.cabecera .titulo { font: var(--t-seccion); }
+.cabecera .subtitulo { font: var(--t-nota); color: var(--txt-2); }
+
+/* Avatar circular con iniciales */
+.avatar {
+  flex: 0 0 auto; width: 40px; height: 40px; border-radius: 50%;
+  display: grid; place-items: center;
+  background: linear-gradient(145deg, #2A3448, #1A2130);
+  border: 1px solid var(--borde-fuerte);
+  font: 600 15px var(--fuente); color: var(--dorado-claro);
+  position: relative;
+}
+.avatar.grande { width: 52px; height: 52px; font-size: 19px; }
+
+/* Punto de presencia: sobre el avatar (abajo-derecha) o suelto */
+.presencia {
+  position: absolute; right: -1px; bottom: -1px;
+  width: 12px; height: 12px; border-radius: 50%;
+  background: var(--en-linea); border: 2px solid var(--bg-0);
+}
+.presencia.fuera { background: var(--txt-3); }
+.punto-linea {
+  display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+  background: var(--en-linea); margin-right: 6px; vertical-align: 1px;
+}
+
+/* ============================ TAB BAR INFERIOR ============================ */
+.tabbar {
+  position: fixed; left: 50%; transform: translateX(-50%);
+  bottom: 0; width: 100%; max-width: 560px; z-index: 30;
+  display: flex; padding: var(--e-2) var(--e-2) calc(var(--e-2) + env(safe-area-inset-bottom));
+  background: var(--glass); -webkit-backdrop-filter: blur(20px) saturate(1.5);
+  backdrop-filter: blur(20px) saturate(1.5);
+  border-top: 1px solid var(--glass-borde);
+}
+.tab {
+  flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px;
+  padding: var(--e-1) 0; border: 0; background: none; cursor: pointer;
+  color: var(--txt-3); font: 500 10.5px var(--fuente);
+  border-radius: var(--r-md); transition: color var(--anim-rapida);
+  position: relative; min-height: 48px; justify-content: center;
+}
+.tab svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.tab.activa { color: var(--dorado); }
+.tab .badge { position: absolute; top: 2px; right: calc(50% - 22px); }
+
+/* ============================ TARJETA ============================ */
+.card {
+  background: var(--bg-1); border: 1px solid var(--borde);
+  border-radius: var(--r-lg); padding: var(--e-4);
+  box-shadow: var(--sombra-1);
+}
+.card.elevada { background: var(--bg-2); box-shadow: var(--sombra-2); }
+.card.heroe {
+  background: linear-gradient(160deg, #1B2334 0%, var(--bg-1) 70%);
+  border-color: var(--dorado-borde); border-radius: var(--r-xl);
+}
+.card + .card { margin-top: var(--e-3); }
+.card .card-titulo { font: var(--t-seccion); margin: 0 0 var(--e-2); }
+
+/* ============================ BOTONES ============================ */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--e-2);
+  min-height: var(--toque); padding: 0 var(--e-5);
+  border-radius: var(--r-pildora); border: 1px solid transparent;
+  font: 600 16px var(--fuente); cursor: pointer; user-select: none;
+  transition: transform var(--anim-rapida), filter var(--anim-rapida), background var(--anim-rapida);
+}
+.btn:active { transform: scale(0.97); }
+.btn.dorado {
+  background: var(--dorado-grad); color: var(--txt-sobre-dorado);
+  box-shadow: var(--sombra-dorada);
+}
+.btn.dorado:active { filter: brightness(1.08); }
+.btn.suave { background: var(--bg-2); color: var(--txt-1); border-color: var(--borde); }
+.btn.suave:active { background: var(--bg-3); }
+.btn.fantasma { background: transparent; color: var(--dorado); }
+.btn.peligro { background: var(--rojo-suave); color: var(--rojo); }
+.btn.bloque { width: 100%; }
+.btn:disabled { opacity: 0.45; pointer-events: none; }
+.btn svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+
+/* Botón redondo de enviar (chat) */
+.btn-enviar {
+  flex: 0 0 auto; width: var(--toque); height: var(--toque); border-radius: 50%;
+  border: 0; display: grid; place-items: center; cursor: pointer;
+  background: var(--dorado-grad); color: var(--txt-sobre-dorado);
+  box-shadow: var(--sombra-dorada); transition: transform var(--anim-rapida);
+}
+.btn-enviar:active { transform: scale(0.92); }
+.btn-enviar svg { width: 20px; height: 20px; fill: currentColor; stroke: none; }
+
+/* ============================ INPUTS ============================ */
+.campo { margin-bottom: var(--e-4); }
+.campo label {
+  display: block; font: 600 13px var(--fuente); color: var(--txt-2);
+  margin: 0 0 var(--e-2) var(--e-1); letter-spacing: 0.01em;
+}
+.campo .ayuda { font: var(--t-nota); color: var(--txt-3); margin: var(--e-1) var(--e-1) 0; }
+.input {
+  width: 100%; min-height: 52px; padding: var(--e-3) var(--e-4);
+  background: var(--bg-2); color: var(--txt-1);
+  border: 1px solid var(--borde); border-radius: var(--r-md);
+  font: var(--t-cuerpo); outline: none; appearance: none;
+  transition: border-color var(--anim-rapida), box-shadow var(--anim-rapida);
+}
+.input::placeholder { color: var(--txt-3); }
+.input:focus { border-color: var(--dorado-borde); box-shadow: 0 0 0 3px var(--dorado-suave); }
+.input.grande { min-height: 60px; font: 600 20px var(--fuente); }
+.input.error { border-color: var(--rojo); box-shadow: 0 0 0 3px var(--rojo-suave); }
+textarea.input { min-height: 48px; resize: none; line-height: 1.4; }
+
+/* ============================ CHIPS ============================ */
+.chips { display: flex; gap: var(--e-2); flex-wrap: wrap; }
+.chip {
+  padding: var(--e-2) var(--e-3); border-radius: var(--r-pildora);
+  background: var(--bg-2); border: 1px solid var(--borde);
+  color: var(--txt-2); font: 500 14px var(--fuente); cursor: pointer;
+  transition: all var(--anim-rapida); min-height: 36px;
+  display: inline-flex; align-items: center;
+}
+.chip.activa { background: var(--dorado-suave); border-color: var(--dorado-borde); color: var(--dorado-claro); }
+
+/* ============================ BADGES ============================ */
+.badge {
+  display: inline-grid; place-items: center;
+  min-width: 20px; height: 20px; padding: 0 6px; border-radius: var(--r-pildora);
+  background: var(--rojo); color: #FFF; font: 700 12px var(--fuente);
+}
+.badge.dorado { background: var(--dorado-grad); color: var(--txt-sobre-dorado); }
+.badge.suave { background: var(--bg-3); color: var(--txt-2); }
+
+/* Etiquetas de estado (pendiente / aprobado / rechazado) */
+.etiqueta {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 10px; border-radius: var(--r-pildora);
+  font: 600 12px var(--fuente);
+}
+.etiqueta.pendiente { background: var(--ambar-suave); color: var(--ambar); }
+.etiqueta.ok { background: var(--verde-suave); color: var(--verde); }
+.etiqueta.no { background: var(--rojo-suave); color: var(--rojo); }
+
+/* ============================ LISTAS ============================ */
+.lista { background: var(--bg-1); border: 1px solid var(--borde); border-radius: var(--r-lg); overflow: hidden; }
+.fila {
+  display: flex; align-items: center; gap: var(--e-3);
+  padding: var(--e-3) var(--e-4); min-height: 64px;
+  border-bottom: 1px solid var(--linea); cursor: pointer;
+  transition: background var(--anim-rapida);
+}
+.fila:last-child { border-bottom: 0; }
+.fila:active { background: var(--bg-2); }
+.fila .fila-titulo { font: var(--t-cuerpo-f); }
+.fila .fila-sub { font: var(--t-sub); color: var(--txt-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fila .fila-hora { font: var(--t-nota); color: var(--txt-3); margin-left: auto; flex: 0 0 auto; }
+.fila .crece { flex: 1 1 auto; min-width: 0; }
+.fila .chevron { color: var(--txt-3); flex: 0 0 auto; }
+
+/* ============================ CHAT ============================ */
+.chat-fondo { background: var(--bg-chat); }
+.chat-lista { display: flex; flex-direction: column; gap: 2px; padding: var(--e-3) var(--e-3) var(--e-4); }
+.chat-dia {
+  align-self: center; margin: var(--e-3) 0;
+  background: var(--bg-2); color: var(--txt-2);
+  font: 600 12px var(--fuente); padding: 5px 12px; border-radius: var(--r-sm);
+  box-shadow: var(--sombra-1);
+}
+.burbuja {
+  max-width: 78%; padding: 9px 12px 7px; border-radius: 18px;
+  font: var(--t-cuerpo); line-height: 1.4; overflow-wrap: anywhere;
+  box-shadow: var(--sombra-1); position: relative;
+  animation: burbuja-in var(--anim-entrada);
+}
+.burbuja.suya { align-self: flex-start; background: var(--burbuja-suya); border-bottom-left-radius: 6px; }
+.burbuja.mia {
+  align-self: flex-end; background: var(--burbuja-mia-grad);
+  border: 1px solid rgba(232, 184, 75, 0.18); border-bottom-right-radius: 6px;
+}
+.burbuja .meta {
+  float: right; display: inline-flex; align-items: center; gap: 4px;
+  margin: 8px 0 0 10px; font: 400 11px var(--fuente); color: var(--txt-3);
+  user-select: none;
+}
+@keyframes burbuja-in {
+  from { opacity: 0; transform: translateY(6px) scale(0.98); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* Palomitas de estado (SVG inline, trazo fino — nunca emojis) */
+.ticks { display: inline-flex; width: 18px; height: 12px; }
+.ticks svg { width: 18px; height: 12px; fill: none; stroke: var(--no-visto); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.ticks.visto svg { stroke: var(--visto); }
+.ticks.reloj svg { stroke: var(--txt-3); }
+
+/* Barra de escritura del chat */
+.chat-barra {
+  position: sticky; bottom: 0; display: flex; align-items: flex-end; gap: var(--e-2);
+  padding: var(--e-2) var(--e-3) calc(var(--e-2) + env(safe-area-inset-bottom));
+  background: var(--glass); -webkit-backdrop-filter: blur(18px) saturate(1.4);
+  backdrop-filter: blur(18px) saturate(1.4); border-top: 1px solid var(--glass-borde);
+}
+.chat-barra .input { border-radius: 24px; min-height: var(--toque); max-height: 120px; }
+
+/* ============================ ESTADOS ============================ */
+/* Esqueleto de carga (shimmer) */
+.esqueleto {
+  border-radius: var(--r-md); min-height: 16px;
+  background: linear-gradient(100deg, var(--bg-1) 40%, var(--bg-2) 50%, var(--bg-1) 60%);
+  background-size: 200% 100%; animation: brillo 1.4s infinite linear;
+}
+@keyframes brillo { from { background-position: 120% 0; } to { background-position: -80% 0; } }
+.spinner {
+  width: 22px; height: 22px; border-radius: 50%;
+  border: 2.5px solid var(--borde-fuerte); border-top-color: var(--dorado);
+  animation: girar 0.8s linear infinite; margin: 0 auto;
+}
+@keyframes girar { to { transform: rotate(360deg); } }
+
+/* Estado vacío: icono fino + texto que explica y dice qué hacer */
+.estado {
+  text-align: center; padding: var(--e-6) var(--e-4); color: var(--txt-2);
+}
+.estado svg { width: 44px; height: 44px; stroke: var(--txt-3); fill: none; stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; margin-bottom: var(--e-3); }
+.estado .estado-titulo { font: var(--t-seccion); color: var(--txt-1); margin-bottom: var(--e-1); }
+
+/* Aviso / banner (info, error, sin conexión) */
+.aviso {
+  display: flex; gap: var(--e-2); align-items: flex-start;
+  padding: var(--e-3); border-radius: var(--r-md);
+  font: var(--t-sub); border: 1px solid var(--borde); background: var(--bg-2);
+}
+.aviso.error { background: var(--rojo-suave); border-color: rgba(246, 70, 93, 0.3); color: #FFD7DC; }
+.aviso.info  { background: var(--dorado-suave); border-color: var(--dorado-borde); color: var(--dorado-claro); }
+
+/* ============================ MOVIMIENTO / ACCESO ============================ */
+.aparece { animation: aparece var(--anim-entrada); }
+@keyframes aparece { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
+:focus-visible { outline: 2px solid var(--dorado); outline-offset: 2px; }
