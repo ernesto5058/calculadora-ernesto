@@ -158,6 +158,57 @@ label { display:block; font-size:13px; color:#8696A0; margin:12px 0 2px; font-we
 .visorImg { max-width:100%; max-height:100%; object-fit:contain; border-radius:8px; }
 .offBanner { background:rgba(245,188,20,.10); border:1px solid rgba(245,188,20,.35); color:#F5D67A; border-radius:14px; padding:12px; font-size:13px; margin-bottom:14px; display:none; line-height:1.45; }
 .logoMN { width:68px; height:68px; border-radius:20px; background:linear-gradient(135deg, rgba(247,201,72,.20), rgba(227,154,45,.06)); border:1px solid rgba(245,196,81,.5); color:#F5C451; font-size:27px; font-weight:900; display:flex; align-items:center; justify-content:center; margin:10px auto 12px; box-shadow:0 10px 26px rgba(227,154,45,.18); }
+/* ===== CONTABILIDAD PRO (v7) ===== */
+#pgContabilidad .contaUna { margin:0 0 var(--e-3); }
+#pgContabilidad h3 { display:flex; align-items:center; gap:var(--e-2); }
+#pgContabilidad .contaIco { display:inline-flex; }
+#pgContabilidad .contaIco svg { width:20px; height:20px; fill:none; stroke:var(--dorado); stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; }
+#pgContabilidad .contaKpis { display:grid; grid-template-columns:1fr 1fr; gap:var(--e-2); }
+#pgContabilidad .cell { background:var(--bg-2); border:1px solid var(--borde); border-radius:var(--r-md); padding:var(--e-3) var(--e-2); text-align:center; }
+#pgContabilidad .cell .v { font:700 24px/1.15 var(--fuente); font-variant-numeric:tabular-nums; letter-spacing:-.02em; }
+#pgContabilidad .cell .k { font:600 11px var(--fuente); letter-spacing:.06em; color:var(--txt-3); margin-top:var(--e-1); }
+#pgContabilidad .cell.heroe { border-color:var(--dorado-borde); }
+#pgContabilidad .cell.heroe .v { font-size:30px; background:var(--dorado-grad); -webkit-background-clip:text; background-clip:text; color:transparent; }
+#pgContabilidad .contaSem { display:flex; align-items:center; gap:var(--e-2); flex-wrap:wrap; margin-top:var(--e-3); font:var(--t-sub); }
+#pgContabilidad .contaChipT { padding:4px 10px; border-radius:var(--r-pildora); font:600 13px var(--fuente); }
+#pgContabilidad .contaChipT.ok { background:var(--verde-suave); color:var(--verde); }
+#pgContabilidad .contaChipT.no { background:var(--rojo-suave); color:var(--rojo); }
+#pgContabilidad .contaBarras { display:flex; gap:var(--e-2); margin-top:var(--e-3); }
+#pgContabilidad .contaBarCol { flex:1; display:flex; flex-direction:column; align-items:center; gap:var(--e-1); }
+#pgContabilidad .contaBarZona { height:44px; display:flex; align-items:flex-end; justify-content:center; width:100%; }
+#pgContabilidad .contaBar { width:70%; max-width:22px; min-height:3px; border-radius:4px 4px 2px 2px; background:linear-gradient(180deg, var(--dorado-claro), var(--dorado-oscuro)); }
+#pgContabilidad .contaBar.neg { background:var(--rojo); }
+#pgContabilidad .contaBarCol span { font:var(--t-nota); color:var(--txt-3); }
+#pgContabilidad .contaBarrasK { margin-top:var(--e-1); }
+#pgContabilidad .contaFuente { margin-top:var(--e-3); }
+#pgContabilidad .contaAyuda { margin-top:var(--e-3); }
+#pgContabilidad .contaInfoBtn { width:auto; display:inline-flex; align-items:center; gap:6px; padding:var(--e-2) var(--e-3); background:transparent; border:1px solid var(--borde); border-radius:var(--r-pildora); color:var(--dorado); font:600 13px var(--fuente); cursor:pointer; margin:0; }
+#pgContabilidad .contaInfo { margin-top:var(--e-2); }
+#pgContabilidad .contaInfo .ayuda { margin:0; }
+#pgContabilidad .contaFiltros { display:flex; gap:var(--e-2); flex-wrap:nowrap; overflow-x:auto; padding-bottom:var(--e-1); margin:0 0 var(--e-2); -webkit-overflow-scrolling:touch; }
+#pgContabilidad .contaFiltros::-webkit-scrollbar { display:none; }
+#pgContabilidad .contaFiltros .chip { flex:0 0 auto; }
+#pgContabilidad .contaFSep { flex:0 0 auto; width:1px; background:var(--borde); margin:2px 2px; }
+#pgContabilidad .contaTotales { background:var(--dorado-suave); border:1px solid var(--dorado-borde); border-radius:var(--r-md); padding:var(--e-2) var(--e-3); font:var(--t-sub); margin:var(--e-2) 0; }
+#pgContabilidad .contaTotales b { color:var(--dorado-claro); }
+#pgContabilidad .contaFila { display:flex; justify-content:space-between; gap:var(--e-3); padding:var(--e-3) 0; border-bottom:1px solid var(--linea); }
+#pgContabilidad .contaFila:last-of-type { border-bottom:0; }
+#pgContabilidad .contaFilaIzq { min-width:0; }
+#pgContabilidad .contaFilaNom { font:var(--t-cuerpo-f); }
+#pgContabilidad .contaFilaSub { font:var(--t-sub); color:var(--txt-2); }
+#pgContabilidad .contaFilaDer { text-align:right; flex:0 0 auto; }
+#pgContabilidad .contaFilaGan .num { font:700 18px var(--fuente); color:var(--verde); }
+#pgContabilidad .contaFilaGan.neg .num { color:var(--rojo); }
+#pgContabilidad .contaFilaGanK { font:var(--t-nota); color:var(--txt-3); }
+#pgContabilidad .contaFilaCom { font:var(--t-nota); color:var(--txt-3); margin:2px 0; }
+#pgContabilidad .contaDebe { display:flex; justify-content:space-between; align-items:center; gap:var(--e-3); padding:var(--e-3) 0; border-bottom:1px solid var(--linea); }
+#pgContabilidad .contaDebeNom { font:var(--t-cuerpo-f); }
+#pgContabilidad .contaDebeSub { font:var(--t-sub); color:var(--txt-2); }
+#pgContabilidad .contaDebeV { font:700 22px var(--fuente); color:var(--ambar); }
+#pgContabilidad .contaDebeV span { font:600 12px var(--fuente); color:var(--txt-3); }
+#pgContabilidad .contaH4 { font:600 15px var(--fuente); margin:var(--e-4) 0 var(--e-1); }
+#pgContabilidad .contaHist { display:flex; justify-content:space-between; gap:var(--e-3); flex-wrap:wrap; padding:var(--e-2) 0; border-bottom:1px solid var(--linea); font:var(--t-sub); color:var(--txt-2); }
+#pgContabilidad .contaHistDer { color:var(--txt-3); }
 </style></head><body>
 <div id="app">
 <div id="scrAcceso">
@@ -2636,14 +2687,14 @@ function intentarEntrar(){
    controllerchange recarga la app UNA sola vez (marca en
    sessionStorage por versión: sin bucles). MN_VERSION se sube
    junto con el CACHE de sw.js. */
-var MN_VERSION = "v6";
+var MN_VERSION = "v7";
 /* Sello VISIBLE de compilación (punto 6): Ernesto quejándose con
    razón — «no sé si se actualizó o no». Una sola constante que
    sube con cada publicación; se ve en Inicio y en la hoja ℹ️ del
    chat. Formato: «Mi Negocio · versión 2026-11-11 HH:MM · caché v6»
    (fecha Y HORA de la publicación, para distinguir dos subidas
    del mismo día). La hora es la de Cuba (CST) al compilar. */
-var MN_COMPILACION = "2026-11-11 12:48";
+var MN_COMPILACION = "2026-11-11 13:14";
 function selloVersion(){ return "Mi Negocio · versión " + MN_COMPILACION + " · caché " + MN_VERSION; }
 var regSW = null;
 var swConControladorAlArrancar = false;
@@ -3434,27 +3485,47 @@ registrarModulo({
     }
     var netaSem = netaEntre(sem.inicio, sem.fin);
     var netaSemAnt = netaEntre(contaSumarDias(sem.inicio, -7), contaSumarDias(sem.inicio, -1));
+    var ICO_PANEL = '<span class="contaIco" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M8 17v-6"/><path d="M13 17V7"/><path d="M18 17v-9"/></svg></span>';
+    var ICO_LIBRO = '<span class="contaIco" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg></span>';
+    var ICO_PAGAR = '<span class="contaIco" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4z"/></svg></span>';
+    function desplegableConta(texto){
+      return '<div class="contaAyuda"><button type="button" class="contaInfoBtn" data-conta-info aria-expanded="false">ⓘ ¿Cómo se calcula?</button><div class="contaInfo" hidden><p class="ayuda">' + texto + '</p></div></div>';
+    }
     var h = '<div class="sub">Las cuentas de tu negocio, solas: salen de los tratos aprobados que entraron por Mi Trabajo. Aquí nunca escribes un número.</div>';
     /* --- Bloque 1 · Panel --- */
-    h += '<div class="card"><h3>📊 Panel — cómo va el negocio</h3>'
-      + '<p class="ayuda">Esto se calcula solo, de los tratos aprobados que entraron por Mi Trabajo. No tienes que escribir nada. La ganancia de cada trato se calcula con la tarifa vigente y restando la comisión que ya quedó guardada en el trato. Ojo: esto solo cuenta lo que pasa por el sistema; lo que mueves por fuera (tus ventas directas o la salida con tu comprador) no aparece aquí.</p>';
-    if (!reps.length) {
-      h += '<div class="mut">Sin datos aún: cuando apruebes el primer trato, estas cuentas se llenan solas.</div>';
+    var tendencia;
+    if (netaSemAnt === 0) {
+      tendencia = '<div class="contaSem"><span>Esta semana: <b>' + fmt(netaSem) + ' CUP</b> · sin datos la semana anterior</span></div>';
     } else {
-      var compSem;
-      if (netaSemAnt === 0) compSem = ' · sin datos la semana anterior';
-      else {
-        var pctSem = (netaSem - netaSemAnt) / Math.abs(netaSemAnt) * 100;
-        compSem = ' · ' + (pctSem >= 0 ? "▲ " : "▼ ") + fmt(Math.abs(pctSem)) + ' %';
-      }
-      h += '<div class="grid"><div class="cell"><div class="v">' + fmt(ganMes) + '</div><div class="k">GANANCIA DEL MES · CUP</div></div>'
-        + '<div class="cell"><div class="v">' + fmt(porPagar) + '</div><div class="k">COMISIONES POR PAGAR · CUP</div></div></div>'
-        + '<div class="grid"><div class="cell"><div class="v">' + fmt(capMes) + '</div><div class="k">CAPITAL MOVIDO (MES) · CUP</div></div>'
-        + '<div class="cell"><div class="v">' + recMes + '</div><div class="k">RECARGAS MOVIDAS (MES)</div></div></div>'
-        + '<div class="mut" style="margin-top:8px">La ganancia del mes sale de ' + repsMes.length + ' tratos aprobados de este mes; las comisiones por pagar, de ' + sinPagar.length + ' comisiones aún sin pagar de todas las fechas.</div>'
-        + '<div class="kv" style="margin-top:6px">Esta semana: <b>' + fmt(netaSem) + ' CUP</b> · La anterior: <b>' + fmt(netaSemAnt) + ' CUP</b>' + compSem + '</div>';
+      var pct = (netaSem - netaSemAnt) / Math.abs(netaSemAnt) * 100;
+      var sube = pct >= 0;
+      tendencia = '<div class="contaSem"><span>Esta semana: <b>' + fmt(netaSem) + ' CUP</b> · La anterior: <b>' + fmt(netaSemAnt) + ' CUP</b></span><span class="contaChipT ' + (sube ? "ok" : "no") + '">' + (sube ? "▲ " : "▼ ") + fmt(Math.abs(pct)) + ' %</span></div>';
     }
-    h += '</div>';
+    var diasSem = [], sumasSem = [], maxA = 0;
+    for (var iB = 0; iB < 7; iB++) {
+      var diaB = contaSumarDias(sem.inicio, iB);
+      diasSem.push(diaB);
+      var sumaB = reps.filter(function(r){ return fechaCorta(r.creado) === diaB; }).reduce(function(s, r){ return s + contaNeta(r, t); }, 0);
+      sumasSem.push(sumaB);
+      if (Math.abs(sumaB) > maxA) maxA = Math.abs(sumaB);
+    }
+    var barras = '<div class="contaBarras">' + sumasSem.map(function(suma, i){
+      var alto = maxA > 0 ? Math.max(8, Math.round(Math.abs(suma) / maxA * 100)) : 4;
+      return '<div class="contaBarCol"><div class="contaBarZona"><div class="contaBar' + (suma < 0 ? " neg" : "") + '" style="height:' + alto + '%" title="' + diasSem[i] + ': ' + fmt(suma) + ' CUP"></div></div><span>' + "LMXJVSD"[i] + '</span></div>';
+    }).join("") + '</div><div class="mut contaBarrasK">Ganancia por día · esta semana</div>';
+    h += '<div class="card heroe"><h3>' + ICO_PANEL + ' Panel — cómo va el negocio</h3>'
+      + '<p class="ayuda contaUna">Tus cuentas del mes, calculadas solas de los tratos aprobados.</p>'
+      + '<div class="contaKpis">'
+      + '<div class="cell heroe"><div class="v">' + fmt(ganMes) + '</div><div class="k">GANANCIA DEL MES · CUP</div></div>'
+      + '<div class="cell"><div class="v">' + fmt(porPagar) + '</div><div class="k">COMISIONES POR PAGAR · CUP</div></div>'
+      + '<div class="cell"><div class="v">' + fmt(capMes) + '</div><div class="k">CAPITAL MOVIDO (MES) · CUP</div></div>'
+      + '<div class="cell"><div class="v">' + recMes + '</div><div class="k">RECARGAS MOVIDAS (MES)</div></div>'
+      + '</div>'
+      + tendencia
+      + barras
+      + (reps.length ? '<div class="mut contaFuente">Ganancia: de ' + repsMes.length + ' tratos aprobados de este mes. Por pagar: ' + sinPagar.length + ' comisiones sin pagar (todas las fechas).</div>' : '<div class="mut contaFuente">Sin datos aún: cuando apruebes el primer trato, estas cuentas se llenan solas.</div>')
+      + desplegableConta("Esto se calcula solo, de los tratos aprobados que entraron por Mi Trabajo. No tienes que escribir nada. La ganancia de cada trato se calcula con la tarifa vigente y restando la comisión que ya quedó guardada en el trato. Ojo: esto solo cuenta lo que pasa por el sistema; lo que mueves por fuera (tus ventas directas o la salida con tu comprador) no aparece aquí.")
+      + '</div>';
     /* --- Bloque 2 · Libro automático --- */
     var nombresLibro = [];
     reps.forEach(function(r){ var n = contaNombre(r); if (nombresLibro.indexOf(n) < 0) nombresLibro.push(n); });
@@ -3468,23 +3539,26 @@ registrarModulo({
     var ganTot = filtrados.reduce(function(s, r){ return s + contaNeta(r, t); }, 0);
     var comTot = filtrados.reduce(function(s, r){ return s + Number(r.comision || 0); }, 0);
     function chipsConta(attr, opciones){
-      return '<div class="chips">' + opciones.map(function(o){
+      return opciones.map(function(o){
         return '<span class="chip' + (contaFiltros[attr] === o[0] ? " activa" : "") + '" data-conta-' + attr + '="' + esc(o[0]) + '">' + esc(o[1]) + '</span>';
-      }).join("") + '</div>';
+      }).join("");
     }
-    h += '<div class="card"><h3>📒 Libro automático</h3>'
-      + '<p class="ayuda">Cada trato aprobado se anota solo en este libro: fecha, buscador, capital, tu ganancia y la comisión. Los filtros solo cambian lo que ves; no cambian ninguna cuenta.</p>'
+    h += '<div class="card"><h3>' + ICO_LIBRO + ' Libro automático</h3>'
+      + '<p class="ayuda contaUna">Cada trato aprobado se anota solo en este libro.</p>'
+      + '<div class="contaFiltros">'
       + chipsConta("periodo", [["hoy", "Hoy"], ["semana", "Esta semana"], ["mes", "Este mes"], ["todo", "Todo"]])
       + chipsConta("tipo", [["", "Todos"], ["saldo", "Saldo"], ["transferencia", "Transferencia"]])
-      + '<label for="contaBusc">Buscador</label><select id="contaBusc"><option value="">Todos</option>'
-      + nombresLibro.map(function(n){ return '<option value="' + esc(n) + '"' + (contaFiltros.buscador === n ? " selected" : "") + '>' + esc(n) + '</option>'; }).join("")
-      + '</select>'
-      + '<div class="kv">' + filtrados.length + ' tratos · Ganancia total: <b>' + fmt(ganTot) + ' CUP</b> · Comisiones: <b>' + fmt(comTot) + ' CUP</b></div>'
+      + '<span class="contaFSep"></span>'
+      + chipsConta("buscador", [["", "Todos"]].concat(nombresLibro.map(function(n){ return [n, n]; })))
+      + '</div>'
+      + '<div class="contaTotales">' + filtrados.length + ' tratos · Ganancia total: <b>' + fmt(ganTot) + ' CUP</b> · Comisiones: <b>' + fmt(comTot) + ' CUP</b></div>'
       + (filtrados.length ? filtrados.map(function(r){
-          return '<div class="kv">' + fechaCorta(r.creado) + ' · ' + esc(contaNombre(r)) + ' · ' + esc(conceptoDe(r))
-            + ' · Capital: <b>' + fmt(contaCapital(r)) + ' CUP</b> · Tu ganancia: <b>' + fmt(contaNeta(r, t)) + ' CUP</b> · Comisión: ' + fmt(Number(r.comision || 0)) + ' CUP · '
-            + (r.comision_pagada_en ? '<span class="pill pOk">PAGADO</span>' : '<span class="pill pPend">por pagar</span>') + '</div>';
+          return '<div class="contaFila"><div class="contaFilaIzq"><div class="contaFilaNom">' + esc(contaNombre(r)) + '</div><div class="contaFilaSub">' + fechaCorta(r.creado) + ' · ' + esc(conceptoDe(r)) + '</div></div>'
+            + '<div class="contaFilaDer"><div class="contaFilaGan' + (contaNeta(r, t) < 0 ? " neg" : "") + '"><span class="contaFilaGanK">Tu ganancia:</span> <span class="num">' + fmt(contaNeta(r, t)) + ' CUP</span></div>'
+            + '<div class="contaFilaCom">Comisión: ' + fmt(Number(r.comision || 0)) + ' CUP</div>'
+            + (r.comision_pagada_en ? '<span class="pill pOk">PAGADO</span>' : '<span class="pill pPend">por pagar</span>') + '</div></div>';
         }).join("") : '<div class="mut">Ningún trato con ese filtro.</div>')
+      + desplegableConta("Cada trato aprobado se anota solo en este libro: fecha, buscador, capital, tu ganancia y la comisión. Los filtros solo cambian lo que ves; no cambian ninguna cuenta.")
       + '</div>';
     /* --- Bloque 3 · Por pagar y pagos --- */
     var grupos = {}, ordenGrupos = [];
@@ -3496,21 +3570,22 @@ registrarModulo({
     ordenGrupos.sort(function(a, b){ return b.total - a.total; });
     var historial = reps.filter(function(r){ return !!r.comision_pagada_en; })
       .slice().sort(function(x, y){ return String(y.comision_pagada_en).localeCompare(String(x.comision_pagada_en)); });
-    h += '<div class="card"><h3>💸 Por pagar y pagos</h3>'
-      + '<p class="ayuda">Aquí ves cuánto le debes a cada buscador por comisiones aprobadas que aún no marcas pagadas, y el historial de las que ya pagaste. Para pagar, usa el botón «Ya pagué» del trato en la Bandeja: al tocarlo, esto se actualiza solo.</p>';
+    h += '<div class="card"><h3>' + ICO_PAGAR + ' Por pagar y pagos</h3>'
+      + '<p class="ayuda contaUna">Lo que debes por comisiones. Pagar se marca en la Bandeja, con «Ya pagué».</p>';
     if (ordenGrupos.length) {
       h += ordenGrupos.map(function(g){
-        return '<div class="kv">' + esc(g.nombre) + ' — ' + g.n + (g.n === 1 ? ' comisión' : ' comisiones') + ' — <b>' + fmt(g.total) + ' CUP</b></div>';
+        return '<div class="contaDebe"><div><div class="contaDebeNom">' + esc(g.nombre) + '</div><div class="contaDebeSub">' + g.n + (g.n === 1 ? ' comisión' : ' comisiones') + ' sin pagar</div></div><div class="contaDebeV num">' + fmt(g.total) + ' <span>CUP</span></div></div>';
       }).join("")
-      + '<div class="kv">Total por pagar: <b>' + fmt(porPagar) + ' CUP</b> (de ' + sinPagar.length + ' comisiones)</div>';
-    } else h += '<div class="mut">No debes ninguna comisión ahora mismo. 🎉</div>';
-    h += '<h3 style="margin-top:14px">Historial de pagos</h3>';
+      + '<div class="contaTotales">Total por pagar: <b>' + fmt(porPagar) + ' CUP</b> (de ' + sinPagar.length + ' comisiones)</div>';
+    } else h += '<div class="mut">No debes ninguna comisión ahora mismo.</div>';
+    h += '<h4 class="contaH4">Historial de pagos</h4>';
     if (historial.length) {
       h += historial.map(function(r){
-        return '<div class="kv">' + esc(contaNombre(r)) + ' · ' + esc(conceptoDe(r)) + ' · Comisión ' + fmt(Number(r.comision || 0)) + ' CUP · pagada el ' + fechaCorta(r.comision_pagada_en) + '</div>';
+        return '<div class="contaHist"><span>' + esc(contaNombre(r)) + ' · ' + esc(conceptoDe(r)) + '</span><span class="contaHistDer">Comisión ' + fmt(Number(r.comision || 0)) + ' CUP · pagada el ' + fechaCorta(r.comision_pagada_en) + '</span></div>';
       }).join("");
     } else h += '<div class="mut">Todavía no marcaste ningún pago.</div>';
-    h += '</div>';
+    h += desplegableConta("Aquí ves cuánto le debes a cada buscador por comisiones aprobadas que aún no marcas pagadas, y el historial de las que ya pagaste. Para pagar, usa el botón «Ya pagué» del trato en la Bandeja: al tocarlo, esto se actualiza solo.")
+      + '</div>';
     el.innerHTML = h;
     el.querySelectorAll("[data-conta-periodo]").forEach(function(c){
       c.addEventListener("click", function(){ contaFiltros.periodo = c.getAttribute("data-conta-periodo"); modulo("Contabilidad").render(); });
@@ -3518,8 +3593,17 @@ registrarModulo({
     el.querySelectorAll("[data-conta-tipo]").forEach(function(c){
       c.addEventListener("click", function(){ contaFiltros.tipo = c.getAttribute("data-conta-tipo"); modulo("Contabilidad").render(); });
     });
-    var selB = $("contaBusc");
-    if (selB) selB.addEventListener("change", function(){ contaFiltros.buscador = selB.value; modulo("Contabilidad").render(); });
+    el.querySelectorAll("[data-conta-buscador]").forEach(function(c){
+      c.addEventListener("click", function(){ contaFiltros.buscador = c.getAttribute("data-conta-buscador"); modulo("Contabilidad").render(); });
+    });
+    el.querySelectorAll("[data-conta-info]").forEach(function(b){
+      b.addEventListener("click", function(){
+        var info = b.parentElement.querySelector(".contaInfo");
+        if (!info) return;
+        info.hidden = !info.hidden;
+        b.setAttribute("aria-expanded", info.hidden ? "false" : "true");
+      });
+    });
   },
   alMostrar: function(){ var m = modulo("Contabilidad"); if (m) m.render(); }
 });
