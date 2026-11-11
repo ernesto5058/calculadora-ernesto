@@ -7,6 +7,7 @@
 <title>Mi Trabajo — Buscadores</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon-192.png">
+<link rel="stylesheet" href="tema-pro.css">
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body { background: #0B0E13; overflow-x: hidden; }
@@ -105,6 +106,35 @@
   .msg.him { align-items: flex-start; }
   .msg.him .bur { background: #1B2233; color: #E8ECF1; border: 1px solid #2A3347; border-bottom-left-radius: 4px; }
   .msg .mhora { color: #7C8AA0; font-size: 11px; margin-top: 3px; }
+  .msg .estVisto { color: #53BDEB; font-weight: 800; }
+  .cpres { color: #9AA7B8; font-size: 13px; margin: -4px 0 10px; }
+  /* ===== v1.4.0: chat pro, perfil, textos ===== */
+  .fijadoBar { display: none; background: rgba(232,184,75,.14); border: 1px solid rgba(232,184,75,.45); color: #F5D67B; border-radius: 12px; padding: 9px 12px; font-size: 13px; margin-bottom: 10px; overflow-wrap: anywhere; }
+  .tempLinea { display: none; color: #9AA7B8; font-size: 12px; margin-bottom: 8px; }
+  .msgSistema { text-align: center; color: #9AA7B8; font-size: 12.5px; margin: 12px auto; background: #1A2130; border-radius: 999px; padding: 6px 14px; max-width: 88%; }
+  .msg .cita { display: block; border-left: 3px solid #E8B84B; background: rgba(232,184,75,.12); border-radius: 6px; padding: 5px 8px; margin-bottom: 6px; font-size: 12.5px; opacity: .9; overflow-wrap: anywhere; }
+  .msg .eliminado { font-style: italic; opacity: .75; }
+  .msg .editadoLab { font-size: 10.5px; opacity: .75; }
+  .reacRow { display: flex; gap: 4px; margin-top: 3px; flex-wrap: wrap; }
+  .reacRow .reac { background: #1A2130; border: 1px solid #2A3347; border-radius: 999px; padding: 1px 8px; font-size: 12px; }
+  .adjFoto { max-width: 210px; border-radius: 10px; display: block; margin-bottom: 6px; }
+  .adjChip { display: inline-block; background: rgba(0,0,0,.18); border-radius: 8px; padding: 5px 9px; font-size: 12.5px; margin-bottom: 6px; overflow-wrap: anywhere; }
+  .chatTools { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+  .chatTools button { flex: 1; min-width: 70px; padding: 10px 6px; border-radius: 10px; background: #1B2233; color: #C7D0DC; border: 1px solid #2A3347; font-weight: 700; font-size: 13px; cursor: pointer; }
+  .respBar { display: none; background: rgba(232,184,75,.12); border: 1px solid rgba(232,184,75,.4); border-radius: 10px; padding: 8px 10px; font-size: 13px; margin-top: 8px; overflow-wrap: anywhere; }
+  .menuMsg { display: none; background: #1A2130; border: 1px solid #2A3347; border-radius: 12px; padding: 8px; margin-top: 8px; }
+  .menuMsg button { display: block; width: 100%; text-align: left; background: transparent; border: none; color: #E8ECF1; padding: 9px 10px; font-size: 14px; cursor: pointer; border-radius: 8px; }
+  .semBar { height: 14px; background: #232B3A; border-radius: 999px; overflow: hidden; margin: 8px 0 4px; }
+  .semBar > div { height: 100%; background: linear-gradient(90deg, #F5D67B, #E8B84B, #C9962E); width: 0%; transition: width .5s; }
+  .colorRow { display: flex; gap: 8px; margin: 6px 0 4px; }
+  .colorDot { width: 34px; height: 34px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; }
+  .colorDot.on { border-color: #F2F5F9; }
+  .miniBtn { padding: 8px 12px; border-radius: 999px; background: #1B2233; color: #C7D0DC; border: 1px solid #2A3347; font-weight: 700; font-size: 13px; cursor: pointer; }
+  .versionTxt { white-space: pre-wrap; background: #0B0E13; border: 1px solid #2A3347; border-radius: 12px; padding: 12px; font-size: 14px; line-height: 1.55; overflow-wrap: anywhere; }
+  select { width: 100%; padding: 12px; font-size: 16px; color: #fff; background: #0B0E13; border: 1.5px solid #2A3347; border-radius: 12px; outline: none; }
+  input[type=checkbox] { width: 20px; height: 20px; vertical-align: -4px; }
+  .checkLine { display: block; font-size: 14px; color: #C7D0DC; margin: 8px 0 0; font-weight: 600; }
+  .cpres b { color: #E8ECF1; }
 </style>
 </head>
 <body>
@@ -145,6 +175,8 @@
     <div class="tab" id="tabRep"><svg class="ic" aria-hidden="true"><use href="#i-send"/></svg> Reportar</div>
     <div class="tab" id="tabPanel"><svg class="ic" aria-hidden="true"><use href="#i-chart"/></svg> Mi panel</div>
     <div class="tab" id="tabAyuda"><svg class="ic" aria-hidden="true"><use href="#i-chat"/></svg> Chat<span id="chatBadge" class="cbadge hide">0</span></div>
+    <div class="tab" id="tabTextos"><svg class="ic" aria-hidden="true"><use href="#i-send"/></svg> Textos</div>
+    <div class="tab" id="tabPerfil"><svg class="ic" aria-hidden="true"><use href="#i-brief"/></svg> Mi perfil</div>
   </div>
   <div id="updBox" class="upd hide">
     <div class="t">Hay una versión nueva de Mi Trabajo</div>
@@ -225,6 +257,10 @@
       <input type="tel" id="r_tel" inputmode="tel" placeholder="Ej: 51234567">
       <label>Nota (opcional)</label>
       <textarea id="r_nota" rows="2" placeholder="Ej: es de Micro 9, tiene saldo hoy"></textarea>
+      <label>Foto del comprobante (opcional)</label>
+      <input type="file" id="r_foto" accept="image/*">
+      <div class="hint" id="r_foto_nom">Si tienes la captura o foto del trato, súbela: Ernesto la ve junto a tu reporte. Se comprime sola.</div>
+      <div class="ok" id="r_editando" style="display:none">Estás corrigiendo un reporte pendiente: al enviar, se actualiza el mismo (Ernesto verá que fue editado). <button type="button" class="miniBtn" id="r_cancel_edit">Cancelar</button></div>
       <button class="go" id="r_btn"><svg class="ic" aria-hidden="true"><use href="#i-send"/></svg> Enviar reporte a Ernesto</button>
       <div class="res" id="r_res" style="display:none">
         <div class="lab"><svg class="ic mini" aria-hidden="true"><use href="#i-check"/></svg> REPORTE ENVIADO</div>
@@ -241,11 +277,29 @@
     <div class="card">
       <h2><svg class="ic" aria-hidden="true"><use href="#i-chat"/></svg> Chat con Ernesto</h2>
       <div class="hint">Escríbele directo a Ernesto por aquí: una duda de un trato, algo que no funciona o una idea para mejorar la app. Te responde en este mismo chat. Sale con tu sesión, así Ernesto sabe que viene de su equipo autorizado.</div>
+      <div class="cpres" id="c_pres">Ernesto · —</div>
+      <div class="fijadoBar" id="c_fijado"></div>
+      <div class="tempLinea" id="c_temp"></div>
+      <label>Buscar en el chat</label>
+      <input type="text" id="c_buscar" placeholder="Escribe una palabra…">
+      <div class="chatTools"><button type="button" id="c_buscar_mas">Buscar más (en el servidor)</button></div>
+      <div class="hint">Estados de tus mensajes, como en WhatsApp: <b>✓</b> enviado · <b>✓✓</b> entregado (Ernesto abrió su panel) · <b>✓✓ Visto</b> (ya abrió el chat y lo leyó).</div>
       <div id="c_hilo" class="hilo"><div class="chatVacio">Cargando el chat…</div></div>
+      <div class="respBar" id="c_resp"></div>
       <label>Tu mensaje para Ernesto</label>
       <textarea id="c_txt" rows="2" placeholder="Ej: conseguí un vendedor pero no sé si el precio sirve"></textarea>
+      <div class="chatTools">
+        <button type="button" id="c_adj_foto">📷 Foto</button>
+        <button type="button" id="c_adj_arch">📎 Archivo</button>
+        <button type="button" id="c_mic">🎤 Nota de voz</button>
+      </div>
+      <div class="hint" id="c_adj_nom"></div>
+      <input type="file" id="c_file_foto" accept="image/*" class="hide">
+      <input type="file" id="c_file_arch" class="hide">
+      <div class="menuMsg" id="c_menu"></div>
       <button class="go" id="c_btn"><svg class="ic" aria-hidden="true"><use href="#i-send"/></svg> Enviar a Ernesto</button>
       <div class="warn" id="c_warn"></div>
+      <div class="hint">Toca un mensaje para responder, reaccionar ❤️👍😂👏🔥, o editar/eliminar los tuyos. Si Ernesto activó los mensajes temporales, arriba verás en cuánto desaparecen.</div>
     </div>
     <div class="card">
       <h2><svg class="ic" aria-hidden="true"><use href="#i-brief"/></svg> ¿Quieres trabajar con Ernesto?</h2>
@@ -271,17 +325,104 @@
         <div class="bar"><div id="p_bs_bar"></div></div>
         <label><svg class="ic mini" aria-hidden="true"><use href="#i-gift"/></svg> Bono de transferencia: <span id="p_bt_lab"></span></label>
         <div class="bar"><div id="p_bt_bar"></div></div>
-        <label>Tus tratos confirmados</label>
+        <label><svg class="ic mini" aria-hidden="true"><use href="#i-chart"/></svg> Mi semana (lunes a domingo)</label>
+        <div id="p_semana"></div>
+        <label>Tus tratos confirmados (tu historial completo)</label>
         <div id="p_tratos"></div>
       </div>
       <button class="salir" id="btnSalir" type="button"><svg class="ic mini" aria-hidden="true"><use href="#i-out"/></svg> Salir (cerrar mi sesión)</button>
     </div>
   </div>
 
+  <!-- ============ TEXTOS (v1.4.0) ============ -->
+  <div id="viewTextos" class="hide">
+    <div class="card">
+      <h2>✍️ Textos de ofertas</h2>
+      <div class="hint">Escribe SOLO los datos y la app pone las palabras: tres versiones listas para copiar o mandar a WhatsApp. Funciona sin internet. Los botones rápidos usan los datos PÚBLICOS de la tarifa y tu perfil — nunca números internos.</div>
+      <div class="chatTools">
+        <button type="button" id="tx_saldo">📱 Texto de saldo</button>
+        <button type="button" id="tx_transf">🏦 Texto de transferencia</button>
+      </div>
+      <label>Tipo de oferta</label>
+      <select id="tx_tipo"><option value="vendo">Vendo</option><option value="compro">Compro</option><option value="servicio">Servicio</option><option value="recargo">Recargo o cambio</option><option value="otro">Otro</option></select>
+      <label>Producto o servicio</label>
+      <input type="text" id="tx_prod" placeholder="Ej.: Batería LiFePO4 12.8V 100Ah">
+      <label>Precio (vacío si es por privado)</label>
+      <input type="text" id="tx_precio" inputmode="decimal" placeholder="Ej.: 45000">
+      <label>Moneda</label>
+      <select id="tx_moneda"><option>CUP</option><option>USD</option><option>MLC</option><option>QUSD</option></select>
+      <label class="checkLine"><input type="checkbox" id="tx_privado"> Precio por privado</label>
+      <label>Cantidad o disponibilidad (opcional)</label>
+      <input type="text" id="tx_cant" placeholder="Ej.: quedan 3">
+      <label>Detalles y ventajas</label>
+      <input type="text" id="tx_det" placeholder="Ej.: garantía incluida, domicilio en Santiago">
+      <label>Zona</label>
+      <input type="text" id="tx_zona" placeholder="Tu zona (sale de tu perfil)">
+      <label>Teléfono de contacto</label>
+      <input type="text" id="tx_tel" placeholder="Tu teléfono (sale de tu perfil)">
+      <label>Emojis</label>
+      <select id="tx_emojis"><option value="muchos">Muchos</option><option value="pocos" selected>Pocos</option><option value="ninguno">Ninguno</option></select>
+      <label>Tono</label>
+      <select id="tx_tono"><option value="humanizado">Humanizado natural</option><option value="comercial">Comercial vendedor</option><option value="formal">Formal serio</option><option value="directo">Directo y corto</option></select>
+      <label>Tamaño</label>
+      <select id="tx_tam"><option value="completo">Completo</option><option value="corto">Corto (estados)</option><option value="muycorto">Muy corto (1-2 líneas)</option></select>
+      <label>Destino</label>
+      <select id="tx_dest"><option value="wa">WhatsApp (*negritas*)</option><option value="fb">Facebook (texto plano)</option></select>
+      <label class="checkLine"><input type="checkbox" id="tx_mayus"> Mayúsculas en el título</label>
+      <label class="checkLine"><input type="checkbox" id="tx_urg"> Línea de urgencia</label>
+      <label class="checkLine"><input type="checkbox" id="tx_priv_llamada"> Llamada a escribir por privado</label>
+      <label class="checkLine"><input type="checkbox" id="tx_hash"> Hashtags al final</label>
+      <button class="go" id="tx_gen" type="button">✍️ Generar las 3 versiones</button>
+      <div id="tx_out" style="margin-top:12px"></div>
+      <label>Historial (últimas 30, en este teléfono)</label>
+      <div id="tx_hist"></div>
+    </div>
+  </div>
+
+  <!-- ============ MI PERFIL (v1.4.0) ============ -->
+  <div id="viewPerfil" class="hide">
+    <div class="card">
+      <h2>👤 Mi perfil</h2>
+      <div class="hint">Esto es lo que Ernesto ve de ti en su panel: tu nombre, tu WhatsApp, tu zona y tu nota. Tu código, tu comisión y tus tratos NO se tocan aquí: eso lo maneja Ernesto.</div>
+      <div class="warn" id="pf_pausa" style="display:none">⏸️ Estás en pausa: puedes ver tu historial y tu perfil, pero no reportar ni escribir por ahora. Habla con Ernesto.</div>
+      <label>Nombre visible</label>
+      <input type="text" id="pf_nombre" placeholder="Tu nombre">
+      <label>Teléfono / WhatsApp de contacto</label>
+      <input type="tel" id="pf_tel" placeholder="Ej: 51234567">
+      <label>Tu zona o barrio</label>
+      <input type="text" id="pf_zona" placeholder="Ej: Micro 9">
+      <label>Nota corta</label>
+      <input type="text" id="pf_nota" placeholder="Ej: trabajo tardes y fines de semana">
+      <label>Color de tu avatar</label>
+      <div class="colorRow" id="pf_colores"></div>
+      <button class="go" id="pf_btn" type="button">Guardar mi perfil</button>
+      <div class="ok" id="pf_ok" style="display:none">✅ Perfil guardado.</div>
+      <div class="warn" id="pf_warn"></div>
+    </div>
+    <div class="card">
+      <h2>🔔 Avisos</h2>
+      <div class="hint" id="pf_push_txt">Recibe un aviso en la pantalla cuando Ernesto apruebe un trato, te pague o te escriba. El permiso se pide solo al tocar el botón.</div>
+      <button class="go" id="pf_push" type="button">🔔 Activar avisos</button>
+    </div>
+    <div class="card">
+      <h2>🔑 Cambiar mi código</h2>
+      <div class="hint">Puedes cambiar tu código personal cuando quieras. El viejo deja de funcionar AL INSTANTE y tu sesión se actualiza sola. Ernesto ve el cambio en su panel.</div>
+      <label>Tu código actual</label>
+      <input type="text" id="cc_actual" autocapitalize="characters" spellcheck="false" autocomplete="off">
+      <label>Código nuevo (mínimo 6, sin espacios)</label>
+      <input type="text" id="cc_nuevo" autocapitalize="characters" spellcheck="false" autocomplete="off">
+      <button class="go" id="cc_btn" type="button">Cambiar mi código</button>
+      <div class="ok" id="cc_ok" style="display:none"></div>
+      <div class="warn" id="cc_warn"></div>
+      <label>Tu enlace personal de entrada</label>
+      <div class="hint" id="cc_enlace">—</div>
+    </div>
+  </div>
+
   <div class="foot">
     Las cuentas de esta app usan la tarifa de referencia del día.<br>
     La cuenta final de cada trato la confirma Ernesto con los números reales.<br>
-    Mi Trabajo v<span id="verLab">1.3.0</span> · Hecha para el equipo de Ernesto
+    Mi Trabajo v<span id="verLab">1.4.0</span> · Hecha para el equipo de Ernesto
   </div>
 </div>
 
@@ -301,7 +442,7 @@
 
 <script>
 "use strict";
-var APP_VERSION = "1.3.0";
+var APP_VERSION = "1.4.0";
 /* Tarifa de respaldo: se usa sin conexión si nunca se ha descargado datos.json.
    La tarifa viva viene de datos.json (la actualiza Ernesto/Máximo). */
 var DEFAULT_TARIFA = { ingresoRef360: 1092.65, libroRef: 1110, salidaRef: 950,
@@ -314,6 +455,8 @@ var SESION = "";        /* código personal de la sesión activa ("" = sin entra
 var TARIFA_VIVA = null; /* v1.3.0: tarifa leída en vivo (leer_tarifa); manda sobre datos.json */
 var TARIFA_VIVA_EN = "";/* v1.3.0: ISO de la última publicación de la tarifa viva */
 var PANEL_VIVO = null;  /* v1.3.0: {nombre, tratos} leídos en vivo (leer_panel) */
+var ADMIN_VISTO = null; /* v1.3.1: ISO del último latido de Ernesto (fila 'ADMIN' en presencia) */
+var CHAT_MSGS = [];     /* v1.3.1: último hilo cargado (para repintar estados al refrescar presencia) */
 
 /* ===== Supabase (clave pública; las puertas RPC validan el código) ===== */
 var SB_URL = "https://otsudfgwpapkluusrlnj.supabase.co/rest/v1/reportes";
@@ -420,11 +563,13 @@ function entrar(code){
   renderPanel();
   tocarPresencia();
   chatBadge();
+  cargarAdminPres();
   cargarVivo();
 }
 function salir(msg){
   SESION = ""; sesionClear();
   PANEL_VIVO = null;
+  ADMIN_VISTO = null; CHAT_MSGS = [];
   try { $("l_cod").value = ""; } catch(e){}
   pintarBadge(0);
   var body = $("p_body"); if (body) body.classList.add("hide");
@@ -587,13 +732,16 @@ function renderOutbox(){
 }
 function enviarReporte(rp){
   if (!window.fetch) return Promise.resolve(false);
+  var cuerpoRep = { p_buscador: rp.buscador, p_tipo: rp.tipo, p_precio: rp.precio, p_porc: rp.porc,
+    p_cantidad: rp.cantidad, p_telefono: rp.telefono || null, p_nota: rp.nota || null };
+  if (rp.adj && rp.adj.datos) { cuerpoRep.p_adj_tipo = rp.adj.tipo || "foto"; cuerpoRep.p_adj_datos = rp.adj.datos; }
   return fetch(SB_RPC + "registrar_reporte", { method: "POST", headers: sbHeaders(),
-    body: JSON.stringify({ p_buscador: rp.buscador, p_tipo: rp.tipo, p_precio: rp.precio, p_porc: rp.porc,
-      p_cantidad: rp.cantidad, p_telefono: rp.telefono || null, p_nota: rp.nota || null })
+    body: JSON.stringify(cuerpoRep)
   }).then(function(r){
       if (r.ok) return r.json();
       return r.json().catch(function(){ return {}; }).then(function(e){
         if (e && e.message && e.message.indexOf("no autorizado") !== -1) rp.error = "noautorizado";
+        if (e && e.message && e.message.indexOf("pausa") !== -1) rp.error = "pausa";
         return Promise.reject(new Error("HTTP " + r.status));
       });
     })
@@ -649,6 +797,7 @@ function reportar(){
     rp.porc = pc; rp.cantidad = ef;
   }
   if (!tel) return fallo("Escribe el teléfono del vendedor — Ernesto lo necesita para confirmar el trato.");
+  if (typeof REP_FOTO !== "undefined" && REP_FOTO) rp.adj = REP_FOTO;   /* v1.4.0: comprobante */
   var a = outboxGet(); a.push(rp); outboxSet(a); renderOutbox();
   enviarReporte(rp).then(function(ok){
     if (ok) outboxSet(a); // rp ya trae id y enviado=true (misma referencia dentro de a)
@@ -691,10 +840,16 @@ function rpcChat(fn, body){
     .then(function(r){ return r.ok ? r.json() : null; })
     .catch(function(){ return null; });
 }
-/* Latido: Ernesto ve en su panel quién está en línea (< 3 min). */
+/* Latido: Ernesto ve en su panel quién está en línea (< 3 min).
+   v1.3.1: al abrir la app también se sellan como RECIBIDOS los
+   mensajes de Ernesto que ya estaban en la base (marcar_recibidos):
+   su «entregado» deja de depender solo de la deducción por latido.
+   Si la puerta aún no existe (SQL v1.3.1 sin pegar), falla en
+   silencio como todo lo demás. */
 function tocarPresencia(){
   if (!SESION) return;
   rpcChat("tocar_presencia", { p_codigo: SESION });
+  rpcChat("marcar_recibidos", { p_codigo: SESION, p_clave: SESION });
 }
 function horaChat(iso){
   var d = new Date(iso); if (isNaN(d.getTime())) return "";
@@ -702,8 +857,56 @@ function horaChat(iso){
   return p(d.getHours()) + ":" + p(d.getMinutes());
 }
 function escChat(x){ return String(x === null || x === undefined ? "" : x).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+/* ===== Estados del chat «como WhatsApp» (v1.3.1) =====
+   En TUS mensajes: ✓ enviado (guardado, sin constancia de llegada)
+   · ✓✓ entregado · ✓✓ en azul + «Visto». ENTREGADO, definido en la
+   app: Ernesto abrió su panel DESPUÉS de que tu mensaje se envió
+   (su latido visto >= creado del mensaje) pero aún no abrió el chat;
+   abierto el chat, leer_chat marca leido=true -> «Visto». Si el
+   mensaje trae el sello «recibido» del servidor (puerta
+   marcar_recibidos del SQL v1.3.1), ese sello manda sobre la
+   deducción. Los mensajes de Ernesto no llevan estado. */
+function estadoMsgBusc(m){
+  if (m.leido) return ' <span class="estVisto">✓✓ Visto</span>';
+  if (m.recibido) return " ✓✓";
+  if (ADMIN_VISTO) {
+    var v = Date.parse(ADMIN_VISTO), c = Date.parse(m.creado);
+    if (!isNaN(v) && !isNaN(c) && v >= c) return " ✓✓";
+  }
+  return " ✓";
+}
+/* Cabecera del chat: ¿Ernesto está en línea? Su latido viene de la
+   fila 'ADMIN' de ver_presencia (la registra PanelPRO v6 / Mi
+   Negocio con su código admin). Sin datos (puertas sin activar o la
+   variante admin sin pegar): «—», y la app sigue igual. */
+function textoAdminPres(){
+  if (!ADMIN_VISTO) return "Ernesto · —";
+  var t = Date.parse(ADMIN_VISTO); if (isNaN(t)) return "Ernesto · —";
+  var min = (Date.now() - t) / 60000;
+  if (min < 3) return "Ernesto · 🟢 en línea";
+  var d = new Date(t);
+  function p2(x){ return (x < 10 ? "0" : "") + x; }
+  var base = min < 60 ? "hace " + Math.max(1, Math.floor(min)) + " min"
+    : min < 1440 ? "hace " + Math.floor(min / 60) + " h"
+    : "hace " + Math.floor(min / 1440) + " d";
+  return "Ernesto · última vez " + base + " · a las " + p2(d.getHours()) + ":" + p2(d.getMinutes());
+}
+function pintarAdminPres(){
+  var el = $("c_pres"); if (el) el.textContent = textoAdminPres();
+}
+function cargarAdminPres(){
+  if (!SESION) return;
+  rpcChat("ver_presencia", { p_codigo: SESION }).then(function(r){
+    if (r && r.ok && r.usuarios) {
+      r.usuarios.forEach(function(u){ if (u.codigo === "ADMIN") ADMIN_VISTO = u.visto || null; });
+      pintarAdminPres();
+      if (CHAT_MSGS.length) pintarChat(CHAT_MSGS);   // los estados se repintan con el latido nuevo
+    }
+  });
+}
 function pintarChat(msgs){
   var box = $("c_hilo"); if (!box) return;
+  CHAT_MSGS = msgs || [];
   if (!msgs || !msgs.length){
     box.innerHTML = '<div class="chatVacio">Todavía no hay mensajes. Escríbele a Ernesto lo que necesites: dudas de un trato, algo que no funciona o una idea.</div>';
     return;
@@ -711,7 +914,8 @@ function pintarChat(msgs){
   var h = "";
   msgs.forEach(function(m){
     var mio = m.de === SESION;
-    h += '<div class="msg ' + (mio ? "me" : "him") + '"><div class="bur">' + escChat(m.texto) + '</div><div class="mhora">' + (mio ? "Tú" : "Ernesto") + " · " + horaChat(m.creado) + "</div></div>";
+    var est = mio ? estadoMsgBusc(m) : "";
+    h += '<div class="msg ' + (mio ? "me" : "him") + '"><div class="bur">' + escChat(m.texto) + '</div><div class="mhora">' + (mio ? "Tú" : "Ernesto") + " · " + horaChat(m.creado) + est + "</div></div>";
   });
   box.innerHTML = h;
   try { box.scrollTop = box.scrollHeight; } catch(e){}
@@ -720,6 +924,7 @@ var chatCargando = false;
 function chatCargar(){
   if (!SESION || chatCargando) return;
   chatCargando = true;
+  cargarAdminPres();
   rpcChat("leer_chat", { p_codigo: SESION, p_con: "ADMIN", p_clave: SESION }).then(function(r){
     chatCargando = false;
     if (r && r.ok && r.mensajes) { pintarChat(r.mensajes); pintarBadge(0); }  // leer marca leído: el distintivo se apaga
@@ -834,8 +1039,14 @@ setInterval(function(){ try { pintaFrescura(); } catch(e){} try { tocarPresencia
 setInterval(function(){
   if (!SESION) return;
   try { chatBadge(); } catch(e){}
+  try { cargarAdminPres(); } catch(e){}
   try { if (!$("viewAyuda").classList.contains("hide")) chatCargar(); } catch(e){}
 }, 20000);
+setInterval(function(){
+  // v1.3.1: con el chat abierto, el hilo se refresca cada ~15 s para
+  // que los estados (entregado/visto) cambien solos, estilo WhatsApp.
+  try { if (SESION && !$("viewAyuda").classList.contains("hide")) chatCargar(); } catch(e){}
+}, 15000);
 try { $("verLab").textContent = APP_VERSION; } catch(e){}
 
 if ("serviceWorker" in navigator && !esNativo()) {
@@ -864,6 +1075,796 @@ syncReportes();
     mostrarGate("");
   }
 })();
+
+/* =====================================================================
+   v1.4.0 — PERFIL + CHAT PRO + TEXTOS + AVISOS + MI SEMANA
+   Todo degrada en silencio si una puerta aún no existe (el paquete
+   SQL único las activa): la app sigue como en la 1.3.1.
+   ===================================================================== */
+
+/* ===== Motor de textos y cliente push compartidos (fuente única) ===== */
+/* =====================================================================
+   MOTOR DE TEXTOS DE OFERTAS — «el trabajador pone SOLO LOS DATOS,
+   la app pone LAS PALABRAS» (prompt maestro v1, 2026-11-11).
+   Motor de plantillas 100% en el cliente: SIN APIs externas, SIN IA
+   de pago, offline total. Este archivo es la ÚNICA fuente del motor:
+   lo comparten «Mi Trabajo» (buscadores) y «Mi Negocio» (Ernesto);
+   el banco de pruebas lo carga tal cual, sin copiar lógica.
+   ===================================================================== */
+var TextosMotor = (function(){
+  "use strict";
+
+  /* Formato de miles con ESPACIO (regla del prompt): 125 000 CUP. */
+  function miles(n){
+    var s = String(Math.round(Number(n) * 100) / 100);
+    var partes = s.split(".");
+    partes[0] = partes[0].replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+    return partes.join(".");
+  }
+  /* Semilla estable: mismo trabajador + mismos datos = misma variante;
+     otro trabajador u otros datos = otro texto. */
+  function semillaDe(str){
+    var h = 2166136261;
+    var s = String(str || "");
+    for (var i = 0; i < s.length; i++){ h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
+    return (h >>> 0);
+  }
+  function rng(seed){
+    var a = seed >>> 0;
+    return function(){
+      a |= 0; a = (a + 0x6D2B79F5) | 0;
+      var t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  function pick(r, arr){ return arr[Math.floor(r() * arr.length) % arr.length]; }
+
+  var VERBO = { vendo: "SE VENDE", compro: "COMPRO", servicio: "SERVICIO", recargo: "RECARGA Y CAMBIO", otro: "OFERTA" };
+  var GANCHO = {
+    vendo: ["¡Aprovecha!", "¡No te lo pierdas!", "Oportunidad de las buenas", "¡Corre, que vuelan!"],
+    compro: ["¡Pago al momento!", "¡Te lo compro hoy mismo!", "Dinero en mano, sin vueltas", "¡Escríbeme y cerramos hoy!"],
+    servicio: ["¡Trabajo garantizado!", "Servicio de confianza", "Calidad y buen precio", "¡Pide tu turno hoy!"],
+    recargo: ["¡Al momento!", "Rápido y seguro", "Sin salir de casa", "¡Recarga ya!"],
+    otro: ["¡Aprovecha!", "¡Escríbeme!", "Oportunidad", "¡No te quedes fuera!"]
+  };
+  var APERTURA = {
+    directo: ["{V}: {P}.", "{P} — {V}.", "{V} {P}."],
+    vendedor: ["{G} {V}: {P}.", "{G} Tengo para ti: {P}.", "{G} {P} en oferta."],
+    humanizado: ["Hola, {v} {p}, por si a alguien le hace falta.", "Buenas, tengo {p} disponible.", "Vecinos, {v} {p}."]
+  };
+  var CIERRE = {
+    directo: ["Interesados al privado.", "Escríbeme y coordinamos.", "Respondo rápido."],
+    vendedor: ["¡No te quedes sin el tuyo!", "Quedan pocos: asegura el tuyo hoy.", "¡Haz tu pedido ahora mismo!"],
+    humanizado: ["Cualquier duda me escriben, sin compromiso.", "Me escriben y nos ponemos de acuerdo.", "Aquí estoy para lo que necesiten."]
+  };
+
+  /* d = { tipo, producto, precio (num|null), moneda, privado (bool),
+         cantidad, detalles, zona, telefono, condiciones,
+         estilo: { emojis: 'muchos'|'pocos'|'ninguno',
+                   tono: 'humanizado'|'comercial'|'formal'|'directo',
+                   tamano: 'completo'|'corto'|'muycorto',
+                   mayus, urgencia, privadoLlamada, hashtags, whatsapp (bool) },
+         quien (semilla del trabajador), frases: {urgencia, cierre} opc. }
+     Devuelve { versiones: [{enfoque, texto} x3], avisos: [] } */
+  function generar(d){
+    var avisos = [];
+    var tipo = VERBO[d.tipo] ? d.tipo : "otro";
+    var est = d.estilo || {};
+    var em = est.emojis || "pocos";
+    var E = function(x){ return em === "ninguno" ? "" : x; };
+    var muchos = em === "muchos";
+    var producto = String(d.producto || "").trim();
+    if (!producto) avisos.push("Falta el producto o servicio: sin eso no hay anuncio.");
+    var precioTxt = "";
+    if (d.privado) {
+      precioTxt = "";
+    } else if (d.precio !== null && d.precio !== undefined && d.precio !== "" && isFinite(Number(d.precio))) {
+      precioTxt = miles(d.precio) + " " + (d.moneda || "CUP");
+    } else {
+      avisos.push("Sin precio: el texto sale sin precio (si es «por privado», márcalo).");
+    }
+    if (!d.telefono) avisos.push("Falta tu teléfono: el texto sale SIN teléfono.");
+    if (!d.zona) avisos.push("Falta la zona: el texto sale sin zona.");
+    var seed = semillaDe([d.quien || "", tipo, producto, precioTxt, d.zona || ""].join("|"));
+    var enfoques = ["directo", "vendedor", "humanizado"];
+    var versiones = enfoques.map(function(enf, idx){
+      var r = rng(seed + idx * 7919);
+      var titulo = (VERBO[tipo] + " " + producto).trim();
+      if (est.mayus) titulo = titulo.toUpperCase();
+      var tituloFmt = est.whatsapp ? "*" + titulo + "*" : titulo;
+      var gancho = pick(r, GANCHO[tipo]);
+      var ap = pick(r, APERTURA[enf])
+        .replace("{V}", VERBO[tipo]).replace("{v}", VERBO[tipo].toLowerCase())
+        .replace("{P}", producto).replace("{p}", producto)
+        .replace("{G}", gancho);
+      var lineas = [];
+      if (est.tamano === "muycorto") {
+        var l1 = (muchos ? "🔥 " : "") + ap;
+        if (precioTxt) l1 += " " + (est.whatsapp ? "*" + precioTxt + "*" : "Precio: " + precioTxt) + ".";
+        if (d.privado) l1 += " Precio por privado.";
+        if (d.telefono) l1 += " " + E("📲 ") + d.telefono;
+        lineas.push(l1);
+        return { enfoque: enf, texto: lineas.join("\n") };
+      }
+      lineas.push((muchos ? "🔥 " : (em === "pocos" ? "📌 " : "")) + tituloFmt + (enf === "vendedor" ? " " + gancho : ""));
+      lineas.push("");
+      lineas.push(ap);
+      if (d.cantidad) lineas.push(E("📦 ") + "Disponible: " + d.cantidad + ".");
+      if (d.detalles) lineas.push(E("✅ ") + d.detalles);
+      if (precioTxt) lineas.push(E("💰 ") + "Precio: " + (est.whatsapp ? "*" + precioTxt + "*" : precioTxt));
+      if (d.privado) lineas.push(E("💬 ") + "El precio se habla por privado: escríbeme y te digo al momento.");
+      if (est.urgencia) lineas.push(E("⏰ ") + ((d.frases && d.frases.urgencia) || "¡Corre, que vuelan!"));
+      if (d.condiciones) lineas.push(E("🤝 ") + d.condiciones);
+      if (d.zona) lineas.push(E("📍 ") + d.zona);
+      if (d.telefono) lineas.push(E("📲 ") + "Teléfono / WhatsApp: " + d.telefono);
+      if (est.privadoLlamada) lineas.push(E("✉️ ") + "Escríbeme al privado y coordinamos.");
+      lineas.push(pick(r, CIERRE[enf]));
+      if (est.tamano === "corto") {
+        lineas = lineas.filter(function(l){
+          return l !== "" && l.indexOf("Disponible:") !== 0 && l.indexOf("✅") !== 0;
+        });
+        if (lineas.length > 6) lineas = lineas.slice(0, 6);
+      }
+      if (est.hashtags) {
+        var tags = ["#" + (producto.split(" ")[0] || "Oferta").replace(/[^A-Za-zÁÉÍÓÚáéíóúÑñ0-9]/g, ""), "#SantiagoDeCuba", "#Ventas"];
+        lineas.push(tags.join(" "));
+      }
+      return { enfoque: enf, texto: lineas.join("\n") };
+    });
+    return { versiones: versiones, avisos: avisos };
+  }
+
+  /* Historial local: últimas 30 (regla del prompt). */
+  function historialPush(hist, entrada){
+    var h = Array.isArray(hist) ? hist.slice() : [];
+    h.unshift(entrada);
+    return h.slice(0, 30);
+  }
+
+  /* ===== TEXTOS RÁPIDOS DE LA TARIFA (la magia, SOLO datos públicos) =====
+     Recibe EXCLUSIVAMENTE los campos publicables de la tarifa y del
+     perfil: precio público de compra por recarga, condiciones públicas,
+     teléfono y zona. Ningún dato interno (comisión, piso, ganancia)
+     existe en este objeto: no puede colarse porque no llega. */
+  function textoRapidoSaldo(pub, estilo, quien){
+    return generar({
+      tipo: "compro", producto: "saldo móvil (recargas de 360)",
+      precio: pub.precioCompraRecarga, moneda: "CUP", privado: false,
+      cantidad: "", detalles: "Compro saldo móvil todos los días. Pago al momento, en efectivo.",
+      zona: pub.zona || "", telefono: pub.telefono || "",
+      condiciones: pub.condicionesSaldo || "Pago en efectivo al momento",
+      estilo: estilo, quien: quien || ""
+    });
+  }
+  function textoRapidoTransf(pub, estilo, quien){
+    return generar({
+      tipo: "recargo", producto: "transferencia por efectivo",
+      precio: null, moneda: "CUP", privado: true,
+      cantidad: "", detalles: "Cambio tu transferencia por efectivo, trato serio y rápido.",
+      zona: pub.zona || "", telefono: pub.telefono || "",
+      condiciones: pub.condicionesTransf || "Solo personas conocidas",
+      estilo: estilo, quien: quien || ""
+    });
+  }
+
+  return { generar: generar, miles: miles, semillaDe: semillaDe,
+           historialPush: historialPush,
+           textoRapidoSaldo: textoRapidoSaldo, textoRapidoTransf: textoRapidoTransf };
+})();
+
+/* =====================================================================
+   AVISOS — cliente Web Push propio (VAPID) compartido por las dos PWA.
+   La clave PÚBLICA VAPID no es secreta: va aquí y en el cliente.
+   La PRIVADA vive SOLO como secreto de la Edge Function «avisos».
+   Reglas de Apple (WebKit): el permiso se pide SOLO tras un toque del
+   usuario y solo funciona desde la app INSTALADA (iOS 16.4+).
+   La registración de la suscripción la hace cada app con SU puerta
+   (registrar_push / registrar_push_admin): este módulo solo sabe
+   pedir permiso y suscribir; el guardado lo inyecta la app.
+   ===================================================================== */
+var VAPID_PUBLICA = "BFkHoyMQce-Nm3HBK7sStWyiQsIVxeJ7w41yWD3qTCwQWhqv7F4V3UcqP0Lrgb8WWG_u-z3begmlF4LKL9L5toM";
+
+function vapidBytes(base64url){
+  var pad = "=".repeat((4 - (base64url.length % 4)) % 4);
+  var b64 = (base64url + pad).replace(/-/g, "+").replace(/_/g, "/");
+  var raw = atob(b64);
+  var arr = new Uint8Array(raw.length);
+  for (var i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i);
+  return arr;
+}
+function esIOS(){
+  return /iphone|ipad|ipod/i.test(navigator.userAgent || "");
+}
+function estaInstalada(){
+  try {
+    if (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches) return true;
+    if (window.navigator.standalone === true) return true; /* iOS clásico */
+  } catch(e){}
+  return false;
+}
+/* Estado para pintar el botón: 'ok' | 'denegado' | 'instalar' | 'navegador' | 'sin-soporte' */
+function estadoPush(){
+  if (!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) {
+    if (esIOS() && !estaInstalada()) return "instalar";
+    return "sin-soporte";
+  }
+  if (Notification.permission === "denied") return "denegado";
+  if (Notification.permission === "granted") return "ok";
+  if (esIOS() && !estaInstalada()) return "instalar";
+  return "pedir";
+}
+/* Debe llamarse DENTRO del toque del usuario (requisito Apple).
+   guardar(suscripcionJson, plataforma) -> Promise de la app. */
+function activarPush(guardar){
+  if (!("serviceWorker" in navigator)) return Promise.reject(new Error("sin service worker"));
+  return navigator.serviceWorker.ready.then(function(reg){
+    return Notification.requestPermission().then(function(perm){
+      if (perm !== "granted") throw new Error("permiso no concedido");
+      return reg.pushManager.getSubscription().then(function(sub){
+        if (sub) return sub;
+        return reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: vapidBytes(VAPID_PUBLICA)
+        });
+      });
+    }).then(function(sub){
+      var plataforma = esIOS() ? "ios" : (/android/i.test(navigator.userAgent || "") ? "android" : "web");
+      return guardar(sub.toJSON(), plataforma);
+    });
+  });
+}
+
+
+/* ===== RPC con mensaje de error (para detectar la pausa) ===== */
+var EN_PAUSA = false;
+function rpcMsg(fn, body){
+  if (!window.fetch) return Promise.resolve({ ok: false, error: "sin fetch" });
+  return fetch(SB_RPC + fn, { method: "POST", headers: sbHeaders(), body: JSON.stringify(body) })
+    .then(function(r){
+      return r.json().catch(function(){ return {}; }).then(function(j){
+        if (r.ok) return { ok: true, data: j };
+        return { ok: false, error: (j && j.message) || ("HTTP " + r.status), data: j };
+      });
+    })
+    .catch(function(e){ return { ok: false, error: String(e) }; });
+}
+function marcarPausaSiToca(errTxt){
+  if (errTxt && String(errTxt).indexOf("pausa") !== -1) {
+    EN_PAUSA = true;
+    var pf = $("pf_pausa"); if (pf) pf.style.display = "block";
+    return true;
+  }
+  return false;
+}
+
+/* ===== Adjuntos (foto comprimida / archivo <= 5 MB / voz) ===== */
+var MAX_ADJ_MT = 5 * 1024 * 1024;
+function comprimirFotoMT(file){
+  return new Promise(function(res, rej){
+    var url = URL.createObjectURL(file);
+    var img = new Image();
+    img.onload = function(){
+      var max = 1280, w = img.width, h = img.height;
+      if (w > max || h > max) { var k = max / Math.max(w, h); w = Math.round(w * k); h = Math.round(h * k); }
+      var c = document.createElement("canvas"); c.width = w; c.height = h;
+      c.getContext("2d").drawImage(img, 0, 0, w, h);
+      URL.revokeObjectURL(url);
+      res(c.toDataURL("image/jpeg", 0.8));
+    };
+    img.onerror = function(){ URL.revokeObjectURL(url); rej(new Error("foto no válida")); };
+    img.src = url;
+  });
+}
+function leerArchivoMT(file, esFoto){
+  if (file.size > MAX_ADJ_MT) return Promise.reject(new Error("Pesa más de 5 MB: no se puede adjuntar."));
+  if (esFoto) return comprimirFotoMT(file).then(function(d){ return { tipo: "foto", datos: d, nombre: file.name || "Foto" }; });
+  return new Promise(function(res, rej){
+    var fr = new FileReader();
+    fr.onload = function(){ res({ tipo: "archivo", datos: String(fr.result), nombre: file.name || "Archivo", tam: file.size }); };
+    fr.onerror = function(){ rej(new Error("no se pudo leer el archivo")); };
+    fr.readAsDataURL(file);
+  });
+}
+
+/* ===== PANEL v1.4.0: «Mi semana» + línea de pagado + historial ===== */
+function fechaTratoMs(f){
+  var t = Date.parse(f);
+  if (!isNaN(t)) return t;
+  var m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})/.exec(String(f || ""));
+  if (m) return new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1])).getTime();
+  return NaN;
+}
+function renderPanel(){
+  var warn = $("p_warn"), body = $("p_body");
+  if (!SESION) { body.classList.add("hide"); warn.style.display = "none"; return; }
+  var bDatos = DATA.buscadores ? DATA.buscadores[SESION] : null;
+  var b = PANEL_VIVO ? { nombre: PANEL_VIVO.nombre || (bDatos ? bDatos.nombre : ""), tratos: PANEL_VIVO.tratos || [] } : bDatos;
+  if (!b) {
+    warn.style.display = "block";
+    warn.textContent = "Tus datos todavía no cargan en este teléfono. Toca «Actualizar» con conexión.";
+    body.classList.add("hide"); return;
+  }
+  warn.style.display = "none"; body.classList.remove("hide");
+  $("p_ses").textContent = SESION + (b.nombre ? " · " + b.nombre : "");
+  var total = 0, recSaldo = 0, nTransf = 0, html = "";
+  var ahora = new Date(); ahora.setHours(0, 0, 0, 0);
+  var lunes = new Date(ahora); lunes.setDate(ahora.getDate() - ((ahora.getDay() + 6) % 7));
+  var domingo = new Date(lunes); domingo.setDate(lunes.getDate() + 6); domingo.setHours(23, 59, 59, 999);
+  var sRec = 0, sTra = 0;
+  (b.tratos || []).forEach(function(tr){
+    total += tr.comision || 0;
+    if (tr.tipo === "saldo") recSaldo += tr.recargas || 0;
+    if (tr.tipo === "transferencia") nTransf += 1;
+    var ms = fechaTratoMs(tr.fecha);
+    if (!isNaN(ms) && ms >= lunes.getTime() && ms <= domingo.getTime()) {
+      if (tr.tipo === "saldo") sRec += tr.recargas || 0;
+      if (tr.tipo === "transferencia") sTra += 1;
+    }
+    html += '<div class="trato"><span class="f">' + tr.fecha + "</span><span>" +
+      (tr.tipo === "saldo" ? ico("i-phone", "mini") + " " : ico("i-bank", "mini") + " ") + (tr.nota || "") +
+      (tr.estado === "pagado" ? '<br><small>💰 Comisión pagada' + (tr.pagado_en ? " el " + tr.pagado_en : "") + "</small>" : "") +
+      '</span><span class="c">' + fmt(tr.comision || 0) + "</span></div>";
+  });
+  if (!html) html = '<div class="trato"><span>Aún no tienes tratos confirmados. ¡A buscar!</span></div>';
+  $("p_total").textContent = fmt(total);
+  $("p_name").textContent = b.nombre ? ("de " + b.nombre) : "";
+  $("p_tratos").innerHTML = html;
+  var bsM = T.bonoSaldoMeta, btM = T.bonoTransfMeta;
+  $("p_bs_lab").textContent = recSaldo + " de " + bsM + " recargas → bono " + fmt(T.bonoSaldoMonto);
+  $("p_bs_bar").style.width = Math.min(100, bsM ? (recSaldo / bsM * 100) : 0) + "%";
+  $("p_bt_lab").textContent = nTransf + " de " + btM + " tratos → bono " + fmt(T.bonoTransfMonto);
+  $("p_bt_bar").style.width = Math.min(100, btM ? (nTransf / btM * 100) : 0) + "%";
+  var semEl = $("p_semana");
+  if (semEl) {
+    semEl.innerHTML =
+      '<div class="hint">Esta semana (lunes a domingo) llevas <b>' + sRec + " de " + bsM + " recargas de saldo</b> para el bono de " + fmt(T.bonoSaldoMonto) +
+      ' y <b>' + sTra + " de " + btM + " tratos de transferencia</b> para el bono de " + fmt(T.bonoTransfMonto) + ". Solo cuentan los tratos que Ernesto ya aprobó.</div>" +
+      '<label>Bono de saldo — esta semana</label><div class="semBar"><div style="width:' + Math.min(100, bsM ? (sRec / bsM * 100) : 0) + '%"></div></div>' +
+      '<label>Bono de transferencia — esta semana</label><div class="semBar"><div style="width:' + Math.min(100, btM ? (sTra / btM * 100) : 0) + '%"></div></div>';
+  }
+}
+
+/* ===== CHAT PRO v1.4.0 ===== */
+var CHAT_RESP = null;      /* mensaje citado al responder */
+var CHAT_ADJ = null;       /* adjunto listo para enviar */
+var CHAT_FIJADO = null;    /* mensaje fijado por Ernesto */
+var CHAT_TEMP_SEG = 0;     /* mensajes temporales (segundos; 0 = no) */
+var MENU_MSG = null;
+var EMOJIS_REAC = ["❤️", "👍", "😂", "👏", "🔥"];
+function tempTexto(seg){
+  if (!seg) return "";
+  if (seg <= 86400) return "⏱️ Los mensajes desaparecen en 24 h";
+  if (seg <= 7 * 86400) return "⏱️ Los mensajes desaparecen en 7 días";
+  return "⏱️ Los mensajes desaparecen en 90 días";
+}
+function pintarChat(msgs){
+  var box = $("c_hilo"); if (!box) return;
+  CHAT_MSGS = msgs || [];
+  var fj = $("c_fijado");
+  if (fj) {
+    if (CHAT_FIJADO && !CHAT_FIJADO.borrado) { fj.style.display = "block"; fj.textContent = "📌 " + (CHAT_FIJADO.texto || "Mensaje fijado"); }
+    else fj.style.display = "none";
+  }
+  var tl = $("c_temp");
+  if (tl) { var tt = tempTexto(CHAT_TEMP_SEG); tl.style.display = tt ? "block" : "none"; tl.textContent = tt; }
+  if (!msgs || !msgs.length){
+    box.innerHTML = '<div class="chatVacio">Todavía no hay mensajes. Escríbele a Ernesto lo que necesites: dudas de un trato, algo que no funciona o una idea.</div>';
+    return;
+  }
+  var filtro = (($("c_buscar") && $("c_buscar").value) || "").trim().toLowerCase();
+  var h = "";
+  msgs.forEach(function(m){
+    if (m.tipo === "sistema") { h += '<div class="msgSistema">' + escChat(m.texto) + "</div>"; return; }
+    if (filtro && String(m.texto || "").toLowerCase().indexOf(filtro) === -1 && !m.adj_tipo) return;
+    var mio = m.de === SESION;
+    var est = mio ? estadoMsgBusc(m) : "";
+    var inner = "";
+    if (m.borrado) inner = '<span class="eliminado">Este mensaje fue eliminado</span>';
+    else {
+      if (m.resp_texto) inner += '<span class="cita">' + escChat(m.resp_autor === SESION ? "Tú" : (m.resp_autor || "")) + ": " + escChat(String(m.resp_texto).slice(0, 90)) + "</span>";
+      if (m.adj_tipo === "foto" && m.adj_datos) inner += '<img class="adjFoto" alt="Foto" src="' + (String(m.adj_datos).indexOf("data:") === 0 ? m.adj_datos : "data:image/jpeg;base64," + m.adj_datos) + '">';
+      else if (m.adj_tipo === "voz" && m.adj_datos) inner += '<audio controls src="' + (String(m.adj_datos).indexOf("data:") === 0 ? m.adj_datos : "data:audio/webm;base64," + m.adj_datos) + '"></audio>';
+      else if (m.adj_datos) inner += '<span class="adjChip">📎 ' + escChat(m.adj_nombre || "Archivo") + "</span>";
+      if (m.texto) inner += escChat(m.texto);
+    }
+    var reac = "";
+    if (!m.borrado && m.reacciones && m.reacciones.length) {
+      reac = '<div class="reacRow">' + m.reacciones.map(function(r){ return '<span class="reac">' + r.emoji + " " + r.total + "</span>"; }).join("") + "</div>";
+    }
+    h += '<div class="msg ' + (mio ? "me" : "him") + '" data-mid="' + m.id + '"><div class="bur">' + inner + '</div><div class="mhora">' + (mio ? "Tú" : "Ernesto") + " · " + horaChat(m.creado) + (m.editado ? ' <span class="editadoLab">editado</span>' : "") + est + "</div>" + reac + "</div>";
+  });
+  box.innerHTML = h || '<div class="chatVacio">Ningún mensaje coincide con la búsqueda en lo cargado. Prueba «Buscar más».</div>';
+  box.querySelectorAll("[data-mid]").forEach(function(el){
+    el.addEventListener("click", function(){ abrirMenuMsg(Number(el.getAttribute("data-mid"))); });
+  });
+  try { box.scrollTop = box.scrollHeight; } catch(e){}
+}
+function abrirMenuMsg(id){
+  var m = (CHAT_MSGS || []).filter(function(x){ return x.id === id; })[0];
+  var menu = $("c_menu"); if (!m || !menu) return;
+  MENU_MSG = m;
+  var mio = m.de === SESION;
+  var h = "<b>" + (mio ? "Tu mensaje" : "Mensaje de Ernesto") + "</b>";
+  if (!m.borrado) {
+    h += '<button type="button" data-mm="resp">↩️ Responder</button>';
+    EMOJIS_REAC.forEach(function(e){ h += '<button type="button" data-mm="reac" data-e="' + e + '">' + e + " Reaccionar</button>"; });
+    h += '<button type="button" data-mm="copiar">📋 Copiar texto</button>';
+    if (mio) {
+      h += '<button type="button" data-mm="editar">✏️ Editar</button>';
+      h += '<button type="button" data-mm="borrar">🗑️ Eliminar para todos</button>';
+    }
+  }
+  h += '<button type="button" data-mm="cerrar">Cerrar</button>';
+  menu.innerHTML = h; menu.style.display = "block";
+  menu.querySelectorAll("[data-mm]").forEach(function(b){
+    b.addEventListener("click", function(){
+      var acc = b.getAttribute("data-mm");
+      menu.style.display = "none";
+      if (acc === "resp") {
+        CHAT_RESP = m;
+        var rb = $("c_resp");
+        rb.style.display = "block";
+        rb.innerHTML = "↩️ Respondiendo a: «" + escChat(String(m.texto || m.adj_nombre || "adjunto").slice(0, 80)) + "» <button type='button' class='miniBtn' id='c_resp_x'>Quitar</button>";
+        var q = $("c_resp_x"); if (q) q.addEventListener("click", function(){ CHAT_RESP = null; rb.style.display = "none"; });
+        $("c_txt").focus();
+      } else if (acc === "reac") {
+        if (EN_PAUSA) { chatFallo("Estás en pausa: habla con Ernesto"); return; }
+        rpcMsg("reaccionar", { p_codigo: SESION, p_id: m.id, p_emoji: b.getAttribute("data-e") }).then(function(r){
+          if (!r.ok && marcarPausaSiToca(r.error)) chatFallo("Estás en pausa: habla con Ernesto");
+          chatCargar();
+        });
+      } else if (acc === "copiar") {
+        if (navigator.clipboard) navigator.clipboard.writeText(m.texto || "");
+      } else if (acc === "editar") {
+        var nuevo = window.prompt("Editar tu mensaje:", m.texto || "");
+        if (nuevo !== null && nuevo.trim()) {
+          rpcMsg("editar_mensaje", { p_codigo: SESION, p_id: m.id, p_texto: nuevo.trim() }).then(function(r){
+            if (!r.ok && marcarPausaSiToca(r.error)) chatFallo("Estás en pausa: habla con Ernesto");
+            chatCargar();
+          });
+        }
+      } else if (acc === "borrar") {
+        if (window.confirm("¿Eliminar este mensaje para todos?")) {
+          rpcMsg("borrar_mensaje", { p_codigo: SESION, p_id: m.id }).then(function(){ chatCargar(); });
+        }
+      }
+    });
+  });
+}
+function chatFallo(m){
+  var warn = $("c_warn"); if (!warn) return;
+  warn.style.display = "block"; warn.textContent = m;
+}
+var chatCargando2 = false;
+function chatCargar(){
+  if (!SESION || chatCargando2) return;
+  chatCargando2 = true;
+  cargarAdminPres();
+  rpcChat("leer_chat", { p_codigo: SESION, p_con: "ADMIN", p_clave: SESION }).then(function(r){
+    chatCargando2 = false;
+    if (r && r.ok && r.mensajes) {
+      CHAT_FIJADO = r.fijado || null;
+      CHAT_TEMP_SEG = Number(r.temporal_seg || 0);
+      pintarChat(r.mensajes); pintarBadge(0);
+    }
+  });
+}
+function chatEnviar(){
+  var warn = $("c_warn"); warn.style.display = "none";
+  if (!SESION) return chatFallo("Primero entra con tu código personal desde la pantalla de inicio.");
+  if (EN_PAUSA) return chatFallo("Estás en pausa: habla con Ernesto");
+  var txt = ($("c_txt").value || "").trim();
+  if (!txt && !CHAT_ADJ) return chatFallo("Escribe el mensaje o adjunta algo primero.");
+  var btn = $("c_btn"); btn.disabled = true;
+  var body = { p_de: SESION, p_para: "ADMIN", p_texto: txt, p_clave: SESION };
+  if (CHAT_RESP) body.p_resp_de = CHAT_RESP.id;
+  if (CHAT_ADJ) { body.p_adj_tipo = CHAT_ADJ.tipo; body.p_adj_datos = CHAT_ADJ.datos; body.p_adj_nombre = CHAT_ADJ.nombre || null; body.p_adj_tam = CHAT_ADJ.tam || null; }
+  rpcMsg("enviar_mensaje", body).then(function(r){
+    btn.disabled = false;
+    if (r.ok) {
+      $("c_txt").value = ""; CHAT_RESP = null; CHAT_ADJ = null;
+      var rb = $("c_resp"); if (rb) rb.style.display = "none";
+      var an = $("c_adj_nom"); if (an) an.textContent = "";
+      chatCargar();
+    } else if (marcarPausaSiToca(r.error)) chatFallo("Estás en pausa: habla con Ernesto");
+    else chatFallo("No se pudo enviar ahora. Revisa tu conexión y toca Enviar otra vez.");
+  });
+}
+
+/* ===== REPORTAR v1.4.0: editar pendiente ===== */
+var REP_EDIT_ID = null;
+var REP_FOTO = null;
+function renderOutbox(){
+  var a = outboxGet(), box = $("r_lista"), h = "";
+  a.slice().reverse().forEach(function(rp){
+    var st = rp.estado === "aprobado" ? '<span class="st okk"><span class="dot"></span>Aprobado +' + fmt(rp.comision || 0) + "</span>"
+      : rp.estado === "rechazado" ? '<span class="st no"><span class="dot"></span>Rechazado' + (rp.motivo ? ": " + rp.motivo : "") + "</span>"
+      : '<span class="st pend"><span class="dot"></span>Pendiente' + (rp.enviado ? "" : " (guardado, sin enviar)") + "</span>";
+    var ed = (rp.estado === "pendiente" && rp.id) ? ' <button type="button" class="miniBtn" data-edrep="' + rp.id + '">✏️ Editar</button>' : "";
+    h += '<div class="rep"><span>' + repResumen(rp) + "<br><small>" + rp.fecha + "</small>" + ed + "</span>" + st + "</div>";
+  });
+  box.innerHTML = h || '<div class="rep"><span>Todavía no has reportado nada.</span></div>';
+  box.querySelectorAll("[data-edrep]").forEach(function(b){
+    b.addEventListener("click", function(){
+      var rp = outboxGet().filter(function(x){ return x.id === Number(b.getAttribute("data-edrep")); })[0];
+      if (!rp) return;
+      REP_EDIT_ID = rp.id;
+      if (rp.tipo === "saldo") { $("r_tipo_s").click(); $("r_precio").value = rp.precio || ""; $("r_cant").value = rp.cantidad || 1; }
+      else { $("r_tipo_t").click(); $("r_ef").value = rp.cantidad || ""; $("r_pct").value = rp.porc || ""; }
+      $("r_tel").value = rp.telefono || ""; $("r_nota").value = rp.nota || "";
+      $("r_editando").style.display = "block";
+      $("r_btn").textContent = "Guardar la corrección";
+      window.scrollTo(0, 0);
+    });
+  });
+}
+
+/* ===== PERFIL + CAMBIO DE CÓDIGO + AVISOS ===== */
+var PERFIL = null;
+var COLORES_AVATAR = ["#E8B84B", "#2FBF71", "#4CC3FF", "#F6465D", "#9B7EDE", "#31C453"];
+var COLOR_SEL = COLORES_AVATAR[0];
+function perfilLocalGet(){ try { return JSON.parse(localStorage.getItem("busc_perfil") || "null"); } catch(e){ return null; } }
+function perfilLocalSet(p){ try { localStorage.setItem("busc_perfil", JSON.stringify(p)); } catch(e){} }
+function pintarColores(){
+  var row = $("pf_colores"); if (!row) return;
+  row.innerHTML = COLORES_AVATAR.map(function(c){
+    return '<div class="colorDot' + (c === COLOR_SEL ? " on" : "") + '" data-color="' + c + '" style="background:' + c + '"></div>';
+  }).join("");
+  row.querySelectorAll("[data-color]").forEach(function(d){
+    d.addEventListener("click", function(){ COLOR_SEL = d.getAttribute("data-color"); pintarColores(); });
+  });
+}
+function cargarPerfil(){
+  var loc = perfilLocalGet();
+  if (loc) rellenarPerfil(loc);
+  rpcChat("leer_perfil", { p_codigo: SESION }).then(function(r){
+    if (r && (r.nombre !== undefined || r.codigo)) {
+      PERFIL = r; perfilLocalSet(r); rellenarPerfil(r);
+    }
+  });
+  pintarEnlace();
+}
+function rellenarPerfil(p){
+  if (!p) return;
+  if (p.nombre) $("pf_nombre").value = p.nombre;
+  if (p.telefono) $("pf_tel").value = p.telefono;
+  if (p.zona) $("pf_zona").value = p.zona;
+  if (p.nota) $("pf_nota").value = p.nota;
+  if (p.avatar_color && COLORES_AVATAR.indexOf(p.avatar_color) >= 0) { COLOR_SEL = p.avatar_color; pintarColores(); }
+  if (p.telefono && !$("tx_tel").value) $("tx_tel").value = p.telefono;
+  if (p.zona && !$("tx_zona").value) $("tx_zona").value = p.zona;
+}
+function pintarEnlace(){
+  var el = $("cc_enlace"); if (!el || !SESION) return;
+  el.textContent = window.location.origin + window.location.pathname + "?codigo=" + SESION;
+}
+function guardarPerfil(){
+  var p = { nombre: ($("pf_nombre").value || "").trim(), telefono: ($("pf_tel").value || "").trim(),
+    zona: ($("pf_zona").value || "").trim(), nota: ($("pf_nota").value || "").trim(), avatar_color: COLOR_SEL };
+  perfilLocalSet(p);
+  rpcMsg("guardar_perfil", { p_codigo: SESION, p_nombre: p.nombre || null, p_telefono: p.telefono || null,
+    p_zona: p.zona || null, p_nota: p.nota || null, p_avatar: p.avatar_color }).then(function(r){
+    if (r.ok) { $("pf_ok").style.display = "block"; $("pf_warn").style.display = "none"; }
+    else {
+      $("pf_warn").style.display = "block";
+      $("pf_warn").textContent = "Quedó guardado en tu teléfono; en el sistema de Ernesto se guarda cuando la puerta de perfiles esté activa y tengas conexión.";
+    }
+  });
+}
+function cambiarCodigo(){
+  var w = $("cc_warn"), okEl = $("cc_ok");
+  w.style.display = "none"; okEl.style.display = "none";
+  function fallo(m){ w.style.display = "block"; w.textContent = m; }
+  var actual = normCod($("cc_actual").value), nuevo = normCod($("cc_nuevo").value);
+  if (!actual || actual !== SESION) return fallo("El código actual no coincide con tu sesión.");
+  if (!/^\S{6,}$/.test(nuevo)) return fallo("El código nuevo necesita mínimo 6 caracteres y ningún espacio.");
+  if (nuevo === actual) return fallo("El código nuevo es igual al actual: elige otro.");
+  rpcMsg("cambiar_codigo", { p_codigo_actual: actual, p_codigo_nuevo: nuevo }).then(function(r){
+    if (!r.ok || !r.data || r.data.ok !== true) return fallo("No se pudo cambiar: " + (r.error || "ese código ya existe o no es válido") + ". Prueba con otro.");
+    if (DATA.buscadores && DATA.buscadores[actual]) { DATA.buscadores[nuevo] = DATA.buscadores[actual]; delete DATA.buscadores[actual]; }
+    SESION = nuevo; sesionSet(nuevo);
+    okEl.style.display = "block";
+    okEl.textContent = "✅ Código cambiado. Tu enlace personal nuevo está abajo: guárdalo.";
+    pintarEnlace(); renderPanel();
+  });
+}
+function activarAvisosMT(){
+  var txt = $("pf_push_txt");
+  var est = estadoPush();
+  if (est === "instalar") { txt.textContent = "En iPhone los avisos solo funcionan con la app instalada en pantalla de inicio. En Android (tu APK) funcionan directo: si no se activan, revisa el permiso de notificaciones de la app."; return; }
+  if (est === "sin-soporte") { txt.textContent = "Este aparato/navegador no admite avisos push."; return; }
+  activarPush(function(sub){
+    return rpcChat("registrar_push", { p_codigo: SESION, p_suscripcion: sub, p_plataforma: /android/i.test(navigator.userAgent || "") ? "android" : (/iphone|ipad/i.test(navigator.userAgent || "") ? "ios" : "web") });
+  }).then(function(){ txt.textContent = "🔔 Avisos activados en este aparato."; })
+    .catch(function(){ txt.textContent = "No se pudo activar: revisa el permiso de notificaciones."; });
+}
+
+/* ===== TEXTOS (generador; motor compartido) ===== */
+var TX_LS = "busc_textos_v1";
+function txHist(){ try { return JSON.parse(localStorage.getItem(TX_LS) || "[]"); } catch(e){ return []; } }
+function txHistPintar(){
+  var el = $("tx_hist"); if (!el) return;
+  var hs = txHist();
+  el.innerHTML = hs.length ? hs.map(function(x, i){ return '<div class="rep"><span>' + escChat(x.titulo || "Texto") + '</span><button type="button" class="miniBtn" data-txh="' + i + '">Copiar</button></div>'; }).join("") : '<div class="rep"><span>Aún no generaste textos.</span></div>';
+  el.querySelectorAll("[data-txh]").forEach(function(b){ b.addEventListener("click", function(){ var x = txHist()[Number(b.getAttribute("data-txh"))]; if (x && navigator.clipboard) navigator.clipboard.writeText(x.texto || ""); }); });
+}
+function txEstilo(){
+  return { emojis: $("tx_emojis").value, tono: $("tx_tono").value, tamano: $("tx_tam").value,
+    mayus: $("tx_mayus").checked, urgencia: $("tx_urg").checked, privadoLlamada: $("tx_priv_llamada").checked,
+    hashtags: $("tx_hash").checked, whatsapp: $("tx_dest").value === "wa" };
+}
+var TX_ULT = [];
+function txPintar(res, titulo){
+  TX_ULT = res.versiones;
+  var out = (res.avisos.length ? '<div class="hint">⚠️ ' + res.avisos.map(escChat).join(" ") + "</div>" : "");
+  res.versiones.forEach(function(v, i){
+    out += '<label>Versión ' + (i + 1) + " · " + escChat(v.enfoque) + '</label><div class="versionTxt">' + escChat(v.texto) + '</div>' +
+      '<div class="chatTools"><button type="button" data-txc="' + i + '">Copiar</button>' +
+      '<a class="miniBtn" target="_blank" rel="noopener" href="https://wa.me/?text=' + encodeURIComponent(v.texto) + '">Compartir a WhatsApp</a></div>';
+  });
+  $("tx_out").innerHTML = out;
+  $("tx_out").querySelectorAll("[data-txc]").forEach(function(b){ b.addEventListener("click", function(){ if (navigator.clipboard) navigator.clipboard.writeText(TX_ULT[Number(b.getAttribute("data-txc"))].texto); }); });
+  try { localStorage.setItem(TX_LS, JSON.stringify(TextosMotor.historialPush(txHist(), { titulo: titulo, cuando: new Date().toISOString(), texto: res.versiones[0].texto }))); } catch(e){}
+  txHistPintar();
+}
+function txGenerar(){
+  var precio = parseFloat(String($("tx_precio").value).replace(",", "."));
+  var res = TextosMotor.generar({ tipo: $("tx_tipo").value, producto: $("tx_prod").value,
+    precio: isFinite(precio) ? precio : null, moneda: $("tx_moneda").value, privado: $("tx_privado").checked,
+    cantidad: $("tx_cant").value, detalles: $("tx_det").value, zona: $("tx_zona").value,
+    telefono: $("tx_tel").value, estilo: txEstilo(), quien: SESION || "BUSC" });
+  txPintar(res, $("tx_prod").value || "Oferta");
+}
+function txRapidoSaldo(){
+  var pub = { precioCompraRecarga: Math.floor(Number(T.ingresoRef360 || 0) * 0.9 / 10) * 10,
+    telefono: $("tx_tel").value, zona: $("tx_zona").value, condicionesSaldo: "Pago en efectivo al momento" };
+  txPintar(TextosMotor.textoRapidoSaldo(pub, txEstilo(), SESION || "BUSC"), "Texto de saldo");
+}
+function txRapidoTransf(){
+  var pub = { telefono: $("tx_tel").value, zona: $("tx_zona").value, condicionesTransf: "Solo personas conocidas" };
+  txPintar(TextosMotor.textoRapidoTransf(pub, txEstilo(), SESION || "BUSC"), "Texto de transferencia");
+}
+
+/* ===== Vistas nuevas + cableado v1.4.0 ===== */
+function showView(v){
+  ["Calc","Rep","Panel","Ayuda","Textos","Perfil"].forEach(function(x){
+    var t = $("tab" + x), vw = $("view" + x);
+    if (t) t.classList.toggle("on", x === v);
+    if (vw) vw.classList.toggle("hide", x !== v);
+  });
+  if (v === "Rep") renderOutbox();
+  if (v === "Panel") renderPanel();
+  if (v === "Ayuda") chatCargar();
+  if (v === "Perfil") cargarPerfil();
+  if (v === "Textos") txHistPintar();
+}
+(function cablearV14(){
+  try {
+    $("tabTextos").addEventListener("click", function(){ showView("Textos"); });
+    $("tabPerfil").addEventListener("click", function(){ showView("Perfil"); });
+    $("pf_btn").addEventListener("click", guardarPerfil);
+    $("cc_btn").addEventListener("click", cambiarCodigo);
+    $("pf_push").addEventListener("click", activarAvisosMT);
+    $("tx_gen").addEventListener("click", txGenerar);
+    $("tx_saldo").addEventListener("click", txRapidoSaldo);
+    $("tx_transf").addEventListener("click", txRapidoTransf);
+    pintarColores();
+    /* Reportar: foto del comprobante + edición */
+    $("r_foto").addEventListener("change", function(){
+      var f = $("r_foto").files && $("r_foto").files[0];
+      if (!f) { REP_FOTO = null; return; }
+      leerArchivoMT(f, true).then(function(a){ REP_FOTO = a; $("r_foto_nom").textContent = "📷 Foto lista: se enviará con el reporte."; })
+        .catch(function(e){ REP_FOTO = null; $("r_foto_nom").textContent = "⚠️ " + e.message; });
+    });
+    $("r_cancel_edit").addEventListener("click", function(){
+      REP_EDIT_ID = null; $("r_editando").style.display = "none"; $("r_btn").textContent = "Enviar reporte a Ernesto";
+    });
+    /* Chat: adjuntos, voz, búsqueda */
+    $("c_adj_foto").addEventListener("click", function(){ $("c_file_foto").click(); });
+    $("c_adj_arch").addEventListener("click", function(){ $("c_file_arch").click(); });
+    $("c_file_foto").addEventListener("change", function(){
+      var f = $("c_file_foto").files && $("c_file_foto").files[0]; if (!f) return;
+      leerArchivoMT(f, true).then(function(a){ CHAT_ADJ = a; $("c_adj_nom").textContent = "📷 Foto lista para enviar."; }).catch(function(e){ chatFallo(e.message); });
+    });
+    $("c_file_arch").addEventListener("change", function(){
+      var f = $("c_file_arch").files && $("c_file_arch").files[0]; if (!f) return;
+      leerArchivoMT(f, false).then(function(a){ CHAT_ADJ = a; $("c_adj_nom").textContent = "📎 " + a.nombre + " listo para enviar."; }).catch(function(e){ chatFallo(e.message); });
+    });
+    $("c_buscar").addEventListener("input", function(){ pintarChat(CHAT_MSGS); });
+    $("c_buscar_mas").addEventListener("click", function(){
+      var q = ($("c_buscar").value || "").trim(); if (!q || !SESION) return;
+      rpcChat("leer_chat", { p_codigo: SESION, p_con: "ADMIN", p_clave: SESION, p_buscar: q }).then(function(r){
+        if (r && r.ok && r.mensajes) { CHAT_FIJADO = r.fijado || CHAT_FIJADO; pintarChat(r.mensajes); }
+      });
+    });
+    var grabando = null, recMT = null, chunksMT = [];
+    $("c_mic").addEventListener("click", function(){
+      if (grabando) { grabando.stop(); return; }
+      if (!navigator.mediaDevices || !window.MediaRecorder) { chatFallo("Este aparato no deja grabar voz aquí: manda el mensaje escrito."); return; }
+      navigator.mediaDevices.getUserMedia({ audio: true }).then(function(stream){
+        chunksMT = [];
+        recMT = new MediaRecorder(stream);
+        recMT.ondataavailable = function(e){ if (e.data && e.data.size) chunksMT.push(e.data); };
+        recMT.onstop = function(){
+          stream.getTracks().forEach(function(t){ t.stop(); });
+          grabando = null; $("c_mic").textContent = "🎤 Nota de voz";
+          var blob = new Blob(chunksMT, { type: recMT.mimeType || "audio/webm" });
+          if (blob.size > MAX_ADJ_MT) { chatFallo("La nota pesa más de 5 MB: graba una más corta (máx 2 min)."); return; }
+          var fr = new FileReader();
+          fr.onload = function(){ CHAT_ADJ = { tipo: "voz", datos: String(fr.result), nombre: "Nota de voz", tam: blob.size }; $("c_adj_nom").textContent = "🎤 Nota de voz lista — toca «Enviar a Ernesto»."; };
+          fr.readAsDataURL(blob);
+        };
+        recMT.start();
+        grabando = recMT;
+        $("c_mic").textContent = "⏹️ Detener";
+        setTimeout(function(){ if (grabando) grabando.stop(); }, 120000);
+      }).catch(function(){ chatFallo("Sin permiso de micrófono: actívalo para la app si quieres mandar voz."); });
+    });
+    /* El botón Reportar registró la función ORIGINAL al cargar: se
+       clona (pierde ese registro) y se enlaza a la versión v1.4.0
+       (que sabe corregir pendientes y adjuntar la foto). */
+    var rb0 = $("r_btn");
+    var rb1 = rb0.cloneNode(true);
+    rb0.parentNode.replaceChild(rb1, rb0);
+    rb1.addEventListener("click", function(){ reportar(); });
+  } catch(e) { /* cableado parcial degradado: la 1.3.1 sigue intacta */ }
+})();
+
+/* reportar(): si REP_EDIT_ID está activo, corrige en vez de crear.
+   Se envuelve la función original sin tocar su cuerpo. */
+var reportarOriginalMT = reportar;
+reportar = function(){
+  if (!REP_EDIT_ID) { reportarOriginalMT(); return; }
+  var warn = $("r_warn"), res = $("r_res");
+  warn.style.display = "none"; res.style.display = "none";
+  function fallo(m){ warn.style.display = "block"; warn.textContent = m; }
+  var cambios = {};
+  if (REP_TIPO === "saldo") {
+    var pr = num("r_precio"), ct = num("r_cant") || 1;
+    if (pr === null || pr <= 0) return fallo("Escribe el precio corregido.");
+    cambios.p_precio = pr; cambios.p_cantidad = ct; cambios.p_porc = null;
+  } else {
+    var ef = num("r_ef"), pc = num("r_pct");
+    if (ef === null || ef <= 0) return fallo("Escribe el efectivo corregido.");
+    if (pc === null) return fallo("Escribe el % corregido.");
+    cambios.p_precio = null; cambios.p_cantidad = ef; cambios.p_porc = pc;
+  }
+  cambios.p_codigo = SESION; cambios.p_id = REP_EDIT_ID;
+  cambios.p_telefono = ($("r_tel").value || "").trim() || null;
+  cambios.p_nota = ($("r_nota").value || "").trim() || null;
+  rpcMsg("editar_reporte", cambios).then(function(r){
+    if (!r.ok) {
+      if (marcarPausaSiToca(r.error)) return fallo("Estás en pausa: habla con Ernesto");
+      return fallo("No se pudo corregir (quizás Ernesto ya lo aprobó): " + (r.error || ""));
+    }
+    var a = outboxGet();
+    a.forEach(function(rp){
+      if (rp.id === REP_EDIT_ID) {
+        if (cambios.p_precio !== null && cambios.p_precio !== undefined) rp.precio = cambios.p_precio;
+        if (cambios.p_porc !== null && cambios.p_porc !== undefined) rp.porc = cambios.p_porc;
+        rp.cantidad = cambios.p_cantidad; rp.telefono = cambios.p_telefono; rp.nota = cambios.p_nota; rp.editado = true;
+      }
+    });
+    outboxSet(a); renderOutbox();
+    REP_EDIT_ID = null; $("r_editando").style.display = "none";
+    $("r_btn").textContent = "Enviar reporte a Ernesto";
+    res.style.display = "block";
+  });
+};
+/* La foto se adjunta DENTRO del reportar original (antes de enviar):
+   aquí solo se limpia el campo tras crear un reporte nuevo con foto. */
+var reportarConFotoMT = reportar;
+reportar = function(){
+  var antes = outboxGet().length;
+  var fotoPendiente = (typeof REP_FOTO !== "undefined" && REP_FOTO && !REP_EDIT_ID) ? REP_FOTO : null;
+  reportarConFotoMT();
+  if (fotoPendiente && outboxGet().length > antes) {
+    REP_FOTO = null;
+    var rf = $("r_foto"); if (rf) rf.value = "";
+    var nom = $("r_foto_nom"); if (nom) nom.textContent = "Foto enviada con el reporte.";
+  }
+};
 
 </script>
 </body>
