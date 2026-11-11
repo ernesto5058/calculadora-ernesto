@@ -1,6 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Avisos del sistema (v1.4.5): la app instalada pide el permiso
+         de notificaciones de Android (POST_NOTIFICATIONS, Android 13+)
+         vía @capacitor/push-notifications, como cualquier app normal. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
         android:allowBackup="true"
@@ -21,6 +25,21 @@
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+
+            <!-- Enlace personal del buscador (v1.4.5): con la app
+                 instalada, su enlace ?codigo= abre la APK directa
+                 (verificado contra /.well-known/assetlinks.json del
+                 dominio, huella de la llave de firma de siempre) y
+                 la app entra sola a «Mi panel». Sin la app, el mismo
+                 enlace abre la web, que entra igual. -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" />
+                <data android:host="ernesto5058.github.io" />
+                <data android:pathPrefix="/calculadora-ernesto/buscadores" />
             </intent-filter>
 
         </activity>
