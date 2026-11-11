@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1086384145194",
+    "project_id": "mi-trabajo-77b9b",
+    "storage_bucket": "mi-trabajo-77b9b.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1086384145194:android:96c42c5626e16aa1679453",
+        "android_client_info": {
+          "package_name": "cu.ernesto.mitrabajo"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB9zCRnxKjOKu-NXxC6yD8n0LD7rJopySg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
