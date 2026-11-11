@@ -46,11 +46,14 @@ jobs:
       - name: Banco Mi Trabajo v1.4.5 — textos, monedas y App Links
         run: node bancos/prueba-mitrabajo-v145.mjs
 
+      - name: Banco Mi Trabajo v1.4.6 — Firebase y guía del trabajador
+        run: node bancos/prueba-mitrabajo-v146.mjs
+
       - name: Banco Mercado v1 — lógica y frescura
         run: node bancos/prueba-mercado-v1.mjs
 
       - name: Banco Bot PRO — Telegram (30 chequeos)
         run: node bancos/test-telegram-pro-banco.mjs
 
-      - name: Banco Invariantes de dinero INV-1…INV-9 (36 chequeos + hallazgos vigilados)
+      - name: Banco Invariantes de dinero INV-1…INV-9 (46 chequeos + H-4 vigilado)
         run: node bancos/test-invariantes-dinero.mjs
