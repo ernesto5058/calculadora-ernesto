@@ -71,6 +71,16 @@ jobs:
           keyPassword=$STORE_PASS
           EOF2
 
+      - name: Generar el wrapper de Gradle si falta el jar
+        working-directory: android
+        run: |
+          if [ ! -f gradle/wrapper/gradle-wrapper.jar ]; then
+            curl -fsSL -o /tmp/gradle.zip https://services.gradle.org/distributions/gradle-8.11.1-bin.zip
+            unzip -q -o /tmp/gradle.zip -d /tmp
+            /tmp/gradle-8.11.1/bin/gradle wrapper --gradle-version 8.11.1 --no-daemon
+          fi
+          ls -la gradle/wrapper/
+
       - name: Compilar y firmar el APK (release)
         working-directory: android
         run: |
