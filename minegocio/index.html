@@ -136,6 +136,26 @@ label { display:block; font-size:13px; color:#8696A0; margin:12px 0 2px; font-we
 .grabOnda i { flex:1; background:#FF8A80; border-radius:2px; min-height:3px; animation:grabOndaAnim 1.1s ease-in-out infinite alternate; }
 .grabOnda i:nth-child(3n) { animation-delay:.25s; } .grabOnda i:nth-child(4n) { animation-delay:.5s; } .grabOnda i:nth-child(5n) { animation-delay:.75s; }
 @keyframes grabOndaAnim { from { transform:scaleY(.55); } to { transform:scaleY(1); } }
+/* ===== KIT DE MEDIOS (local-first): previa real antes de enviar,
+   tarjeta de documento y visor de foto a pantalla completa ===== */
+.adjFoto { width:100%; max-width:260px; border-radius:12px; cursor:zoom-in; }
+.prevAdj { display:flex; align-items:center; gap:10px; background:#1C2934; border:1px solid rgba(255,255,255,.08); border-radius:14px; padding:8px 10px; margin-top:8px; }
+.prevFoto { width:120px; max-height:120px; object-fit:cover; border-radius:12px; flex:0 0 auto; cursor:zoom-in; display:block; }
+.prevMeta { flex:1; min-width:0; font-size:12.5px; color:#A7B3C4; overflow-wrap:anywhere; }
+.prevMeta b { display:block; color:#E9EDEF; font-size:13px; }
+.docCard { display:flex; align-items:center; gap:10px; background:rgba(0,0,0,.18); border:1px solid rgba(255,255,255,.10); border-radius:12px; padding:9px 11px; margin-bottom:6px; max-width:260px; }
+.msgP.me .docCard { background:rgba(0,0,0,.14); }
+.docIco { font-size:26px; flex:0 0 auto; line-height:1; }
+.docMeta { flex:1; min-width:0; font-size:12.5px; overflow-wrap:anywhere; opacity:.92; }
+.docMeta b { display:block; font-size:13px; opacity:1; }
+.docDl { flex:0 0 auto; width:38px; height:38px; border-radius:50%; border:1px solid rgba(255,255,255,.25); background:rgba(255,255,255,.08); color:inherit; font-size:16px; cursor:pointer; display:flex; align-items:center; justify-content:center; padding:0; margin:0; }
+.visorFoto { position:fixed; inset:0; z-index:9999; background:rgba(0,0,0,.94); display:none; flex-direction:column; }
+.visorFoto.abierto { display:flex; }
+.visorBar { display:flex; align-items:center; gap:10px; padding:12px 14px; color:#E9EDEF; }
+.visorNom { flex:1; min-width:0; font-size:13.5px; overflow-wrap:anywhere; }
+.visorBtn { flex:0 0 auto; border:1px solid rgba(255,255,255,.3); background:rgba(255,255,255,.08); color:#fff; border-radius:999px; padding:8px 14px; font-size:13px; font-weight:700; cursor:pointer; text-decoration:none; display:inline-block; }
+.visorImgWrap { flex:1; display:flex; align-items:center; justify-content:center; overflow:auto; padding:6px; }
+.visorImg { max-width:100%; max-height:100%; object-fit:contain; border-radius:8px; }
 .offBanner { background:rgba(245,188,20,.10); border:1px solid rgba(245,188,20,.35); color:#F5D67A; border-radius:14px; padding:12px; font-size:13px; margin-bottom:14px; display:none; line-height:1.45; }
 .logoMN { width:68px; height:68px; border-radius:20px; background:linear-gradient(135deg, rgba(247,201,72,.20), rgba(227,154,45,.06)); border:1px solid rgba(245,196,81,.5); color:#F5C451; font-size:27px; font-weight:900; display:flex; align-items:center; justify-content:center; margin:10px auto 12px; box-shadow:0 10px 26px rgba(227,154,45,.18); }
 </style></head><body>
@@ -291,8 +311,9 @@ function cargarEstado(){
     }
   } catch(e){}
   repararPublicar();
+  normalizarCola();
 }
-function guardar(){ try { localStorage.setItem(LS_KEY, JSON.stringify(state)); } catch(e){} }
+function guardar(){ try { localStorage.setItem(LS_KEY, JSON.stringify(state)); } catch(e){} agendarEspejoIDB(); }
 var online = false;
 var datosLive = null;
 var presenciaMap = {};   /* codigo -> ISO de su última vez */
@@ -550,7 +571,17 @@ function repararPublicar(){
    Inicio («Pendientes de enviar»), para despacharse solas al volver
    la red. EXCEPCIÓN deliberada: eliminar un usuario NO se encola
    (es irreversible): se bloquea offline con explicación. */
-function encolar(accion){ state.cola.push(accion); guardar(); pintarInicioSiVisible(); }
+function encolar(accion){
+  /* LOCAL-FIRST: toda operación saliente nace con su UUID de
+     operación (generado en el teléfono), estado e intentos. El
+     UUID vive en el cliente; la deduplicación en el servidor
+     llega con la activación (Sección 10 del pegado único). */
+  if (!accion.opId) accion.opId = uuidOp();
+  if (!accion.estado) accion.estado = "pendiente";
+  if (accion.intentos == null) accion.intentos = 0;
+  if (!accion.creada) accion.creada = accion.cuando || new Date().toISOString();
+  state.cola.push(accion); guardar(); pintarInicioSiVisible();
+}
 function ejecutarAccion(a){
   var cod = state.codigo;
   switch (a.tipo) {
@@ -560,13 +591,27 @@ function ejecutarAccion(a){
     case "activo": return rpc("usuarioActivo", { p_codigo: cod, p_codigo_usuario: a.codigoUsuario, p_activo: a.activo });
     case "nuevo": return rpc("usuarioNuevo", { p_codigo: cod, p_codigo_usuario: a.codigoUsuario, p_nombre: a.nombre });
     case "chat": {
-      var cuerpoC = { p_de: "ADMIN", p_para: a.para, p_texto: a.texto, p_clave: cod };
-      if (a.resp_de) cuerpoC.p_resp_de = a.resp_de;
-      if (a.adj) { cuerpoC.p_adj_tipo = a.adj.tipo; cuerpoC.p_adj_datos = a.adj.datos; cuerpoC.p_adj_nombre = a.adj.nombre || null; cuerpoC.p_adj_tam = a.adj.tam || null; }
-      /* Timbre: SOLO tras el envío bueno por la puerta; el timbre
-         no lleva texto, solo avisa «hay algo nuevo en este chat». */
-      return rpc("enviarMensaje", cuerpoC).then(function(r){ rtTimbre(a.para); return r; });
+      var enviarC = function(datosAdj){
+        var cuerpoC = { p_de: "ADMIN", p_para: a.para, p_texto: a.texto, p_clave: cod };
+        if (a.resp_de) cuerpoC.p_resp_de = a.resp_de;
+        if (a.adj) { cuerpoC.p_adj_tipo = a.adj.tipo; cuerpoC.p_adj_datos = datosAdj; cuerpoC.p_adj_nombre = a.adj.nombre || null; cuerpoC.p_adj_tam = a.adj.tam || null; }
+        /* Timbre: SOLO tras el envío bueno por la puerta; el timbre
+           no lleva texto, solo avisa «hay algo nuevo en este chat». */
+        return rpc("enviarMensaje", cuerpoC).then(function(r){ rtTimbre(a.para); return r; });
+      };
+      /* LOCAL-FIRST: el adjunto viaja como Blob en la base del
+         teléfono (adjRef); la conversión a dataURL ocurre SOLO
+         aquí, en el momento de subir por la puerta de siempre. */
+      if (a.adj && a.adj.adjRef && !a.adj.datos) {
+        return datosDeAdjunto(a.adj.adjRef).then(function(d){
+          if (!d) throw new Error("adjunto local no encontrado");
+          return enviarC(d);
+        });
+      }
+      return enviarC(a.adj ? a.adj.datos : null);
     }
+    case "pushReg": return rpc("registrarPushAdmin", { p_codigo: cod, p_suscripcion: a.sub, p_plataforma: a.plataforma })
+      .then(function(r){ borrarPushPendiente(); return r; });
     case "editarChat": return rpc("editarMensaje", { p_codigo: "ADMIN", p_id: a.id, p_texto: a.texto });
     case "pagado": return rpc("marcarPagado", { p_codigo: cod, p_id: a.id });
     case "publicar":
@@ -585,12 +630,21 @@ function despacharCola(){
   var copia = state.cola.slice();
   copia.forEach(function(a){
     chain = chain.then(function(){
+      /* LOCAL-FIRST: la operación se marca «enviando» mientras su
+         puerta responde; si falla, vuelve a «pendiente» con un
+         intento más y se queda en la cola (nunca se pierde). */
+      a.estado = "enviando"; guardar();
       return ejecutarAccion(a).then(function(){
         hechos++;
         var i = state.cola.indexOf(a); if (i >= 0) state.cola.splice(i, 1);
         if (a.tipo === "publicar") state.publicarPendiente = null;
         guardar();
-      }).catch(function(){ /* se queda en la cola para el próximo intento */ });
+      }).catch(function(){
+        a.estado = "pendiente";
+        a.intentos = (a.intentos || 0) + 1;
+        a.ultimoIntento = new Date().toISOString();
+        guardar();
+      });
     });
   });
   return chain.then(function(){
@@ -599,6 +653,537 @@ function despacharCola(){
     if (hechos > 0) { toast("📤 Cola despachada: " + hechos + " acción(es) ya están en el sistema"); cargarTodo(true); }
     return hechos;
   });
+}
+
+/* =====================================================================
+   LOCAL-FIRST · FASE 1 (Mi Negocio): la base de datos vive EN EL
+   TELÉFONO (IndexedDB «minegocio») y la app pinta desde ella; la
+   «foto» de localStorage queda como respaldo de arranque/migración.
+   Stores: reportes (por id) · mensajes (índice porCodigo) ·
+   adjuntos (Blob por id) · config (clave/valor) · outbox
+   (operaciones con UUID) · sync (marcas de agua por entidad).
+   REGLAS: (1) ninguna llamada RPC cambia de firma — el UUID vive
+   solo en el cliente hasta la activación (Sección 10 del pegado);
+   (2) los adjuntos se guardan como Blob y se referencian por id:
+   la conversión a dataURL ocurre SOLO al subir por la puerta de
+   siempre o al mostrar/descargar; (3) si IndexedDB fallara, todo
+   degrada al adaptador en memoria + localStorage de siempre:
+   nunca pantalla muerta. El banco de pruebas ejercita la lógica
+   pura tras la MISMA interfaz con el adaptador en memoria. */
+function uuidOp(){
+  try {
+    if (window.crypto && typeof crypto.randomUUID === "function") return crypto.randomUUID();
+    if (window.crypto && crypto.getRandomValues) {
+      var b = new Uint8Array(16);
+      crypto.getRandomValues(b);
+      b[6] = (b[6] & 15) | 64; b[8] = (b[8] & 63) | 128;
+      var h = Array.prototype.map.call(b, function(x){ return ("0" + x.toString(16)).slice(-2); }).join("");
+      return h.slice(0, 8) + "-" + h.slice(8, 12) + "-" + h.slice(12, 16) + "-" + h.slice(16, 20) + "-" + h.slice(20);
+    }
+  } catch(e){}
+  return "op-" + Date.now().toString(36) + "-" + Math.floor(Math.random() * 1e12).toString(36) + "-" + Math.floor(Math.random() * 1e12).toString(36);
+}
+function nuevaOperacion(tipo, payload){
+  var op = Object.assign({}, payload || {});
+  op.tipo = tipo;
+  op.opId = uuidOp();
+  op.estado = "pendiente";
+  op.intentos = 0;
+  op.creada = new Date().toISOString();
+  return op;
+}
+function normalizarCola(){
+  if (!Array.isArray(state.cola)) state.cola = [];
+  state.cola.forEach(function(a){
+    if (!a.opId) a.opId = uuidOp();
+    if (!a.estado) a.estado = "pendiente";
+    if (a.intentos == null) a.intentos = 0;
+    if (!a.creada) a.creada = a.cuando || new Date().toISOString();
+  });
+}
+/* --- Adaptadores tras una sola interfaz (Promise) --- */
+var BDL_CLAVES = { reportes: "id", mensajes: "id", adjuntos: "id", config: "clave", outbox: "opId", sync: "entidad" };
+var BDL_INDICES = { porCodigo: "codigoChat", porEstado: "estado" };
+function crearAdapterMemoria(){
+  var datos = {};
+  function mapa(store){ if (!datos[store]) datos[store] = new Map(); return datos[store]; }
+  return {
+    tipo: "memoria",
+    pon: function(store, valor){ mapa(store).set(String(valor[BDL_CLAVES[store]]), valor); return Promise.resolve(valor); },
+    trae: function(store, clave){ var v = mapa(store).get(String(clave)); return Promise.resolve(v === undefined ? null : v); },
+    todos: function(store){ return Promise.resolve(Array.from(mapa(store).values())); },
+    porIndice: function(store, indice, valor){
+      var campo = BDL_INDICES[indice] || indice;
+      return Promise.resolve(Array.from(mapa(store).values()).filter(function(f){ return String(f[campo]) === String(valor); }));
+    },
+    fuera: function(store, clave){ mapa(store).delete(String(clave)); return Promise.resolve(); },
+    limpia: function(store){ mapa(store).clear(); return Promise.resolve(); }
+  };
+}
+function crearAdapterIDB(){
+  var dbP = new Promise(function(res, rej){
+    var rq;
+    try { rq = window.indexedDB.open("minegocio", 1); } catch(e){ rej(e); return; }
+    rq.onupgradeneeded = function(){
+      var db = rq.result;
+      if (!db.objectStoreNames.contains("reportes")) db.createObjectStore("reportes", { keyPath: "id" });
+      if (!db.objectStoreNames.contains("mensajes")) db.createObjectStore("mensajes", { keyPath: "id" }).createIndex("porCodigo", "codigoChat", { unique: false });
+      if (!db.objectStoreNames.contains("adjuntos")) db.createObjectStore("adjuntos", { keyPath: "id" });
+      if (!db.objectStoreNames.contains("config")) db.createObjectStore("config", { keyPath: "clave" });
+      if (!db.objectStoreNames.contains("outbox")) db.createObjectStore("outbox", { keyPath: "opId" }).createIndex("porEstado", "estado", { unique: false });
+      if (!db.objectStoreNames.contains("sync")) db.createObjectStore("sync", { keyPath: "entidad" });
+    };
+    rq.onsuccess = function(){ res(rq.result); };
+    rq.onerror = function(){ rej(rq.error); };
+  });
+  function reqP(rq){ return new Promise(function(res, rej){ rq.onsuccess = function(){ res(rq.result); }; rq.onerror = function(){ rej(rq.error); }; }); }
+  function conStore(store, modo, fn){
+    return dbP.then(function(db){
+      return new Promise(function(res, rej){
+        var ret, t;
+        try { t = db.transaction(store, modo); } catch(e){ rej(e); return; }
+        t.oncomplete = function(){ res(ret); };
+        t.onerror = function(){ rej(t.error); };
+        t.onabort = function(){ rej(t.error || new Error("tx abortada")); };
+        var r;
+        try { r = fn(t.objectStore(store)); } catch(e){ rej(e); return; }
+        if (r && typeof r.then === "function") r.then(function(v){ ret = v; }, rej);
+      });
+    });
+  }
+  var ad = {
+    tipo: "idb",
+    _listo: dbP.then(function(){ return ad; }),
+    pon: function(store, valor){ return conStore(store, "readwrite", function(os){ return reqP(os.put(valor)).then(function(){ return valor; }); }); },
+    trae: function(store, clave){ return conStore(store, "readonly", function(os){ return reqP(os.get(clave)); }).then(function(v){ return v === undefined ? null : v; }); },
+    todos: function(store){ return conStore(store, "readonly", function(os){ return reqP(os.getAll()); }); },
+    porIndice: function(store, indice, valor){ return conStore(store, "readonly", function(os){ return reqP(os.index(indice).getAll(valor)); }); },
+    fuera: function(store, clave){ return conStore(store, "readwrite", function(os){ return reqP(os.delete(clave)); }); },
+    limpia: function(store){ return conStore(store, "readwrite", function(os){ return reqP(os.clear()); }); }
+  };
+  return ad;
+}
+var BDL = (function(){
+  var memoria = crearAdapterMemoria();
+  var listoP = Promise.resolve(memoria);
+  if (window.indexedDB) {
+    try {
+      var idb = crearAdapterIDB();
+      listoP = idb._listo.then(function(){ api.tipo = "idb"; return idb; })
+        .catch(function(){ api.tipo = "memoria"; return memoria; });
+    } catch(e){ listoP = Promise.resolve(memoria); }
+  }
+  var api = {
+    tipo: window.indexedDB ? "idb" : "memoria",
+    listo: function(){ return listoP; },
+    pon: function(s, v){ return listoP.then(function(a){ return a.pon(s, v); }); },
+    trae: function(s, c){ return listoP.then(function(a){ return a.trae(s, c); }); },
+    todos: function(s){ return listoP.then(function(a){ return a.todos(s); }); },
+    porIndice: function(s, i, v){ return listoP.then(function(a){ return a.porIndice(s, i, v); }); },
+    fuera: function(s, c){ return listoP.then(function(a){ return a.fuera(s, c); }); },
+    limpia: function(s){ return listoP.then(function(a){ return a.limpia(s); }); }
+  };
+  return api;
+})();
+/* --- Motor genérico de la outbox (misma semántica que la cola:
+   en orden; la confirmada SALE; la fallida queda pendiente con
+   un intento más). El banco lo prueba con el adaptador en memoria
+   y un ejecutor falso; la cola viva usa despacharCola, que aplica
+   las mismas reglas sobre state.cola. --- */
+function drenarOps(adapter, ejecutar){
+  return adapter.todos("outbox").then(function(ops){
+    var pendientes = (ops || []).filter(function(o){ return o.estado === "pendiente" || o.estado === "fallida"; })
+      .sort(function(x, y){ var cx = String(x.creada || ""), cy = String(y.creada || ""); return cx < cy ? -1 : (cx > cy ? 1 : 0); });
+    var res = { confirmadas: 0, fallidas: 0 };
+    var chain = Promise.resolve();
+    pendientes.forEach(function(op){
+      chain = chain.then(function(){
+        op.estado = "enviando";
+        return adapter.pon("outbox", op).then(function(){ return ejecutar(op); })
+          .then(function(r){
+            if (r === false) throw new Error("puerta sin OK");
+            res.confirmadas++;
+            return adapter.fuera("outbox", op.opId);
+          }).catch(function(){
+            op.estado = "pendiente";
+            op.intentos = (op.intentos || 0) + 1;
+            op.ultimoIntento = new Date().toISOString();
+            res.fallidas++;
+            return adapter.pon("outbox", op);
+          });
+      });
+    });
+    return chain.then(function(){ return res; });
+  });
+}
+function fusionarColas(local, remota){
+  var porOp = {}, salida = [];
+  (local || []).forEach(function(a){ salida.push(a); if (a.opId) porOp[a.opId] = a; });
+  (remota || []).forEach(function(a){
+    if (a.opId && porOp[a.opId]) return;
+    salida.push(a); if (a.opId) porOp[a.opId] = a;
+  });
+  salida.sort(function(x, y){ var cx = String(x.creada || x.cuando || ""), cy = String(y.creada || y.cuando || ""); return cx < cy ? -1 : (cx > cy ? 1 : 0); });
+  return salida;
+}
+/* --- Marcas de agua: merge sin duplicar ni perder --- */
+function selloFila(f){ return String((f && (f.actualizado_en || f.actualizado || f.creado)) || ""); }
+function fusionarPorMarca(locales, remotos){
+  var mapa = {};
+  (locales || []).forEach(function(f){ if (f && f.id != null) mapa[String(f.id)] = f; });
+  (remotos || []).forEach(function(f){
+    if (!f || f.id == null) return;
+    var k = String(f.id);
+    if (!mapa[k] || selloFila(f) >= selloFila(mapa[k])) mapa[k] = f;
+  });
+  return Object.keys(mapa).map(function(k){ return mapa[k]; }).sort(function(x, y){
+    var cx = String(x.creado || ""), cy = String(y.creado || "");
+    if (cx !== cy) return cx < cy ? -1 : 1;
+    return (Number(x.id) || 0) - (Number(y.id) || 0);
+  });
+}
+function marcaDesdeFilas(filas){
+  var m = null;
+  (filas || []).forEach(function(f){
+    if (!f) return;
+    var s = selloFila(f), id = Number(f.id) || 0;
+    if (!m || s > m.sello || (s === m.sello && id > m.id)) m = { sello: s, id: id };
+  });
+  return m;
+}
+function registrarMarca(entidad, filas){
+  var m = marcaDesdeFilas(filas);
+  if (!m) return Promise.resolve();
+  return BDL.pon("sync", { entidad: entidad, sello: m.sello, id: m.id, en: new Date().toISOString() }).catch(function(){});
+}
+/* --- Adjuntos como Blob: extracción, conversión y lectura --- */
+function extraerAdjuntosDeFoto(foto){
+  var limpia = JSON.parse(JSON.stringify(foto || {}));
+  var adjuntos = [];
+  (limpia.reportes || []).forEach(function(r){
+    if (r && r.adj_datos) {
+      var id = "rep-" + r.id;
+      adjuntos.push({ id: id, datos: r.adj_datos });
+      r.adj_ref = id;
+      delete r.adj_datos;
+    }
+  });
+  return { foto: limpia, adjuntos: adjuntos };
+}
+function dataURLABlob(du){
+  var s = String(du || "");
+  var mime = "application/octet-stream", b64 = s;
+  if (s.indexOf("data:") === 0) {
+    var corte = s.indexOf(",");
+    mime = s.slice(5, corte).split(";")[0] || mime;
+    b64 = s.slice(corte + 1);
+  }
+  var bin = atob(b64);
+  var arr = new Uint8Array(bin.length);
+  for (var i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+  return new Blob([arr], { type: mime });
+}
+function blobADataURL(blob){
+  return new Promise(function(res, rej){
+    var fr = new FileReader();
+    fr.onload = function(){ res(String(fr.result)); };
+    fr.onerror = function(){ rej(fr.error || new Error("FileReader")); };
+    fr.readAsDataURL(blob);
+  });
+}
+function guardarAdjuntoBlob(blob){
+  var id = "adj-" + uuidOp();
+  return BDL.pon("adjuntos", { id: id, blob: blob, mime: (blob && blob.type) || "", en: new Date().toISOString() }).then(function(){ return id; });
+}
+function datosDeAdjunto(ref){
+  return BDL.trae("adjuntos", ref).then(function(row){
+    if (!row || !row.blob) return null;
+    return blobADataURL(row.blob);
+  }).catch(function(){ return null; });
+}
+/* --- Modelo local: qué se espeja de state a la base del teléfono --- */
+function fotoAModeloLocal(st){
+  var ex = extraerAdjuntosDeFoto(st.foto);
+  return {
+    config: [
+      { clave: "codigo", valor: st.codigo },
+      { clave: "foto", valor: ex.foto },
+      { clave: "estado", valor: { codigo: st.codigo, calc: st.calc, sellos: st.sellos, tarifaViva: st.tarifaViva, tarifaVivaEn: st.tarifaVivaEn, publicarPendiente: st.publicarPendiente } }
+    ],
+    reportes: ex.foto.reportes || [],
+    adjuntos: ex.adjuntos
+  };
+}
+var espejoTimer = null, espejoEnCurso = false, espejoSucio = false;
+function agendarEspejoIDB(){
+  if (espejoTimer) return;
+  espejoTimer = setTimeout(function(){ espejoTimer = null; espejoEstadoIDB(); }, 350);
+}
+function espejoEstadoIDB(){
+  if (espejoEnCurso) { espejoSucio = true; return Promise.resolve(); }
+  espejoEnCurso = true;
+  var modelo = fotoAModeloLocal(state);
+  var ops = state.cola.filter(function(a){ return a && a.opId; }).map(function(a){
+    var c = Object.assign({}, a);
+    if (c.adj && c.adj.adjRef) { c.adj = Object.assign({}, c.adj); delete c.adj.datos; }
+    return c;
+  });
+  var chain = Promise.resolve();
+  modelo.config.forEach(function(en){ chain = chain.then(function(){ return BDL.pon("config", en); }); });
+  modelo.reportes.forEach(function(r){
+    if (!r || r.id == null) return;
+    chain = chain.then(function(){ return BDL.pon("reportes", r); });
+  });
+  modelo.adjuntos.forEach(function(ad){
+    chain = chain.then(function(){
+      return BDL.trae("adjuntos", ad.id).then(function(ya){
+        if (!ya) return BDL.pon("adjuntos", { id: ad.id, blob: dataURLABlob(ad.datos), mime: "", en: new Date().toISOString() });
+      });
+    });
+  });
+  chain = chain.then(function(){ return BDL.limpia("outbox"); });
+  ops.forEach(function(op){ chain = chain.then(function(){ return BDL.pon("outbox", op); }); });
+  return chain.catch(function(){}).then(function(){
+    espejoEnCurso = false;
+    if (espejoSucio) { espejoSucio = false; agendarEspejoIDB(); }
+  });
+}
+function espejoMensajesIDB(codigo, filas){
+  var chain = Promise.resolve();
+  (filas || []).forEach(function(m){
+    if (!m || m.id == null) return;
+    var row = Object.assign({}, m);
+    row.codigoChat = codigo;
+    if (row.adj_datos) {
+      var datos = row.adj_datos, ref = "msg-" + row.id, mime = row.adj_mime || "";
+      row.adj_ref = ref;
+      delete row.adj_datos;
+      chain = chain.then(function(){
+        return BDL.trae("adjuntos", ref).then(function(ya){
+          if (!ya) return BDL.pon("adjuntos", { id: ref, blob: dataURLABlob(datos), mime: mime, en: new Date().toISOString() });
+        });
+      });
+    }
+    chain = chain.then(function(){ return BDL.pon("mensajes", row); });
+  });
+  return chain.catch(function(){});
+}
+function chatCacheLocal(codigo){
+  return BDL.porIndice("mensajes", "porCodigo", codigo).then(function(filas){
+    return (filas || []).slice().sort(function(x, y){
+      var cx = String(x.creado || ""), cy = String(y.creado || "");
+      if (cx !== cy) return cx < cy ? -1 : 1;
+      return (Number(x.id) || 0) - (Number(y.id) || 0);
+    });
+  }).catch(function(){ return []; });
+}
+function arrancarLocalFirst(){
+  return BDL.listo().then(function(){
+    try { if (navigator.storage && navigator.storage.persist) { var pp = navigator.storage.persist(); if (pp && pp.catch) pp.catch(function(){}); } } catch(e){}
+    return BDL.trae("config", "migrado");
+  }).then(function(mig){
+    if (!mig) {
+      /* Migración única: la foto y la cola de localStorage entran
+         a la base del teléfono (los adjuntos, como Blob). */
+      return espejoEstadoIDB().then(function(){
+        return BDL.pon("config", { clave: "migrado", valor: new Date().toISOString() });
+      });
+    }
+  }).then(function(){
+    /* Rescate: operaciones que viven SOLO en la base del teléfono
+       (p. ej. si iOS limpió el almacenamiento web) vuelven a la
+       cola sin duplicar las que ya están. */
+    return BDL.todos("outbox").then(function(ops){
+      if (ops && ops.length) {
+        var antes = state.cola.length;
+        state.cola = fusionarColas(state.cola, ops);
+        if (state.cola.length !== antes) { guardar(); pintarInicioSiVisible(); }
+      }
+    });
+  }).then(function(){
+    /* Hidratación: foto de localStorage vacía pero la base del
+       teléfono guarda una → la app pinta desde la base. */
+    if (state.foto && !state.foto.cuando && !(state.foto.reportes || []).length) {
+      return BDL.trae("config", "foto").then(function(f){
+        if (f && f.valor && ((f.valor.reportes || []).length || f.valor.cuando)) {
+          state.foto = Object.assign(fotoVacia(), f.valor);
+          guardar(); pintarTodo();
+        }
+      });
+    }
+  }).catch(function(){});
+}
+function nombreDe(codigo){
+  var u = (state.foto.usuarios || []).filter(function(x){ return x.codigo === codigo; })[0];
+  return (u && u.nombre) || codigo || "";
+}
+function descOp(a){
+  switch (a.tipo) {
+    case "chat": return "💬 Mensaje para " + nombreDe(a.para);
+    case "aprobar": return "✅ Aprobar un reporte";
+    case "rechazar": return "⛔ Rechazar un reporte";
+    case "ayudaVista": return "👁️ Marcar ayuda como vista";
+    case "activo": return (a.activo ? "🟢 Activar a " : "⏸️ Pausar a ") + (a.codigoUsuario || "");
+    case "nuevo": return "➕ Dar de alta a " + (a.nombre || a.codigoUsuario || "");
+    case "editarChat": return "✏️ Editar un mensaje";
+    case "pagado": return "💵 Marcar comisión pagada";
+    case "publicar": return "📣 Publicar tarifa y tratos";
+    case "pushReg": return "🔔 Registrar los avisos en el servidor";
+  }
+  return "📤 " + (a.tipo || "Acción");
+}
+
+/* =====================================================================
+   KIT DE MEDIOS (local-first): previa REAL antes de enviar, burbuja
+   de foto a ancho completo con VISOR a pantalla completa y tarjeta
+   de documento con descarga que funciona (Blob/objectURL). Todo
+   lee del dato del servidor (dataURL) o del Blob local (adj_ref)
+   indistintamente. */
+function fmtBytes(n){
+  n = Number(n) || 0;
+  if (!n) return "";
+  if (n < 1024) return n + " B";
+  if (n < 1048576) return (n / 1024).toFixed(n < 10240 ? 1 : 0).replace(".", ",") + " KB";
+  return (n / 1048576).toFixed(2).replace(".", ",") + " MB";
+}
+function tamDeDatos(datos){
+  var s = String(datos || "");
+  var i = s.indexOf(",");
+  var b64 = i >= 0 ? s.slice(i + 1) : s;
+  return Math.floor(b64.length * 3 / 4);
+}
+function iconoDoc(m){
+  var mime = String((m && (m.adj_mime || m.mime)) || "").toLowerCase();
+  var nom = String((m && (m.adj_nombre || m.nombre)) || "").toLowerCase();
+  if (mime.indexOf("pdf") >= 0 || /\.pdf$/.test(nom)) return "📄";
+  if (mime.indexOf("image/") === 0 || /\.(png|jpe?g|gif|webp)$/.test(nom)) return "🖼";
+  return "📦";
+}
+function urlDeMensaje(m){
+  /* Promise<{url, revocar}>: prefiere Blob/objectURL (la vía que
+     iOS sí descarga y muestra bien); dataURL solo de último recurso. */
+  if (m.adj_datos) {
+    var s = String(m.adj_datos);
+    var du = s.indexOf("data:") === 0 ? s : "data:" + (m.adj_mime || "application/octet-stream") + ";base64," + s;
+    try { return Promise.resolve({ url: URL.createObjectURL(dataURLABlob(du)), revocar: true }); }
+    catch(e){ return Promise.resolve({ url: du, revocar: false }); }
+  }
+  if (m.adj_ref) {
+    return BDL.trae("adjuntos", m.adj_ref).then(function(row){
+      if (row && row.blob) { try { return { url: URL.createObjectURL(row.blob), revocar: true }; } catch(e){} }
+      return { url: null, revocar: false };
+    }).catch(function(){ return { url: null, revocar: false }; });
+  }
+  return Promise.resolve({ url: null, revocar: false });
+}
+function tarjetaDocHtml(m){
+  var nom = m.adj_nombre || "Archivo";
+  var tam = m.adj_bytes || m.tam || (m.adj_datos ? tamDeDatos(m.adj_datos) : 0);
+  return '<span class="docCard"><span class="docIco">' + iconoDoc(m) + '</span>'
+    + '<span class="docMeta"><b>' + esc(nom) + '</b>' + (tam ? fmtBytes(tam) : "Documento") + '</span>'
+    + '<button class="docDl" data-docdl="' + esc(String(m.id)) + '" title="Descargar ' + esc(nom) + '">⬇</button></span>';
+}
+function previaAdjHtml(){
+  if (!chatAdj) return "";
+  if (chatAdj.tipo === "voz") {
+    return '<div class="prevAdj"><span class="docIco">🎤</span><span class="prevMeta"><b>Nota de voz lista</b>Escúchala antes de enviar</span>'
+      + reproductorVozHtml({ adj_datos: chatAdj.datos, id: "prev" }, "prev")
+      + '<button class="bGhost bMini" id="chAdjX">Quitar</button></div>';
+  }
+  if (chatAdj.tipo === "foto") {
+    var tamF = chatAdj.tam || tamDeDatos(chatAdj.datos);
+    return '<div class="prevAdj"><img class="prevFoto" id="chPrevFoto" src="' + chatAdj.datos + '" alt="Foto a enviar">'
+      + '<span class="prevMeta"><b>' + esc(chatAdj.nombre || "Foto") + '</b>' + (tamF ? fmtBytes(tamF) + " · " : "") + 'Toca la imagen para verla grande</span>'
+      + '<button class="bGhost bMini" id="chAdjX">Quitar</button></div>';
+  }
+  var tamA = chatAdj.tam || tamDeDatos(chatAdj.datos);
+  return '<div class="prevAdj"><span class="docIco">' + iconoDoc({ adj_mime: chatAdj.mime, adj_nombre: chatAdj.nombre }) + '</span>'
+    + '<span class="prevMeta"><b>' + esc(chatAdj.nombre || "Archivo") + '</b>' + (tamA ? fmtBytes(tamA) : "Archivo listo") + '</span>'
+    + '<button class="bGhost bMini" id="chAdjX">Quitar</button></div>';
+}
+var visorUrlRevocar = null;
+function visorEl(){
+  var v = document.getElementById("visorFoto");
+  if (!v) {
+    v = document.createElement("div");
+    v.className = "visorFoto"; v.id = "visorFoto";
+    v.innerHTML = '<div class="visorBar"><span class="visorNom" id="visorNom"></span>'
+      + '<a class="visorBtn" id="visorDl" download>⬇ Guardar</a>'
+      + '<button class="visorBtn" id="visorX">✕ Cerrar</button></div>'
+      + '<div class="visorImgWrap"><img class="visorImg" id="visorImg" alt="Foto ampliada"></div>';
+    document.body.appendChild(v);
+    v.querySelector("#visorX").addEventListener("click", cerrarVisorFoto);
+    v.querySelector(".visorImgWrap").addEventListener("click", function(e){ if (e.target === this) cerrarVisorFoto(); });
+  }
+  return v;
+}
+function mostrarVisor(url, nombre){
+  var v = visorEl();
+  v.querySelector("#visorNom").textContent = nombre || "Foto";
+  v.querySelector("#visorImg").src = url;
+  var dl = v.querySelector("#visorDl");
+  dl.href = url;
+  dl.setAttribute("download", nombre || "foto");
+  v.classList.add("abierto");
+}
+function cerrarVisorFoto(){
+  var v = document.getElementById("visorFoto");
+  if (v) { v.classList.remove("abierto"); var im = v.querySelector("#visorImg"); if (im) im.removeAttribute("src"); }
+  if (visorUrlRevocar) { try { URL.revokeObjectURL(visorUrlRevocar); } catch(e){} visorUrlRevocar = null; }
+}
+function abrirVisorFoto(m){
+  if (!m) return;
+  urlDeMensaje(m).then(function(r){
+    if (!r.url) { toast("La foto no está disponible en este teléfono", false); return; }
+    if (visorUrlRevocar) { try { URL.revokeObjectURL(visorUrlRevocar); } catch(e){} visorUrlRevocar = null; }
+    visorUrlRevocar = r.revocar ? r.url : null;
+    mostrarVisor(r.url, m.adj_nombre || "Foto");
+  });
+}
+function abrirVisorDatos(datos, nombre){
+  if (!datos) return;
+  if (visorUrlRevocar) { try { URL.revokeObjectURL(visorUrlRevocar); } catch(e){} visorUrlRevocar = null; }
+  mostrarVisor(String(datos), nombre || "Foto");
+}
+function descargarDoc(m){
+  if (!m) return Promise.resolve();
+  return urlDeMensaje(m).then(function(r){
+    if (!r.url) { toast("El archivo no está disponible en este teléfono", false); return; }
+    var a = document.createElement("a");
+    a.href = r.url;
+    a.setAttribute("download", m.adj_nombre || "archivo");
+    document.body.appendChild(a);
+    try { a.click(); } catch(e){ try { window.open(r.url, "_blank"); } catch(e2){} }
+    setTimeout(function(){
+      try { document.body.removeChild(a); } catch(e){}
+      if (r.revocar) { try { URL.revokeObjectURL(r.url); } catch(e){} }
+    }, 4000);
+  });
+}
+function alistarMedios(el){
+  el.querySelectorAll("img.adjFoto").forEach(function(img){
+    var wrap = img.closest("[data-mid]");
+    var mid = wrap ? wrap.getAttribute("data-mid") : null;
+    if (!img.getAttribute("src") && img.getAttribute("data-adjref")) {
+      BDL.trae("adjuntos", img.getAttribute("data-adjref")).then(function(row){
+        if (row && row.blob) { try { img.src = URL.createObjectURL(row.blob); } catch(e){} }
+      }).catch(function(){});
+    }
+    img.addEventListener("click", function(e){
+      e.stopPropagation();
+      var m = chatMsgs.filter(function(x){ return String(x.id) === String(mid); })[0];
+      if (m) abrirVisorFoto(m);
+    });
+  });
+  el.querySelectorAll("[data-docdl]").forEach(function(b){
+    b.addEventListener("click", function(e){
+      e.stopPropagation();
+      var m = chatMsgs.filter(function(x){ return String(x.id) === String(b.getAttribute("data-docdl")); })[0];
+      if (m) descargarDoc(m);
+    });
+  });
+  var pf = el.querySelector("#chPrevFoto");
+  if (pf) pf.addEventListener("click", function(){ if (chatAdj) abrirVisorDatos(chatAdj.datos, chatAdj.nombre); });
 }
 
 /* ===== CARGA DE DATOS + PRESENCIA ===== */
@@ -645,6 +1230,10 @@ function cargarTodo(silencioso){
     repararPublicar();
     reintentarPushPendiente();
     guardar();
+    /* LOCAL-FIRST: foto fresca → espejo inmediato a la base del
+       teléfono + marca de agua de reportes. */
+    registrarMarca("reportes", state.foto.reportes);
+    espejoEstadoIDB();
     pintarTodo();
     cargarPresencia();
     cargarPerfiles();
@@ -728,6 +1317,9 @@ function haceVisible(){
     if (puertasBase === false && state.codigo) { ba.style.display = "block"; ba.textContent = "🧩 " + TXT_FALTA_ACTIVAR + ". Mientras tanto, Mi Negocio trabaja con tu foto guardada y guarda todo en cola."; }
     else ba.style.display = "none";
   }
+  /* LOCAL-FIRST: el latido visible también drena la outbox
+     (despacharCola se auto-frena si no hay nada o ya está en ello). */
+  if (state.codigo && state.cola.length) despacharCola();
 }
 
 /* ===== PRESENCIA Y ESTADOS DEL CHAT «COMO WHATSAPP» =====
@@ -836,7 +1428,12 @@ registrarModulo({
             : '<div class="kv">Chat y presencia: <b>sin comprobar todavía</b> (se revisa al actualizar con conexión)</div>'))
       + '<div class="ayuda">Los reportes se aprueban en la Bandeja. En línea = se le vio activo en los últimos 3 minutos.</div></div>';
     if (pendEnvio > 0) {
+      var listaOps = state.cola.slice(0, 8).map(function(a){
+        return '<div class="kv">' + descOp(a) + ' — <b>' + (a.estado === "enviando" ? "⏳ enviando…" : "🕐 guardado en tu teléfono") + '</b>'
+          + (a.intentos ? ' <span class="mut">(' + a.intentos + ' intento' + (a.intentos > 1 ? 's' : '') + ')</span>' : '') + '</div>';
+      }).join("");
       h += '<div class="card"><h3>📤 Pendientes de enviar: ' + pendEnvio + '</h3>'
+        + listaOps
         + '<div class="mut">Acciones hechas sin conexión o sin confirmar. Se envían solas cuando vuelva la red.</div>'
         + '<button class="bGold" id="inReintentar">📤 Reintentar ahora</button>'
         + '<div class="ayuda">La cola vive en este teléfono: nada de lo que hagas sin internet se pierde en silencio.</div></div>';
@@ -1294,14 +1891,22 @@ function cargarChat(){
     chatTempSeg = Number((r && r.temporal_seg) || 0);
     var propios = (r && r.mensajes) || [];
     var enCola = state.cola.filter(function(a){ return a.tipo === "chat" && a.para === chatCon; })
-      .map(function(a){ return { id: "local-" + a.cuando, de: "ADMIN", para: chatCon, texto: a.texto, creado: a.cuando, leido: false, local: true, adj_tipo: a.adj ? a.adj.tipo : null, adj_datos: a.adj ? a.adj.datos : null, adj_nombre: a.adj ? a.adj.nombre : null, resp_texto: a.resp_texto || null }; });
+      .map(function(a){ return { id: "local-" + a.cuando, de: "ADMIN", para: chatCon, texto: a.texto, creado: a.cuando, leido: false, local: true, adj_tipo: a.adj ? a.adj.tipo : null, adj_datos: a.adj ? (a.adj.datos || null) : null, adj_ref: a.adj ? (a.adj.adjRef || null) : null, adj_nombre: a.adj ? a.adj.nombre : null, adj_mime: a.adj ? (a.adj.mime || null) : null, resp_texto: a.resp_texto || null }; });
     chatMsgs = propios.concat(enCola);
+    /* LOCAL-FIRST: el hilo queda espejado en la base del teléfono
+       (adjuntos como Blob) y se sella la marca de agua. */
+    espejoMensajesIDB(chatCon, propios);
+    registrarMarca("mensajes:" + chatCon, propios);
     pintarChat();
   }).catch(function(e){
     if (e && e.faltaPuerta) puertasChat = false;
-    chatMsgs = state.cola.filter(function(a){ return a.tipo === "chat" && a.para === chatCon; })
-      .map(function(a){ return { id: "local-" + a.cuando, de: "ADMIN", para: chatCon, texto: a.texto, creado: a.cuando, leido: false, local: true, adj_tipo: a.adj ? a.adj.tipo : null, adj_datos: a.adj ? a.adj.datos : null, adj_nombre: a.adj ? a.adj.nombre : null, resp_texto: a.resp_texto || null }; });
-    pintarChat();
+    var enColaC = state.cola.filter(function(a){ return a.tipo === "chat" && a.para === chatCon; })
+      .map(function(a){ return { id: "local-" + a.cuando, de: "ADMIN", para: chatCon, texto: a.texto, creado: a.cuando, leido: false, local: true, adj_tipo: a.adj ? a.adj.tipo : null, adj_datos: a.adj ? (a.adj.datos || null) : null, adj_ref: a.adj ? (a.adj.adjRef || null) : null, adj_nombre: a.adj ? a.adj.nombre : null, adj_mime: a.adj ? (a.adj.mime || null) : null, resp_texto: a.resp_texto || null }; });
+    /* Sin red: el hilo se pinta desde la base del teléfono. */
+    chatCacheLocal(chatCon).then(function(cache){
+      chatMsgs = (cache || []).concat(enColaC);
+      pintarChat();
+    });
   });
   rpc("verPresencia", { p_codigo: state.codigo }).then(function(r){
     ((r && r.usuarios) || []).forEach(function(u){ if (u.visto) presenciaMap[u.codigo] = u.visto; });
@@ -1346,7 +1951,7 @@ function picosVoz(m){
   /* Onda determinista desde el propio contenido: la misma nota
      dibuja siempre la misma onda (los picos reales la sustituyen
      si AudioContext logra decodificar — ver picosRealesVoz). */
-  var s = String((m && m.adj_datos) || (m && m.id) || "voz");
+  var s = String((m && m.adj_datos) || (m && m.adj_ref) || (m && m.id) || "voz");
   var out = [], x = 7;
   for (var i = 0; i < 24; i++){
     var ch = s.charCodeAt(i % s.length) || 0;
@@ -1360,7 +1965,12 @@ function barrasVozHtml(picos){
 }
 function reproductorVozHtml(m, vi){
   var clave = "vz" + vi;
-  vozDatos[clave] = m.adj_datos;
+  /* LOCAL-FIRST: si la nota vive como Blob en el teléfono, se
+     guarda la REFERENCIA (nada de base64 residente para el hilo);
+     el audio se materializa desde el Blob al darle play. */
+  if (m.adj_datos) vozDatos[clave] = m.adj_datos;
+  else if (m.adj_ref) vozDatos[clave] = { ref: m.adj_ref };
+  else vozDatos[clave] = null;
   return '<span class="vozP" data-voz="' + clave + '"><button class="vozBtn" data-vplay="' + clave + '" title="Escuchar la nota de voz">▶</button>'
     + '<span class="vozOnda" data-vonda="' + clave + '">' + barrasVozHtml(picosVoz(m)) + '</span>'
     + '<span class="vozT" data-vt="' + clave + '">0:00</span></span>';
@@ -1369,6 +1979,7 @@ function picosRealesVoz(clave){
   var AC = window.AudioContext || window.webkitAudioContext;
   var onda = document.querySelector('[data-vonda="' + clave + '"]');
   if (!AC || !onda || onda.getAttribute("data-reales")) return;
+  if (typeof vozDatos[clave] !== "string") return; /* nota por Blob: quedan los picos deterministas */
   onda.setAttribute("data-reales", "1");
   try {
     fetch(dataUrlVoz(vozDatos[clave])).then(function(r){
@@ -1395,14 +2006,23 @@ function alistarVoz(clave){
   var audio = new Audio();
   var ent = { audio: audio, dur: 0 };
   vozAudios[clave] = ent;
-  var url = dataUrlVoz(vozDatos[clave]);
-  try {
-    fetch(url).then(function(r){
-      if (!r || typeof r.blob !== "function") throw new Error("sin blob");
-      return r.blob();
-    }).then(function(b){ audio.src = URL.createObjectURL(b); })
-      .catch(function(){ audio.src = url; });
-  } catch(e){ audio.src = url; }
+  var datoV = vozDatos[clave];
+  if (datoV && typeof datoV === "object" && datoV.ref) {
+    /* La nota vive como Blob en la base del teléfono: se escucha
+       directo del Blob, sin pasar por base64. */
+    BDL.trae("adjuntos", datoV.ref).then(function(row){
+      if (row && row.blob) { try { audio.src = URL.createObjectURL(row.blob); } catch(e){} }
+    }).catch(function(){});
+  } else {
+    var url = dataUrlVoz(datoV);
+    try {
+      fetch(url).then(function(r){
+        if (!r || typeof r.blob !== "function") throw new Error("sin blob");
+        return r.blob();
+      }).then(function(b){ audio.src = URL.createObjectURL(b); })
+        .catch(function(){ audio.src = url; });
+    } catch(e){ audio.src = url; }
+  }
   audio.addEventListener("loadedmetadata", function(){
     ent.dur = audio.duration || 0;
     pintarTiempoVoz(clave);
@@ -1482,8 +2102,9 @@ function pintarChat(){
     else {
       if (m.resp_texto) inner += '<span class="citaB">' + esc(m.resp_autor === "ADMIN" ? "Tú" : chatNombre) + ": " + esc(String(m.resp_texto).slice(0, 90)) + '</span>';
       if (m.adj_tipo === "foto" && m.adj_datos) inner += '<img class="adjFoto" alt="Foto" src="' + (String(m.adj_datos).indexOf("data:") === 0 ? m.adj_datos : "data:image/jpeg;base64," + m.adj_datos) + '">';
-      else if (m.adj_tipo === "voz" && m.adj_datos) inner += reproductorVozHtml(m, vi);
-      else if (m.adj_datos) inner += '<span class="citaB">📎 ' + esc(m.adj_nombre || "Archivo") + '</span>';
+      else if (m.adj_tipo === "foto" && m.adj_ref) inner += '<img class="adjFoto" alt="Foto" data-adjref="' + esc(m.adj_ref) + '">';
+      else if (m.adj_tipo === "voz" && (m.adj_datos || m.adj_ref)) inner += reproductorVozHtml(m, vi);
+      else if (m.adj_datos || m.adj_ref) inner += tarjetaDocHtml(m);
       if (m.texto) inner += esc(m.texto);
     }
     /* v7: hora y palomitas DENTRO de la burbuja, como en WhatsApp. */
@@ -1496,9 +2117,7 @@ function pintarChat(){
   });
   h += '</div>'
     + (chatResp ? '<div class="fijadoBar">↩️ Respondiendo a: «' + esc(String(chatResp.texto || "adjunto").slice(0, 80)) + '» <button class="bGhost bMini" id="chRespX">Quitar</button></div>' : "")
-    + (chatAdj ? (chatAdj.tipo === "voz"
-        ? '<div class="mut">🎤 Nota de voz lista — escúchala antes de enviar: ' + reproductorVozHtml({ adj_datos: chatAdj.datos, id: "prev" }, "prev") + ' <button class="bGhost bMini" id="chAdjX">Quitar</button></div>'
-        : '<div class="mut">📎 Adjunto listo: ' + esc(chatAdj.nombre || chatAdj.tipo) + ' <button class="bGhost bMini" id="chAdjX">Quitar</button></div>') : "")
+    + previaAdjHtml()
     + '<div class="adjHojaWA" id="chAdjHoja" style="display:none"><button class="bGhost" id="chFoto">📷 Foto</button><button class="bGhost" id="chArchivo">📎 Archivo</button><button class="bGhost" id="chVoz">🎤 Nota de voz</button></div>'
     + (grabVoz
         ? '<div class="grabBar"><span class="grabPunto"></span><span class="grabT" id="grabT">0:00</span><span class="grabOnda" id="grabOnda">' + barrasGrabHtml() + '</span><button class="bGhost" id="grabCancel">Cancelar</button><button class="bGhost" id="grabAdj" title="Terminar y adjuntar para escucharla">✓</button><button class="sendBtn" id="grabEnviar" title="Terminar y enviar directo">➤</button></div>'
@@ -1529,7 +2148,15 @@ function pintarChat(){
   var fv = $("chVoz"); if (fv) fv.addEventListener("click", grabarVozMN);
   var fi = $("chFile"); if (fi) fi.addEventListener("change", function(){
     var f = fi.files && fi.files[0]; if (!f) return;
-    prepararAdjuntoMN(f).then(function(a){ chatAdj = a; pintarChat(); }).catch(function(e){ toast(e.message, false); });
+    prepararAdjuntoMN(f).then(function(a){
+      chatAdj = a; pintarChat();
+      /* LOCAL-FIRST: el adjunto queda guardado como Blob en la
+         base del teléfono; al enviar, la cola lleva la REFERENCIA
+         y el dataURL se reconstruye solo al subir. */
+      try {
+        guardarAdjuntoBlob(dataURLABlob(a.datos)).then(function(id){ a.adjRef = id; }).catch(function(){});
+      } catch(e){}
+    }).catch(function(e){ toast(e.message, false); });
   });
   el.querySelectorAll("[data-mid]").forEach(function(n){
     var id = n.getAttribute("data-mid");
@@ -1539,6 +2166,7 @@ function pintarChat(){
     });
   });
   alistarReproductoresVoz(el);
+  alistarMedios(el);
   var gc = $("grabCancel"); if (gc) gc.addEventListener("click", function(){ pararGrabacion(true); pintarChat(); });
   var ga = $("grabAdj"); if (ga) ga.addEventListener("click", function(){ pararGrabacion(false); });
   var ge = $("grabEnviar"); if (ge) ge.addEventListener("click", function(){ grabVozEnviar = true; pararGrabacion(false); });
@@ -1558,7 +2186,7 @@ function prepararAdjuntoMN(file){
         var c = document.createElement("canvas"); c.width = w; c.height = h;
         c.getContext("2d").drawImage(img, 0, 0, w, h);
         URL.revokeObjectURL(url);
-        res({ tipo: "foto", datos: c.toDataURL("image/jpeg", 0.8), nombre: file.name || "Foto" });
+        res({ tipo: "foto", datos: c.toDataURL("image/jpeg", 0.8), nombre: file.name || "Foto", mime: "image/jpeg" });
       };
       img.onerror = function(){ URL.revokeObjectURL(url); rej(new Error("foto no válida")); };
       img.src = url;
@@ -1566,7 +2194,7 @@ function prepararAdjuntoMN(file){
   }
   return new Promise(function(res, rej){
     var fr = new FileReader();
-    fr.onload = function(){ res({ tipo: "archivo", datos: String(fr.result), nombre: file.name || "Archivo", tam: file.size }); };
+    fr.onload = function(){ res({ tipo: "archivo", datos: String(fr.result), nombre: file.name || "Archivo", tam: file.size, mime: file.type || "" }); };
     fr.onerror = function(){ rej(new Error("no se pudo leer el archivo")); };
     fr.readAsDataURL(file);
   });
@@ -1641,10 +2269,14 @@ function terminarGrabacion(g){
   if (g.descartar) { pintarChat(); toast("🎤 Grabación descartada"); return; }
   var blob = new Blob(g.chunks, { type: g.mr.mimeType || "audio/mp4" });
   if (blob.size > 5 * 1024 * 1024) { pintarChat(); toast("La nota pesa más de 5 MB: grábala más corta", false); return; }
+  /* LOCAL-FIRST: la nota queda como Blob en la base del teléfono
+     desde que se graba; el dataURL es solo la vía de subida. */
+  var refVozP = guardarAdjuntoBlob(blob).catch(function(){ return null; });
   var fr = new FileReader();
   fr.onload = function(){
     /* dataURL COMPLETO: el mime real viaja con la nota. */
-    chatAdj = { tipo: "voz", datos: String(fr.result), nombre: "Nota de voz" };
+    chatAdj = { tipo: "voz", datos: String(fr.result), nombre: "Nota de voz", mime: blob.type || "audio/mp4", tam: blob.size };
+    refVozP.then(function(id){ if (id) chatAdj.adjRef = id; });
     if (enviarYa) { enviarChatUI(); return; }
     pintarChat();
     toast("🎤 Nota de voz lista: escúchala con ▶ antes de enviar");
@@ -1727,7 +2359,14 @@ function enviarChatUI(){
   var para = chatCon;
   var accion = { tipo: "chat", para: para, texto: texto, cuando: new Date().toISOString() };
   if (chatResp) { accion.resp_de = chatResp.id; accion.resp_texto = chatResp.texto || ""; }
-  if (chatAdj) accion.adj = chatAdj;
+  if (chatAdj) {
+    /* LOCAL-FIRST: con el Blob ya guardado, la cola lleva solo la
+       referencia (la operación no carga base64 residente). Sin
+       referencia (grabación exprés), viaja el dataURL de siempre. */
+    accion.adj = chatAdj.adjRef
+      ? { tipo: chatAdj.tipo, nombre: chatAdj.nombre, mime: chatAdj.mime || null, tam: chatAdj.tam || null, adjRef: chatAdj.adjRef }
+      : chatAdj;
+  }
   chatResp = null; chatAdj = null;
   encolar(accion);
   guardar(); cargarChat();
@@ -1981,12 +2620,14 @@ function intentarEntrar(){
    controllerchange recarga la app UNA sola vez (marca en
    sessionStorage por versión: sin bucles). MN_VERSION se sube
    junto con el CACHE de sw.js. */
-var MN_VERSION = "v4";
+var MN_VERSION = "v5";
 /* Sello VISIBLE de compilación (punto 6): Ernesto quejándose con
    razón — «no sé si se actualizó o no». Una sola constante que
    sube con cada publicación; se ve en Inicio y en la hoja ℹ️ del
-   chat. Formato: «Mi Negocio · versión 2026-11-11 · caché v4». */
-var MN_COMPILACION = "2026-11-11";
+   chat. Formato: «Mi Negocio · versión 2026-11-11 HH:MM · caché v5»
+   (fecha Y HORA de la publicación, para distinguir dos subidas
+   del mismo día). */
+var MN_COMPILACION = "2026-11-11 09:03";
 function selloVersion(){ return "Mi Negocio · versión " + MN_COMPILACION + " · caché " + MN_VERSION; }
 var regSW = null;
 var swConControladorAlArrancar = false;
@@ -2036,6 +2677,10 @@ function prepararSW(){
 }
 function init(){
   cargarEstado();
+  arrancarLocalFirst();
+  document.addEventListener("visibilitychange", function(){
+    if (document.visibilityState === "visible" && state.codigo && state.cola.length) despacharCola();
+  });
   $("btnEntrar").addEventListener("click", intentarEntrar);
   $("inCodigo").addEventListener("keydown", function(e){ if (e.key === "Enter") intentarEntrar(); });
   $("btnSalir").addEventListener("click", function(){
@@ -2483,6 +3128,16 @@ function activarAvisosMN(){
       toast("🔔 Avisos listos en este teléfono. El registro en el servidor se completa en la activación.");
     } else {
       toast("🔔 Avisos listos en este teléfono. El registro en el servidor se reintenta solo cuando haya conexión.");
+    }
+    if (res !== "ok") {
+      /* LOCAL-FIRST: el registro pendiente también vive como
+         operación de la outbox (con su UUID): la drena el mismo
+         motor que todo lo demás; al confirmarse borra la marca
+         local. El reintento por cargarTodo queda como respaldo. */
+      var pp = pushPendienteLocal();
+      if (pp && !state.cola.some(function(x){ return x.tipo === "pushReg"; })) {
+        encolar({ tipo: "pushReg", sub: pp.sub, plataforma: pp.plataforma, cuando: new Date().toISOString() });
+      }
     }
     pintarInicioSiVisible();
   }).catch(function(e){
