@@ -10,6 +10,12 @@ def main():
         sin = f.read()
     with io.open(os.path.join(RAIZ, "buscadores-app", "app.js"), encoding="utf-8") as f:
         js = f.read()
+    with io.open(os.path.join(RAIZ, "..", "shared", "textos-motor.js"), encoding="utf-8") as f:
+        motor = f.read()
+    js = js.replace("/*__MOTOR_TEXTOS__*/", motor)
+    with io.open(os.path.join(RAIZ, "..", "shared", "push-cliente.js"), encoding="utf-8") as f:
+        pushjs = f.read()
+    js = js.replace("/*__PUSH_CLIENTE__*/", pushjs)
     if 'id="appjs"' not in sin:
         print("FALTA el marcador en index-sin-script.html")
         return 1
@@ -20,6 +26,10 @@ def main():
     destino = os.path.join(RAIZ, "buscadores", "index.html")
     with io.open(destino, "w", encoding="utf-8") as f:
         f.write(out)
+    import shutil
+    tema_origen = os.path.join(RAIZ, "..", "design-system", "tema-pro.css")
+    if os.path.exists(tema_origen):
+        shutil.copyfile(tema_origen, os.path.join(RAIZ, "buscadores", "tema-pro.css"))
     print("index.html ensamblado:", len(out), "caracteres")
     return 0
 
