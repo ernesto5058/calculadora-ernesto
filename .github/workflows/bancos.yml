@@ -48,3 +48,9 @@ jobs:
 
       - name: Banco Mercado v1 — lógica y frescura
         run: node bancos/prueba-mercado-v1.mjs
+
+      - name: Banco Bot PRO — Telegram (30 chequeos)
+        run: node bancos/test-telegram-pro-banco.mjs
+
+      - name: Banco Invariantes de dinero INV-1…INV-9 (36 chequeos + hallazgos vigilados)
+        run: node bancos/test-invariantes-dinero.mjs
