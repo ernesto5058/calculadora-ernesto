@@ -155,6 +155,25 @@
   .reacRow .reac { background: #1A2130; border: 1px solid #2A3347; border-radius: 999px; padding: 1px 8px; font-size: 12px; }
   .adjFoto { max-width: 210px; border-radius: 10px; display: block; margin-bottom: 6px; }
   .adjChip { display: inline-block; background: rgba(0,0,0,.18); border-radius: 8px; padding: 5px 9px; font-size: 12.5px; margin-bottom: 6px; overflow-wrap: anywhere; }
+  /* KIT DE MEDIOS v1.4.3: foto a ancho de burbuja con visor, previa
+     real antes de enviar y tarjeta de documento con descarga. */
+  .adjFoto { width: 100%; max-width: 260px; border-radius: 12px; cursor: zoom-in; }
+  .prevAdj { display: flex; align-items: center; gap: 10px; background: #1A2130; border: 1px solid #2A3347; border-radius: 14px; padding: 8px 10px; margin-top: 8px; flex-wrap: wrap; }
+  .prevFoto { width: 120px; max-height: 120px; object-fit: cover; border-radius: 12px; flex: 0 0 auto; cursor: zoom-in; display: block; }
+  .prevMeta { flex: 1; min-width: 0; font-size: 12.5px; color: #9AA7B8; overflow-wrap: anywhere; }
+  .prevMeta b { display: block; color: #E8ECF1; font-size: 13px; }
+  .docCard { display: flex; align-items: center; gap: 10px; background: rgba(0,0,0,.18); border: 1px solid #2A3347; border-radius: 12px; padding: 9px 11px; margin-bottom: 6px; max-width: 260px; }
+  .docIco { font-size: 26px; flex: 0 0 auto; line-height: 1; }
+  .docMeta { flex: 1; min-width: 0; font-size: 12.5px; overflow-wrap: anywhere; opacity: .92; }
+  .docMeta b { display: block; font-size: 13px; opacity: 1; }
+  .docDl { flex: 0 0 auto; width: 38px; height: 38px; border-radius: 50%; border: 1px solid #2A3347; background: rgba(255,255,255,.08); color: inherit; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0; margin: 0; }
+  .visorFoto { position: fixed; inset: 0; z-index: 9999; background: rgba(0,0,0,.94); display: none; flex-direction: column; }
+  .visorFoto.abierto { display: flex; }
+  .visorBar { display: flex; align-items: center; gap: 10px; padding: 12px 14px; color: #E8ECF1; }
+  .visorNom { flex: 1; min-width: 0; font-size: 13.5px; overflow-wrap: anywhere; }
+  .visorBtn { flex: 0 0 auto; border: 1px solid rgba(255,255,255,.3); background: rgba(255,255,255,.08); color: #fff; border-radius: 999px; padding: 8px 14px; font-size: 13px; font-weight: 700; cursor: pointer; text-decoration: none; display: inline-block; }
+  .visorImgWrap { flex: 1; display: flex; align-items: center; justify-content: center; overflow: auto; padding: 6px; }
+  .visorImg { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 8px; }
   .chatTools { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
   .chatTools button { flex: 1; min-width: 70px; padding: 10px 6px; border-radius: 10px; background: #1B2233; color: #C7D0DC; border: 1px solid #2A3347; font-weight: 700; font-size: 13px; cursor: pointer; }
   .respBar { display: none; background: rgba(232,184,75,.12); border: 1px solid rgba(232,184,75,.4); border-radius: 10px; padding: 8px 10px; font-size: 13px; margin-top: 8px; overflow-wrap: anywhere; }
@@ -487,7 +506,7 @@
 
 <script>
 "use strict";
-var APP_VERSION = "1.4.2";
+var APP_VERSION = "1.4.3";
 /* Tarifa de respaldo: se usa sin conexión si nunca se ha descargado datos.json.
    La tarifa viva viene de datos.json (la actualiza Ernesto/Máximo). */
 var DEFAULT_TARIFA = { ingresoRef360: 1092.65, libroRef: 1110, salidaRef: 950,
@@ -965,6 +984,135 @@ function cargarAdminPres(){
       if (CHAT_MSGS.length) pintarChat(CHAT_MSGS);   // los estados se repintan con el latido nuevo
     }
   });
+}
+/* ===== KIT DE MEDIOS v1.4.3: previa real, visor a pantalla
+   completa y tarjeta de documento con descarga (Blob/objectURL
+   con fallback a dataURL; en iOS el botón descarga o abre). ===== */
+function fmtBytesMT(n){
+  n = Number(n) || 0;
+  if (!n) return "";
+  if (n < 1024) return n + " B";
+  if (n < 1048576) return (n / 1024).toFixed(n < 10240 ? 1 : 0).replace(".", ",") + " KB";
+  return (n / 1048576).toFixed(2).replace(".", ",") + " MB";
+}
+function tamDeDatosMT(datos){
+  var s = String(datos || "");
+  var i = s.indexOf(",");
+  var b64 = i >= 0 ? s.slice(i + 1) : s;
+  return Math.floor(b64.length * 3 / 4);
+}
+function iconoDocMT(m){
+  var mime = String((m && (m.adj_mime || m.mime)) || "").toLowerCase();
+  var nom = String((m && (m.adj_nombre || m.nombre)) || "").toLowerCase();
+  if (mime.indexOf("pdf") >= 0 || /\.pdf$/.test(nom)) return "📄";
+  if (mime.indexOf("image/") === 0 || /\.(png|jpe?g|gif|webp)$/.test(nom)) return "🖼";
+  return "📦";
+}
+function datosNormalizadosMT(m){
+  var s = String((m && m.adj_datos) || "");
+  if (!s) return "";
+  return s.indexOf("data:") === 0 ? s : "data:" + (m.adj_mime || "application/octet-stream") + ";base64," + s;
+}
+function blobDesdeDataURLMT(du){
+  var s = String(du || "");
+  var mime = "application/octet-stream", b64 = s;
+  if (s.indexOf("data:") === 0) { var c = s.indexOf(","); mime = s.slice(5, c).split(";")[0] || mime; b64 = s.slice(c + 1); }
+  var bin = atob(b64);
+  var arr = new Uint8Array(bin.length);
+  for (var i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+  return new Blob([arr], { type: mime });
+}
+function urlDeMensajeMT(m){
+  var du = datosNormalizadosMT(m);
+  if (!du) return { url: null, revocar: false };
+  try { return { url: URL.createObjectURL(blobDesdeDataURLMT(du)), revocar: true }; }
+  catch(e){ return { url: du, revocar: false }; }
+}
+function tarjetaDocMT(m){
+  var nom = m.adj_nombre || "Archivo";
+  var tam = m.adj_bytes || m.tam || (m.adj_datos ? tamDeDatosMT(m.adj_datos) : 0);
+  return '<span class="docCard"><span class="docIco">' + iconoDocMT(m) + '</span>'
+    + '<span class="docMeta"><b>' + escChat(nom) + '</b>' + (tam ? fmtBytesMT(tam) : "Documento") + '</span>'
+    + '<button type="button" class="docDl" data-docdl="' + m.id + '" title="Descargar ' + escChat(nom) + '">⬇</button></span>';
+}
+var visorUrlRevocarMT = null;
+function visorElMT(){
+  var v = document.getElementById("visorFoto");
+  if (!v) {
+    v = document.createElement("div");
+    v.className = "visorFoto"; v.id = "visorFoto";
+    v.innerHTML = '<div class="visorBar"><span class="visorNom" id="visorNom"></span>'
+      + '<a class="visorBtn" id="visorDl" download>⬇ Guardar</a>'
+      + '<button type="button" class="visorBtn" id="visorX">✕ Cerrar</button></div>'
+      + '<div class="visorImgWrap"><img class="visorImg" id="visorImg" alt="Foto ampliada"></div>';
+    document.body.appendChild(v);
+    v.querySelector("#visorX").addEventListener("click", cerrarVisorMT);
+    v.querySelector(".visorImgWrap").addEventListener("click", function(e){ if (e.target === this) cerrarVisorMT(); });
+  }
+  return v;
+}
+function mostrarVisorMT(url, nombre){
+  var v = visorElMT();
+  v.querySelector("#visorNom").textContent = nombre || "Foto";
+  v.querySelector("#visorImg").src = url;
+  var dl = v.querySelector("#visorDl");
+  dl.href = url;
+  dl.setAttribute("download", nombre || "foto");
+  v.classList.add("abierto");
+}
+function cerrarVisorMT(){
+  var v = document.getElementById("visorFoto");
+  if (v) { v.classList.remove("abierto"); var im = v.querySelector("#visorImg"); if (im) im.removeAttribute("src"); }
+  if (visorUrlRevocarMT) { try { URL.revokeObjectURL(visorUrlRevocarMT); } catch(e){} visorUrlRevocarMT = null; }
+}
+function abrirVisorMsgMT(m){
+  if (!m) return;
+  var r = urlDeMensajeMT(m);
+  if (!r.url) return;
+  if (visorUrlRevocarMT) { try { URL.revokeObjectURL(visorUrlRevocarMT); } catch(e){} visorUrlRevocarMT = null; }
+  visorUrlRevocarMT = r.revocar ? r.url : null;
+  mostrarVisorMT(r.url, m.adj_nombre || "Foto");
+}
+function descargarDocMT(m){
+  if (!m) return;
+  var r = urlDeMensajeMT(m);
+  if (!r.url) return;
+  var a = document.createElement("a");
+  a.href = r.url;
+  a.setAttribute("download", m.adj_nombre || "archivo");
+  document.body.appendChild(a);
+  try { a.click(); } catch(e){ try { window.open(r.url, "_blank"); } catch(e2){} }
+  setTimeout(function(){
+    try { document.body.removeChild(a); } catch(e){}
+    if (r.revocar) { try { URL.revokeObjectURL(r.url); } catch(e){} }
+  }, 4000);
+}
+function botonQuitarAdjMT(){
+  var b = document.createElement("button"); b.type = "button"; b.className = "miniBtn"; b.textContent = "Quitar";
+  b.addEventListener("click", function(){ CHAT_ADJ = null; pintarPreviaAdjMT(); });
+  return b;
+}
+function pintarPreviaAdjMT(){
+  var an = $("c_adj_nom"); if (!an) return;
+  an.innerHTML = "";
+  if (!CHAT_ADJ || CHAT_ADJ.tipo === "voz") return; /* la voz pinta su propia previa con reproductor */
+  var wrap = document.createElement("div"); wrap.className = "prevAdj";
+  if (CHAT_ADJ.tipo === "foto") {
+    var im = document.createElement("img"); im.className = "prevFoto"; im.src = CHAT_ADJ.datos; im.alt = "Foto a enviar";
+    im.addEventListener("click", function(){ if (CHAT_ADJ) mostrarVisorMT(CHAT_ADJ.datos, CHAT_ADJ.nombre); });
+    wrap.appendChild(im);
+    var meta = document.createElement("span"); meta.className = "prevMeta";
+    meta.innerHTML = "<b>" + escChat(CHAT_ADJ.nombre || "Foto") + "</b>" + (fmtBytesMT(CHAT_ADJ.tam || tamDeDatosMT(CHAT_ADJ.datos)) || "") + " · Toca la imagen para verla grande";
+    wrap.appendChild(meta);
+  } else {
+    var ic = document.createElement("span"); ic.className = "docIco"; ic.textContent = iconoDocMT({ adj_mime: CHAT_ADJ.mime, adj_nombre: CHAT_ADJ.nombre });
+    wrap.appendChild(ic);
+    var meta2 = document.createElement("span"); meta2.className = "prevMeta";
+    meta2.innerHTML = "<b>" + escChat(CHAT_ADJ.nombre || "Archivo") + "</b>" + (fmtBytesMT(CHAT_ADJ.tam || tamDeDatosMT(CHAT_ADJ.datos)) || "Archivo listo");
+    wrap.appendChild(meta2);
+  }
+  wrap.appendChild(botonQuitarAdjMT());
+  an.appendChild(wrap);
 }
 function pintarChat(msgs){
   var box = $("c_hilo"); if (!box) return;
@@ -1594,10 +1742,10 @@ function comprimirFotoMT(file){
 }
 function leerArchivoMT(file, esFoto){
   if (file.size > MAX_ADJ_MT) return Promise.reject(new Error("Pesa más de 5 MB: no se puede adjuntar."));
-  if (esFoto) return comprimirFotoMT(file).then(function(d){ return { tipo: "foto", datos: d, nombre: file.name || "Foto" }; });
+  if (esFoto) return comprimirFotoMT(file).then(function(d){ return { tipo: "foto", datos: d, nombre: file.name || "Foto", mime: "image/jpeg" }; });
   return new Promise(function(res, rej){
     var fr = new FileReader();
-    fr.onload = function(){ res({ tipo: "archivo", datos: String(fr.result), nombre: file.name || "Archivo", tam: file.size }); };
+    fr.onload = function(){ res({ tipo: "archivo", datos: String(fr.result), nombre: file.name || "Archivo", tam: file.size, mime: file.type || "" }); };
     fr.onerror = function(){ rej(new Error("no se pudo leer el archivo")); };
     fr.readAsDataURL(file);
   });
@@ -1704,7 +1852,7 @@ function pintarChat(msgs){
       if (m.resp_texto) inner += '<span class="cita">' + escChat(m.resp_autor === SESION ? "Tú" : (m.resp_autor || "")) + ": " + escChat(String(m.resp_texto).slice(0, 90)) + "</span>";
       if (m.adj_tipo === "foto" && m.adj_datos) inner += '<img class="adjFoto" alt="Foto" src="' + (String(m.adj_datos).indexOf("data:") === 0 ? m.adj_datos : "data:image/jpeg;base64," + m.adj_datos) + '">';
       else if (m.adj_tipo === "voz" && m.adj_datos) inner += reproductorVozHtmlMT(m);
-      else if (m.adj_datos) inner += '<span class="adjChip">📎 ' + escChat(m.adj_nombre || "Archivo") + "</span>";
+      else if (m.adj_datos) inner += tarjetaDocMT(m);
       if (m.texto) inner += escChat(m.texto);
     }
     /* v1.4.1: hora y estado DENTRO de la burbuja, como en WhatsApp. */
@@ -1720,6 +1868,23 @@ function pintarChat(msgs){
   var conVoz = (msgs || []).filter(function(m){ return m.adj_tipo === "voz" && m.adj_datos && !m.borrado; });
   conVoz.forEach(function(m){ reproductorVozHtmlMT(m); });
   alistarReproductoresVozMT(box);
+  /* KIT DE MEDIOS v1.4.3: tocar la foto abre el VISOR (sin abrir el
+     menú del mensaje); el botón de la tarjeta descarga el archivo. */
+  box.querySelectorAll("img.adjFoto").forEach(function(img){
+    img.addEventListener("click", function(e){
+      e.stopPropagation();
+      var wrap = img.closest("[data-mid]");
+      var mm = (CHAT_MSGS || []).filter(function(x){ return String(x.id) === String(wrap ? wrap.getAttribute("data-mid") : ""); })[0];
+      if (mm) abrirVisorMsgMT(mm);
+    });
+  });
+  box.querySelectorAll("[data-docdl]").forEach(function(b){
+    b.addEventListener("click", function(e){
+      e.stopPropagation();
+      var mm = (CHAT_MSGS || []).filter(function(x){ return String(x.id) === String(b.getAttribute("data-docdl")); })[0];
+      if (mm) descargarDocMT(mm);
+    });
+  });
   box.querySelectorAll("[data-mid]").forEach(function(el){
     el.addEventListener("click", function(){ abrirMenuMsg(Number(el.getAttribute("data-mid"))); });
   });
@@ -2030,11 +2195,11 @@ function showView(v){
     });
     $("c_file_foto").addEventListener("change", function(){
       var f = $("c_file_foto").files && $("c_file_foto").files[0]; if (!f) return;
-      leerArchivoMT(f, true).then(function(a){ CHAT_ADJ = a; $("c_adj_nom").textContent = "📷 Foto lista para enviar."; }).catch(function(e){ chatFallo(e.message); });
+      leerArchivoMT(f, true).then(function(a){ CHAT_ADJ = a; pintarPreviaAdjMT(); }).catch(function(e){ chatFallo(e.message); });
     });
     $("c_file_arch").addEventListener("change", function(){
       var f = $("c_file_arch").files && $("c_file_arch").files[0]; if (!f) return;
-      leerArchivoMT(f, false).then(function(a){ CHAT_ADJ = a; $("c_adj_nom").textContent = "📎 " + a.nombre + " listo para enviar."; }).catch(function(e){ chatFallo(e.message); });
+      leerArchivoMT(f, false).then(function(a){ CHAT_ADJ = a; pintarPreviaAdjMT(); }).catch(function(e){ chatFallo(e.message); });
     });
     $("c_buscar").addEventListener("input", function(){ pintarChat(CHAT_MSGS); });
     $("c_buscar_mas").addEventListener("click", function(){
@@ -2082,6 +2247,12 @@ function showView(v){
             cont.innerHTML = reproductorVozHtmlMT({ adj_datos: String(fr.result) });
             an.appendChild(cont);
             alistarReproductoresVozMT(an);
+            /* v1.4.3: la previa de voz lleva el mismo marco del kit
+               y su botón Quitar, como la foto y el documento. */
+            var pvMT = document.createElement("div"); pvMT.className = "prevAdj";
+            while (an.firstChild) pvMT.appendChild(an.firstChild);
+            pvMT.appendChild(botonQuitarAdjMT());
+            an.appendChild(pvMT);
           };
           fr.readAsDataURL(blob);
         };
