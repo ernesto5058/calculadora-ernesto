@@ -5,15 +5,24 @@ import io, os, sys
 
 RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
+def ruta_shared(nombre):
+    """Los compartidos viven en <repo>/shared/ (así CI los encuentra);
+    en la copia local de trabajo pueden estar en ../shared/ (workspace)."""
+    for base in (os.path.join(RAIZ, "shared"), os.path.join(RAIZ, "..", "shared")):
+        p = os.path.join(base, nombre)
+        if os.path.exists(p):
+            return p
+    return os.path.join(RAIZ, "shared", nombre)
+
 def main():
     with io.open(os.path.join(RAIZ, "buscadores-app", "index-sin-script.html"), encoding="utf-8") as f:
         sin = f.read()
     with io.open(os.path.join(RAIZ, "buscadores-app", "app.js"), encoding="utf-8") as f:
         js = f.read()
-    with io.open(os.path.join(RAIZ, "..", "shared", "textos-motor.js"), encoding="utf-8") as f:
+    with io.open(ruta_shared("textos-motor.js"), encoding="utf-8") as f:
         motor = f.read()
     js = js.replace("/*__MOTOR_TEXTOS__*/", motor)
-    with io.open(os.path.join(RAIZ, "..", "shared", "push-cliente.js"), encoding="utf-8") as f:
+    with io.open(ruta_shared("push-cliente.js"), encoding="utf-8") as f:
         pushjs = f.read()
     js = js.replace("/*__PUSH_CLIENTE__*/", pushjs)
     if 'id="appjs"' not in sin:
