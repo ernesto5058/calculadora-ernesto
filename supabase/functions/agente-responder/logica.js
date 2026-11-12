@@ -587,6 +587,29 @@ export function rangoHorarioTexto(hor) {
   return hora12(hor.abre) + " – " + hora12(hor.cierra);
 }
 
+/* v3 — NOMBRE PLAUSIBLE (Ola Nueva 1): la cosecha de nombre tragaba
+   ORACIONES enteras (en vivo, 2026-11-12 16:08: una cita web guardó
+   como nombre «perfecto, ¿queda confirmada mi cita de mañana a las
+   10?»). Un nombre de persona: 1–4 palabras, sin signos de pregunta,
+   sin dígitos y sin verbos/palabras de la conversación de citas. Lo
+   que no pasa se RE-PREGUNTA, jamás se guarda. */
+const RE_NOMBRE_MALO = /\b(confirm\w*|queda\w*|reserv\w*|agend\w*|anot\w*|apunt\w*|cita|turno|manana|hoy|ayer|quiero|puedes|podrias|puede|gracias|perfecto|genial|vale|hora|horas|hola|buenas|saludos|semana|cuando|donde|porque|tambien|entonces|no|si)\b/;
+export function esNombrePlausible(crudo) {
+  const t = String(crudo ?? "").trim();
+  /* Dígitos: solo se rechaza lo que parece un TELÉFONO (≥6 dígitos
+     seguidos o mayoría dígitos) — un nombre de prueba o con un número
+     suelto («PRUEBA V3») SÍ es un nombre; la caza fue del humo real
+     del 2026-11-12 contra la v18. */
+  const digitos = (t.match(/\d/g) || []).length;
+  if (!t || t.includes("?") || t.includes("¿") || /\d{6,}/.test(t) ||
+      (digitos >= 4 && digitos * 2 > t.replace(/\s/g, "").length)) return false;
+  const limpio = t.replace(/^(me llamo|mi nombre es|soy|a nombre de)\s+/i, "").trim();
+  const palabras = limpio.split(/\s+/).filter(Boolean);
+  if (palabras.length < 1 || palabras.length > 4) return false;
+  if (RE_NOMBRE_MALO.test(normalizarLigero(t))) return false;
+  return limpio.length >= 2;
+}
+
 export function flujoCitaPaso(flujo, textoCrudo, hoyISO, datos = null) {
   const f = { ...(flujo ?? {}) };
   f.datos = { ...(f.datos ?? {}) };
@@ -626,14 +649,26 @@ export function flujoCitaPaso(flujo, textoCrudo, hoyISO, datos = null) {
     if (dh.dia < hoyISO) diaPasado = true;
     else f.datos.dia = dh.dia;
   }
+  // v3: la HORA también se cosecha aquí, ANTES del posible retorno
+  // del nombre: si el nombre se rechaza (oración) y se re-pregunta,
+  // la hora que ya vino en la frase no se pierde ni se re-pide.
+  if (dh.hora) f.datos.hora = dh.hora;
 
+  // v3: la cosecha SOLO acepta nombres plausibles (esNombrePlausible);
+  // una oración o pregunta se re-pregunta, jamás se guarda.
+  let nombreRechazado = false;
   if (!f.datos.nombre && (!f.paso || f.paso === "nombre")) {
     const nombre = String(textoCrudo ?? "").trim()
       .replace(/^(me llamo|mi nombre es|soy|a nombre de)\s+/i, "")
       .replace(/[.!]+$/, "").trim().slice(0, 60);
-    if (nombre.length >= 2) f.datos.nombre = nombre;
+    if (esNombrePlausible(textoCrudo)) f.datos.nombre = nombre;
+    else if (nombre.length >= 2) nombreRechazado = true;
   }
-  if (!f.datos.nombre) return pedir("nombre", "¿A nombre de quién anoto la cita?");
+  if (!f.datos.nombre) {
+    return pedir("nombre", nombreRechazado
+      ? "Eso no me suena a un nombre 😅 Dime solo tu nombre, porfa: ¿a nombre de quién anoto la cita?"
+      : "¿A nombre de quién anoto la cita?");
+  }
 
   /* E7: el paso de servicio NO fuerza «corte» contra la negación ni
      contra otro pedido: solo lo anota con afirmación o mención del
@@ -1030,6 +1065,15 @@ export function textoResumenDinero(resumen, hoyISO) {
 export const FRASE_NO_SE = "Eso no lo sé todavía 🙏 Queda anotado y se lo paso al dueño " +
   "del negocio. Mientras tanto, puedo ayudarte con precios, horario, ubicación o una cita.";
 export const FRASE_ESCALADO = "Eso te lo confirma el dueño del negocio 🙏 Ya le paso tu mensaje.";
+/* v3 — Escalado POR TEMA (Ola Nueva 1, 2026-11-12): escalar un tema
+   ya no enmudece la conversación entera. Si el cliente repite un
+   tema ya escalado, se le dice que ya está pasado y se le sigue
+   atendiendo en todo lo demás (fallo en vivo de Ernesto: saldo →
+   «dinero» escaló la conversación y su cita de 3 minutos después
+   cayó contra el muro del silencio). */
+export const FRASE_YA_ESCALADO = "Eso ya se lo pasé a Ernesto 🙏 En cuanto lo vea, te atiende él " +
+  "directamente. Mientras tanto sigo aquí: pregúntame por precios, horarios o dime si quieres una cita 📋";
+export const SUFIJO_ESCALADO = " Y ojo: sigo atendiéndote en lo demás — precios, horarios, citas 📋";
 /* v2.1: el no-sé EN LA VISTA DEL DUEÑO — sin «paso al dueño» ni tercera
    persona sobre sí mismo, y jamás ensucia la cola de clientes. */
 export const FRASE_NO_SE_DUENO = "Eso todavía no lo sé responder, ni siquiera en tu " +
@@ -1170,6 +1214,114 @@ export function hayPinPendienteEnHistorial(historial) {
   return false;
 }
 
+/* =====================================================================
+   v3 — EXPLICAR EL CATÁLOGO (Ola Nueva 1, 2026-11-12). Orden de
+   Ernesto probándose como cliente: «quisiera que fuera el servicio
+   o producto que yo quiera y que la IA se lo explique a la gente».
+   CUALQUIER fila activa de agente_catalogo con descripcion se puede
+   EXPLICAR (qué es, para qué sirve, cómo se hace) de forma
+   determinista, con sus cifras verificadas contra la propia fila y
+   las fuentes hermanas; las PROHIBIDAS bloquean igual que siempre.
+   Esto cura la causa raíz del fallo de las 16:40: compro-saldo no
+   existía en el catálogo, la pregunta informativa sobre SU PROPIO
+   servicio no tenía fuente y la regla de dinero la escaló.
+   ===================================================================== */
+const RE_EXPLICA = /\b(que es|que significa|para que (sirve|es|son)|como funciona|como es eso|como seria|en que consiste|explica|explicame|explicar|cuentame|hablame de|informacion (de|sobre)|de que trata)\b/;
+/* Oferta del PROPIO cliente (él le vende su saldo a Ernesto) — ojo:
+   «vendes/vender» (pedirle a Ernesto que venda) NO va aquí: eso es
+   adversarial del arnés y sigue escalando como siempre. */
+const RE_OFERTA_SALDO = /\b(vendo|te vendo|tengo saldo|quiero vender)\b/;
+const EMOJI_CATALOGO = { compro_saldo: "📱", transferencia: "💸", corte: "💈",
+  corte_transferencia: "💈", lavadora_hys: "🧺", bateria_lifepo4: "🔋" };
+
+/* ¿El tema ya está escalado EN ESTA conversación? (v3: el escalado
+   vive en conv.temas_escalados = [{tema, en}]; se acepta también la
+   forma vieja de cadenas por si una fila quedó a medias.) */
+export function temaEscalado(conv, tema) {
+  const arr = conv?.temas_escalados;
+  if (!Array.isArray(arr)) return false;
+  return arr.some((t) => (typeof t === "string" ? t : t?.tema) === tema);
+}
+
+/* Detecta el ítem del catálogo del que habla el mensaje y, si la
+   forma es INFORMATIVA (o es la oferta de saldo del propio cliente),
+   compone la explicación. Devuelve una decisión parcial o null. */
+export function explicarCatalogo(datos, ligero, norm, crudo) {
+  const cat = datos?.catalogo;
+  if (!cat?.get) return null;
+  const toks = new Set(tokensDe(ligero));
+  const filaDe = (c) => {
+    const f = cat.get(c);
+    return f && f.activo !== false ? f : null;
+  };
+  let clave = null, fila = null;
+  // compra de saldo: su tema propio (saldo/recarga), jamás «dinero»
+  if ((toks.has("saldo") || toks.has("recarga") || toks.has("recargas")) && filaDe("compro_saldo")) {
+    clave = "compro_saldo"; fila = filaDe(clave);
+  }
+  // compra de transferencia: solo con forma de explicación o verbo
+  // de compra/venta, y nunca si se habla del corte (ahí es pago)
+  if (!fila && toks.has("transferencia") && filaDe("transferencia") &&
+      !toks.has("corte") && !toks.has("pelado") &&
+      (RE_EXPLICA.test(ligero) || /\b(comprar|compras|compra|vender|vendes|vendo)\b/.test(ligero))) {
+    clave = "transferencia"; fila = filaDe(clave);
+  }
+  // productos/servicios por sinónimo curado
+  if (!fila) {
+    for (const p of detectarProductos(norm, datos.sinonimos)) {
+      const f = filaDe(p);
+      if (f) { clave = p; fila = f; break; }
+    }
+  }
+  // ítems que el dueño añada sin sinónimo: un token distintivo del
+  // nombre (≥4 letras) basta pa localizarlos
+  if (!fila) {
+    for (const [c, f] of cat) {
+      if (!f || f.activo === false) continue;
+      const nt = tokensDe(normalizarLigero(f.nombre ?? "")).filter((t) => t.length >= 4);
+      if (nt.some((t) => toks.has(t))) { clave = c; fila = f; break; }
+    }
+  }
+  if (!fila) return null;
+  const esSaldo = clave === "compro_saldo";
+  // La pregunta simple («¿compras saldo?», «¿a cómo compras?») sigue
+  // yendo a su FAQ/dato de siempre (así lo mide el arnés dorado); la
+  // EXPLICACIÓN manda cuando piden entender («qué es», «explícame»,
+  // «cómo funciona») o cuando el cliente OFRECE su saldo.
+  const informativa = RE_EXPLICA.test(ligero) ||
+    (esSaldo && RE_OFERTA_SALDO.test(ligero));
+  if (!informativa) return null;
+  if (!fila.descripcion && !fila.nota) return null;
+
+  let texto = (EMOJI_CATALOGO[clave] ?? "🛍️") + " " + (fila.descripcion ?? (fila.nombre + ": " + fila.nota));
+  if (fila.precio != null && !fila.precio_al_privado) {
+    if (!texto.includes(fmtNum(fila.precio))) {
+      texto += "\nPrecio: " + fmtNum(fila.precio) + " " + (fila.moneda ?? "CUP") + ".";
+    }
+  } else if (fila.precio_al_privado && !/privado/i.test(texto)) {
+    texto += "\nEl precio es al privado, directo con Ernesto.";
+  }
+  if (fila.estado === "pocas") texto += "\nOjo: quedan pocas unidades, confírmalo con Ernesto.";
+  else if (fila.estado && fila.estado !== "hay") texto += "\nAhora mismo no hay disponible; cuando haya, se anuncia por aquí.";
+
+  const fuentes = [fila];
+  if (esSaldo) {
+    const t = datos.fuente?.get("tarifa_publica_saldo");
+    if (t) fuentes.push(t);
+  }
+  if (clave === "corte" || clave === "corte_transferencia") {
+    const h = datos.fuente?.get("horario_barberia");
+    if (h) fuentes.push(h);
+  }
+  const z = datos.fuente?.get("zona");
+  if (z) fuentes.push(z);
+  const ver = verificarCifras(texto, fuentes, datos.prohibidas);
+  if (!ver.ok) return null; // si no verifica, manda el flujo de siempre
+  const caliente = detectarCompraCaliente(ligero, crudo);
+  return { accion: "explicar", respuesta: texto, aviso_lead: caliente.caliente === true,
+           auditoria: { catalogo: clave, via: "explicacion" } };
+}
+
 export function orquestar(datos, conv, textoCrudo, hoyISO) {
   const crudo = String(textoCrudo ?? "");
   const norm = normalizar(crudo);
@@ -1179,7 +1331,13 @@ export function orquestar(datos, conv, textoCrudo, hoyISO) {
   // E6 (completada en la reverificación de la tanda Nº4+5): el silencio
   // por escalado ata a CLIENTES; el dueño jamás queda mudo en su propio
   // bot — su /admin y su panel tienen que responder siempre.
-  if (conv?.escalada && !datos.esDueno) return { ...base, accion: "silencio", motivo: "ya_escalada" };
+  // v3 (Ola Nueva 1): EL MURO SE FUE. El escalado ya no silencia la
+  // conversación entera: vive POR TEMA en conv.temas_escalados y se
+  // consulta en el punto exacto donde un tema se escala (bloque del
+  // hierro). Una conversación con temas escalados sigue atendiendo
+  // citas, precios y explicaciones con normalidad. La columna
+  // `escalada` se mantiene solo como señal pa el panel y la caducidad
+  // E6 de la puerta (24 h), que ahora limpia también los temas.
 
   // ── v2: pausa, panel y modo dueño ────────────────────────────────
   // Agente pausado: la puerta solo deja pasar al dueño (Telegram);
@@ -1484,6 +1642,21 @@ export function orquestar(datos, conv, textoCrudo, hoyISO) {
         registrar_sin_respuesta: true,
       };
     }
+    // v3: «dinero» ya no escala a ciegas — si la pregunta es
+    // INFORMATIVA sobre un ítem del catálogo (qué es comprar saldo,
+    // para qué sirve, cómo funciona), se EXPLICA con la fuente y no
+    // se escala nada. Escalar queda pa lo interno de verdad: tasas
+    // QUSD, salida, margen, el libro… (lo que ninguna explicación
+    // del catálogo cubre).
+    if (hierro.tipo === "dinero") {
+      const expl = explicarCatalogo(datos, ligero, norm, crudo);
+      if (expl) return { ...base, ...expl };
+    }
+    // v3: tema YA escalado en esta conversación → aviso corto, sin
+    // re-escalar (sin otro aviso al dueño) y sin enmudecer el resto.
+    if (temaEscalado(conv, hierro.tipo)) {
+      return { ...base, accion: "escalado_repetido", respuesta: FRASE_YA_ESCALADO };
+    }
     const frases = {
       humano: "Claro 🙏 Te paso con el dueño del negocio ahora mismo; en cuanto vea el mensaje te atiende él personalmente.",
       dinero: "Ese tema de dinero te lo confirma el dueño del negocio directamente 🙏 Te lo paso con él.",
@@ -1491,7 +1664,7 @@ export function orquestar(datos, conv, textoCrudo, hoyISO) {
     };
     return {
       ...base, accion: "escalar", escalar: hierro.tipo,
-      respuesta: frases[hierro.tipo] ?? FRASE_NO_SE,
+      respuesta: (frases[hierro.tipo] ?? FRASE_NO_SE) + SUFIJO_ESCALADO,
       registrar_sin_respuesta: true,
     };
   }
@@ -1514,6 +1687,15 @@ export function orquestar(datos, conv, textoCrudo, hoyISO) {
     return { ...base, accion: "menu", flujo: { tipo: "menu" },
              panel: { vista: "inicio" }, respuesta: TEXTO_MENU,
              opciones: OPCIONES_TEMAS, auditoria: { menu: "generico" } };
+  }
+
+  // v3 — EXPLICACIÓN del catálogo sin hierro de por medio: «¿qué es
+  // la lavadora?», «¿para qué sirve la batería?», «explícame lo de
+  // comprar saldo» se responden del catálogo vivo ANTES del matcher:
+  // la explicación completa manda sobre la FAQ suelta.
+  {
+    const expl = explicarCatalogo(datos, ligero, norm, crudo);
+    if (expl) return { ...base, ...expl };
   }
 
   // matcher multi-señal
@@ -1785,6 +1967,7 @@ function tecladoDueno(datos, conv) {
      { text: "📝 Editar una respuesta", callback_data: "v2:d:faq" }],
     [{ text: "❓ Enseñar respuesta" + (nPend ? " (" + nPend + ")" : ""), callback_data: "v2:d:ensenar" }],
     [{ text: "💰 Dinero de citas", callback_data: "v2:d:dinero" }],
+    [{ text: "🧾 Catálogo", callback_data: "v2:d:catalogo" }],
     [(datos.pausado || datos.config?.detenido)
       ? { text: "▶️ Reanudar el agente", callback_data: "v2:d:reanudar" }
       : { text: "⏸ Pausar el agente", callback_data: "v2:d:pausar" }],
@@ -1803,6 +1986,55 @@ function confirmarDueno(base, datosCambio, resumen) {
     flujo: { tipo: "dueno", paso: "confirmar", datos: datosCambio },
     panel: panelFlujo(resumen + "\n\n¿Lo aplico?", TECLADO_CONFIRMAR),
     respuesta: resumen, auditoria: { dueno: "confirmar" } };
+}
+
+/* --- v3: CATÁLOGO editable por el dueño (sin formularios) ------------
+   La vista lista TODAS las filas (activas y apagadas) de
+   datos.catalogoTodos (la puerta las carga sin el filtro de cliente);
+   si la puerta vieja no las trae, cae al catálogo activo. La
+   escritura va SIEMPRE por la RPC agente_catalogo_guardar (puerta
+   SQL única, solo-dueño, con auditoría): la lógica valida y compone,
+   la puerta ejecuta — la misma escuela que enseñar/citas. */
+function catalogoTodos(datos) {
+  const m = datos?.catalogoTodos ?? datos?.catalogo;
+  return m ? [...m.values()] : [];
+}
+function precioTextoCat(f) {
+  if (f?.precio_al_privado) return "precio al privado";
+  if (f?.precio != null) return fmtNum(f.precio) + " " + (f.moneda ?? "CUP");
+  return "sin precio";
+}
+function lineaCatalogo(f, i) {
+  return (i + 1) + ") " + (f.activo === false ? "⏸ " : "✅ ") + (f.nombre ?? f.clave) +
+    " — " + precioTextoCat(f) + " · " + (f.tipo ?? "producto") +
+    (f.activo === false ? " · APAGADO" : "");
+}
+function textoCatalogoLista(datos) {
+  const filas = catalogoTodos(datos);
+  if (!filas.length) return "🧾 Tu catálogo está vacío. Añade tu primer producto o servicio 👇";
+  return "🧾 Tu catálogo (esto es lo que el asistente explica a los clientes):\n" +
+    filas.map((f, i) => lineaCatalogo(f, i)).join("\n") +
+    "\n\nRespóndeme con el NÚMERO del que quieres editar, o toca ➕ Añadir.";
+}
+function tecladoCatalogoLista() {
+  return { inline_keyboard: [
+    [{ text: "➕ Añadir producto/servicio", callback_data: "v2:d:catnew" }],
+    [{ text: "⚙️ Ajustes", callback_data: "v2:d:menu" }],
+  ] };
+}
+function textoCatalogoItem(f) {
+  return "🧾 " + (f.nombre ?? f.clave) + "\n" +
+    "Tipo: " + (f.tipo ?? "producto") + " · Estado: " + (f.activo === false ? "⏸ apagado (el asistente NO lo ofrece)" : "✅ activo") + "\n" +
+    "Precio: " + precioTextoCat(f) + "\n" +
+    "Descripción que oyen los clientes:\n«" + String(f.descripcion ?? f.nota ?? "—").slice(0, 400) + "»\n\n¿Qué cambio?";
+}
+function tecladoCatalogoItem(f) {
+  return { inline_keyboard: [
+    [{ text: "✏️ Precio", callback_data: "v2:d:catprecio" },
+     { text: "📝 Descripción", callback_data: "v2:d:catdesc" }],
+    [{ text: f.activo === false ? "▶️ Activar" : "⏸ Desactivar", callback_data: "v2:d:catactivo" }],
+    [{ text: "🧾 Volver al catálogo", callback_data: "v2:d:catalogo" }],
+  ] };
 }
 
 /* Acciones del panel del dueño (callbacks «/dueno <acción>»). */
@@ -1892,6 +2124,49 @@ export function duenoAccion(datos, conv, accion, base) {
         panel: panelFlujo(txt, TECLADO_CANCELAR), respuesta: txt,
         auditoria: { dueno: "ensenar", pendientes: pend.length } };
     }
+    case "catalogo": {
+      // v3: vista 🧾 Catálogo — lista numerada + flujo de selección.
+      const filas = catalogoTodos(datos);
+      const txt = textoCatalogoLista(datos);
+      return { ...base, accion: "dueno",
+        flujo: { tipo: "dueno", paso: "cat_num", datos: { claves: filas.map((f) => f.clave) } },
+        panel: panelFlujo(txt, tecladoCatalogoLista()),
+        respuesta: txt, auditoria: { dueno: "catalogo", items: filas.length } };
+    }
+    case "catnew": {
+      const txt = "➕ Nuevo producto o servicio.\n¿Cómo se llama? Escríbelo tal como quieres que lo oigan los clientes (ejemplo: «Recarga de juegos»).";
+      return { ...base, accion: "dueno",
+        flujo: { tipo: "dueno", paso: "cat_nombre", datos: { nuevo: true } },
+        panel: panelFlujo(txt, TECLADO_CANCELAR), respuesta: txt,
+        auditoria: { dueno: "catalogo_nuevo" } };
+    }
+    case "catprecio": case "catdesc": case "catactivo": {
+      const clave = conv?.flujo?.datos?.clave;
+      const f = clave ? catalogoTodos(datos).find((x) => x.clave === clave) : null;
+      if (!f) {
+        return { ...base, accion: "dueno", panel: { vista: "dueno" }, flujo: null,
+                 respuesta: "Ese botón ya no vale; abre 🧾 Catálogo en Ajustes y elige el producto.",
+                 auditoria: { dueno: "catalogo_boton_viejo" } };
+      }
+      if (accion === "catactivo") {
+        return confirmarDueno(base,
+          { accion: "catalogo_activo", clave, activo: f.activo === false },
+          (f.activo === false ? "▶️ Activar" : "⏸ Desactivar") + " «" + (f.nombre ?? clave) + "»" +
+          (f.activo === false
+            ? ": el asistente vuelve a explicarlo y ofrecerlo a los clientes."
+            : ": el asistente deja de explicarlo y ofrecerlo (la fila no se borra)."));
+      }
+      const txt = accion === "catprecio"
+        ? "✏️ Precio de «" + (f.nombre ?? clave) + "» (ahora: " + precioTextoCat(f) + ").\n" +
+          "Escribe el número y la moneda (ejemplo: 300 CUP o 20 USD), «privado» si el precio es al privado, o «no» si no lleva precio."
+        : "📝 Descripción de «" + (f.nombre ?? clave) + "» — esto es lo que el asistente EXPLICA a los clientes (qué es, para qué sirve, cómo se hace).\n" +
+          "La de ahora: «" + String(f.descripcion ?? f.nota ?? "—").slice(0, 300) + "»\nDicta la nueva:";
+      return { ...base, accion: "dueno",
+        flujo: { tipo: "dueno", paso: accion === "catprecio" ? "cat_precio" : "cat_desc",
+                 datos: { clave } },
+        panel: panelFlujo(txt, TECLADO_CANCELAR), respuesta: txt,
+        auditoria: { dueno: accion, clave } };
+    }
     case "pausar":
       return confirmarDueno(base, { accion: "pausar" },
         "⏸ Pausar el agente: los clientes dejan de recibir respuesta (Telegram y web) hasta que lo reanudes desde aquí.");
@@ -1973,6 +2248,24 @@ export function duenoConfirmar(datos, conv, base) {
       ensenar: { grupoId: d.grupoId, texto: d.texto },
       respuesta: "Guardando la respuesta nueva…",
       auditoria: { dueno: "ensenar_aplicar", grupo: d.grupoId } };
+  }
+  if (d.accion === "catalogo_crear" || d.accion === "catalogo_editar" ||
+      d.accion === "catalogo_activo") {
+    // v3: la escritura del catálogo NO va por parches REST: va por la
+    // RPC agente_catalogo_guardar (puerta SQL única, solo-dueño, con
+    // auditoría). La puerta la ejecuta y compone la respuesta final.
+    const guardar = d.accion === "catalogo_crear"
+      ? { accion: "crear", nombre: d.nombre, tipo: d.tipo ?? "producto",
+          precio: d.precio ?? null, moneda: d.moneda ?? "CUP",
+          precio_al_privado: d.precio_al_privado === true,
+          descripcion: d.descripcion }
+      : d.accion === "catalogo_activo"
+        ? { accion: d.activo ? "activar" : "desactivar", clave: d.clave }
+        : { accion: "editar", clave: d.clave, ...(d.cambios ?? {}) };
+    return { ...base, accion: "dueno_catalogo", flujo: null,
+      catalogoGuardar: guardar,
+      respuesta: "Guardando en el catálogo…",
+      auditoria: { dueno: d.accion, clave: d.clave ?? null } };
   }
   if (d.accion === "pausar") {
     return hecho({ etiqueta: "pausa", resumen: "Agente pausado",
@@ -2130,6 +2423,90 @@ export function duenoPaso(datos, conv, crudo, base) {
         ] }),
         respuesta: txt, auditoria: { dueno: "cierre_metodo" } };
     }
+    case "cat_num": {
+      // v3: número de la lista del catálogo → detalle del ítem con
+      // sus botones (precio / descripción / activar-desactivar).
+      const n = Number(String(crudo ?? "").trim());
+      const claves = d.claves ?? [];
+      if (!Number.isInteger(n) || n < 1 || n > claves.length) {
+        return seguir("cat_num", d, "Respóndeme con el número de la lista (1–" + claves.length + "), o toca ➕ Añadir.");
+      }
+      const f = catalogoTodos(datos).find((x) => x.clave === claves[n - 1]);
+      if (!f) return seguir("cat_num", d, "Ese ya no está; abre 🧾 Catálogo otra vez.");
+      const txt = textoCatalogoItem(f);
+      return { ...base, accion: "dueno",
+        flujo: { tipo: "dueno", paso: "cat_item", datos: { clave: f.clave } },
+        panel: panelFlujo(txt, tecladoCatalogoItem(f)),
+        respuesta: txt, auditoria: { dueno: "catalogo_item", clave: f.clave } };
+    }
+    case "cat_item": {
+      const f = catalogoTodos(datos).find((x) => x.clave === d.clave);
+      if (!f) return { ...base, accion: "dueno", flujo: null, panel: { vista: "dueno" },
+                       respuesta: "Ese producto ya no está; abre 🧾 Catálogo otra vez.",
+                       auditoria: { dueno: "catalogo_item_vacio" } };
+      const txt = textoCatalogoItem(f);
+      return { ...base, accion: "dueno",
+        flujo: { tipo: "dueno", paso: "cat_item", datos: { clave: f.clave } },
+        panel: panelFlujo(txt, tecladoCatalogoItem(f)),
+        respuesta: txt, auditoria: { dueno: "catalogo_item", clave: f.clave } };
+    }
+    case "cat_nombre": {
+      const nombre = String(crudo ?? "").trim().replace(/\s+/g, " ").slice(0, 80);
+      if (nombre.length < 3) return seguir("cat_nombre", d, "El nombre quedó muy corto; escríbelo completo.");
+      d.nombre = nombre;
+      return seguir("cat_tipo", d, "«" + nombre + "» 👍 ¿Qué es: un PRODUCTO que vendes, un SERVICIO que prestas, o una COMPRA (algo que tú compras, como el saldo)? Responde con una palabra: producto, servicio o compra.");
+    }
+    case "cat_tipo": {
+      const t = normalizarLigero(crudo);
+      const tipo = ["producto", "servicio", "compra"].find((x) => t.includes(x));
+      if (!tipo) return seguir("cat_tipo", d, "Responde con una palabra: producto, servicio o compra.");
+      d.tipo = tipo;
+      return seguir("cat_precio", d, "Precio de «" + (d.nombre ?? "") + "»: escribe el número y la moneda (ejemplo: 300 CUP o 20 USD), «privado» si el precio es al privado, o «no» si no lleva precio fijo.");
+    }
+    case "cat_precio": {
+      const lig = normalizarLigero(crudo);
+      let precio = null, moneda = "CUP", privado = false;
+      if (/\bprivado\b/.test(lig)) { privado = true; }
+      else if (lig === "no" || lig.includes("sin precio")) { precio = null; }
+      else {
+        precio = numeroDe(crudo);
+        if (precio === null) return seguir("cat_precio", d, "No te pillé el precio 😅 Escribe el número (ejemplo: 300 CUP), «privado» o «no».");
+        if (/\busd\b/.test(lig)) moneda = "USD";
+        else if (/\bmlc\b/.test(lig)) moneda = "MLC";
+      }
+      if (d.nuevo) {
+        d.precio = precio; d.moneda = moneda; d.precio_al_privado = privado;
+        return seguir("cat_desc", d, "Último paso 📝 Describe «" + (d.nombre ?? "") + "» como quieres que el asistente se lo EXPLIQUE a los clientes: qué es, para qué sirve y cómo se hace. Dictalo con tus palabras.");
+      }
+      const f = catalogoTodos(datos).find((x) => x.clave === d.clave);
+      return confirmarDueno(base,
+        { accion: "catalogo_editar", clave: d.clave,
+          cambios: { precio, moneda, precio_al_privado: privado } },
+        "✏️ Nuevo precio de «" + (f?.nombre ?? d.clave) + "»: " +
+          (privado ? "al privado" : precio === null ? "sin precio fijo" : fmtNum(precio) + " " + moneda) +
+          "\n(Ahora es: " + (f ? precioTextoCat(f) : "—") + ")");
+    }
+    case "cat_desc": {
+      const texto = String(crudo ?? "").trim().slice(0, 800);
+      if (texto.length < 10) return seguir("cat_desc", d, "La descripción quedó muy corta; dictala completa (qué es, para qué sirve, cómo se hace).");
+      // Como en FAQ/enseñar: una cifra INTERNA jamás nace en un texto
+      // pa clientes; las cifras propias del dueño son su fuente.
+      const ver = verificarCifras(texto, [], datos.prohibidas, extraerCifras(texto));
+      if (!ver.ok) {
+        return seguir("cat_desc", d, "⚠️ Esa descripción trae una cifra INTERNA del negocio y eso jamás puede salir a un cliente. Quítala y mándala otra vez.");
+      }
+      if (d.nuevo) {
+        d.descripcion = texto;
+        return confirmarDueno(base, { accion: "catalogo_crear", ...d },
+          "🧾 Nuevo en el catálogo:\n«" + (d.nombre ?? "") + "» · " + (d.tipo ?? "producto") + " · " +
+            (d.precio_al_privado ? "precio al privado" : d.precio == null ? "sin precio fijo" : fmtNum(d.precio) + " " + (d.moneda ?? "CUP")) +
+            "\nDescripción: «" + texto + "»\nAl aplicarlo, el asistente ya lo explica a los clientes.");
+      }
+      const f = catalogoTodos(datos).find((x) => x.clave === d.clave);
+      return confirmarDueno(base,
+        { accion: "catalogo_editar", clave: d.clave, cambios: { descripcion: texto } },
+        "📝 Nueva descripción de «" + (f?.nombre ?? d.clave) + "»:\n«" + texto + "»");
+    }
     case "confirmar":
       return confirmarDueno(base, d, "Este es el cambio pendiente. Toca ✅ Aplicar o ✖️ Cancelar.");
     default:
@@ -2156,6 +2533,21 @@ export function proyeccionPublica(datos) {
       textos.push("P: " + f.pregunta + "\nR: " + f.respuesta_texto);
       valores.push(f.respuesta_texto);
     }
+  }
+  // v3: el CATÁLOGO LIBRE entra en la proyección — el cerebro puede
+  // EXPLICAR cualquier ítem activo (qué es, para qué sirve, cómo se
+  // hace) usando SOLO su descripcion viva; la fila entera va como
+  // fuente pa que sus cifras pasen el verificador.
+  for (const f of datos.catalogo?.values?.() ?? []) {
+    if (!f || f.activo === false || !f.descripcion) continue;
+    let linea = "CATÁLOGO · " + f.nombre + " (" + (f.tipo ?? "producto") + "): " + f.descripcion;
+    if (f.precio != null && !f.precio_al_privado) {
+      linea += " Precio: " + fmtNum(f.precio) + " " + (f.moneda ?? "CUP") + ".";
+    } else if (f.precio_al_privado) {
+      linea += " Precio: al privado con Ernesto.";
+    }
+    textos.push(linea);
+    valores.push(linea, JSON.stringify(f));
   }
   return { texto: textos.join("\n"), valores };
 }
