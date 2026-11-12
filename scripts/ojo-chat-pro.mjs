@@ -156,9 +156,9 @@ page2.on("pageerror", e => log("pageerror MT: " + String(e).slice(0, 160)));
 await page2.goto("https://ernesto5058.github.io/calculadora-ernesto/buscadores/?codigo=PEUEBA", { waitUntil: "networkidle" }).catch(() => {});
 await sleep(2000);
 let verMT = await page2.evaluate(() => window.APP_VERSION || "?");
-for (let i = 0; i < 24 && verMT !== "1.5.0"; i++) { await sleep(10000); await page2.reload({ waitUntil: "networkidle" }).catch(() => {}); verMT = await page2.evaluate(() => window.APP_VERSION || "?"); }
+for (let i = 0; i < 24 && verMT !== "1.5.1"; i++) { await sleep(10000); await page2.reload({ waitUntil: "networkidle" }).catch(() => {}); verMT = await page2.evaluate(() => window.APP_VERSION || "?"); }
 log("APP_VERSION publicado: " + verMT);
-ok(verMT === "1.5.0", "MT-1 la versión publicada ya es la 1.5.0");
+ok(verMT === "1.5.1", "MT-1 la versión publicada ya es la 1.5.1");
 /* El desbloqueo con PEUEBA es una ida y vuelta real al backend y
    su latencia varía: se espera con paciencia y diagnóstico (la
    primera corrida murió a los 20 s con la barra aún oculta por la
@@ -179,7 +179,7 @@ for (let i = 0; i < 30 && !mtListo; i++) {
   if (est.visible) mtListo = true; else await sleep(2000);
 }
 ok(mtListo, "MT-1b la app se desbloqueó con PEUEBA y la barra inferior quedó visible");
-try { if (verMT === "1.5.0" && mtListo) {
+try { if (verMT === "1.5.1" && mtListo) {
   await page2.click('#tabAyuda');
   await page2.waitForSelector("#c_txt", { timeout: 20000 });
   await sleep(2500);
