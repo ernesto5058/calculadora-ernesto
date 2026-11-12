@@ -15,7 +15,10 @@
 // llamar a QvaPay, en este orden:
 //   1  la acción existe, está «pendiente» y no venció (10 min)
 //   2  DETENER global / pausa por freno (mercado_config)
-//   3  congelamiento en promo de ETECSA conocida/confirmada
+//   3  congelamiento en promo de ETECSA conocida/confirmada — solo
+//      ata a la vía automática; el toque manual de Ernesto EN LA APP
+//      (origen 'app') está EXENTO por su decisión del 2026-11-11:
+//      «mi toque manda siempre»
 //   4  veto por datos viejos (foto > 20 min por recepción, o sin libro)
 //   5  collar con la tarifa LEÍDA AL INSTANTE (G<0 -> se niega)
 //   6  topes: ≤ tope por oferta (config) · ≤ $120/día · ≤ 2/hora ·
@@ -113,8 +116,12 @@ export async function ejecutarAccion(deps, accionId) {
   if (cfg.detenidas) return negar("detenido", "Las acciones están DETENIDAS. Reanúdalas desde tu app Mercado o con /reanudar aquí.");
   if (cfg.pausadas) return negar("pausado", `Las acciones están en pausa: ${cfg.pausa_motivo || "freno de seguridad"}. Reanuda desde tu app Mercado o con /reanudar aquí.`);
 
-  /* 3) Promo activa = automatización congelada */
-  if (cfg.congelar_en_promo && (await deps.promoActiva())) {
+  /* 3) Promo activa = automatización congelada. EXENCIÓN (decisión de
+     Ernesto, 2026-11-11 21:04): su toque manual EN LA APP manda
+     siempre — las acciones de origen 'app' NO se congelan; el
+     congelamiento ata solo a la vía automática (origen 'dura_compra' /
+     'cruce_eq', las que se ejecutan desde el botón de Telegram). */
+  if (accion.origen !== "app" && cfg.congelar_en_promo && (await deps.promoActiva())) {
     return negar("promo", "Hay una promo de ETECSA activa: la automatización se congela hasta que pase (tu regla).");
   }
 
