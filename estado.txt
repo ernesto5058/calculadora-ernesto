@@ -12,3 +12,5 @@
 [13:53:29] SESION VIVA: esperando ordenes por cmd.txt durante 20 min
 [13:54:06] Orden recibida (adbe624c)
 [13:54:11] Orden ejecutada; foto 'ahora' publicada
+[13:55:15] Orden recibida (cb2e869b)
+[13:55:28] Orden ejecutada; foto 'ahora' publicada
