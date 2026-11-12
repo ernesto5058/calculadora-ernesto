@@ -17,6 +17,8 @@ function ok(cond, nombre) {
 /* ---------- estado simulado ---------- */
 const VINCULOS = { "999": "ADMIN", "222": "SOCIO-TEST" }; // chatId -> codigo
 let decidirResp = { ok: true };
+let esperaSim = null; // fila agente_espera simulada
+let responderResp = { ok: true, faq: "00000000-0000-4000-8000-0000000000aa", cifra_detectada: false };
 let tgEstado = 200;
 let tgCalls = [];
 let rpcCalls = [];
@@ -37,6 +39,10 @@ globalThis.fetch = async (url, opts = {}) => {
     if (fn === "vincular_telegram_token") return resp({ ok: true, codigo: "SOCIO-TEST" });
     if (fn === "vincular_telegram_codigo") return resp({ ok: true, codigo: "SOCIO-TEST" });
     if (fn === "admin_decidir_telegram") return resp(decidirResp);
+    if (fn === "agente_contadores") return resp({ por_ensenar: 2, atendidas_hoy: 5, escaladas_hoy: 1, citas_pendientes: 3 });
+    if (fn === "agente_cita_decidir") return resp({ ok: true, estado: body.p_aprobar ? "confirmada" : "rechazada", nombre: "Pepe", servicio: "corte", dia: "2026-11-13", hora: "10:00:00" });
+    if (fn === "agente_ensenar_responder") return resp(responderResp);
+    if (fn.startsWith("agente_ensenar_") || fn === "agente_devolver_conversacion") return resp({ ok: true });
     return resp({});
   }
   if (u.includes("/rest/v1/telegram_updates")) {
@@ -51,6 +57,15 @@ globalThis.fetch = async (url, opts = {}) => {
     }
     if (u.includes("not.is.null")) return resp(Object.keys(VINCULOS).map((c) => ({ codigo: VINCULOS[c] })));
     return resp([{ telegram_chat_id: "999", telegram_user_id: "555" }]); // fila ADMIN
+  }
+  if (u.includes("/rest/v1/agente_pendientes")) return resp([
+    { id: "00000000-0000-4000-8000-0000000000bb", pregunta: "¿hacen desriz?", veces: 4, tipo_sugerido: "nueva" },
+    { id: "00000000-0000-4000-8000-0000000000cc", pregunta: "¿a cómo el tinte?", veces: 3, tipo_sugerido: "patron_dato" },
+  ]);
+  if (u.includes("/rest/v1/agente_espera")) {
+    if (opts.method === "POST") { esperaSim = body; return new Response("", { status: 201 }); }
+    if (opts.method === "DELETE") { esperaSim = null; return new Response("", { status: 204 }); }
+    return resp(esperaSim ? [{ accion: esperaSim.accion, ref_id: esperaSim.ref_id, expira_en: new Date(Date.now() + 600000).toISOString() }] : []);
   }
   if (u.includes("/rest/v1/perfiles")) return resp([{ nombre: "Socio Uno" }]);
   if (u.includes("/rest/v1/push_subs")) return resp([]);
@@ -185,6 +200,51 @@ const filaTg = j403.resultados.find((r) => r.canal === "telegram");
 ok(filaTg && filaTg.bloqueado === true, "emisora: 403 detectado como vínculo roto");
 ok(rpcCalls.some((c) => c.fn === "registrar_actividad" && c.body.p_accion === "telegram_vinculo_roto"), "vínculo roto registrado en actividad");
 tgEstado = 200;
+
+/* ---------- 8) Agente: parseo de callbacks y teclado ---------- */
+const G1 = "00000000-0000-4000-8000-0000000000bb";
+ok(pro.parseCallback("c:00000000-0000-4000-8000-000000000042:a")?.tipo === "cita", "callback de cita se reconoce");
+ok(pro.parseCallback("g:" + G1 + ":s")?.accion === "s" && pro.parseCallback("g:" + G1 + ":t")?.accion === "t", "callbacks de grupo (sumar/responder)");
+ok(pro.parseCallback("y:" + G1 + ":precio_corte")?.dato === "precio_corte", "callback de dato vivo elegido");
+ok(pro.parseCallback("k:" + G1 + ":f")?.tipo === "cifra" && pro.parseCallback("k:" + G1 + ":d:horario")?.dato === "horario", "callbacks de cifra (fija / a dato)");
+ok(pro.parseCallback("g:no-es-uuid:s") === null && pro.parseCallback("c:123:a") === null, "callbacks del agente con id inválido: rechazados");
+ok(pro.tecladoDueno().keyboard.flat().some((b) => b.text === "❓ Enseñar") && pro.TEXTO_A_VISTA["❓ Enseñar"] === "ensenar", "teclado del dueño gana «❓ Enseñar»");
+const tarjetas = pro.mensajesEnsenar([{ id: G1, pregunta: "¿hacen desriz?", veces: 4, tipo_sugerido: "nueva" }], { por_ensenar: 1, atendidas_hoy: 5, escaladas_hoy: 1, citas_pendientes: 2 });
+ok(tarjetas[0].html.includes("atendidas") && tarjetas[1].botones.inline_keyboard.flat().some((b) => b.callback_data === "g:" + G1 + ":s"), "vista Enseñar: contadores + tarjeta con botones g:");
+ok(pro.textoContadoresAgente({ por_ensenar: 2, atendidas_hoy: 5, escaladas_hoy: 1, citas_pendientes: 3 }).includes("❓ 2 por enseñar"), "línea de contadores del agente");
+
+/* ---------- 9) Emisora: botones de cita ---------- */
+tgCalls = []; tgEstado = 200;
+await emisora(reqAvisos({ para: "ADMIN", tipo: "cita", cita_id: "00000000-0000-4000-8000-000000000042", titulo: "📅 Cita por confirmar", cuerpo: "Pepe · corte · mañana 10:00" }), ENV);
+const envioCita = envios()[0];
+ok(!!envioCita && envioCita.cuerpo.reply_markup.inline_keyboard[0][0].callback_data === "c:00000000-0000-4000-8000-000000000042:a"
+  && envioCita.cuerpo.reply_markup.inline_keyboard[0][1].callback_data === "c:00000000-0000-4000-8000-000000000042:r", "emisora: cita con botones Confirmar / No puedo (c:<id>:a|r)");
+
+/* ---------- 10) Webhook: cita, enseñar y dictado ---------- */
+tgCalls = []; rpcCalls = [];
+await webhook(reqWebhook(callback(999, 555, "c:00000000-0000-4000-8000-000000000042:a", "📅 Cita por confirmar", 95)), ENV);
+ok(rpcCalls.some((c) => c.fn === "agente_cita_decidir" && c.body.p_aprobar === true), "dueño confirma cita por la puerta agente_cita_decidir");
+ok(tgCalls.some((c) => c.metodo === "editMessageText" && c.cuerpo.text.includes("Cita CONFIRMADA")), "la tarjeta de la cita queda sellada sin botones");
+
+tgCalls = []; rpcCalls = [];
+await webhook(reqWebhook(callback(777, 777, "c:00000000-0000-4000-8000-000000000042:a", "📅 Cita", 96)), ENV);
+ok(!rpcCalls.some((c) => c.fn === "agente_cita_decidir"), "intruso NO decide citas");
+
+tgCalls = []; rpcCalls = [];
+await webhook(reqWebhook(msg(999, "❓ Enseñar", 97)), ENV);
+ok(envios().some((e) => e.cuerpo.text.includes("¿hacen desriz?")) && envios().some((e) => e.cuerpo.reply_markup?.inline_keyboard?.flat().some((b) => String(b.callback_data).startsWith("g:"))), "vista Enseñar del dueño: grupos con sus botones");
+
+tgCalls = []; rpcCalls = [];
+await webhook(reqWebhook(callback(999, 555, "g:" + G1 + ":s", "❓ «¿hacen desriz?»", 98)), ENV);
+ok(rpcCalls.some((c) => c.fn === "agente_ensenar_sumar" && c.body.p_grupo === G1), "«Sumar frase» pasa por agente_ensenar_sumar");
+
+tgCalls = []; rpcCalls = []; esperaSim = null;
+await webhook(reqWebhook(callback(999, 555, "g:" + G1 + ":t", "❓ «¿hacen desriz?»", 99)), ENV);
+ok(esperaSim && esperaSim.accion === "ensenar_texto" && esperaSim.ref_id === G1, "«Responder yo» deja la espera registrada");
+tgCalls = []; rpcCalls = [];
+await webhook(reqWebhook(msg(999, "El desriz cuesta 900 CUP y dura una hora.", 100)), ENV);
+const llamadaResp = rpcCalls.find((c) => c.fn === "agente_ensenar_responder");
+ok(!!llamadaResp && llamadaResp.body.p_texto.includes("900 CUP") && esperaSim === null, "el dictado del dueño llega a agente_ensenar_responder y la espera se limpia");
 
 console.log("\n=== " + (n - fallos) + "/" + n + " pruebas TP en verde ===");
 process.exit(fallos ? 1 : 0);
