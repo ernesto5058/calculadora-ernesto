@@ -5,7 +5,7 @@ Baja GET https://api.qvapay.com/p2p/averages y agrega UNA linea a
 datos/historico.jsonl con los promedios de ETECSA y BANK_CUP, y deja la
 ultima foto en datos/ultimo.json. Pensado para correr en GitHub Actions.
 """
-import json, os, sys, time, urllib.request
+import json, os, sys, time
 from datetime import datetime, timezone
 
 URL = "https://api.qvapay.com/p2p/averages"
