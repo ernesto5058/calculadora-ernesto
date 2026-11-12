@@ -4,3 +4,4 @@
 [13:52:21] vivo.ini en: /home/runner/.android/avd/vivo.ini
 [13:52:21] ANDROID_AVD_HOME=/home/runner/.android/avd · AVDs segun el emulador: vivo 
 [13:52:21] AVD creado (t+94s)
+[13:52:56] Emulador arrancado (t+129s desde el inicio del script)
