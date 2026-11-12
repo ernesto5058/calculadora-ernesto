@@ -26,10 +26,10 @@ let pass = 0, fail = 0;
 function ok(c, n){ if (c) pass++; else { fail++; console.log("FAIL:", n); } }
 
 /* ---- Versión y caché ---- */
-ok(/var APP_VERSION = "1\.4\.7"/.test(html), "P1 APP_VERSION 1.4.7 en el build ensamblado");
+ok(/var APP_VERSION = "1\.4\.8"/.test(html), "P1 APP_VERSION 1.4.8 en el build ensamblado");
 ok(sw.includes('CACHE = "mitrabajo-v15"'), "P2 el SW sube a mitrabajo-v15 (sin esto, el arreglo no aterriza)");
-ok(datos.versionApp === "1.4.7" && /apk-v1\.4\.7\/Mi-Trabajo-v1\.4\.7\.apk$/.test(datos.apkUrl),
-   "P3 datos.json: versionApp 1.4.7 y apkUrl de la v1.4.7");
+ok(datos.versionApp === "1.4.8" && /apk-v1\.4\.8\/Mi-Trabajo-v1\.4\.8\.apk$/.test(datos.apkUrl),
+   "P3 datos.json: versionApp 1.4.8 y apkUrl de la v1.4.8");
 
 /* ---- Chat duro v1.4.7 ---- */
 ok(!html.includes("Nota de voz · en cola"), "C1 el chip sordo «Nota de voz · en cola» ya NO existe: la nota en cola se pinta con su reproductor");
