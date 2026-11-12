@@ -40,7 +40,7 @@ const genMT = fs.readFileSync(REPO + "buscadores/index.html", "utf8");
   ok(!genMN.includes("(último error:"), "E3 Mi Negocio ya NO pinta el error crudo de la puerta en la hoja del mensaje fallido");
   ok(genMN.includes('<details class="opDet">'), "E4 el detalle técnico del fallo vive plegado tras «ver detalle» (patrón de Actividad)");
   ok(genMN.includes("abrirEditorFotoMN") && genMT.includes("abrirEditorFotoMT"), "E5 el editor de foto a pantalla completa existe en AMBAS apps (paso WhatsApp parejo)");
-  ok(genMT.includes('APP_VERSION = "1.4.8"') && genMN.includes('MN_VERSION = "v11"'), "E6 versiones de la tanda: Mi Trabajo 1.4.8 · Mi Negocio v11");
+  ok(genMT.includes('APP_VERSION = "1.4.9"') && genMN.includes('MN_VERSION = "v11"'), "E6 versiones de la tanda: Mi Trabajo 1.4.9 · Mi Negocio v11");
   /* Ningún SQL del repo puede definir dos veces la misma función-puerta. */
   const sqls = [];
   (function walk(d){ if (!fs.existsSync(d)) return; for (const n of fs.readdirSync(d)) { const p = path.join(d, n); const st = fs.statSync(p); if (st.isDirectory()) walk(p); else if (n.endsWith(".sql")) sqls.push(p); } })(REPO + "supabase");
