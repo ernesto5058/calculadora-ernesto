@@ -9,7 +9,16 @@
     "id": "mercado",
     "url": "https://ernesto5058.github.io/calculadora-ernesto/mercado/",
     "ok": true,
-    "error": ""
+    "error": "",
+    "pantallas": [
+      "Ahora",
+      "Analista",
+      "Equilibrio",
+      "Demanda",
+      "Promos",
+      "Historial",
+      "Avisos"
+    ]
   },
   {
     "id": "negocio",

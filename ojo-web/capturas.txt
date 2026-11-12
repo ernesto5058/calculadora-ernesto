@@ -1,5 +1,17 @@
 01-minegocio-puerta.png|Mi Negocio — SOLO la puerta: el código del dueño no viaja a ningún robot. La carga y la puerta ya cazan errores reales.
-02-mercado.png|Mercado — el panel del mercado QvaPay con sus datos en vivo.
-03-mercado-abajo.png|Mercado — la misma pantalla, un poco más abajo.
+02-mercado.png|Mercado · Ahora — el panel del mercado QvaPay con sus datos en vivo.
+03-mercado-abajo.png|Mercado · Ahora — la misma pantalla, un poco más abajo.
+06-mercado-analista.png|Mercado · Analista — recorrido completo de bautizo del ojo web.
+07-mercado-analista-abajo.png|Mercado · Analista — un poco más abajo.
+08-mercado-equilibrio.png|Mercado · Equilibrio — recorrido completo de bautizo del ojo web.
+09-mercado-equilibrio-abajo.png|Mercado · Equilibrio — un poco más abajo.
+10-mercado-demanda.png|Mercado · Demanda — recorrido completo de bautizo del ojo web.
+11-mercado-demanda-abajo.png|Mercado · Demanda — un poco más abajo.
+12-mercado-promos.png|Mercado · Promos — recorrido completo de bautizo del ojo web.
+13-mercado-promos-abajo.png|Mercado · Promos — un poco más abajo.
+14-mercado-historial.png|Mercado · Historial — recorrido completo de bautizo del ojo web.
+15-mercado-historial-abajo.png|Mercado · Historial — un poco más abajo.
+16-mercado-avisos.png|Mercado · Avisos — recorrido completo de bautizo del ojo web.
+17-mercado-avisos-abajo.png|Mercado · Avisos — un poco más abajo.
 04-negocio.png|La paginita — la tarjeta pública del negocio (barbería, baterías, lavadoras y compra de saldo).
 05-mi-mercado.png|Mi Mercado (Lovable) — el conversor alimentado por los datos del vigía.
