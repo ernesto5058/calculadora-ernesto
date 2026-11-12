@@ -1,0 +1,27 @@
+name: Ojo Vivo (emulador en vivo)
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release de la APK a probar"
+        required: true
+        default: "apk-v1.5.0"
+      minutos:
+        description: "Minutos de sesion viva"
+        required: true
+        default: "20"
+
+permissions:
+  contents: write
+
+jobs:
+  vivo:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Emulador en vivo (noVNC + tunel)
+        run: bash scripts/ojo-vivo.sh "${{ inputs.tag }}" "${{ inputs.minutos }}"
