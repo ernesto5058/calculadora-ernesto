@@ -1,4 +1,10 @@
+00-entrada.png|Mi Trabajo — así queda la app al entrar con PEUEBA (la pantalla que abre).
+01-calculadora.png|Mi Trabajo · Calculadora — la pantalla que abre al entrar (cuenta PEUEBA).
+02-reportar.png|Mi Trabajo · Reportar — el formulario de tratos y su lista, que en PEUEBA nace vacía.
+03-mi-panel.png|Mi Trabajo · Mi panel — la semana del buscador (tratos, total y bono) de PEUEBA.
 04-chat.png|Mi Trabajo · Chat — la conversación con Ernesto de la cuenta de prueba.
 05-textos.png|Mi Trabajo · Textos — los anuncios listos pa copiar.
 06-mi-perfil.png|Mi Trabajo · Mi perfil — nombre, color y avisos de PEUEBA.
 07-chat-editor-foto.png|Mi Trabajo · Chat — el editor de foto a pantalla completa (paso WhatsApp): foto elegida y pie escrito. NO se envió nada: se descartó con la ✕.
+08-reportar-con-editar.png|Mi Trabajo · Reportar — la lista con un reporte pendiente y su botón «Editar» (sembrado SOLO en este navegador, con la red bloqueada: nunca salió).
+09-reportar-editando.png|Mi Trabajo · Reportar — tras tocar «Editar»: el formulario entra en modo corrección con los datos del reporte cargados.

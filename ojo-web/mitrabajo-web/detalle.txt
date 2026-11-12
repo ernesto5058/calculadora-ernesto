@@ -1,14 +1,1 @@
-Entrada con PEUEBA: sí, por su enlace · Pantallas fotografiadas: Chat, Textos, Mi perfil · Editor de foto del chat abierto y fotografiado (sin enviar): sí · Botón «Editar» de reportes alcanzado: no · Nota: No se pudo fotografiar Calculadora: TimeoutError: page.click: Timeout 8000ms exceeded.
-Call log:
-  - waiting for locator('#tabCalc')
-    - locator resolved  · Nota: No se pudo fotografiar Reportar: TimeoutError: page.click: Timeout 8000ms exceeded.
-Call log:
-  - waiting for locator('#tabRep')
-    - locator resolved t · Nota: No se pudo fotografiar Mi panel: TimeoutError: page.click: Timeout 8000ms exceeded.
-Call log:
-  - waiting for locator('#tabPanel')
-    - locator resolved · Nota: Editar no alcanzado: TimeoutError: page.click: Timeout 8000ms exceeded.
-Call log:
-  - waiting for locator('#tabRep')
-    - locator resolved to <div class="tab" id="tabRep">…</div>
- .
+Entrada con PEUEBA: sí, por su enlace · Pantallas fotografiadas: Calculadora, Reportar, Mi panel, Chat, Textos, Mi perfil · Editor de foto del chat abierto y fotografiado (sin enviar): sí · Botón «Editar» de reportes alcanzado: sí, y el formulario entró en modo corrección · Nota: Calculadora: el toque normal fue interceptado; entró el toque DOM. · Nota: Reportar: el toque normal fue interceptado; entró el toque DOM. · Nota: Mi panel: el toque normal fue interceptado; entró el toque DOM..

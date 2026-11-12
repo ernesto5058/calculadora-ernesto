@@ -1,17 +1,19 @@
 {
   "entrada": true,
   "pantallas": [
+    "Calculadora",
+    "Reportar",
+    "Mi panel",
     "Chat",
     "Textos",
     "Mi perfil"
   ],
   "editor": true,
-  "editar": false,
-  "editarModo": false,
+  "editar": true,
+  "editarModo": true,
   "notas": [
-    "No se pudo fotografiar Calculadora: TimeoutError: page.click: Timeout 8000ms exceeded.\nCall log:\n  - waiting for locator('#tabCalc')\n    - locator resolved ",
-    "No se pudo fotografiar Reportar: TimeoutError: page.click: Timeout 8000ms exceeded.\nCall log:\n  - waiting for locator('#tabRep')\n    - locator resolved t",
-    "No se pudo fotografiar Mi panel: TimeoutError: page.click: Timeout 8000ms exceeded.\nCall log:\n  - waiting for locator('#tabPanel')\n    - locator resolved",
-    "Editar no alcanzado: TimeoutError: page.click: Timeout 8000ms exceeded.\nCall log:\n  - waiting for locator('#tabRep')\n    - locator resolved to <div class=\"tab\" id=\"tabRep\">…</div>\n "
+    "Calculadora: el toque normal fue interceptado; entró el toque DOM.",
+    "Reportar: el toque normal fue interceptado; entró el toque DOM.",
+    "Mi panel: el toque normal fue interceptado; entró el toque DOM."
   ]
 }
