@@ -85,14 +85,17 @@ publicar "avance: avd"
 Xvfb :99 -screen 0 1320x2700x24 >/dev/null 2>&1 &
 export DISPLAY=:99
 sleep 2
+adb start-server >/dev/null 2>&1 || true
 nohup emulator -avd vivo -skin 1080x2400 -gpu swiftshader_indirect -no-audio -no-boot-anim -no-snapshot -accel on -cores 2 -memory 3072 > "$OUT/emulator.log" 2>&1 &
-sleep 6
-pgrep -f "emulator -avd vivo" >/dev/null || { tail -n 30 "$OUT/emulator.log" >> "$OUT/estado.txt"; fallo "el proceso del emulador murio al nacer"; }
+EMU_PID=$!
+vivo(){ kill -0 "$EMU_PID" 2>/dev/null || pgrep -f "qemu-system-x86_64" >/dev/null 2>&1; }
+sleep 15
+vivo || { tail -n 30 "$OUT/emulator.log" >> "$OUT/estado.txt"; fallo "el proceso del emulador murio al nacer"; }
 timeout 180 adb wait-for-device || fallo "adb no vio el dispositivo en 180s"
 n=0
 until [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = "1" ]; do
   sleep 5; n=$((n+1))
-  pgrep -f "emulator -avd vivo" >/dev/null || { tail -n 30 "$OUT/emulator.log" >> "$OUT/estado.txt"; fallo "el emulador murio durante el arranque"; }
+  vivo || { tail -n 30 "$OUT/emulator.log" >> "$OUT/estado.txt"; fallo "el emulador murio durante el arranque"; }
   [ $n -gt 60 ] && { tail -n 30 "$OUT/emulator.log" >> "$OUT/estado.txt"; fallo "el emulador no termino de arrancar en ~5 min"; }
 done
 linea "Emulador arrancado (t+$(( $(date +%s)-T_INICIO ))s desde el inicio del script)"
