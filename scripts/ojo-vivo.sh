@@ -14,6 +14,8 @@ OUT="$RUNNER_TEMP/vivo-out"; mkdir -p "$OUT/shots"
 REPO_DIR="$RUNNER_TEMP/vivo-repo"
 BR="ojo-vivo"
 export ANDROID_HOME="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
+export ANDROID_AVD_HOME="$HOME/.android/avd"
+mkdir -p "$ANDROID_AVD_HOME"
 export PATH="$PATH:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/emulator:$ANDROID_HOME/platform-tools"
 stamp(){ date -u +%H:%M:%S; }
 linea(){ echo "[$(stamp)] $*" | tee -a "$OUT/estado.txt"; }
@@ -72,6 +74,10 @@ timeout 900 sdkmanager "platform-tools" "emulator" "system-images;android-34;goo
 echo no | avdmanager create avd -n vivo -k "system-images;android-34;google_apis;x86_64" -d pixel_6 --force >/dev/null 2>&1 || \
 echo no | avdmanager create avd -n vivo -k "system-images;android-34;google_apis;x86_64" --force >/dev/null 2>&1
 avdmanager list avd 2>/dev/null | grep -q "Name: vivo" || fallo "el AVD no se creo"
+VIVO_INI=$(find "$HOME" "$ANDROID_HOME" -name "vivo.ini" 2>/dev/null | head -1)
+linea "vivo.ini en: ${VIVO_INI:-NO ENCONTRADO}"
+if [ -n "$VIVO_INI" ]; then export ANDROID_AVD_HOME="$(dirname "$VIVO_INI")"; fi
+linea "ANDROID_AVD_HOME=$ANDROID_AVD_HOME · AVDs segun el emulador: $(emulator -list-avds 2>/dev/null | tr '\n' ' ')"
 linea "AVD creado (t+$(( $(date +%s)-T_INICIO ))s)"
 publicar "avance: avd"
 
