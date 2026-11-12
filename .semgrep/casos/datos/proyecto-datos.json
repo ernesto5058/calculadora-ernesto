@@ -1,0 +1,10 @@
+{
+  // ruleid: proyecto-codigos-en-datos-publicos
+  "F1CT1-000": { "nombre": "Ficticio" },
+  // ruleid: proyecto-secreto-en-datos-publicos
+  "codigo": "F1CT1C10VALOR",
+  // ok: proyecto-codigos-en-datos-publicos
+  "nombre": "Ficticio",
+  // ok: proyecto-secreto-en-datos-publicos
+  "telefono": "51231558"
+}
