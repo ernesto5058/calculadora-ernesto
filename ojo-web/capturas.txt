@@ -1,0 +1,5 @@
+01-minegocio-puerta.png|Mi Negocio — SOLO la puerta: el código del dueño no viaja a ningún robot. La carga y la puerta ya cazan errores reales.
+02-mercado.png|Mercado — el panel del mercado QvaPay con sus datos en vivo.
+03-mercado-abajo.png|Mercado — la misma pantalla, un poco más abajo.
+04-negocio.png|La paginita — la tarjeta pública del negocio (barbería, baterías, lavadoras y compra de saldo).
+05-mi-mercado.png|Mi Mercado (Lovable) — el conversor alimentado por los datos del vigía.
