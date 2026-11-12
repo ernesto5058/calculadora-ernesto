@@ -92,8 +92,14 @@ export function enmascarar(txt) {
   // secuencias largas de dígitos (tarjetas/cuentas), con espacios o guiones
   v = v.replace(/\d[\d -]{11,}\d/g, "[dato protegido]");
   v = v.replace(/\b\d{12,}\b/g, "[dato protegido]");
-  // «pin/clave/contraseña» seguido de dígitos
-  v = v.replace(/(pin|clave|contrasena|password)(\s*[:=]?\s*)\d+/gi, "$1$2[dato protegido]");
+  // E9 (Tanda Nº6): teléfono cubano — 8 dígitos empezando por 5, con
+  // prefijo +53 opcional y espacios/guiones entre grupos. Antes una
+  // regex exigía 12+ dígitos y el teléfono normal NUNCA se tapaba.
+  v = v.replace(/(?:\+?53[\s-]?)?\b5(?:[\s-]?\d){7}\b/g, "[dato protegido]");
+  // «pin/clave/contraseña» + dígitos, TAMBIÉN con palabras cortas en
+  // medio («mi pin es 4321», «la clave de acceso es 9988»): la regex
+  // vieja exigía los dígitos pegados y «mi pin es 4321» pasaba entero.
+  v = v.replace(/(pin|clave|contrasena|password)([a-záéíóúñ :=]{0,24}?)(\d+)/gi, "$1$2[dato protegido]");
   return v;
 }
 
@@ -205,30 +211,46 @@ export function detectarIntencionesLigero(ligero) {
    Se leen sobre la forma LIGERA (con las palabras vacías intactas). */
 const RE_HUMANO = /(hablar|pasame|pasar|comunica|atiend)/;
 const RE_DINERO_TOKENS = new Set([
-  "qusd", "dolar", "dolares", "mlc", "euros", "cripto", "bitcoin",
+  "qusd", "dolar", "dolares", "mlc", "euro", "euros", "cripto", "bitcoin",
   "usdt", "salida", "toque", "ganancia", "ganas", "margen", "comision",
   "libro", "bank",
 ]);
 const RE_DESCUENTO = /\b(fia\w*|rebaj\w*|descuent\w*|apart\w*|guardame|guardas|guardar|credito|plazos|sen\w*)\b/;
+/* M1 (Tanda Nº6): escapes del hierro que la auditoría cazó cayendo a
+   no_se (y de ahí al cerebro) en vez de escalar/denegar determinista:
+   «alguien real», «el jefe», «número de <Nombre>», «euro» singular,
+   venta de saldo con palabras en medio y «más barato». */
+const RE_HUMANO_EXTRA = /\b(alguien|una persona|un humano|ser humano) (real|de verdad)\b|\bpersona real\b|\bcon (el |la )?(jefe|jefa|encargad\w*|responsable)\b/;
+const RE_DATOS_NOMBRE = /(numero|telefono|celular|movil|direccion|datos|contacto) de ([a-z]+)/;
+const NO_ES_TERCERO = new Set(["ernesto", "dueno", "ti", "usted", "negocio",
+  "telefono", "la", "el", "los", "las", "un", "una", "otro", "otra", "ese", "esa", "barberia", "aqui"]);
 export function detectarHierro(ligero, crudo) {
   const norm = " " + String(ligero ?? "") + " ";
   const toks = tokensDe(ligero);
   const set = new Set(toks);
   const raw = quitarAcentos(String(crudo ?? "").toLowerCase());
-  // 1) humano: «hablar con Ernesto / el dueño / una persona», «DUEÑO»
+  // 1) humano: «hablar con Ernesto / el dueño / una persona», «DUEÑO»,
+  // «que me atienda alguien real», «comunícame con el jefe» (M1)
   if ((RE_HUMANO.test(ligero) && (set.has("ernesto") || set.has("dueno") ||
-        set.has("persona") || set.has("humano"))) ||
+        set.has("persona") || set.has("humano") || set.has("alguien") ||
+        set.has("jefe") || set.has("jefa") || set.has("responsable"))) ||
+      RE_HUMANO_EXTRA.test(ligero) ||
       toks.join(" ") === "dueno" || raw.trim() === "dueño" || raw.trim() === "dueno") {
     return { tipo: "humano", motivo: "pide_humano" };
   }
-  // 2) datos de terceros o internos
+  // 2) datos de terceros o internos — también «número de <Nombre>»
+  // sin artículo («dame el número de Briku», M1): un nombre propio
+  // tras «número/teléfono de» es un tercero; Ernesto y «teléfono»
+  // («número de teléfono» = el contacto público) quedan fuera.
+  const mDatos = norm.match(RE_DATOS_NOMBRE);
   if (/(telefono|numero|direccion|datos) de (los|las|otro|otra|un|una|ese|esa) /.test(norm) ||
+      (mDatos && !NO_ES_TERCERO.has(mDatos[2])) ||
       norm.includes(" cuanto gana ") || norm.includes(" cuanto ganan ") ||
       norm.includes(" clientes de ayer") || norm.includes(" tus clientes")) {
     return { tipo: "datos", motivo: "datos_terceros" };
   }
   // 3) descuento / fiar / apartar / pagar en partes
-  if (RE_DESCUENTO.test(ligero) ||
+  if (RE_DESCUENTO.test(ligero) || /\bmas barato\b/.test(ligero) ||
       norm.includes(" en partes ") || norm.includes(" dos pagos ") ||
       norm.includes(" me lo guardas") || norm.includes(" te lo pago despues")) {
     return { tipo: "descuento", motivo: "descuento_o_credito" };
@@ -240,7 +262,7 @@ export function detectarHierro(ligero, crudo) {
       return { tipo: "dinero", motivo: "tema_dinero" };
     }
   }
-  if (/(vendes|vende|vender|comprar) (el )?(saldo|qusd)/.test(ligero) &&
+  if (/(vendes|vende|vender|vendeme|comprar|compro)\b[^.]{0,24}\b(saldo|qusd)\b/.test(ligero) &&
       !ligero.includes("compras saldo") && !ligero.includes("me compras")) {
     // «¿vendes saldo?» / «quiero comprar saldo» = él no vende por aquí
     if (!set.has("compras")) return { tipo: "dinero", motivo: "venta_saldo" };
@@ -535,10 +557,59 @@ export function decidir(marcador, config) {
    Nunca confirma: al completar devuelve la SOLICITUD lista.
    ===================================================================== */
 const SERVICIOS = ["corte"];
-export function flujoCitaPaso(flujo, textoCrudo, hoyISO) {
+/* E7 (Tanda Nº6) — Salidas del flujo por TEXTO en cualquier paso:
+   cancelar («cancela», «olvídalo», «ya no quiero») y pedir a un
+   humano (el hierro corre TAMBIÉN dentro del flujo: antes «quiero
+   hablar con Ernesto» se guardaba como NOMBRE de la cita). */
+const RE_CANCELA_CITA = /\b(cancela|cancelar|cancelalo|cancelala|olvidalo|olvidala|dejalo|dejalo asi|ya no|no quiero|no hace falta|mejor no|no gracias)\b/;
+/* E8 (Tanda Nº6) — El horario VIVO de las citas sale de la fuente
+   `horario_barberia` (la misma que renderiza «horario» y que el dueño
+   cambia desde ⚙️ Ajustes), jamás de constantes: si Ernesto abre a
+   las 8, una cita a las 8 vale. Sin fuente legible, el respaldo es el
+   horario semilla 9–18 (el banco lo ejercita sin datos). */
+export function horarioVivo(datos) {
+  const h = datos?.fuente?.get?.("horario_barberia")?.valor ?? {};
+  const aMin = minutosDe(h.abre ?? "09:00"), cMin = minutosDe(h.cierra ?? "18:00");
+  return { abre: h.abre ?? "09:00", cierra: h.cierra ?? "18:00",
+           abreMin: Number.isFinite(aMin) ? aMin : 540,
+           cierraMin: Number.isFinite(cMin) ? cMin : 1080 };
+}
+function minutosDe(hhmm) {
+  const m = String(hhmm ?? "").match(/^(\d{1,2}):(\d{2})$/);
+  return m ? Number(m[1]) * 60 + Number(m[2]) : NaN;
+}
+export function horaEnHorario(hora, hor) {
+  const mins = minutosDe(hora);
+  return Number.isFinite(mins) && mins >= hor.abreMin && mins < hor.cierraMin;
+}
+/* Texto del rango vivo pa los avisos de fuera-de-horario. */
+export function rangoHorarioTexto(hor) {
+  return hora12(hor.abre) + " – " + hora12(hor.cierra);
+}
+
+export function flujoCitaPaso(flujo, textoCrudo, hoyISO, datos = null) {
   const f = { ...(flujo ?? {}) };
   f.datos = { ...(f.datos ?? {}) };
-  const pedir = (paso, texto) => ({ flujo: { tipo: "cita", paso, datos: f.datos }, respuesta: texto, completa: false });
+  const hor = horarioVivo(datos);
+  const rango = rangoHorarioTexto(hor);
+  const pedir = (paso, texto) => ({ flujo: { tipo: "cita", paso, datos: f.datos, canal: f.canal ?? null }, respuesta: texto, completa: false });
+  const ligeroC = normalizarLigero(textoCrudo);
+
+  // E7: cancelar por texto sale del flujo en CUALQUIER paso.
+  if (RE_CANCELA_CITA.test(ligeroC)) {
+    return { flujo: null, respuesta: "Listo, no anoto nada 👍 Si luego quieres una cita, dime y empezamos de nuevo.",
+             completa: false, cancelada: true };
+  }
+  // E7: el hierro de humano/datos corre también dentro del flujo.
+  const hierroFlujo = detectarHierro(ligeroC, textoCrudo);
+  if (hierroFlujo?.tipo === "humano") {
+    return { flujo: null, respuesta: "Claro 🙏 Te paso con el dueño del negocio ahora mismo; en cuanto vea el mensaje te atiende él personalmente.",
+             completa: false, cancelada: true, escalar: "humano" };
+  }
+  if (hierroFlujo?.tipo === "datos") {
+    return { flujo: null, respuesta: "Eso no lo puedo dar: son datos de otras personas. Si necesitas algo del negocio, pregúntame por precios, horarios o citas.",
+             completa: false, cancelada: true, escalar: "datos" };
+  }
 
   /* v2.3 — COSECHA NATURAL: el mensaje COMPLETO puede traer el día
      y/o la hora en CUALQUIER paso («Hoy a las 2:00 pm» llena los
@@ -546,8 +617,15 @@ export function flujoCitaPaso(flujo, textoCrudo, hoyISO) {
      re-pregunta un dato ya dado en el mismo mensaje. Fallo en vivo
      (2026-11-12): el paso del día leía SOLO el día y la hora del
      mismo mensaje se tiraba — el cliente tuvo que repetir «2 pm». */
-  const dh = extraerDiaHora(textoCrudo, hoyISO);
-  if (dh.dia) f.datos.dia = dh.dia;
+  const dh = extraerDiaHora(textoCrudo, hoyISO, datos);
+  // E7: una fecha explícita en el PASADO no se guarda ni completa:
+  // se avisa y se vuelve a pedir el día (las relativas jamás caen
+  // en el pasado: hoy/mañana/día-de-semana siempre son >= hoy).
+  let diaPasado = false;
+  if (dh.dia) {
+    if (dh.dia < hoyISO) diaPasado = true;
+    else f.datos.dia = dh.dia;
+  }
 
   if (!f.datos.nombre && (!f.paso || f.paso === "nombre")) {
     const nombre = String(textoCrudo ?? "").trim()
@@ -557,7 +635,19 @@ export function flujoCitaPaso(flujo, textoCrudo, hoyISO) {
   }
   if (!f.datos.nombre) return pedir("nombre", "¿A nombre de quién anoto la cita?");
 
-  if (f.paso === "servicio") f.datos.servicio = "corte";
+  /* E7: el paso de servicio NO fuerza «corte» contra la negación ni
+     contra otro pedido: solo lo anota con afirmación o mención del
+     corte; la negación ya salió arriba como cancelación y cualquier
+     otra cosa vuelve a preguntar sin anotar nada. */
+  if (f.paso === "servicio" && !f.datos.servicio) {
+    if (/\bcorte\b|\bpelado\b/.test(ligeroC) || esAfirmacionCorta(textoCrudo)) {
+      f.datos.servicio = "corte";
+    } else if (String(textoCrudo ?? "").trim().length >= 2 && !dh.dia && !dh.hora) {
+      return pedir("servicio", "Por ahora el servicio es solo corte de cabello 💈 ¿Anoto corte? (o escribe «cancela» si no lo quieres)");
+    } else {
+      f.datos.servicio = "corte";
+    }
+  }
   if (!f.datos.servicio) {
     return pedir("servicio", "¿Qué servicio quieres? Por ahora: corte de cabello. ¿Anoto corte?");
   }
@@ -568,37 +658,54 @@ export function flujoCitaPaso(flujo, textoCrudo, hoyISO) {
     // en el paso de la hora vale también la hora pelada («10»)
     const h = parseHora(textoCrudo);
     if (h) {
-      const hh = Number(h.split(":")[0]);
-      if (hh >= 9 && hh < 18) f.datos.hora = h;
+      if (horaEnHorario(h, hor)) f.datos.hora = h;
       else dh.horaFuera = h;
     }
   }
   if (!f.datos.hora && dh.horaFuera) {
-    return pedir("hora", "Esa hora está fuera del horario (9:00 a. m. – 6:00 p. m.). ¿Cuál te sirve dentro de ese rango?");
+    return pedir("hora", "Esa hora está fuera del horario (" + rango + "). ¿Cuál te sirve dentro de ese rango?");
   }
 
   if (!f.datos.dia) {
+    if (diaPasado) return pedir("dia", "Esa fecha ya pasó 😅 Dime un día de hoy en adelante: «hoy», «mañana», «el viernes» o una fecha como 15/11.");
     if (f.paso === "dia") return pedir("dia", "No te entendí el día 😅 Dime por ejemplo «mañana», «el viernes» o una fecha como 15/11.");
     if (f.paso === "servicio") return pedir("dia", "Perfecto: corte. ¿Qué día te viene bien? (por ejemplo: mañana, el viernes, o 15/11)");
     return pedir("dia", "¿Qué día te viene bien? (por ejemplo: mañana, el viernes, o 15/11)");
   }
   if (!f.datos.hora) {
     if (f.paso === "hora") return pedir("hora", "Dime la hora así: «10», «10:30» o «4 de la tarde».");
-    return pedir("hora", "Anotado: " + diaLegible(f.datos.dia) + ". ¿A qué hora? La barbería abre de 9:00 a. m. a 6:00 p. m.");
+    return pedir("hora", "Anotado: " + diaLegible(f.datos.dia) + ". ¿A qué hora? La barbería abre de " + rango + ".");
+  }
+
+  /* F3 (Tanda Nº6) — La cita WEB pide un CONTACTO (teléfono o
+     Telegram): sin él, la confirmación de Ernesto no tiene por dónde
+     llegar. En Telegram el propio chat ES el contacto: no se pide. */
+  if (f.canal === "web" && !f.datos.contacto) {
+    const contactoCrudo = String(textoCrudo ?? "").trim();
+    if (f.paso === "contacto") {
+      const tel = contactoCrudo.replace(/[\s-]/g, "");
+      if (/^\+?5\d{7}$/.test(tel) || /^@[A-Za-z0-9_]{4,}$/.test(contactoCrudo) ||
+          /^[A-Za-z0-9_]{5,}$/.test(contactoCrudo)) {
+        f.datos.contacto = contactoCrudo.slice(0, 60);
+      } else {
+        return pedir("contacto", "Déjame un contacto válido: tu teléfono (8 dígitos, empieza por 5) o tu usuario de Telegram con @.");
+      }
+    }
+    if (!f.datos.contacto) {
+      return pedir("contacto", "Ya casi ✅ ¿Qué contacto le dejo a Ernesto pa confirmarte? Tu teléfono o tu Telegram (con @).");
+    }
   }
   return { flujo: null, respuesta: null, completa: true, datos: f.datos };
 }
-export function inicioCita(flujoPrevio, textoCrudo, hoyISO) {
+export function inicioCita(flujoPrevio, textoCrudo, hoyISO, opts = {}) {
   // detecta datos ya dados en el primer mensaje (hora/día sueltos)
   const datos = {};
   const dia = parseDia(textoCrudo, hoyISO);
-  if (dia) datos.dia = dia;
+  // E7: jamás nace una cita con el día en el pasado.
+  if (dia && dia >= hoyISO) datos.dia = dia;
   const hora = parseHora(textoCrudo);
-  if (hora) {
-    const [hh] = hora.split(":").map(Number);
-    if (hh >= 9 && hh < 18) datos.hora = hora;
-  }
-  return { tipo: "cita", paso: "nombre", datos };
+  if (hora && horaEnHorario(hora, horarioVivo(opts?.datos ?? null))) datos.hora = hora;
+  return { tipo: "cita", paso: "nombre", datos, canal: opts?.canal ?? null };
 }
 function parseDia(txt, hoyISO) {
   const t = quitarAcentos(String(txt ?? "").toLowerCase());
@@ -619,8 +726,12 @@ function parseDia(txt, hoyISO) {
   const m = t.match(/\b(\d{1,2})[/-](\d{1,2})(?:[/-](\d{2,4}))?\b/);
   if (m) {
     const anio = m[3] ? Number(m[3].length === 2 ? "20" + m[3] : m[3]) : hoy.getUTCFullYear();
-    const d = new Date(Date.UTC(anio, Number(m[2]) - 1, Number(m[1]), 12));
-    if (!isNaN(d.getTime())) return fmt(d);
+    const mes = Number(m[2]), diaN = Number(m[1]);
+    const d = new Date(Date.UTC(anio, mes - 1, diaN, 12));
+    // E7: fecha REAL — Date.UTC rueda el 31/02 al 3/03 sin avisar;
+    // si los componentes no coinciden, ese día no existe -> null.
+    if (!isNaN(d.getTime()) && d.getUTCFullYear() === anio &&
+        d.getUTCMonth() === mes - 1 && d.getUTCDate() === diaN) return fmt(d);
   }
   return null;
 }
@@ -657,14 +768,13 @@ export function buscarHoraNatural(txt) {
 }
 /* v2.3 — Día y hora de UN mensaje completo (la cosecha del flujo):
    el día sale de parseDia sobre el texto entero y la hora de las
-   formas naturales; la hora FUERA del horario (9–18) no se guarda:
+   formas naturales; la hora FUERA del horario VIVO no se guarda:
    se devuelve aparte pa que el flujo la señale sin perder el día. */
-export function extraerDiaHora(txt, hoyISO) {
+export function extraerDiaHora(txt, hoyISO, datos = null) {
   const dia = parseDia(txt, hoyISO);
   const h = buscarHoraNatural(txt);
   if (!h) return { dia, hora: null, horaFuera: null };
-  const hh = Number(h.split(":")[0]);
-  if (hh >= 9 && hh < 18) return { dia, hora: h, horaFuera: null };
+  if (horaEnHorario(h, horarioVivo(datos))) return { dia, hora: h, horaFuera: null };
   return { dia, hora: null, horaFuera: h };
 }
 export function diaLegible(iso) {
@@ -692,7 +802,9 @@ export function horaCorta(h) {
 export function resumenCita(cita) {
   return String(cita?.nombre ?? "Sin nombre") + " — " + String(cita?.servicio ?? "corte") +
          " · " + diaLegible(String(cita?.dia ?? "")) + " a las " + horaCorta(cita?.hora) +
-         " (por " + String(cita?.canal ?? "—") + ")";
+         " (por " + String(cita?.canal ?? "—") + ")" +
+         // F3: el contacto de la cita web se referencia en el aviso.
+         (cita?.contacto ? " · contacto: " + String(cita.contacto) : "");
 }
 /* El aviso que le llega al dueño al crearse la cita, con sus botones
    de decisión (callback «v2:c:ok|no:<id>», los maneja esta puerta). */
@@ -1214,7 +1326,7 @@ export function orquestar(datos, conv, textoCrudo, hoyISO) {
                auditoria: { comando } };
     }
     if (comando === "cita") {
-      const flujo = inicioCita(null, crudo, hoyISO);
+      const flujo = inicioCita(null, crudo, hoyISO, { canal: conv?.canal ?? null, datos });
       return {
         ...base, accion: "cita_paso", flujo,
         respuesta: "¡Claro! Te anoto la solicitud de cita 📋 ¿A nombre de quién la pongo?",
@@ -1252,13 +1364,27 @@ export function orquestar(datos, conv, textoCrudo, hoyISO) {
 
   // flujo de cita en curso manda sobre el matcher
   if (conv?.flujo?.tipo === "cita") {
-    const r = flujoCitaPaso(conv.flujo, crudo, hoyISO);
+    const r = flujoCitaPaso(conv.flujo, crudo, hoyISO, datos);
+    if (r.cancelada) {
+      // E7: salida por texto (cancelar / pedir humano / datos) — el
+      // flujo muere aquí; pedir humano escala como fuera del flujo.
+      if (r.escalar === "humano") {
+        return { ...base, accion: "escalar", escalar: "humano", flujo: null,
+                 respuesta: r.respuesta, registrar_sin_respuesta: true };
+      }
+      if (r.escalar === "datos") {
+        return { ...base, accion: "denegar", flujo: null, respuesta: r.respuesta,
+                 registrar_sin_respuesta: true };
+      }
+      return { ...base, accion: "cita_cancelada", flujo: null, respuesta: r.respuesta };
+    }
     if (r.completa) {
       return {
         ...base, accion: "cita_completa", cita: r.datos,
         respuesta: "Listo, " + r.datos.nombre + " ✅ Tu solicitud de cita quedó anotada: " +
           (r.datos.servicio ?? "corte") + ", " + diaLegible(r.datos.dia) + " a las " +
-          r.datos.hora + ". OJO: es una SOLICITUD — Ernesto te la confirma en persona por aquí o por tu contacto.",
+          r.datos.hora + ". OJO: es una SOLICITUD — Ernesto te la confirma en persona" +
+          (r.datos.contacto ? " por tu contacto (" + r.datos.contacto + ")" : " por aquí") + ".",
       };
     }
     return { ...base, accion: "cita_paso", flujo: r.flujo, respuesta: r.respuesta };
@@ -1271,7 +1397,7 @@ export function orquestar(datos, conv, textoCrudo, hoyISO) {
     const vista = vistaDesdeMenu(crudo);
     if (vista) {
       if (vista === "cita") {
-        const flujo = inicioCita(null, crudo, hoyISO);
+        const flujo = inicioCita(null, crudo, hoyISO, { canal: conv?.canal ?? null, datos });
         return { ...base, accion: "cita_paso", flujo,
                  respuesta: "¡Claro! Te anoto la solicitud de cita 📋 ¿A nombre de quién la pongo?" };
       }
@@ -1376,7 +1502,7 @@ export function orquestar(datos, conv, textoCrudo, hoyISO) {
     ...detectarIntencionesLigero(ligero),
   ])];
   if (intenciones.includes("cita") || /\b(quiero|necesito|reserv).*(turno|cita)\b/.test(norm)) {
-    const flujo = inicioCita(null, crudo, hoyISO);
+    const flujo = inicioCita(null, crudo, hoyISO, { canal: conv?.canal ?? null, datos });
     return {
       ...base, accion: "cita_paso", flujo,
       respuesta: "¡Claro! Te anoto la solicitud de cita 📋 ¿A nombre de quién la pongo?",
@@ -1651,11 +1777,13 @@ function tecladoDueno(datos, conv) {
   // decidir + confirmadas por cerrar.
   const nCitas = (datos?.citasPendientes ?? []).length +
                  (datos?.citasConfirmadas ?? []).length;
+  const nPend = (datos?.pendientesSinRespuesta ?? []).length;
   const filas = [
     [{ text: "🕘 Cambiar horario", callback_data: "v2:d:horario" },
      { text: "💈 Precio del corte", callback_data: "v2:d:corte" }],
     [{ text: "📋 Citas" + (nCitas ? " (" + nCitas + ")" : ""), callback_data: "v2:d:citas" },
      { text: "📝 Editar una respuesta", callback_data: "v2:d:faq" }],
+    [{ text: "❓ Enseñar respuesta" + (nPend ? " (" + nPend + ")" : ""), callback_data: "v2:d:ensenar" }],
     [{ text: "💰 Dinero de citas", callback_data: "v2:d:dinero" }],
     [(datos.pausado || datos.config?.detenido)
       ? { text: "▶️ Reanudar el agente", callback_data: "v2:d:reanudar" }
@@ -1742,6 +1870,28 @@ export function duenoAccion(datos, conv, accion, base) {
         panel: panelFlujo(txt, TECLADO_CANCELAR), respuesta: txt,
         auditoria: { dueno: "faq" } };
     }
+    case "ensenar": {
+      // F2 (Tanda Nº6): CREAR una respuesta NUEVA desde la cola de
+      // «sin respuesta» — antes el bot solo EDITABA textos ya
+      // existentes y la promesa «Ernesto enseña con un toque» no
+      // tenía puerta en ESTE bot. La ejecución la hace la puerta por
+      // la RPC agente_ensenar_responder (la misma escuela SQL).
+      const pend = datos.pendientesSinRespuesta ?? [];
+      if (!pend.length) {
+        return { ...base, accion: "dueno", panel: { vista: "dueno" }, flujo: null,
+                 respuesta: "❓ No hay preguntas sin respuesta en la cola: todo lo que preguntan los clientes ya tiene respuesta.",
+                 auditoria: { dueno: "ensenar_vacio" } };
+      }
+      const txt = "❓ Preguntas de clientes SIN respuesta (toca el número y me dictas la respuesta; queda guardada y se usa desde ese momento):\n" +
+        pend.map((g, i) => (i + 1) + ") «" + String(g.pregunta ?? "").slice(0, 90) + "»" +
+          (Number(g.veces ?? 1) > 1 ? " (×" + g.veces + ")" : "")).join("\n") +
+        "\nRespóndeme con el NÚMERO de la que quieres enseñar.";
+      return { ...base, accion: "dueno",
+        flujo: { tipo: "dueno", paso: "ensenar_num",
+                 datos: { ids: pend.map((g) => g.id), preguntas: pend.map((g) => String(g.pregunta ?? "")) } },
+        panel: panelFlujo(txt, TECLADO_CANCELAR), respuesta: txt,
+        auditoria: { dueno: "ensenar", pendientes: pend.length } };
+    }
     case "pausar":
       return confirmarDueno(base, { accion: "pausar" },
         "⏸ Pausar el agente: los clientes dejan de recibir respuesta (Telegram y web) hasta que lo reanudes desde aquí.");
@@ -1814,6 +1964,15 @@ export function duenoConfirmar(datos, conv, base) {
                   parche: { respuesta_texto: d.texto },
                   deshacer: { respuesta_texto: faq?.respuesta_texto ?? null } }] },
       "Respuesta actualizada: «" + (faq?.pregunta ?? "") + "» ya dice el texto nuevo.");
+  }
+  if (d.accion === "ensenar") {
+    // F2: no es un «cambio» de parches — es una CREACIÓN por la RPC
+    // de la escuela; la puerta la ejecuta y compone la respuesta
+    // final según lo que la RPC devuelva (activa / borrador).
+    return { ...base, accion: "dueno_ensenar", flujo: null,
+      ensenar: { grupoId: d.grupoId, texto: d.texto },
+      respuesta: "Guardando la respuesta nueva…",
+      auditoria: { dueno: "ensenar_aplicar", grupo: d.grupoId } };
   }
   if (d.accion === "pausar") {
     return hecho({ etiqueta: "pausa", resumen: "Agente pausado",
@@ -1915,6 +2074,31 @@ export function duenoPaso(datos, conv, crudo, base) {
       const faq = (datos.faqs ?? []).find((x) => x.id === d.faqId);
       return confirmarDueno(base, { accion: "faq", ...d },
         "📝 Nueva respuesta para «" + (faq?.pregunta ?? "") + "»:\n«" + texto + "»");
+    }
+    case "ensenar_num": {
+      const n = Number(String(crudo ?? "").trim());
+      const ids = d.ids ?? [];
+      if (!Number.isInteger(n) || n < 1 || n > ids.length) {
+        return seguir("ensenar_num", d, "Respóndeme con el número de la lista (1–" + ids.length + ").");
+      }
+      d.grupoId = ids[n - 1];
+      d.pregunta = (d.preguntas ?? [])[n - 1] ?? "";
+      return seguir("ensenar_texto", d,
+        "❓ Pregunta del cliente: «" + d.pregunta + "»\n✏️ Dicta la RESPUESTA que el asistente dará desde ahora (con tus palabras).");
+    }
+    case "ensenar_texto": {
+      const texto = String(crudo ?? "").trim().slice(0, 800);
+      if (texto.length < 3) return seguir("ensenar_texto", d, "La respuesta quedó muy corta; escríbela completa.");
+      // Igual que al editar: una cifra INTERNA jamás nace en una
+      // respuesta; las cifras PROPIAS de Ernesto las marca la RPC
+      // (quedan en borrador pa que él decida si son fijas).
+      const ver = verificarCifras(texto, [], datos.prohibidas, extraerCifras(texto));
+      if (!ver.ok) {
+        return seguir("ensenar_texto", d, "⚠️ Esa respuesta trae una cifra INTERNA del negocio y eso jamás puede salir a un cliente. Quítala y mándala otra vez.");
+      }
+      d.texto = texto;
+      return confirmarDueno(base, { accion: "ensenar", ...d },
+        "❓ Nueva respuesta\nPregunta: «" + (d.pregunta ?? "") + "»\nRespuesta: «" + texto + "»");
     }
     case "cierre_monto": {
       // v2.4: [✏️ Otro monto] del cierre de una cita — validación
