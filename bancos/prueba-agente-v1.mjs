@@ -139,6 +139,13 @@ for (const [txt, nombre] of [
   ok(r.accion === "escalar" && r.escalar === "humano", "ES-3 humano: escalado inmediato");
   const r2 = L.orquestar(DATOS, { escalada: true, flujo: {} }, "¿y el precio del corte?", AHORA);
   ok(r2.accion === "silencio", "ES-3 tras escalar, el agente calla en esa conversación");
+  // E6-D: el silencio por escalado NO ata al dueño (tanda Nº4+5,
+  // reverificación): su /admin responde aunque su conversación esté
+  // escalada; el cliente sigue en silencio.
+  const rD = L.orquestar({ ...DATOS, esDueno: true }, { escalada: true, flujo: {} }, "/admin", AHORA);
+  ok(rD.accion !== "silencio", "E6-D1 dueño con conversación escalada: su /admin NO cae en silencio");
+  const rC = L.orquestar(DATOS, { escalada: true, flujo: {} }, "/admin", AHORA);
+  ok(rC.accion === "silencio", "E6-D2 cliente con conversación escalada: sigue en silencio");
 }
 
 /* ================= FR — frescura y degradación ================= */
