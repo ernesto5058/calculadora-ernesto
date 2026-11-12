@@ -1064,7 +1064,10 @@ export function orquestar(datos, conv, textoCrudo, hoyISO) {
   const ligero = normalizarLigero(crudo);
   const base = { norm, registrar_sin_respuesta: false, escalar: null, aviso_lead: false };
 
-  if (conv?.escalada) return { ...base, accion: "silencio", motivo: "ya_escalada" };
+  // E6 (completada en la reverificación de la tanda Nº4+5): el silencio
+  // por escalado ata a CLIENTES; el dueño jamás queda mudo en su propio
+  // bot — su /admin y su panel tienen que responder siempre.
+  if (conv?.escalada && !datos.esDueno) return { ...base, accion: "silencio", motivo: "ya_escalada" };
 
   // ── v2: pausa, panel y modo dueño ────────────────────────────────
   // Agente pausado: la puerta solo deja pasar al dueño (Telegram);
