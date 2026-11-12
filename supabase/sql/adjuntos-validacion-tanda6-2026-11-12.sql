@@ -139,69 +139,12 @@ $function$;
 -- ---------------------------------------------------------------------
 
 -- ---------------------------------------------------------------------
--- Puerta: public.registrar_reporte — mismo cuerpo vivo, con la
--- misma validación (su definición NO estaba versionada en el repo:
--- queda aquí por primera vez, ya endurecida). El comprobante debe
--- ser una imagen real; adj_mime/adj_bytes salen de la validación,
--- no fijos ni declarados.
+-- Puerta: public.registrar_reporte — su definición canónica YA NO
+-- vive aquí: el 2026-11-12 el humo E2E cazó que su INSERT usaba la
+-- columna «telefono» (la tabla la llama telefono_vendedor) y que su
+-- id bigint chocaba con el id uuid actual de reportes: todo reporte
+-- rebotaba con 42703. La definición reparada (mismo cuerpo, con la
+-- validación adj_normalizar de esta tanda intacta) vive en
+-- supabase/sql/reparacion-registrar-reporte-2026-11-12.sql
+-- (E7: una sola definición por puerta en el repo).
 -- ---------------------------------------------------------------------
-CREATE OR REPLACE FUNCTION public.registrar_reporte(p_buscador text, p_tipo text, p_precio numeric, p_porc numeric, p_cantidad numeric, p_telefono text, p_nota text, p_adj_tipo text DEFAULT NULL::text, p_adj_datos text DEFAULT NULL::text, p_op_id text DEFAULT NULL::text)
- RETURNS bigint
- LANGUAGE plpgsql
- SECURITY DEFINER
- SET search_path TO 'public'
-AS $function$
-declare
-  v_id        bigint;
-  v_bytes     int;
-  v_adj_datos text;
-  v_adj_mime  text;
-  v_bytes64   bigint;
-begin
-  if not exists (select 1 from public.usuarios
-                  where codigo = p_buscador and activo = true) then
-    raise exception 'no autorizado';
-  end if;
-  perform public.chat_exigir_activo(p_buscador);
-
-  -- LOCAL-FIRST: si esta operación ya entró, se devuelve su id.
-  if p_op_id is not null then
-    select id into v_id from public.reportes where op_id = p_op_id;
-    if v_id is not null then
-      return v_id;
-    end if;
-  end if;
-
-  if p_adj_datos is not null then
-    if coalesce(p_adj_tipo, '') <> 'foto' then
-      raise exception 'adjunto no valido';
-    end if;
-    -- TANDA 6 (E-3): el comprobante debe ser imagen real validada.
-    select o_datos, o_mime, o_bytes
-      into v_adj_datos, v_adj_mime, v_bytes64
-      from public.adj_normalizar('foto', null, p_adj_datos);
-    v_bytes := v_bytes64::int;
-  end if;
-
-  begin
-    insert into public.reportes
-      (buscador, tipo, precio, porc, cantidad, telefono, nota,
-       adj_tipo, adj_nombre, adj_mime, adj_datos, adj_bytes, op_id)
-    values
-      (p_buscador, p_tipo, p_precio, p_porc, p_cantidad, p_telefono, p_nota,
-       case when p_adj_datos is null then null else 'foto' end,
-       case when p_adj_datos is null then null
-            else 'comprobante.' || case v_adj_mime
-                   when 'image/png' then 'png' when 'image/gif' then 'gif'
-                   when 'image/webp' then 'webp' else 'jpg' end end,
-       case when p_adj_datos is null then null else v_adj_mime end,
-       v_adj_datos, v_bytes, p_op_id)
-    returning id into v_id;
-  exception when unique_violation then
-    select id into v_id from public.reportes where op_id = p_op_id;
-    return v_id;
-  end;
-
-  return v_id;
-end;
-$function$;
