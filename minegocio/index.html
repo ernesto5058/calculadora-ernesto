@@ -100,6 +100,9 @@ button.off, .off { opacity:.45; pointer-events:none; }
 .clipBtn svg { width:21px; height:21px; fill:none; stroke:currentColor; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; }
 .sendBtn { width:48px; height:48px; border-radius:50%; background:var(--dorado-grad); color:var(--txt-sobre-dorado); border:0; font-size:19px; font-weight:800; margin:0; padding:0; flex:0 0 auto; box-shadow:var(--sombra-dorada); display:inline-flex; align-items:center; justify-content:center; }
 .sendBtn svg { width:21px; height:21px; fill:currentColor; stroke:none; }
+.sendBtn.sendGrande { width:56px; height:56px; }
+.sendBtn.sendGrande svg { width:25px; height:25px; }
+.burMeta .ticks.fallido { color:var(--rojo); font-weight:800; font-size:12px; }
 .micBtn { width:48px; height:48px; border-radius:50%; background:var(--bg-2); color:var(--txt-1); border:1px solid var(--borde); margin:0; padding:0; flex:0 0 auto; display:inline-flex; align-items:center; justify-content:center; }
 .micBtn svg { width:21px; height:21px; fill:none; stroke:currentColor; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; }
 .adjHojaWA { gap:var(--e-2); margin-top:var(--e-3); flex-wrap:wrap; }
@@ -800,6 +803,7 @@ function despacharCola(){
   var copia = state.cola.slice();
   copia.forEach(function(a){
     chain = chain.then(function(){
+      if (a.estado === "fallida") return; /* v10: parada honesta; se reintenta a mano desde su burbuja */
       /* LOCAL-FIRST: la operación se marca «enviando» mientras su
          puerta responde; si falla, vuelve a «pendiente» con un
          intento más y se queda en la cola (nunca se pierde). */
@@ -810,10 +814,14 @@ function despacharCola(){
         var i = state.cola.indexOf(a); if (i >= 0) state.cola.splice(i, 1);
         if (a.tipo === "publicar") state.publicarPendiente = null;
         guardar();
-      }).catch(function(){
-        a.estado = "pendiente";
+      }).catch(function(e){
         a.intentos = (a.intentos || 0) + 1;
         a.ultimoIntento = new Date().toISOString();
+        a.ultimoError = String((e && e.message) || e || "error");
+        /* v10: tras 3 intentos la acción queda «fallida» VISIBLE y
+           la cola para: nada de relojes eternos mudos (el audio de
+           Ernesto: en línea, sin error mostrado y sin salida). */
+        a.estado = a.intentos >= 3 ? "fallida" : "pendiente";
         guardar();
       });
     });
@@ -1100,7 +1108,7 @@ function espejoEstadoIDB(){
   var modelo = fotoAModeloLocal(state);
   var ops = state.cola.filter(function(a){ return a && a.opId; }).map(function(a){
     var c = Object.assign({}, a);
-    if (c.adj && c.adj.adjRef) { c.adj = Object.assign({}, c.adj); delete c.adj.datos; }
+    if (c.adj) c.adj = Object.assign({}, c.adj); /* v10: la copia lleva el dato íntegro, como la operación viva: la referencia sola dejó una nota muda */
     return c;
   });
   var chain = Promise.resolve();
@@ -1263,13 +1271,13 @@ function previaAdjHtml(){
   if (!chatAdj) return "";
   if (chatAdj.tipo === "voz") {
     return '<div class="prevAdj"><span class="docIco">🎤</span><span class="prevMeta"><b>Nota de voz lista</b>Escúchala antes de enviar</span>'
-      + reproductorVozHtml({ adj_datos: chatAdj.datos, id: "prev" }, "prev")
+      + reproductorVozHtml({ adj_datos: chatAdj.datos, adj_dur: chatAdj.dur || null, id: "prev" }, "prev")
       + '<button class="bGhost bMini" id="chAdjX">Quitar</button></div>';
   }
   if (chatAdj.tipo === "foto") {
     var tamF = chatAdj.tam || tamDeDatos(chatAdj.datos);
     return '<div class="prevAdj"><img class="prevFoto" id="chPrevFoto" src="' + chatAdj.datos + '" alt="Foto a enviar">'
-      + '<span class="prevMeta"><b>' + esc(chatAdj.nombre || "Foto") + '</b>' + (tamF ? fmtBytes(tamF) + " · " : "") + 'Toca la imagen para verla grande</span>'
+      + '<span class="prevMeta"><b>' + esc(chatAdj.nombre || "Foto") + '</b>' + (tamF ? fmtBytes(tamF) + " · " : "") + 'Toca la imagen para verla grande. El texto que escribas abajo sale JUNTO con la foto, en un solo mensaje: toca ➤ y listo.</span>'
       + '<button class="bGhost bMini" id="chAdjX">Quitar</button></div>';
   }
   var tamA = chatAdj.tam || tamDeDatos(chatAdj.datos);
@@ -1514,6 +1522,7 @@ function haceVisible(){
    (leer_chat lo marca al abrir el hilo). Ya no se deriva nada del
    latido de presencia: estar en línea no es recibir el mensaje. */
 function estadoMsg(m, vistoIso){
+  if (m.local && (m.op_estado === "fallida" || (m.op_intentos || 0) >= 3)) return '<span class="ticks fallido" title="No se pudo enviar">⚠</span><span class="sr-only">⚠ sin enviar: mantén presionada la burbuja para reintentar</span>';
   if (m.local) return '<span class="ticks reloj" title="Sin enviar">' + TICK_RELOJ + '</span><span class="sr-only">\uD83D\uDD50 sin enviar</span>';
   if (m.leido) return '<span class="ticks visto" title="Visto">' + TICK_DOBLE + '</span><span class="sr-only">\u2713\u2713 Visto</span>';
   if (m.recibido) return '<span class="ticks" title="Entregado">' + TICK_DOBLE + '</span><span class="sr-only">\u2713\u2713 entregado</span>';
@@ -2173,7 +2182,7 @@ function cargarChat(){
     chatTempSeg = Number((r && r.temporal_seg) || 0);
     var propios = (r && r.mensajes) || [];
     var enCola = state.cola.filter(function(a){ return a.tipo === "chat" && a.para === chatCon; })
-      .map(function(a){ return { id: "local-" + a.cuando, de: "ADMIN", para: chatCon, texto: a.texto, creado: a.cuando, leido: false, local: true, adj_tipo: a.adj ? a.adj.tipo : null, adj_datos: a.adj ? (a.adj.datos || null) : null, adj_ref: a.adj ? (a.adj.adjRef || null) : null, adj_nombre: a.adj ? a.adj.nombre : null, adj_mime: a.adj ? (a.adj.mime || null) : null, resp_texto: a.resp_texto || null }; });
+      .map(function(a){ return { id: "local-" + a.cuando, de: "ADMIN", para: chatCon, texto: a.texto, creado: a.cuando, leido: false, local: true, adj_tipo: a.adj ? a.adj.tipo : null, adj_datos: a.adj ? (a.adj.datos || null) : null, adj_ref: a.adj ? (a.adj.adjRef || null) : null, adj_nombre: a.adj ? a.adj.nombre : null, adj_mime: a.adj ? (a.adj.mime || null) : null, adj_dur: a.adj ? (a.adj.dur || null) : null, op_estado: a.estado || "pendiente", op_intentos: a.intentos || 0, op_error: a.ultimoError || null, resp_texto: a.resp_texto || null }; });
     chatMsgs = propios.concat(enCola);
     /* LOCAL-FIRST: el hilo queda espejado en la base del teléfono
        (adjuntos como Blob) y se sella la marca de agua. */
@@ -2183,7 +2192,7 @@ function cargarChat(){
   }).catch(function(e){
     if (e && e.faltaPuerta) puertasChat = false;
     var enColaC = state.cola.filter(function(a){ return a.tipo === "chat" && a.para === chatCon; })
-      .map(function(a){ return { id: "local-" + a.cuando, de: "ADMIN", para: chatCon, texto: a.texto, creado: a.cuando, leido: false, local: true, adj_tipo: a.adj ? a.adj.tipo : null, adj_datos: a.adj ? (a.adj.datos || null) : null, adj_ref: a.adj ? (a.adj.adjRef || null) : null, adj_nombre: a.adj ? a.adj.nombre : null, adj_mime: a.adj ? (a.adj.mime || null) : null, resp_texto: a.resp_texto || null }; });
+      .map(function(a){ return { id: "local-" + a.cuando, de: "ADMIN", para: chatCon, texto: a.texto, creado: a.cuando, leido: false, local: true, adj_tipo: a.adj ? a.adj.tipo : null, adj_datos: a.adj ? (a.adj.datos || null) : null, adj_ref: a.adj ? (a.adj.adjRef || null) : null, adj_nombre: a.adj ? a.adj.nombre : null, adj_mime: a.adj ? (a.adj.mime || null) : null, adj_dur: a.adj ? (a.adj.dur || null) : null, op_estado: a.estado || "pendiente", op_intentos: a.intentos || 0, op_error: a.ultimoError || null, resp_texto: a.resp_texto || null }; });
     /* Sin red: el hilo se pinta desde la base del teléfono. */
     chatCacheLocal(chatCon).then(function(cache){
       chatMsgs = (cache || []).concat(enColaC);
@@ -2253,9 +2262,9 @@ function reproductorVozHtml(m, vi){
   if (m.adj_datos) vozDatos[clave] = m.adj_datos;
   else if (m.adj_ref) vozDatos[clave] = { ref: m.adj_ref };
   else vozDatos[clave] = null;
-  return '<span class="vozP" data-voz="' + clave + '"><button class="vozBtn" data-vplay="' + clave + '" title="Escuchar la nota de voz">▶</button>'
+  return '<span class="vozP" data-voz="' + clave + '"' + (m.adj_dur ? ' data-vdur="' + Number(m.adj_dur) + '"' : "") + '><button class="vozBtn" data-vplay="' + clave + '" title="Escuchar la nota de voz">▶</button>'
     + '<span class="vozOnda" data-vonda="' + clave + '">' + barrasVozHtml(picosVoz(m)) + '</span>'
-    + '<span class="vozT" data-vt="' + clave + '">0:00</span></span>';
+    + '<span class="vozT" data-vt="' + clave + '">' + (m.adj_dur ? fmtTiempoVoz(m.adj_dur) : "0:00") + '</span></span>';
 }
 function picosRealesVoz(clave){
   var AC = window.AudioContext || window.webkitAudioContext;
@@ -2286,16 +2295,21 @@ function picosRealesVoz(clave){
 function alistarVoz(clave){
   if (vozAudios[clave]) return vozAudios[clave];
   var audio = new Audio();
-  var ent = { audio: audio, dur: 0 };
+  var ent = { audio: audio, dur: 0, rota: false };
   vozAudios[clave] = ent;
+  var pv = document.querySelector('[data-voz="' + clave + '"]');
+  if (pv) ent.dur = Number(pv.getAttribute("data-vdur")) || 0; /* la duración guardada al grabar manda sobre el metadato */
   var datoV = vozDatos[clave];
   if (datoV && typeof datoV === "object" && datoV.ref) {
     /* La nota vive como Blob en la base del teléfono: se escucha
-       directo del Blob, sin pasar por base64. */
+       directo del Blob, sin pasar por base64. Si el Blob no vuelve
+       (el fallo de la nota muda), la nota se marca rota y el toque
+       lo DICE, en vez de un botón muerto en silencio. */
     BDL.trae("adjuntos", datoV.ref).then(function(row){
-      if (row && row.blob) { try { audio.src = URL.createObjectURL(row.blob); } catch(e){} }
-    }).catch(function(){});
-  } else {
+      if (row && row.blob) { try { audio.src = URL.createObjectURL(row.blob); } catch(e){ ent.rota = true; } }
+      else ent.rota = true;
+    }).catch(function(){ ent.rota = true; });
+  } else if (!datoV) { ent.rota = true; } else {
     var url = dataUrlVoz(datoV);
     try {
       fetch(url).then(function(r){
@@ -2306,8 +2320,24 @@ function alistarVoz(clave){
     } catch(e){ audio.src = url; }
   }
   audio.addEventListener("loadedmetadata", function(){
-    ent.dur = audio.duration || 0;
+    if (audio.duration === Infinity || !isFinite(audio.duration)) {
+      /* iOS devuelve Infinity en algunos MP4: se busca el final
+         una vez y el navegador confiesa la duración real. */
+      var unaVez = function(){
+        audio.removeEventListener("durationchange", unaVez);
+        if (isFinite(audio.duration) && audio.duration > 0 && !ent.dur) ent.dur = audio.duration;
+        try { audio.currentTime = 0; } catch(e){}
+        pintarTiempoVoz(clave);
+      };
+      audio.addEventListener("durationchange", unaVez);
+      try { audio.currentTime = 1e7; } catch(e){}
+      return;
+    }
+    if (audio.duration > 0) ent.dur = audio.duration;
     pintarTiempoVoz(clave);
+  });
+  audio.addEventListener("error", function(){
+    if (!ent.rota) { ent.rota = true; toast("No se pudo reproducir esta nota de voz", false); }
   });
   audio.addEventListener("timeupdate", function(){ pintarProgresoVoz(clave); });
   audio.addEventListener("play", function(){ pintarBotonVoz(clave, true); });
@@ -2338,7 +2368,8 @@ function tocarVoz(clave){
     if (k !== clave && !vozAudios[k].audio.paused) vozAudios[k].audio.pause();
   });
   var ent = alistarVoz(clave);
-  if (ent.audio.paused) { var p = ent.audio.play(); if (p && p.catch) p.catch(function(){}); }
+  if (ent.rota) { toast("Esta nota ya no está guardada en el teléfono", false); return; }
+  if (ent.audio.paused) { var p = ent.audio.play(); if (p && p.catch) p.catch(function(){ toast("No se pudo reproducir esta nota de voz", false); }); }
   else ent.audio.pause();
 }
 function alistarReproductoresVoz(el){
@@ -2403,18 +2434,35 @@ function pintarChat(){
     + '<div class="adjHojaWA" id="chAdjHoja" style="display:none"><button class="bGhost" id="chFoto">Foto</button><button class="bGhost" id="chArchivo">Archivo</button><button class="bGhost" id="chVoz">Nota de voz</button></div>'
     + (grabVoz
         ? '<div class="grabBar"><span class="grabPunto"></span><span class="grabT" id="grabT">0:00</span><span class="grabOnda" id="grabOnda">' + barrasGrabHtml() + '</span><button class="bGhost" id="grabCancel">Cancelar</button><button class="bGhost" id="grabAdj" title="Terminar y adjuntar para escucharla">✓</button><button class="sendBtn" id="grabEnviar" title="Terminar y enviar directo">' + icono("enviar") + '</button></div>'
-        : '<div class="compWA"><div class="compBox"><input id="chTexto" placeholder="Escribe un mensaje…"><button class="clipBtn" id="chClip" title="Adjuntar foto, archivo o voz">' + icono("clip") + '</button></div><button class="micBtn" id="chVozBtn" title="Nota de voz">' + icono("micro") + '</button><button class="sendBtn" id="chEnviar" title="' + (chatEditId ? "Guardar edición" : "Enviar") + '">' + (chatEditId ? "✓" : icono("enviar")) + '</button></div>')
+        : '<div class="compWA"><div class="compBox"><input id="chTexto" placeholder="Escribe un mensaje…"><button class="clipBtn" id="chClip" title="Adjuntar foto, archivo o voz">' + icono("clip") + '</button></div><button class="micBtn" id="chVozBtn" title="Nota de voz">' + icono("micro") + '</button><button class="sendBtn' + (chatAdj ? " sendGrande" : "") + '" id="chEnviar" title="' + (chatEditId ? "Guardar edición" : "Enviar") + '">' + (chatEditId ? "✓" : icono("enviar")) + '</button></div>')
     + '<input id="chFile" type="file" style="display:none">'
     + '<div class="ayuda">Con este chat abierto, los mensajes nuevos llegan al momento (timbre en vivo) y el hilo se refresca solo cada 3 s.</div></div>';
   el.innerHTML = h;
   var v = $("chVolver"); if (v) v.addEventListener("click", volverEquipo);
   var tb = $("chTempBtn"); if (tb) tb.addEventListener("click", hojaTemporalesMN);
   var ib = $("chInfoBtn"); if (ib) ib.addEventListener("click", function(){
-    abrirHoja("Estados de tus mensajes", "✓ enviado: salió de tu teléfono y quedó guardado en el servidor. ✓✓ entregado: su app recibió el mensaje (sello real del servidor). ✓✓ Visto: abrió este chat y lo leyó. 🕐 sin enviar: está en la cola de este teléfono y sale solo al volver la conexión. Mantén presionada una burbuja para responder, reaccionar, fijar o (en tus mensajes) editar y eliminar. Foto: se comprime sola (máx 1280 px). Archivo: hasta 5 MB. Voz: toca 🎤 y habla; la barra de grabación trae Cancelar, ✓ para adjuntar y escucharla antes de enviar, o ➤ para enviar directo (máx 2 min).<br><br>" + selloVersion(), []);
+    abrirHoja("Estados de tus mensajes", "✓ enviado: salió de tu teléfono y quedó guardado en el servidor. ✓✓ entregado: su app recibió el mensaje (sello real del servidor). ✓✓ Visto: abrió este chat y lo leyó. 🕐 sin enviar: está en la cola de este teléfono y sale solo al volver la conexión. Mantén presionada una burbuja para responder, reaccionar, fijar o (en tus mensajes) editar y eliminar. Foto: toca 📎 y elige la foto (un toque; se comprime sola, máx 1280 px); mantén presionado 📎 para Archivo o Nota de voz. La foto y el texto que escribas salen en UN solo mensaje. Archivo: hasta 5 MB. ⚠ sin enviar: la app lo intentó 3 veces y no pudo — mantén presionada la burbuja para reintentar el envío o quitarla de la cola. Voz: toca 🎤 y habla; la barra de grabación trae Cancelar, ✓ para adjuntar y escucharla antes de enviar, o ➤ para enviar directo (máx 2 min).<br><br>" + selloVersion(), []);
   });
-  var cp = $("chClip"); if (cp) cp.addEventListener("click", function(){
-    var hoja = $("chAdjHoja"); if (hoja) hoja.style.display = (hoja.style.display === "none" || !hoja.style.display) ? "flex" : "none";
-  });
+  var cp = $("chClip"); if (cp) {
+    /* v10 (su queja: «para enviar una foto tengo que tocar
+       mucho»): el clip abre la FOTO directo en UN toque; la hoja
+       (Foto · Archivo · Nota de voz) queda a presión larga. */
+    var cpTimer = null, cpLargo = false;
+    cp.addEventListener("pointerdown", function(){
+      cpLargo = false;
+      cpTimer = setTimeout(function(){
+        cpLargo = true;
+        var hoja = $("chAdjHoja"); if (hoja) hoja.style.display = "flex";
+      }, 550);
+    });
+    ["pointerup", "pointerleave", "pointercancel"].forEach(function(ev){
+      cp.addEventListener(ev, function(){ if (cpTimer) { clearTimeout(cpTimer); cpTimer = null; } });
+    });
+    cp.addEventListener("click", function(){
+      if (cpLargo) { cpLargo = false; return; }
+      var f = $("chFile"); if (f) { f.setAttribute("accept", "image/*"); f.click(); }
+    });
+  }
   var vb = $("chVozBtn"); if (vb) vb.addEventListener("click", grabarVozMN);
   var tx = $("chTexto"); if (tx) tx.addEventListener("keydown", function(e){ if (e.key === "Enter") { e.preventDefault(); enviarChatUI(); } });
   var b = $("chEnviar"); if (b) b.addEventListener("click", enviarChatUI);
@@ -2551,13 +2599,17 @@ function terminarGrabacion(g){
   if (g.descartar) { pintarChat(); toast("🎤 Grabación descartada"); return; }
   var blob = new Blob(g.chunks, { type: g.mr.mimeType || "audio/mp4" });
   if (blob.size > 5 * 1024 * 1024) { pintarChat(); toast("La nota pesa más de 5 MB: grábala más corta", false); return; }
+  /* v10: la duración se captura del TEMPORIZADOR de la grabación,
+     no del metadato del archivo (en iPhone el metadato llega tarde
+     o como Infinity: la burbuja se quedaba en «0:00»). */
+  var durVoz = Math.max(1, Math.round((Date.now() - g.inicio) / 1000));
   /* LOCAL-FIRST: la nota queda como Blob en la base del teléfono
      desde que se graba; el dataURL es solo la vía de subida. */
   var refVozP = guardarAdjuntoBlob(blob).catch(function(){ return null; });
   var fr = new FileReader();
   fr.onload = function(){
     /* dataURL COMPLETO: el mime real viaja con la nota. */
-    chatAdj = { tipo: "voz", datos: String(fr.result), nombre: "Nota de voz", mime: blob.type || "audio/mp4", tam: blob.size };
+    chatAdj = { tipo: "voz", datos: String(fr.result), nombre: "Nota de voz", mime: blob.type || "audio/mp4", tam: blob.size, dur: durVoz };
     refVozP.then(function(id){ if (id) chatAdj.adjRef = id; });
     if (enviarYa) { enviarChatUI(); return; }
     pintarChat();
@@ -2570,12 +2622,25 @@ function hojaMensajeMN(m){
   var mio = m.de === "ADMIN";
   var btns = [];
   if (m.local) {
+    if (m.op_estado === "fallida" || (m.op_intentos || 0) > 0) {
+      btns.push({ txt: "🔄 Reintentar el envío ahora", cls: "bOk", fn: function(){
+        state.cola.forEach(function(a){
+          if (a.tipo === "chat" && a.cuando === m.creado) { a.estado = "pendiente"; a.intentos = 0; delete a.ultimoError; }
+        });
+        guardar(); cargarChat();
+        despacharCola().then(function(){ setTimeout(cargarChat, 600); });
+        toast("📤 Reintentando el envío…");
+      } });
+    }
     btns.push({ txt: "Quitar de la cola (no se envía)", cls: "bBad", fn: function(){
       state.cola = state.cola.filter(function(a){ return !(a.tipo === "chat" && a.cuando === m.creado); });
       guardar(); cargarChat(); toast("Mensaje de la cola eliminado");
     } });
     btns.push({ txt: "Copiar texto", cls: "bGhost", fn: function(){ copiarTexto(m.texto || ""); } });
-    abrirHoja(mio ? "Tu mensaje (en cola)" : "Mensaje", '<div class="kv">' + esc(m.texto || "(adjunto)") + '</div>', btns);
+    abrirHoja(mio ? "Tu mensaje (en cola)" : "Mensaje",
+      '<div class="kv">' + esc(m.texto || "(adjunto)")
+      + (m.op_estado === "fallida" ? '<div class="mut">⚠ No se pudo enviar: la app lo intentó ' + (m.op_intentos || 0) + ' veces' + (m.op_error ? " (último error: " + esc(m.op_error) + ")" : "") + '. Reinténtalo o quítalo de la cola.</div>' : "")
+      + '</div>', btns);
     return;
   }
   if (!m.borrado) {
@@ -2642,12 +2707,15 @@ function enviarChatUI(){
   var accion = { tipo: "chat", para: para, texto: texto, cuando: new Date().toISOString() };
   if (chatResp) { accion.resp_de = chatResp.id; accion.resp_texto = chatResp.texto || ""; }
   if (chatAdj) {
-    /* LOCAL-FIRST: con el Blob ya guardado, la cola lleva solo la
-       referencia (la operación no carga base64 residente). Sin
-       referencia (grabación exprés), viaja el dataURL de siempre. */
-    accion.adj = chatAdj.adjRef
-      ? { tipo: chatAdj.tipo, nombre: chatAdj.nombre, mime: chatAdj.mime || null, tam: chatAdj.tam || null, adjRef: chatAdj.adjRef }
-      : chatAdj;
+    /* v10: la operación lleva SIEMPRE el dato (dataURL) y la
+       duración, además de la referencia al Blob. La referencia
+       sola dejó la nota de Ernesto muda y sin enviar cuando el
+       Blob no se recuperó del teléfono: el envío y la burbuja
+       local ya NO dependen de IndexedDB; la referencia queda
+       como respaldo del espejo del hilo. */
+    accion.adj = { tipo: chatAdj.tipo, nombre: chatAdj.nombre, mime: chatAdj.mime || null,
+      tam: chatAdj.tam || null, dur: chatAdj.dur || null, datos: chatAdj.datos || null };
+    if (chatAdj.adjRef) accion.adj.adjRef = chatAdj.adjRef;
   }
   chatResp = null; chatAdj = null;
   encolar(accion);
@@ -2902,14 +2970,14 @@ function intentarEntrar(){
    controllerchange recarga la app UNA sola vez (marca en
    sessionStorage por versión: sin bucles). MN_VERSION se sube
    junto con el CACHE de sw.js. */
-var MN_VERSION = "v9";
+var MN_VERSION = "v10";
 /* Sello VISIBLE de compilación (punto 6): Ernesto quejándose con
    razón — «no sé si se actualizó o no». Una sola constante que
    sube con cada publicación; se ve en Inicio y en la hoja ℹ️ del
    chat. Formato: «Mi Negocio · versión 2026-11-11 HH:MM · caché v6»
    (fecha Y HORA de la publicación, para distinguir dos subidas
    del mismo día). La hora es la de Cuba (CST) al compilar. */
-var MN_COMPILACION = "2026-11-11 14:31";
+var MN_COMPILACION = "2026-11-11 20:02";
 function selloVersion(){ return "Mi Negocio · versión " + MN_COMPILACION + " · caché " + MN_VERSION; }
 var regSW = null;
 var swConControladorAlArrancar = false;
@@ -3174,9 +3242,71 @@ var TextosMotor = (function(){
     });
   }
 
+  /* ===== TEXTO DE PRODUCTO — la plantilla REAL de su Facebook =====
+     Nace de sus publicaciones verificadas (2026-10-21): gancho en
+     mayúsculas con emojis, líneas ✅ de ventajas, 💰 precio con la
+     moneda (baterías: por privado), 📲 su teléfono, 📍 Micro 10,
+     domicilio y cierre. pub = { producto, precio (null = por
+     privado), moneda, garantia, cantidad, detalles, domicilio
+     (bool), telefono, zona }. Sin motor genérico: esta plantilla
+     es SUYA, palabra por palabra, en 3 tamaños como los demás. */
+  function textoRapidoProducto(pub, estilo, quien){
+    var est = estilo || {};
+    var em = est.emojis || "pocos";
+    var E = function(x){ return em === "ninguno" ? "" : x; };
+    var producto = String(pub.producto || "").trim();
+    var avisos = [];
+    if (!producto) avisos.push("Falta el nombre del producto: sin eso no hay anuncio.");
+    if (!pub.telefono) avisos.push("Falta tu teléfono: el texto sale SIN teléfono.");
+    if (!pub.zona) avisos.push("Falta la zona: el texto sale sin zona.");
+    var tienePrecio = pub.precio !== null && pub.precio !== undefined && pub.precio !== "" && isFinite(Number(pub.precio));
+    var precioTxt = tienePrecio ? miles(pub.precio) + " " + (pub.moneda || "CUP") : "";
+    var titulo = "SE VENDE " + producto.toUpperCase();
+    var tituloFmt = est.whatsapp ? "*" + titulo + "*" : titulo;
+    var lineasOk = [];
+    if (pub.garantia) lineasOk.push("Garantía: " + pub.garantia);
+    if (pub.cantidad) lineasOk.push("Disponible: " + pub.cantidad);
+    if (pub.detalles) lineasOk.push(String(pub.detalles));
+    if (pub.domicilio) lineasOk.push("Domicilio incluido en Santiago");
+    var completa = [];
+    completa.push(E("🚨 ") + tituloFmt + E(" 🚨"));
+    completa.push("");
+    lineasOk.forEach(function(l){ completa.push(E("✅ ") + l); });
+    if (tienePrecio) completa.push(E("💰 ") + "Precio: " + (est.whatsapp ? "*" + precioTxt + "*" : precioTxt));
+    else completa.push(E("💬 ") + "Precio por privado: escríbeme y te digo al momento.");
+    if (est.urgencia) completa.push(E("⏰ ") + "¡Corre, que vuelan!");
+    completa.push("");
+    if (pub.telefono) completa.push(E("📲 ") + "Interesados, llamar o escribir al " + pub.telefono);
+    if (pub.zona) completa.push(E("📍 ") + pub.zona);
+    completa.push("¡Aproveche, que se acaban!");
+    var corta = [];
+    var c1 = "En venta " + producto;
+    if (tienePrecio) c1 += ". Precio: " + precioTxt + ".";
+    else c1 += ". Precio por privado.";
+    corta.push(c1);
+    if (lineasOk.length) corta.push(lineasOk.join(". ") + ".");
+    var c3 = "";
+    if (pub.telefono) c3 += "Interesados llamar al " + pub.telefono + ".";
+    if (pub.zona) c3 += (c3 ? " " : "") + pub.zona + ".";
+    if (c3) corta.push(c3);
+    var muy = (em === "ninguno" ? "" : "🔥 ") + tituloFmt + " — "
+      + (tienePrecio ? precioTxt : "precio por privado")
+      + (pub.telefono ? " · " + E("📲 ") + pub.telefono : "")
+      + (pub.zona ? " · " + E("📍 ") + pub.zona : "");
+    var versiones = [
+      { enfoque: "completa", texto: completa.join("\n") },
+      { enfoque: "corta", texto: corta.join("\n") },
+      { enfoque: "muycorta", texto: muy }
+    ];
+    if (est.tamano === "corto") versiones = [versiones[1], versiones[0], versiones[2]];
+    if (est.tamano === "muycorto") versiones = [versiones[2], versiones[1], versiones[0]];
+    return { versiones: versiones, avisos: avisos };
+  }
+
   return { generar: generar, miles: miles, semillaDe: semillaDe,
            historialPush: historialPush,
-           textoRapidoSaldo: textoRapidoSaldo, textoRapidoTransf: textoRapidoTransf };
+           textoRapidoSaldo: textoRapidoSaldo, textoRapidoTransf: textoRapidoTransf,
+           textoRapidoProducto: textoRapidoProducto };
 })();
 
 
@@ -3520,7 +3650,18 @@ registrarModulo({
   alMostrar: function(){ cargarCierres(); }
 });
 
-/* ===== MÓDULO ACTIVIDAD (auditoría solo-admin) ===== */
+/* ===== MÓDULO ACTIVIDAD (auditoría solo-admin) =====
+   v10 (tanda 3 errores, 2026-11-11): la pantalla hablaba en código
+   (pagar_comision · JSON · UUID) y Ernesto pidió traducción
+   DETALLADA a su lenguaje. actividadFrase() traduce CADA tipo de
+   evento del catálogo real de la tabla (los escriben las puertas
+   SQL y las funciones del bot/avisos/analista) a una frase humana
+   completa: qué pasó, a quién (código → NOMBRE; PEUEBA = «la
+   cuenta de prueba»), cuánto (con su unidad escrita) y cuándo va
+   en la línea de quién/hora. El detalle técnico crudo queda SOLO
+   tras «ver detalle», plegado: ningún UUID se ve de frente. Un
+   tipo nuevo sin traducción cae en el respaldo humanizado, nunca
+   en silencio. */
 var actividadCache = null, actividadFiltro = "";
 function cargarActividad(){
   rpc("actividad", { p_codigo: state.codigo, p_quien: actividadFiltro || null, p_accion: null }).then(function(r){
@@ -3528,29 +3669,113 @@ function cargarActividad(){
     var m = modulo("Actividad"); if (m && tabActual === "Actividad") m.render();
   }).catch(function(){ actividadCache = []; var m = modulo("Actividad"); if (m && tabActual === "Actividad") m.render(); });
 }
+function actividadNombre(cod){
+  if (!cod) return "";
+  if (cod === "PEUEBA") return "la cuenta de prueba";
+  var u = (state.foto.usuarios || []).filter(function(x){ return x.codigo === cod; })[0];
+  if (u) return nombreVisible(u);
+  var pf = perfilDe(cod); if (pf && pf.nombre) return pf.nombre;
+  return cod;
+}
+function actividadQuien(quien){
+  if (quien === "ADMIN") return "Tú";
+  if (quien === "telegram") return "El bot de Telegram";
+  return actividadNombre(quien) || String(quien || "");
+}
+function actividadNombreReporte(idRep){
+  if (!idRep) return "";
+  var r = (state.foto.reportes || []).filter(function(x){ return String(x.id) === String(idRep); })[0];
+  return r ? actividadNombre(r.buscador || r.codigo) : "";
+}
+function actividadFrase(a){
+  var d = (a && a.detalle) || {};
+  var nom = d.buscador ? actividadNombre(d.buscador) : (actividadNombreReporte(d.reporte) || "el buscador");
+  switch (a.accion) {
+    case "cambiar_tarifa": {
+      var partes = [];
+      if (d.salida != null) partes.push("salida (efectivo) a " + fmt(Number(d.salida)) + " CUP por QUSD");
+      if (d.libro != null) partes.push("libro (transferencia) a " + fmt(Number(d.libro)) + " CUP por QUSD");
+      if (d.ingreso != null) partes.push("ingreso de referencia a " + fmt(Number(d.ingreso)) + " CUP por recarga de 360");
+      return "Cambiaste la tarifa" + (partes.length ? ": " + partes.join(" · ") : "") + ". Todo el sistema trabaja ya con estos números.";
+    }
+    case "generar_cierre":
+      return "Generaste el cierre de la semana" + (d.semana_inicio ? " que empieza el " + etiquetaFecha(d.semana_inicio + "T12:00:00") : "") + ": tratos, tu ganancia, comisiones y bonos quedaron calculados.";
+    case "pagar_comision":
+      return "Marcaste como PAGADA la comisión de " + nom + (d.comision != null ? ": " + fmt(Number(d.comision)) + " CUP" : "") + ". Ya no sale en lo que debes.";
+    case "pagar_comision_telegram":
+      if (d.ya_pagado) return "Desde Telegram se tocó «Ya pagué» de " + nom + ", pero su comisión YA estaba pagada: no se pagó dos veces.";
+      return "Pagaste la comisión de " + nom + " desde Telegram" + (d.comision != null ? ": " + fmt(Number(d.comision)) + " CUP" : "") + ".";
+    case "aprobar_telegram":
+      return "Aprobaste un trato de " + nom + " desde Telegram" + (d.comision != null ? ": su comisión quedó en " + fmt(Number(d.comision)) + " CUP" : "") + ".";
+    case "rechazar_telegram":
+      return "Rechazaste un trato de " + nom + " desde Telegram. No cuenta en ninguna cuenta.";
+    case "publicar_tratos":
+      return "Publicaste los tratos" + (d.usuarios != null ? ": " + d.usuarios + " buscador(es) recibieron su panel actualizado" : "") + ".";
+    case "fijar_mensaje":
+      return "Fijaste un mensaje en el chat con " + (d.conversacion ? actividadNombre(d.conversacion) : "un buscador") + ".";
+    case "desfijar_mensaje":
+      return "Quitaste el mensaje fijado del chat con " + (d.conversacion ? actividadNombre(d.conversacion) : "un buscador") + ".";
+    case "bloquear":
+      return "Pausaste a " + (d.usuario ? actividadNombre(d.usuario) : "un buscador") + ": no puede enviar reportes hasta que lo actives de nuevo.";
+    case "desbloquear":
+      return "Volviste a activar a " + (d.usuario ? actividadNombre(d.usuario) : "un buscador") + ": ya puede reportar otra vez.";
+    case "marcar_prueba":
+      return "Marcaste como PRUEBA un trato de " + nom + ": queda fuera de la Bandeja y de las cuentas.";
+    case "desmarcar_prueba":
+      return "Quitaste la marca de prueba a un trato de " + nom + ": vuelve a contar como un trato de verdad.";
+    case "vincular_telegram":
+      if (a.quien === "ADMIN") return "Vinculaste TU Telegram al sistema: el bot ya te reconoce como el dueño.";
+      if (a.quien && a.quien !== "telegram") return actividadNombre(a.quien) + " vinculó su Telegram al sistema: el bot ya lo reconoce.";
+      return "Se vinculó una cuenta de Telegram al sistema.";
+    case "telegram_vinculo_fallido":
+      return "Un intento de vincular Telegram FALLÓ (por " + (d.via === "codigo" ? "código" : "enlace") + "). Nadie quedó vinculado; si no fuiste tú, revísalo.";
+    case "analista_accion":
+      return d.ok ? "El Analista creó la oferta en QvaPay desde el botón de Telegram: las barandas la dejaron pasar." : "El Analista NO creó la oferta desde Telegram: las barandas la frenaron o QvaPay la rechazó (el detalle técnico lo dice).";
+    default: {
+      var limpio = String(a.accion || "evento").replace(/_/g, " ");
+      return "Evento del sistema: " + limpio.charAt(0).toUpperCase() + limpio.slice(1) + ". (Tipo nuevo: su detalle técnico está en «ver detalle».)";
+    }
+  }
+}
 registrarModulo({
   id: "Actividad", tab: "Actividad", icono: "bandeja",
   render: function(){
     var el = $("pgActividad"); if (!el) return;
-    var h = '<div class="sub">Registro de actividad: qué pasó en tu sistema y cuándo (cambios de tarifa, tratos, códigos, pausas, pagos, cierres). Solo lo ves tú.</div>'
+    var h = '<div class="sub">Registro de actividad: qué pasó en tu sistema y cuándo (cambios de tarifa, tratos, códigos, pausas, pagos, cierres). Solo lo ves tú. Cada evento se cuenta en palabras claras; el detalle técnico queda tras «ver detalle».</div>'
       + '<div class="card"><label for="acFiltro">Filtrar por buscador</label><input id="acFiltro" placeholder="Código del buscador (vacío = todos)" value="' + esc(actividadFiltro) + '">'
       + '<button class="bGhost" id="acBtn">Filtrar</button></div>';
     if (actividadCache === null) h += '<div class="card"><div class="mut">Cargando actividad…</div></div>';
     else if (!actividadCache.length) h += '<div class="card"><div class="mut">Sin actividad registrada todavía (o falta pegar el paquete SQL único).</div></div>';
-    else h += '<div class="card">' + actividadCache.map(function(a){
-      return '<div class="kv"><b>' + esc(a.accion) + '</b> · ' + esc(a.quien) + " · " + fechaCorta(a.creado_en) + " " + horaDe(a.creado_en)
-        + '<div class="mut">' + esc(JSON.stringify(a.detalle || {})) + "</div></div>";
+    else h += '<div class="card">' + actividadCache.map(function(a, i){
+      return '<div class="kv actFila"><b>' + esc(actividadFrase(a)) + '</b>'
+        + '<div class="mut">' + esc(actividadQuien(a.quien)) + " · " + esc(etiquetaFecha(a.creado_en)) + " · " + horaDe(a.creado_en) + "</div>"
+        + '<button class="bGhost bMini" data-acdet="' + i + '">ver detalle</button>'
+        + '<div class="mut actDet" id="acDet' + i + '" style="display:none">' + esc(JSON.stringify(a.detalle || {})) + "</div></div>";
     }).join("") + "</div>";
     el.innerHTML = h;
     var b = $("acBtn"); if (b) b.addEventListener("click", function(){ actividadFiltro = ($("acFiltro").value || "").trim().toUpperCase(); cargarActividad(); });
+    el.querySelectorAll("[data-acdet]").forEach(function(btn){
+      btn.addEventListener("click", function(){
+        var det = $("acDet" + btn.getAttribute("data-acdet")); if (!det) return;
+        var abierto = det.style.display !== "none";
+        det.style.display = abierto ? "none" : "block";
+        btn.textContent = abierto ? "ver detalle" : "ocultar detalle";
+      });
+    });
   },
   alMostrar: function(){ cargarActividad(); }
 });
 
-/* ===== MÓDULO TEXTOS (generador de ofertas; motor compartido) =====
-   v8: los <select> se eligen con CHIPS (sistema PRO): el select
-   queda oculto con su mismo id y su .value de siempre — el motor
-   y estilo() leen exactamente igual; los chips solo lo alimentan. */
+/* ===== MÓDULO TEXTOS (motor compartido) =====
+   v10 (tanda 3 errores, 2026-11-11): UNA sola vía de textos, la
+   inteligente — el formulario manual viejo («Generar las 3
+   versiones») se amputó por la misma orden que lo quitó de Mi
+   Trabajo: saldo y transferencia salen de la tarifa y de «Tus
+   datos de anuncio» (antes los botones leían teléfono/zona DE los
+   campos del formulario: por eso seguía vivo); productos nacen de
+   la plantilla real de su Facebook (textoRapidoProducto). Los
+   <select> se eligen con CHIPS (sistema PRO): el select queda
+   oculto con su mismo id y su .value de siempre. */
 function selChips(id, opciones, sel){
   var opts = opciones.map(function(o){ return '<option value="' + esc(o[0]) + '"' + (o[0] === sel ? " selected" : "") + '>' + esc(o[1]) + '</option>'; }).join("");
   var ch = opciones.map(function(o){ return '<span class="chip' + (o[0] === sel ? " activa" : "") + '" data-v="' + esc(o[0]) + '">' + esc(o[1]) + '</span>'; }).join("");
@@ -3565,24 +3790,28 @@ registrarModulo({
   id: "Textos", tab: "Textos", icono: "chat",
   render: function(){
     var el = $("pgTextos"); if (!el) return;
-    var pf = perfilDe("ADMIN") || {};
-    var miTel = localStorage.getItem("minegocio_mi_telefono") || "";
+    var miTel = localStorage.getItem("minegocio_mi_telefono") || "51231558";
     var miZona = localStorage.getItem("minegocio_mi_zona") || "Micro 10, distrito José Martí, Santiago de Cuba";
-    var h = '<div class="sub">Escribe SOLO los datos: la app pone las palabras. Tres versiones listas para copiar o mandar a WhatsApp. Funciona sin internet.</div>'
-      + '<div class="card"><h3>Datos de la oferta</h3>'
-      + '<button class="bGold bMini" id="txSaldo">Texto de saldo (con la tarifa)</button> '
-      + '<button class="bGold bMini" id="txTransf">Texto de transferencia</button>'
-      + '<div class="ayuda">Estos dos botones rellenan solos con los datos PÚBLICOS de tu tarifa y tu teléfono/zona. Nunca entra ningún número interno (comisiones, piso, tu ganancia).</div>'
-      + '<label>Tipo de oferta</label>' + selChips("txTipo", [["vendo", "Vendo"], ["compro", "Compro"], ["servicio", "Servicio"], ["recargo", "Recargo o cambio"], ["otro", "Otro"]], "vendo")
-      + '<label>Producto o servicio</label><input id="txProd" placeholder="Ej.: Batería LiFePO4 12.8V 100Ah">'
-      + '<label>Precio (vacío si es por privado)</label><input id="txPrecio" type="text" inputmode="decimal" placeholder="Ej.: 45000">'
-      + '<label>Moneda</label>' + selChips("txMoneda", [["CUP", "CUP"], ["USD", "USD"], ["MLC", "MLC"], ["QUSD", "QUSD"]], "CUP")
-      + '<label style="display:block;margin-top:8px"><input type="checkbox" id="txPrivado" style="width:auto"> Precio por privado</label>'
-      + '<label>Cantidad o disponibilidad (opcional)</label><input id="txCant" placeholder="Ej.: quedan 3">'
-      + '<label>Detalles y ventajas</label><input id="txDet" placeholder="Ej.: garantía incluida, domicilio en Santiago">'
+    var h = '<div class="sub">Un toque y el texto sale listo para copiar o mandar a WhatsApp. Tres caminos y ningún formulario suelto: saldo y transferencia salen de tu tarifa; el de producto, de tu plantilla de Facebook. Funciona sin internet.</div>'
+      + '<div class="card"><h3>Tus datos de anuncio</h3>'
+      + '<label>Teléfono de ventas</label><input id="txTel" value="' + esc(miTel) + '">'
       + '<label>Zona</label><input id="txZona" value="' + esc(miZona) + '">'
-      + '<label>Teléfono de contacto</label><input id="txTel" value="' + esc(miTel) + '" placeholder="Tu teléfono de ventas">'
-      + '<label>Condiciones (opcional)</label><input id="txCond" placeholder="Ej.: domicilio incluido en Santiago">'
+      + '<div class="ayuda">Son los datos PÚBLICOS de tus anuncios y salen en los tres textos. Se guardan una vez y quedan. Nunca entra ningún número interno (comisiones, piso, tu ganancia).</div></div>'
+      + '<div class="card"><h3>Textos listos</h3>'
+      + '<button class="bGold" id="txSaldo">Texto de saldo (con la tarifa)</button>'
+      + '<button class="bGold" id="txTransf">Texto de transferencia</button>'
+      + '<button class="bGold" id="txProdBtn">Texto de producto</button>'
+      + '<div class="ayuda">Saldo y transferencia se rellenan solos con tu tarifa y tus datos de arriba. Producto abre solo los datos mínimos y arma el anuncio con tu plantilla de Facebook (gancho, ✅ ventajas, precio o «por privado», 📍 tu zona, tu teléfono y domicilio).</div>'
+      + '<div id="txProdForm" style="display:none">'
+      + '<label>Producto</label><input id="txpNombre" placeholder="Ej.: Batería LiFePO4 12.8V 100Ah">'
+      + '<label>Precio (vacío = por privado, como tus baterías)</label><input id="txpPrecio" type="text" inputmode="decimal" placeholder="Ej.: 45000">'
+      + '<label>Moneda</label>' + selChips("txpMoneda", [["CUP", "CUP"], ["USD", "USD"], ["MLC", "MLC"], ["QUSD", "QUSD"]], "CUP")
+      + '<label>Garantía (opcional)</label><input id="txpGarantia" placeholder="Ej.: 1 año">'
+      + '<label>Cantidad o disponibilidad (opcional)</label><input id="txpCant" placeholder="Ej.: quedan 3">'
+      + '<label>Detalles y ventajas (opcional)</label><input id="txpDet" placeholder="Ej.: nueva en su caja, probada y cargando bien">'
+      + '<label style="display:block;margin-top:8px"><input type="checkbox" id="txpDom" checked style="width:auto"> Domicilio incluido en Santiago</label>'
+      + '<button class="bGold" id="txpGen">Generar el texto del producto</button>'
+      + '</div>'
       + '<h3 style="margin-top:14px">Estilo</h3>'
       + '<label>Emojis</label>' + selChips("txEmojis", [["muchos", "Muchos"], ["pocos", "Pocos"], ["ninguno", "Ninguno"]], "pocos")
       + '<label>Tono</label>' + selChips("txTono", [["humanizado", "Humanizado natural"], ["comercial", "Comercial vendedor"], ["formal", "Formal serio"], ["directo", "Directo y corto"]], "humanizado")
@@ -3592,7 +3821,6 @@ registrarModulo({
       + '<label style="display:block"><input type="checkbox" id="txUrg" style="width:auto"> Línea de urgencia</label>'
       + '<label style="display:block"><input type="checkbox" id="txPriv" style="width:auto"> Llamada a escribir por privado</label>'
       + '<label style="display:block"><input type="checkbox" id="txHash" style="width:auto"> Hashtags al final</label>'
-      + '<button class="bGold" id="txGen">Generar las 3 versiones</button>'
       + '<div id="txOut"></div></div>'
       + '<div class="card"><h3>Historial (últimas 30)</h3><div id="txHist">'
       + (textosHist().map(function(x, i){ return '<div class="kv">' + esc(x.titulo || "Texto") + ' <button class="bGhost bMini" data-txhist="' + i + '">Copiar</button></div>'; }).join("") || '<div class="mut">Aún no generaste textos.</div>')
@@ -3607,6 +3835,12 @@ registrarModulo({
         });
       });
     });
+    function guardarDatos(){
+      localStorage.setItem("minegocio_mi_telefono", ($("txTel").value || "").trim());
+      localStorage.setItem("minegocio_mi_zona", ($("txZona").value || "").trim());
+    }
+    $("txTel").addEventListener("change", guardarDatos);
+    $("txZona").addEventListener("change", guardarDatos);
     function estilo(){
       return { emojis: $("txEmojis").value, tono: $("txTono").value, tamano: $("txTam").value,
         mayus: $("txMayus").checked, urgencia: $("txUrg").checked, privadoLlamada: $("txPriv").checked,
@@ -3626,26 +3860,27 @@ registrarModulo({
       });
       textosHistPush({ titulo: tituloBase, cuando: new Date().toISOString(), texto: res.versiones[0].texto });
     }
-    $("txGen").addEventListener("click", function(){
-      var precio = parseFloat(String($("txPrecio").value).replace(",", "."));
-      localStorage.setItem("minegocio_mi_telefono", $("txTel").value || "");
-      localStorage.setItem("minegocio_mi_zona", $("txZona").value || "");
-      var res = TextosMotor.generar({
-        tipo: $("txTipo").value, producto: $("txProd").value,
-        precio: isFinite(precio) ? precio : null, moneda: $("txMoneda").value,
-        privado: $("txPrivado").checked, cantidad: $("txCant").value,
-        detalles: $("txDet").value, zona: $("txZona").value, telefono: $("txTel").value,
-        condiciones: $("txCond").value, estilo: estilo(), quien: "ADMIN"
-      });
-      pintar(res, $("txProd").value || "Oferta");
-    });
     $("txSaldo").addEventListener("click", function(){
+      guardarDatos();
       var pub = { precioCompraRecarga: Math.floor(tarifa().ingresoRef360 * 0.9 / 10) * 10, telefono: $("txTel").value, zona: $("txZona").value, condicionesSaldo: "Pago en efectivo al momento" };
       pintar(TextosMotor.textoRapidoSaldo(pub, estilo(), "ADMIN"), "Texto de saldo");
     });
     $("txTransf").addEventListener("click", function(){
+      guardarDatos();
       var pub = { telefono: $("txTel").value, zona: $("txZona").value, condicionesTransf: "Solo personas conocidas" };
       pintar(TextosMotor.textoRapidoTransf(pub, estilo(), "ADMIN"), "Texto de transferencia");
+    });
+    $("txProdBtn").addEventListener("click", function(){
+      var f = $("txProdForm"); if (f) f.style.display = (f.style.display === "none" || !f.style.display) ? "block" : "none";
+    });
+    $("txpGen").addEventListener("click", function(){
+      guardarDatos();
+      var precio = parseFloat(String($("txpPrecio").value).replace(",", "."));
+      var pub = { producto: $("txpNombre").value, precio: isFinite(precio) ? precio : null,
+        moneda: $("txpMoneda").value, garantia: $("txpGarantia").value, cantidad: $("txpCant").value,
+        detalles: $("txpDet").value, domicilio: $("txpDom").checked,
+        telefono: $("txTel").value, zona: $("txZona").value };
+      pintar(TextosMotor.textoRapidoProducto(pub, estilo(), "ADMIN"), $("txpNombre").value || "Texto de producto");
     });
     el.querySelectorAll("[data-txhist]").forEach(function(b){
       b.addEventListener("click", function(){ var x = textosHist()[Number(b.getAttribute("data-txhist"))]; if (x) copiarTexto(x.texto); });
