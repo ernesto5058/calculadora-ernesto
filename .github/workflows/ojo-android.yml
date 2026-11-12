@@ -119,6 +119,8 @@ jobs:
           }
           tap_tab(){ # $1 texto, $2 índice de pestaña (0..5) para el plan B
             if python3 ojo/tap.py "$1"; then return 0; fi
+            adb shell input keyevent 4 >/dev/null 2>&1; sleep 1
+            if python3 ojo/tap.py "$1"; then return 0; fi
             local FRAC=$(python3 -c "print(($2+0.5)/6)")
             tap_tabla "$FRAC" 0.955
           }
@@ -145,34 +147,35 @@ jobs:
               fi
               # --- Recorrido interior con la cuenta de prueba ---
               if [ -n "${CODIGO_PRUEBA:-}" ]; then
-                adb shell input keyevent 4; sleep 2
-                if ! adb shell dumpsys window windows 2>/dev/null | grep -E "mCurrentFocus|mFocusedApp" | grep -q "$PKG"; then
-                  adb shell monkey -p "$PKG" -c android.intent.category.LAUNCHER 1 >/dev/null 2>&1; sleep 6
-                fi
-                wait_text "código personal" 15 || true
-                python3 ojo/tap.py "Ej: NOMBRE-123" || python3 ojo/tap.py "Tu código personal" || tap_tabla 0.5 0.55
-                sleep 1
-                for i in $(seq 1 24); do adb shell input keyevent 67 >/dev/null 2>&1; done
-                adb shell input text "${CODIGO_PRUEBA}"
-                sleep 2
-                dumpw
-                if grep -q "${CODIGO_PRUEBA}" /tmp/w.xml 2>/dev/null; then EXTRA="$EXTRA El código de prueba quedó escrito en el campo antes de tocar Entrar."; fi
-                adb shell input keyevent 4; sleep 1
-                python3 ojo/tap.py "Entrar" || tap_tabla 0.5 0.63
-                if gone_text "Tu código personal" 25 && wait_text "Reportar" 10; then
-                  sleep 5
-                  adb shell input keyevent 4 >/dev/null 2>&1; sleep 1
-                  shot "03-entrada.png" "Dentro: la primera pantalla tras entrar con la cuenta de prueba"
-                  tap_tab "Reportar" 1; sleep 6; shot "04-reportar.png" "Pestaña Reportar: reportar un trato de saldo o transferencia"
-                  tap_tab "Mi panel" 2; sleep 6; shot "05-mi-panel.png" "Pestaña Mi panel: sus tratos, su comisión y su bono"
-                  tap_tab "Chat" 3; sleep 6; shot "06-chat.png" "Pestaña Chat: la conversación con Ernesto"
-                  tap_tab "Textos" 4; sleep 6; shot "07-textos.png" "Pestaña Textos: sus textos listos para copiar o mandar"
-                  tap_tab "Mi perfil" 5; sleep 6; shot "08-mi-perfil.png" "Pestaña Mi perfil: su cuenta y su enlace personal"
-                  EXTRA="$EXTRA El recorrido interior con la cuenta de prueba se completó."
+                adb shell am force-stop "$PKG" >/dev/null 2>&1
+                adb shell pm clear "$PKG" >/dev/null 2>&1; sleep 1
+                adb shell monkey -p "$PKG" -c android.intent.category.LAUNCHER 1 >/dev/null 2>&1; sleep 8
+                if wait_text "código personal" 20; then
+                  python3 ojo/tap.py "Ej: NOMBRE-123" || python3 ojo/tap.py "Tu código personal" || tap_tabla 0.5 0.565
+                  sleep 1
+                  adb shell input text "${CODIGO_PRUEBA}"
+                  sleep 2
+                  dumpw
+                  if grep -q "${CODIGO_PRUEBA}" /tmp/w.xml 2>/dev/null; then EXTRA="$EXTRA El código de prueba quedó escrito en el campo antes de tocar Entrar."; fi
+                  python3 ojo/tap.py "Entrar" || tap_tabla 0.5 0.63
+                  sleep 8
+                  if gone_text "Tu código personal" 25 && wait_text "Reportar" 10; then
+                    shot "03-entrada.png" "Dentro: la primera pantalla tras entrar con la cuenta de prueba"
+                    tap_tab "Reportar" 1; sleep 6; shot "04-reportar.png" "Pestaña Reportar: reportar un trato de saldo o transferencia"
+                    tap_tab "Mi panel" 2; sleep 6; shot "05-mi-panel.png" "Pestaña Mi panel: sus tratos, su comisión y su bono"
+                    tap_tab "Chat" 3; sleep 6; shot "06-chat.png" "Pestaña Chat: la conversación con Ernesto"
+                    tap_tab "Textos" 4; sleep 6; shot "07-textos.png" "Pestaña Textos: sus textos listos para copiar o mandar"
+                    tap_tab "Mi perfil" 5; sleep 6; shot "08-mi-perfil.png" "Pestaña Mi perfil: su cuenta y su enlace personal"
+                    EXTRA="$EXTRA El recorrido interior con la cuenta de prueba se completó."
+                  else
+                    VERED="PARCIAL"
+                    DET="Con la app recién reabierta, el código de prueba tampoco entró: se quedó en la puerta. La puerta y el rechazo del código inválido sí quedaron probados."
+                    shot "03-sin-entrar.png" "Con la app recién reabierta, la cuenta de prueba tampoco entró: se quedó en la puerta"
+                  fi
                 else
                   VERED="PARCIAL"
-                  DET="El código de prueba no validó en esta corrida: el recorrido interior no se pudo hacer. La puerta y el rechazo del código inválido sí quedaron probados."
-                  shot "03-sin-entrar.png" "La cuenta de prueba no entró en esta corrida: se quedó en la puerta"
+                  DET="Al reabrir la app para el recorrido interior, la puerta no apareció en el teléfono virtual. La puerta y el rechazo del código inválido sí quedaron probados en la primera parte."
+                  shot "03-sin-puerta.png" "Al reabrir la app, la puerta no apareció"
                 fi
               else
                 EXTRA="$EXTRA Sin código de prueba: el recorrido llegó hasta la puerta."
