@@ -15,5 +15,9 @@ export default defineConfig({
     baseURL: 'https://ernesto5058.github.io/calculadora-ernesto',
     serviceWorkers: 'block',
     reducedMotion: 'reduce',
+    // Evidencia del fallo: sin esto, test-results nace vacío y el
+    // artefacto de la corrida no trae nada (cazado en el estreno).
+    screenshot: 'only-on-failure',
+    trace: 'retain-on-failure',
   },
 });
