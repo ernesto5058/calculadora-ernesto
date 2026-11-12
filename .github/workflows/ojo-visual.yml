@@ -1,0 +1,103 @@
+name: Ojo Visual — regresión de fotos
+
+# TOP 5 del estudio de huecos (2026-11-12): las fotos del Ojo se comparan
+# SOLAS contra la foto buena aprobada (baselines en ojo-visual/).
+# Modos (input al disparar; la corrida semanal va en «controlar»):
+#   controlar  — compara; rojo = algo se movió sin que nadie lo aprobara.
+#   actualizar — regenera las baselines y las publica (solo cuando Máximo
+#                ya cazó en vivo que el cambio visual es legítimo).
+#   fuego      — recrea el defecto de Promos (textos cortados) y exige
+#                que la comparación lo cace; si pasara, el sistema está
+#                ciego y la corrida sale en rojo.
+# Detalle y procedimiento: ojo-visual/README.md.
+
+on:
+  workflow_dispatch:
+    inputs:
+      modo:
+        description: "Modo de la corrida"
+        type: choice
+        options: [controlar, actualizar, fuego]
+        default: controlar
+  schedule:
+    # Deriva silenciosa: cada lunes se compara lo servido contra la
+    # foto buena, aunque nadie haya publicado nada a propósito.
+    - cron: "23 6 * * 1"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ojo-visual
+  cancel-in-progress: false
+
+jobs:
+  visual:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Instalar Playwright Test + Chromium
+        working-directory: ojo-visual
+        run: |
+          if [ -f package-lock.json ]; then npm ci --no-fund --no-audit; else npm i --no-fund --no-audit; fi
+          npx playwright install --with-deps chromium
+
+      - name: Comparar contra las fotos buenas (controlar)
+        if: ${{ inputs.modo == 'controlar' || github.event_name == 'schedule' }}
+        working-directory: ojo-visual
+        run: npx playwright test
+
+      - name: Regenerar las fotos buenas (actualizar)
+        if: ${{ inputs.modo == 'actualizar' }}
+        working-directory: ojo-visual
+        run: npx playwright test --update-snapshots
+
+      - name: Publicar las baselines nuevas (con rebase y reintentos)
+        if: ${{ inputs.modo == 'actualizar' }}
+        run: |
+          git config user.name "ojo-visual"
+          git config user.email "actions@github.com"
+          git add ojo-visual
+          if git diff --cached --quiet; then echo "baselines sin cambios"; exit 0; fi
+          git commit -m "Ojo Visual: baselines re-aprobadas por Máximo (modo actualizar)"
+          for i in 1 2 3 4; do
+            git pull --rebase origin main || git rebase --abort || true
+            if git push origin main; then echo "baselines publicadas (intento $i)"; exit 0; fi
+            echo "push rechazado (intento $i): reintentando con rebase…"; sleep 5
+          done
+          echo "no se pudieron publicar las baselines tras 4 intentos"; exit 1
+
+      - name: Prueba de fuego — el defecto de Promos recreado TIENE que caer
+        if: ${{ inputs.modo == 'fuego' }}
+        working-directory: ojo-visual
+        run: |
+          set +e
+          DEFECTO=1 npx playwright test -g "paginita"
+          codigo=$?
+          set -e
+          if [ "$codigo" -eq 0 ]; then
+            echo "🔴 CIEGO: el defecto deliberado PASÓ la comparación — el sistema no está cazando."
+            exit 1
+          fi
+          if find test-results -name "*-diff.png" | grep -q .; then
+            echo "✅ CAZADO: la comparación detectó el texto cortado y dejó su diff:"
+            find test-results -name "*-diff.png"
+          else
+            echo "🔴 La prueba falló pero sin diff de foto: falló por otra cosa (revisar el artefacto)."
+            exit 1
+          fi
+
+      - name: Subir la evidencia (fotos y diffs) como artefacto
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ojo-visual-evidencia
+          path: ojo-visual/test-results
+          if-no-files-found: ignore
+          retention-days: 14
