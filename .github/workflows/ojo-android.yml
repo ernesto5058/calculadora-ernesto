@@ -217,6 +217,7 @@ jobs:
                   sin_dialogos
                   if gone_text "Tu código personal" 25 && wait_text "Reportar" 10; then
                     shot "03-entrada.png" "Dentro: la primera pantalla tras entrar con la cuenta de prueba"
+                    dumpw; cp /tmp/w.xml "$GITHUB_WORKSPACE/dump-entrada.xml" 2>/dev/null || true
                     ir_pantalla "Reportar" 1 "Reportar una búsqueda" "04-reportar.png" "Pestaña Reportar: reportar un trato de saldo o transferencia"
                     ir_pantalla "Mi panel" 2 "TOTAL GANADO" "05-mi-panel.png" "Pestaña Mi panel: sus tratos, su comisión y su bono"
                     ir_pantalla "Chat" 3 "¿Para qué es esta app?" "06-chat.png" "Pestaña Chat: la conversación con Ernesto"
@@ -355,4 +356,5 @@ jobs:
           path: |
             ojo-android
             logcat.txt
+            dump-entrada.xml
           if-no-files-found: ignore
