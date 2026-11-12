@@ -1,0 +1,1 @@
+El código de prueba no validó en esta corrida: el recorrido interior no se pudo hacer. La puerta y el rechazo del código inválido sí quedaron probados. 
