@@ -743,6 +743,160 @@ export function decisionCita(datos, citaId, decision) {
 }
 
 /* =====================================================================
+   v2.4 — CIERRE DE CITAS Y DINERO DEL DUEÑO (puro): la cita
+   CONFIRMADA se cierra con [✅ Vino] / [🚫 No vino]; si vino, el pago
+   se anota con método y monto — el monto se PRECARGA de la tarifa
+   VIVA del catálogo (corte: «corte» en efectivo y «corte_transferencia»
+   por transferencia; NADA hardcodeado: si Ernesto cambia su precio
+   en Ajustes, la precarga cambia sola) con [✏️ Otro monto] por texto
+   validado. La ESCRITURA va por UNA sola puerta SQL
+   (`agente_cita_cerrar`, hermana de `agente_cita_decidir`); aquí
+   viven la validación, los textos y los teclados. El RESUMEN de
+   dinero se calcula de las filas cerradas, en vivo, jamás guardado
+   aparte — y efectivo y transferencia se reportan SIEMPRE por
+   separado: en el modelo de Ernesto no valen lo mismo. Esta capa es
+   SOLO del dueño: el cliente no recibe ni ve nada de ella.
+   ===================================================================== */
+export function claveCatalogoCita(servicio, metodo) {
+  const s = String(servicio ?? "corte");
+  return metodo === "transferencia" ? s + "_transferencia" : s;
+}
+export function precioCita(datos, servicio, metodo) {
+  const fila = datos?.catalogo?.get(claveCatalogoCita(servicio, metodo));
+  const n = Number(fila?.precio);
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+/* Los botones de cierre de UNA cita confirmada (en la vista «📋
+   Citas» y en el mensaje que sigue a su confirmación). */
+export function tecladoCierreCita(citaId) {
+  return { inline_keyboard: [[
+    { text: "✅ Vino", callback_data: "v2:k:vino:" + citaId },
+    { text: "🚫 No vino", callback_data: "v2:k:no:" + citaId },
+  ]] };
+}
+/* Al tocar [✅ Vino]: el pago se elige con el monto de SU tarifa ya
+   puesto en el botón; [✏️ Otro monto] abre el flujo corto de texto. */
+export function tecladoPagoCita(datos, cita) {
+  const ef = precioCita(datos, cita?.servicio, "efectivo");
+  const tr = precioCita(datos, cita?.servicio, "transferencia");
+  return { inline_keyboard: [
+    [{ text: "💵 Efectivo" + (ef ? " · " + fmtNum(ef) + " CUP" : ""),
+       callback_data: "v2:k:pago:" + cita.id + ":ef" },
+     { text: "📲 Transferencia" + (tr ? " · " + fmtNum(tr) + " CUP" : ""),
+       callback_data: "v2:k:pago:" + cita.id + ":tr" }],
+    [{ text: "✏️ Otro monto", callback_data: "v2:k:otro:" + cita.id },
+     { text: "✖️ Ahora no", callback_data: "v2:d:citas" }],
+  ] };
+}
+/* La vista «📋 Citas» COMPLETA: pendientes por decidir (v2.3) y
+   confirmadas por cerrar (v2.4), cada una con SUS botones. */
+export function textoCitasGestion(pendientes, confirmadas) {
+  const p = pendientes ?? [], c = confirmadas ?? [];
+  if (!p.length && !c.length) {
+    return "📋 No tienes citas por atender ✨\nCuando un cliente pida una, te llega " +
+           "el aviso aquí mismo, con botones pa decidirla y, al pasar, pa cerrarla.";
+  }
+  let t = "📋 Citas";
+  if (p.length) {
+    t += "\n\n⏳ PENDIENTES (" + p.length + ") — decídela con ✅ o ✖️ 👇\n" +
+         p.map((x) => "• " + resumenCita(x)).join("\n");
+  }
+  if (c.length) {
+    t += "\n\n✅ CONFIRMADAS (" + c.length + ") — al pasar, ciérrala: ✅ Vino o 🚫 No vino 👇\n" +
+         c.map((x) => "• " + resumenCita(x)).join("\n");
+  }
+  return t;
+}
+export function tecladoCitasGestion(pendientes, confirmadas) {
+  const filas = [];
+  for (const c of (pendientes ?? []).slice(0, 6)) {
+    filas.push([
+      { text: "✅ " + String(c.nombre ?? "cita").slice(0, 18), callback_data: "v2:c:ok:" + c.id },
+      { text: "✖️", callback_data: "v2:c:no:" + c.id },
+    ]);
+  }
+  for (const c of (confirmadas ?? []).slice(0, 6)) {
+    filas.push([
+      { text: "✅ Vino · " + String(c.nombre ?? "cita").slice(0, 14), callback_data: "v2:k:vino:" + c.id },
+      { text: "🚫 No vino", callback_data: "v2:k:no:" + c.id },
+    ]);
+  }
+  filas.push([
+    { text: "💰 Dinero de citas", callback_data: "v2:d:dinero" },
+    { text: "⚙️ Ajustes", callback_data: "v2:d:menu" },
+    { text: "🏠 Inicio", callback_data: "v2:p:inicio" },
+  ]);
+  return { inline_keyboard: filas };
+}
+/* El cierre sobre UNA cita confirmada sin cerrar: valida contra la
+   foto de datos y compone el texto del dueño. La puerta (index.ts)
+   RELEE la fila y ejecuta por `agente_cita_cerrar`. */
+export function cierreCita(datos, citaId, cierre) {
+  const cita = (datos?.citasConfirmadas ?? []).find((c) => String(c.id) === String(citaId));
+  if (!cita) return { ok: false, motivo: "no_confirmada" };
+  if (!cierre?.vino) {
+    return { ok: true, cita, vino: false,
+             textoDueno: "🚫 Cita CERRADA: " + resumenCita(cita) + " — no vino, sin pago." };
+  }
+  const monto = Number(cierre.monto);
+  if (!Number.isFinite(monto) || monto <= 0 || monto > 1000000) {
+    return { ok: false, motivo: "monto_invalido" };
+  }
+  if (cierre.metodo !== "efectivo" && cierre.metodo !== "transferencia") {
+    return { ok: false, motivo: "metodo_invalido" };
+  }
+  return { ok: true, cita, vino: true, monto, metodo: cierre.metodo,
+           textoDueno: "💰 Cita CERRADA: " + resumenCita(cita) + " — vino y pagó " +
+                       fmtNum(monto) + " CUP por " + cierre.metodo + "." };
+}
+/* --- Resumen de dinero: HOY y SEMANA (lunes a hoy), de las filas
+   cerradas. Se calcula al momento; la base no guarda totales. --- */
+export function lunesDeSemana(hoyISO) {
+  const d = new Date(String(hoyISO ?? "") + "T12:00:00Z");
+  if (Number.isNaN(d.getTime())) return String(hoyISO ?? "");
+  const delta = (d.getUTCDay() + 6) % 7; // lunes = 0
+  return new Date(d.getTime() - delta * 86400000).toISOString().slice(0, 10);
+}
+export function resumenDineroCitas(citas, hoyISO) {
+  const lunes = lunesDeSemana(hoyISO);
+  const cerradas = (citas ?? []).filter((c) => c && c.asistencia);
+  const agg = (lista) => {
+    const r = { realizadas: 0, noVino: 0, efectivo: 0, transferencia: 0, total: 0, tasa: null };
+    for (const c of lista) {
+      if (c.asistencia === "vino") {
+        r.realizadas++;
+        const m = Number(c.pago_monto) || 0;
+        if (c.pago_metodo === "efectivo") r.efectivo += m;
+        else if (c.pago_metodo === "transferencia") r.transferencia += m;
+      } else if (c.asistencia === "no_vino") r.noVino++;
+    }
+    r.total = r.efectivo + r.transferencia;
+    const den = r.realizadas + r.noVino;
+    if (den > 0) r.tasa = Math.round((r.realizadas / den) * 100);
+    return r;
+  };
+  return {
+    hoy: agg(cerradas.filter((c) => String(c.dia) === String(hoyISO))),
+    semana: agg(cerradas.filter((c) => String(c.dia) >= lunes && String(c.dia) <= String(hoyISO))),
+  };
+}
+function bloqueResumenDinero(titulo, r) {
+  if (!r.realizadas && !r.noVino) return titulo + "\nSin citas cerradas todavía.";
+  return titulo +
+    "\n✅ Vinieron: " + r.realizadas + " · 🚫 No vinieron: " + r.noVino +
+    "\n💵 Efectivo: " + fmtNum(r.efectivo) + " CUP" +
+    "\n📲 Transferencia: " + fmtNum(r.transferencia) + " CUP" +
+    "\n🧮 Total: " + fmtNum(r.total) + " CUP" +
+    (r.tasa !== null ? "\n📊 Asistencia: " + r.tasa + " %" : "");
+}
+export function textoResumenDinero(resumen, hoyISO) {
+  return "💰 Dinero de citas — calculado al momento de tus citas cerradas " +
+         "(efectivo y transferencia por separado, como vale tu dinero).\n\n" +
+         bloqueResumenDinero("📅 HOY · " + diaLegible(String(hoyISO ?? "")), resumen.hoy) + "\n\n" +
+         bloqueResumenDinero("🗓️ ESTA SEMANA (desde el lunes)", resumen.semana);
+}
+
+/* =====================================================================
    ORQUESTADOR PURO — decide TODO con los datos ya leídos.
    datos: { config, catalogo:Map, fuente:Map, faqs, sinonimos, prohibidas }
    conv:  { escalada, flujo }
@@ -904,7 +1058,9 @@ export function orquestar(datos, conv, textoCrudo, hoyISO) {
   // para él, todo cae al panel de ajustes (la reanudación vive ahí).
   if (datos.pausado && datos.esDueno &&
       conv?.flujo?.tipo !== "dueno" && !crudo.startsWith("/dueno") &&
-      !crudo.startsWith("/citadec") &&
+      !crudo.startsWith("/citadec") && !crudo.startsWith("/citacierre") &&
+      !crudo.startsWith("/citapago") && !crudo.startsWith("/citaotro") &&
+      !crudo.startsWith("/citamet") &&
       detectarComando(crudo) !== "admin") {
     return { ...base, accion: "dueno", panel: { vista: "dueno" },
              respuesta: "⏸ El agente está pausado: tus clientes no reciben respuesta.",
@@ -924,7 +1080,7 @@ export function orquestar(datos, conv, textoCrudo, hoyISO) {
   // «/dueno <acción>»: callbacks del modo dueño; SOLO su cuenta.
   if (crudo.startsWith("/dueno")) {
     if (!datos.esDueno) return { ...base, accion: "no_se", respuesta: FRASE_NO_SE };
-    return duenoAccion(datos, conv, crudo.split(/\s+/)[1] ?? "menu", base);
+    return duenoAccion(datos, conv, crudo.split(/\s+/)[1] ?? "menu", { ...base, hoyISO });
   }
 
   // v2.3 — «/citadec ok|no <id>»: decisión de una cita desde los
@@ -951,6 +1107,84 @@ export function orquestar(datos, conv, textoCrudo, hoyISO) {
     return { ...base, accion: "cita_decision", citaDecision: { id, decision: dec },
              respuesta: "Decidiendo la cita…",
              auditoria: { dueno: "citadec", decision: dec } };
+  }
+
+  // v2.4 — CIERRE de citas («/citacierre vino|novino <id>»,
+  // «/citapago <id> ef|tr», «/citaotro <id>», «/citamet ef|tr»):
+  // capa SOLO del dueño — un no-dueño recibe «denegar» determinista,
+  // jamás la capa conversacional (misma lección que /citadec: el
+  // cerebro no puede improvisar un «ya cobré»). Aquí se valida y se
+  // compone; la ESCRITURA la ejecuta la puerta por la RPC
+  // `agente_cita_cerrar`, releyendo la fila. El cliente no recibe
+  // NADA de esta capa: es control interno del negocio.
+  if (crudo.startsWith("/citacierre") || crudo.startsWith("/citapago") ||
+      crudo.startsWith("/citaotro") || crudo.startsWith("/citamet")) {
+    if (!datos.esDueno) {
+      return { ...base, accion: "denegar", registrar_sin_respuesta: true,
+               respuesta: "Eso no lo puedo hacer: el cierre y el dinero de las citas " +
+                          "los maneja el dueño del negocio." };
+    }
+    const botonViejo = { ...base, accion: "dueno", panel: { vista: "dueno" }, flujo: null,
+                         respuesta: "Ese botón ya no vale; abre 📋 Citas en Ajustes.",
+                         auditoria: { dueno: "cierre_invalido" } };
+    const partes = crudo.split(/\s+/);
+    const buscarConf = (id) => (datos.citasConfirmadas ?? [])
+      .find((c) => String(c.id) === String(id ?? ""));
+    if (crudo.startsWith("/citamet")) {
+      // el método del flujo «Otro monto»: solo vale con el flujo vivo
+      const f = conv?.flujo;
+      const met = partes[1] === "tr" ? "transferencia"
+                : partes[1] === "ef" ? "efectivo" : null;
+      if (!met || f?.tipo !== "dueno" || f?.paso !== "cierre_metodo" || !f?.datos?.citaId) {
+        return botonViejo;
+      }
+      return { ...base, accion: "cita_cierre", flujo: null,
+               citaCierre: { id: f.datos.citaId, vino: true, metodo: met, monto: f.datos.monto },
+               respuesta: "Cerrando la cita…",
+               auditoria: { dueno: "cita_cierre", via: "otro_monto" } };
+    }
+    if (crudo.startsWith("/citacierre")) {
+      const modo = partes[1], id = partes[2];
+      const cita = buscarConf(id);
+      if (!cita || (modo !== "vino" && modo !== "novino")) return botonViejo;
+      if (modo === "novino") {
+        return { ...base, accion: "cita_cierre", flujo: null,
+                 citaCierre: { id, vino: false },
+                 respuesta: "Cerrando la cita…",
+                 auditoria: { dueno: "cita_cierre", vino: false } };
+      }
+      const txt = "✅ " + resumenCita(cita) + "\nVino ✔️ ¿Cómo pagó?";
+      return { ...base, accion: "dueno", flujo: null,
+               panel: panelFlujo(txt, tecladoPagoCita(datos, cita)),
+               respuesta: txt, auditoria: { dueno: "cita_pago_pedir" } };
+    }
+    if (crudo.startsWith("/citapago")) {
+      const id = partes[1];
+      const met = partes[2] === "tr" ? "transferencia"
+                : partes[2] === "ef" ? "efectivo" : null;
+      const cita = buscarConf(id);
+      if (!cita || !met) return botonViejo;
+      const monto = precioCita(datos, cita.servicio, met);
+      if (monto === null) {
+        return { ...base, accion: "dueno", panel: { vista: "dueno" }, flujo: null,
+                 respuesta: "No tengo precio precargado pa ese servicio y método: " +
+                            "cierra la cita con ✏️ Otro monto.",
+                 auditoria: { dueno: "cita_sin_precio" } };
+      }
+      return { ...base, accion: "cita_cierre", flujo: null,
+               citaCierre: { id, vino: true, metodo: met, monto },
+               respuesta: "Cerrando la cita…",
+               auditoria: { dueno: "cita_cierre", via: "precargado", metodo: met } };
+    }
+    // «/citaotro <id>»: abre el flujo corto del monto por texto
+    const cita = buscarConf(partes[1]);
+    if (!cita) return botonViejo;
+    const txt = "✏️ " + resumenCita(cita) +
+                "\nEscribe el monto que pagó (solo el número, en CUP).";
+    return { ...base, accion: "dueno",
+             flujo: { tipo: "dueno", paso: "cierre_monto", datos: { citaId: String(cita.id) } },
+             panel: panelFlujo(txt, TECLADO_CANCELAR),
+             respuesta: txt, auditoria: { dueno: "cita_otro_monto" } };
   }
 
   // CAPA DE COMANDOS (v1.1, F1): determinista, ANTES del matcher y de
@@ -1366,12 +1600,16 @@ function textoPanelDueno(datos, conv) {
   return t + "\nToca una opción 👇";
 }
 function tecladoDueno(datos, conv) {
-  const nCitas = (datos?.citasPendientes ?? []).length;
+  // v2.4: el conteo de «📋 Citas» suma lo accionable: pendientes por
+  // decidir + confirmadas por cerrar.
+  const nCitas = (datos?.citasPendientes ?? []).length +
+                 (datos?.citasConfirmadas ?? []).length;
   const filas = [
     [{ text: "🕘 Cambiar horario", callback_data: "v2:d:horario" },
      { text: "💈 Precio del corte", callback_data: "v2:d:corte" }],
     [{ text: "📋 Citas" + (nCitas ? " (" + nCitas + ")" : ""), callback_data: "v2:d:citas" },
      { text: "📝 Editar una respuesta", callback_data: "v2:d:faq" }],
+    [{ text: "💰 Dinero de citas", callback_data: "v2:d:dinero" }],
     [(datos.pausado || datos.config?.detenido)
       ? { text: "▶️ Reanudar el agente", callback_data: "v2:d:reanudar" }
       : { text: "⏸ Pausar el agente", callback_data: "v2:d:pausar" }],
@@ -1402,11 +1640,27 @@ export function duenoAccion(datos, conv, accion, base) {
     case "citas": {
       // v2.3: la vista de pendientes vive en Ajustes — un panel con
       // la lista y los botones de decisión por cita.
-      const citas = datos.citasPendientes ?? [];
-      const txt = textoCitasPendientes(citas);
+      // v2.4: la vista es la de GESTIÓN completa — pendientes por
+      // decidir y confirmadas por cerrar, cada una con sus botones.
+      const pend = datos.citasPendientes ?? [];
+      const conf = datos.citasConfirmadas ?? [];
+      const txt = textoCitasGestion(pend, conf);
       return { ...base, accion: "dueno", flujo: null,
-        panel: panelFlujo(txt, tecladoCitasPendientes(citas)),
-        respuesta: txt, auditoria: { dueno: "citas", pendientes: citas.length } };
+        panel: panelFlujo(txt, tecladoCitasGestion(pend, conf)),
+        respuesta: txt, auditoria: { dueno: "citas", pendientes: pend.length, confirmadas: conf.length } };
+    }
+    case "dinero": {
+      // v2.4: el resumen de dinero se CALCULA de las citas cerradas
+      // de la semana (la puerta las carga), jamás de un total guardado.
+      const hoy = String(base?.hoyISO ?? "");
+      const txt = textoResumenDinero(
+        resumenDineroCitas(datos.citasCerradas ?? [], hoy), hoy);
+      return { ...base, accion: "dueno", flujo: null,
+        panel: panelFlujo(txt, { inline_keyboard: [[
+          { text: "📋 Citas", callback_data: "v2:d:citas" },
+          { text: "⚙️ Ajustes", callback_data: "v2:d:menu" },
+        ]] }),
+        respuesta: txt, auditoria: { dueno: "dinero" } };
     }
     case "horario": {
       const h = datos.fuente.get("horario_barberia")?.valor ?? {};
@@ -1614,6 +1868,36 @@ export function duenoPaso(datos, conv, crudo, base) {
       const faq = (datos.faqs ?? []).find((x) => x.id === d.faqId);
       return confirmarDueno(base, { accion: "faq", ...d },
         "📝 Nueva respuesta para «" + (faq?.pregunta ?? "") + "»:\n«" + texto + "»");
+    }
+    case "cierre_monto": {
+      // v2.4: [✏️ Otro monto] del cierre de una cita — validación
+      // numérica dura (numeroDe ya exige >0 y ≤1 000 000); lo que no
+      // vale se queda en el paso y NO cierra nada.
+      const n = numeroDe(crudo);
+      if (n === null) {
+        return seguir("cierre_monto", d, "Ese monto no vale 😅 Escribe solo el número en CUP (ejemplo: 500).");
+      }
+      d.monto = n;
+      const txt = "Monto: " + fmtNum(n) + " CUP. ¿Por qué vía pagó?";
+      return { ...base, accion: "dueno",
+        flujo: { tipo: "dueno", paso: "cierre_metodo", datos: d },
+        panel: panelFlujo(txt, { inline_keyboard: [
+          [{ text: "💵 Efectivo", callback_data: "v2:k:met:ef" },
+           { text: "📲 Transferencia", callback_data: "v2:k:met:tr" }],
+          [{ text: "✖️ Cancelar", callback_data: "v2:d:x" }],
+        ] }),
+        respuesta: txt, auditoria: { dueno: "cierre_metodo" } };
+    }
+    case "cierre_metodo": {
+      const txt = "Toca la vía del pago 👇 (monto: " + fmtNum(d.monto) + " CUP)";
+      return { ...base, accion: "dueno",
+        flujo: { tipo: "dueno", paso: "cierre_metodo", datos: d },
+        panel: panelFlujo(txt, { inline_keyboard: [
+          [{ text: "💵 Efectivo", callback_data: "v2:k:met:ef" },
+           { text: "📲 Transferencia", callback_data: "v2:k:met:tr" }],
+          [{ text: "✖️ Cancelar", callback_data: "v2:d:x" }],
+        ] }),
+        respuesta: txt, auditoria: { dueno: "cierre_metodo" } };
     }
     case "confirmar":
       return confirmarDueno(base, d, "Este es el cambio pendiente. Toca ✅ Aplicar o ✖️ Cancelar.");
