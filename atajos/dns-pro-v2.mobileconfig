@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadContent</key>
+	<array>
+		<dict>
+			<key>DNSSettings</key>
+			<dict>
+				<key>DNSProtocol</key>
+				<string>HTTPS</string>
+				<key>ServerAddresses</key>
+				<array>
+					<string>9.9.9.9</string>
+					<string>149.112.112.112</string>
+				</array>
+				<key>ServerURL</key>
+				<string>https://dns.quad9.net/dns-query</string>
+			</dict>
+			<key>OnDemandRules</key>
+			<array>
+				<dict>
+					<key>Action</key>
+					<string>Disconnect</string>
+					<key>InterfaceTypeMatch</key>
+					<string>WiFi</string>
+					<key>SSIDMatch</key>
+					<array>
+						<string>WIFI_ETECSA</string>
+						<string>WiFi_ETECSA</string>
+						<string>WIFI_ETECSA </string>
+					</array>
+				</dict>
+				<dict>
+					<key>Action</key>
+					<string>Connect</string>
+				</dict>
+			</array>
+			<key>PayloadDescription</key>
+			<string>DNS cifrado (DoH) de Quad9 en todo el sistema, Wi-Fi y datos móviles. Se desconecta solo en el hotspot WIFI_ETECSA pa que el portal Nauta funcione; en cualquier otra red está activo.</string>
+			<key>PayloadDisplayName</key>
+			<string>DNS PRO v2 — Quad9</string>
+			<key>PayloadIdentifier</key>
+			<string>com.apple.dnsSettings.managed.3E02B803-E936-4DCB-83F0-D113A9BD7D24</string>
+			<key>PayloadType</key>
+			<string>com.apple.dnsSettings.managed</string>
+			<key>PayloadUUID</key>
+			<string>3E02B803-E936-4DCB-83F0-D113A9BD7D24</string>
+			<key>PayloadVersion</key>
+			<integer>2</integer>
+			<key>ProhibitDisablement</key>
+			<false/>
+		</dict>
+	</array>
+	<key>PayloadDescription</key>
+	<string>DNS cifrado de Quad9 (9.9.9.9) por HTTPS pa todo el sistema, incluidos los datos móviles. Excepción: en el hotspot WIFI_ETECSA se desconecta solo pa que el portal cautivo de Nauta funcione. No instala VPN ni da acceso remoto. Se puede eliminar cuando quieras en Ajustes &gt; General &gt; VPN y gestión de dispositivos.</string>
+	<key>PayloadDisplayName</key>
+	<string>DNS PRO v2 — Quad9 (Máximo)</string>
+	<key>PayloadIdentifier</key>
+	<string>org.ernesto5058.dns-pro-v2</string>
+	<key>PayloadOrganization</key>
+	<string>Máximo — asistente de Ernesto</string>
+	<key>PayloadRemovalDisallowed</key>
+	<false/>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadUUID</key>
+	<string>6F59EFCA-089F-4A1E-B725-28AE859A23DC</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+</dict>
+</plist>
