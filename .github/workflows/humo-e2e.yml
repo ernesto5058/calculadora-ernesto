@@ -1,0 +1,50 @@
+name: Humo E2E — flujos reales
+
+# TOP 6 del estudio de huecos (2026-11-12): puerta TRAS PUBLICACIÓN.
+# Un navegador real con la cuenta de prueba PEUEBA recorre los flujos de
+# dinero e identidad contra las URLs públicas servidas (entrar, reportar,
+# leer el libro, chat del agente). Se dispara A MANO tras publicar
+# Mi Trabajo / Mi Negocio / Mercado / paginita: rojo = la publicación no
+# se da por buena. Detalle y limpieza de datos: humo-e2e/README.md.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: humo-e2e
+  cancel-in-progress: false
+
+jobs:
+  humo:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Instalar Playwright Test + Chromium
+        working-directory: humo-e2e
+        run: |
+          if [ -f package-lock.json ]; then npm ci --no-fund --no-audit; else npm i --no-fund --no-audit; fi
+          npx playwright install --with-deps chromium
+
+      - name: Recorrer los 4 flujos con PEUEBA
+        working-directory: humo-e2e
+        env:
+          HUMO_ID: "${{ github.run_id }}-${{ github.run_attempt }}"
+        run: npx playwright test
+
+      - name: Subir la evidencia de los fallos como artefacto
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: humo-e2e-fallos
+          path: humo-e2e/test-results
+          if-no-files-found: ignore
+          retention-days: 14
