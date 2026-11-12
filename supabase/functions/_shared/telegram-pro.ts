@@ -262,7 +262,8 @@ export function ayuda(rol: "dueno" | "equipo" | "fuera"): string {
       "📊 <b>Resumen</b> — las cuentas del negocio (la Contabilidad)\n" +
       "💰 <b>Por pagar</b> — comisiones por pagar, con botón «Ya pagué»\n" +
       "👥 <b>Equipo</b> — tus buscadores y cuánto le debes a cada uno\n" +
-      "💲 <b>Tarifa</b> — la tarifa vigente (solo mirar; se edita en tus apps)\n\n" +
+      "💲 <b>Tarifa</b> — la tarifa vigente (solo mirar; se edita en tus apps)\n" +
+      "❓ <b>Enseñar</b> — las preguntas que tu asistente de clientes no supo responder: las resuelves con un toque y aprende solo\n\n" +
       "Y te avisa de cada reporte nuevo con botones para decidir, y de " +
       "los vínculos del equipo que se rompan.\n\n" +
       "<b>Comandos (respaldo):</b>\n" +
@@ -402,16 +403,26 @@ export function enSemana(r: ReporteFila, sem: { inicio: string; fin: string }): 
 /* --- Callbacks v2 ---------------------------------------------------
    Prefijos PROPIOS (d: queda solo para decidir, heredado de v1 y
    reparado: ahora lleva el UUID del reporte, 40 bytes ≤ 64). */
-export type VistaId = "pend" | "res" | "pagar" | "equipo" | "tarifa" | "lomio" | "bono" | "menu";
+export type VistaId = "pend" | "res" | "pagar" | "equipo" | "tarifa" | "lomio" | "bono" | "menu" | "ensenar";
 export type CallbackAccion =
   | { tipo: "decidir"; id: string; aprobar: boolean }
   | { tipo: "pagar"; id: string }
-  | { tipo: "vista"; vista: VistaId };
+  | { tipo: "vista"; vista: VistaId }
+  | { tipo: "cita"; id: string; aprobar: boolean }
+  | { tipo: "grupo"; id: string; accion: "s" | "d" | "e" | "x" | "t" }
+  | { tipo: "grupo_dato"; id: string; dato: string }
+  | { tipo: "cifra"; faq: string; modo: "fija" }
+  | { tipo: "cifra_dato"; faq: string; dato: string };
 
 const UUID_RE = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
 const RE_DECIDIR = new RegExp("^d:(" + UUID_RE + "):(a|r)$", "i");
 const RE_PAGAR = new RegExp("^p:(" + UUID_RE + ")$", "i");
-const RE_VISTA = /^v:(pend|res|pagar|equipo|tarifa|lomio|bono|menu)$/;
+const RE_VISTA = /^v:(pend|res|pagar|equipo|tarifa|lomio|bono|menu|ensenar)$/;
+const RE_CITA = new RegExp("^c:(" + UUID_RE + "):(a|r)$", "i");
+const RE_GRUPO = new RegExp("^g:(" + UUID_RE + "):(s|d|e|x|t)$", "i");
+const RE_GRUPO_DATO = new RegExp("^y:(" + UUID_RE + "):([a-z_]+)$", "i");
+const RE_CIFRA = new RegExp("^k:(" + UUID_RE + "):f$", "i");
+const RE_CIFRA_DATO = new RegExp("^k:(" + UUID_RE + "):d:([a-z_]+)$", "i");
 
 export function parseCallback(data: string): CallbackAccion | null {
   if (typeof data !== "string") return null;
@@ -421,6 +432,16 @@ export function parseCallback(data: string): CallbackAccion | null {
   if (m) return { tipo: "pagar", id: m[1] };
   m = RE_VISTA.exec(data);
   if (m) return { tipo: "vista", vista: m[1] as VistaId };
+  m = RE_CITA.exec(data);
+  if (m) return { tipo: "cita", id: m[1], aprobar: m[2] === "a" };
+  m = RE_GRUPO.exec(data);
+  if (m) return { tipo: "grupo", id: m[1], accion: m[2] as "s" | "d" | "e" | "x" | "t" };
+  m = RE_GRUPO_DATO.exec(data);
+  if (m) return { tipo: "grupo_dato", id: m[1], dato: m[2] };
+  m = RE_CIFRA_DATO.exec(data);
+  if (m) return { tipo: "cifra_dato", faq: m[1], dato: m[2] };
+  m = RE_CIFRA.exec(data);
+  if (m) return { tipo: "cifra", faq: m[1], modo: "fija" };
   return null;
 }
 
@@ -429,6 +450,13 @@ export function cbDecidir(id: string, aprobar: boolean): string {
 }
 export function cbPagar(id: string): string { return "p:" + id; }
 export function cbVista(v: VistaId): string { return "v:" + v; }
+export function cbCita(id: string, aprobar: boolean): string {
+  return "c:" + id + (aprobar ? ":a" : ":r");
+}
+export function cbGrupo(id: string, accion: string): string { return "g:" + id + ":" + accion; }
+export function cbGrupoDato(id: string, dato: string): string { return "y:" + id + ":" + dato; }
+export function cbCifraFija(faq: string): string { return "k:" + faq + ":f"; }
+export function cbCifraDato(faq: string, dato: string): string { return "k:" + faq + ":d:" + dato; }
 
 /* --- Teclados -------------------------------------------------------- */
 export interface BotonInline { text: string; callback_data: string }
@@ -444,7 +472,7 @@ export function tecladoDueno(): TecladoFijo {
     keyboard: [
       [{ text: "📥 Pendientes" }, { text: "📊 Resumen" }],
       [{ text: "💰 Por pagar" }, { text: "👥 Equipo" }],
-      [{ text: "💲 Tarifa" }],
+      [{ text: "💲 Tarifa" }, { text: "❓ Enseñar" }],
     ],
     resize_keyboard: true,
     is_persistent: true,
@@ -466,6 +494,7 @@ export const TEXTO_A_VISTA: Record<string, VistaId> = {
   "💰 Por pagar": "pagar",
   "👥 Equipo": "equipo",
   "💲 Tarifa": "tarifa",
+  "❓ Enseñar": "ensenar",
   "📒 Lo mío": "lomio",
   "🏆 Mi bono": "bono",
 };
@@ -721,11 +750,150 @@ export function vistaBono(d: {
 }
 
 /* /estado — solo el dueño (la función receptora valida el rol). */
-export function estadoDueno(d: { vinculados: number; cuando?: Date | string }): string {
+export function estadoDueno(d: { vinculados: number; cuando?: Date | string; agente?: string }): string {
   return "🤖 <b>Estado del bot</b>\n" +
     "<b>Tu vínculo:</b> activo ✅\n" +
     "<b>Cuentas vinculadas:</b> " + String(d.vinculados) + "\n" +
-    "<b>Hora:</b> " + esc(horaPared(d.cuando));
+    "<b>Hora:</b> " + esc(horaPared(d.cuando)) +
+    (d.agente ? "\n" + d.agente : "");
 }
 
 export const ESTADO_NO_DUENO = "Ese comando es solo de Ernesto 🙏";
+
+
+/* =====================================================================
+   AGENTE DE CLIENTES — enseñanza v2 y contadores (2026-11-11).
+   El asistente de clientes (paginita/Telegram de clientes) registra
+   lo que no supo responder en agente_pendientes, agrupado. Ernesto lo
+   resuelve AQUÍ con un toque por grupo (las puertas SQL
+   agente_ensenar_* validan su chat). Cero LLM: conteo determinista.
+   ===================================================================== */
+
+/* Plantillas de DATO VIVO a las que se puede conectar una pregunta
+   (las mismas claves que sabe pintar agente-responder). */
+export const DATOS_ENSENAR: { clave: string; etiqueta: string }[] = [
+  { clave: "precio_corte", etiqueta: "Precio del corte" },
+  { clave: "precio_lavadora", etiqueta: "Precio de la lavadora" },
+  { clave: "precio_bateria", etiqueta: "Precio de la batería" },
+  { clave: "tarifa_saldo", etiqueta: "Tarifa de compra de saldo" },
+  { clave: "horario", etiqueta: "Horario de la barbería" },
+  { clave: "ubicacion", etiqueta: "Ubicación" },
+  { clave: "domicilio", etiqueta: "Domicilio" },
+  { clave: "formas_pago", etiqueta: "Formas de pago" },
+  { clave: "garantia_lavadora", etiqueta: "Garantía de la lavadora" },
+  { clave: "contacto", etiqueta: "Contacto de Ernesto" },
+  { clave: "stock_lavadora", etiqueta: "Si hay lavadoras" },
+  { clave: "stock_bateria", etiqueta: "Si hay baterías" },
+  { clave: "identidad", etiqueta: "Quién es el asistente" },
+];
+
+export interface ContadoresAgente {
+  por_ensenar?: number;
+  atendidas_hoy?: number;
+  escaladas_hoy?: number;
+  citas_pendientes?: number;
+}
+
+export function textoContadoresAgente(c: ContadoresAgente): string {
+  return "🤖 <b>Tu asistente de clientes, hoy:</b> " +
+    String(c.atendidas_hoy ?? 0) + " atendidas · " +
+    String(c.escaladas_hoy ?? 0) + " pasadas a ti · " +
+    "❓ " + String(c.por_ensenar ?? 0) + " por enseñar · " +
+    "📅 " + String(c.citas_pendientes ?? 0) + " citas por confirmar";
+}
+
+export interface GrupoPendiente {
+  id: string;
+  pregunta: string;
+  veces: number;
+  tipo_sugerido?: string | null;
+}
+
+const SUGERENCIA_TEXTO: Record<string, string> = {
+  frase_nueva: "Parece otra forma de preguntar algo que ya sabe: «Sumar frase» la conecta.",
+  patron_dato: "Habla de un producto: conéctala a un dato vivo y nunca quedará vieja.",
+  patron_escalado: "Suena a tema que debe llegarte a ti siempre.",
+  nueva: "Es nueva: respóndela tú una vez y la aprende.",
+};
+
+export function botonesGrupo(g: GrupoPendiente): TecladoInline {
+  return {
+    inline_keyboard: [
+      [
+        { text: "➕ Sumar frase", callback_data: cbGrupo(g.id, "s") },
+        { text: "🔗 Dato vivo", callback_data: cbGrupo(g.id, "d") },
+      ],
+      [
+        { text: "✍️ Responder yo", callback_data: cbGrupo(g.id, "t") },
+        { text: "👤 Siempre a mí", callback_data: cbGrupo(g.id, "e") },
+      ],
+      [{ text: "🗑 Nunca responder", callback_data: cbGrupo(g.id, "x") }],
+    ],
+  };
+}
+
+/* Vista ❓ Enseñar: encabezado con contadores + una tarjeta por grupo. */
+export function mensajesEnsenar(
+  grupos: GrupoPendiente[],
+  contadores?: ContadoresAgente,
+): MensajeVista[] {
+  const cab = "<b>❓ Enseñar a tu asistente</b>\n" +
+    (contadores ? textoContadoresAgente(contadores) + "\n\n" : "") +
+    "Estas preguntas de clientes no supo responderlas. Cada tarjeta se " +
+    "resuelve con UN toque y el asistente aprende solo, sin gastar nada.";
+  if (!grupos.length) {
+    return [{
+      html: cab + "\n\n🎉 No hay nada por enseñar: o no preguntaron " +
+        "nada nuevo, o ya lo sabe todo.",
+      botones: botonMenuInline(),
+    }];
+  }
+  const out: MensajeVista[] = [{ html: cab }];
+  for (const g of grupos.slice(0, 10)) {
+    const sug = g.tipo_sugerido ? SUGERENCIA_TEXTO[g.tipo_sugerido] : undefined;
+    out.push({
+      html: "❓ <b>«" + esc(g.pregunta) + "»</b>\n" +
+        "Preguntada <b>" + String(g.veces) + "</b> " +
+        (g.veces === 1 ? "vez" : "veces") + "." +
+        (sug ? "\n💡 " + esc(sug) : ""),
+      botones: botonesGrupo(g),
+    });
+  }
+  if (grupos.length > 10) {
+    out.push({
+      html: "…y " + String(grupos.length - 10) + " grupos más: resuelve " +
+        "estos y vuelve a tocar ❓ Enseñar.",
+      botones: botonMenuInline(),
+    });
+  }
+  return out;
+}
+
+/* Tarjeta para elegir el DATO VIVO de un grupo. */
+export function mensajeElegirDato(grupoId: string): MensajeVista {
+  const filas: BotonInline[][] = DATOS_ENSENAR.map((d) => [{
+    text: d.etiqueta, callback_data: cbGrupoDato(grupoId, d.clave),
+  }]);
+  return {
+    html: "🔗 <b>¿A qué dato vivo se conecta?</b>\n" +
+      "La respuesta saldrá siempre del dato actual: si cambias el " +
+      "precio en el catálogo, el asistente dice el nuevo solo.",
+    botones: { inline_keyboard: filas },
+  };
+}
+
+/* Tras dictar una respuesta con cifra: ¿queda fija o sale de un dato? */
+export function mensajeElegirCifra(faqId: string): MensajeVista {
+  const filas: BotonInline[][] = [
+    [{ text: "📌 Dejarla fija, como la dicté", callback_data: cbCifraFija(faqId) }],
+    ...DATOS_ENSENAR.map((d) => [{
+      text: "🔗 Que salga de: " + d.etiqueta, callback_data: cbCifraDato(faqId, d.clave),
+    }]),
+  ];
+  return {
+    html: "🔢 <b>Tu respuesta trae una cifra.</b>\n" +
+      "Si es un precio que puede cambiar, mejor que salga del dato " +
+      "vivo: así nunca queda vieja. Si es fija de verdad, déjala fija.",
+    botones: { inline_keyboard: filas },
+  };
+}
