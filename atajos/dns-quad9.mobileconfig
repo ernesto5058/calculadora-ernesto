@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadContent</key>
+	<array>
+		<dict>
+			<key>DNSSettings</key>
+			<dict>
+				<key>DNSProtocol</key>
+				<string>HTTPS</string>
+				<key>ServerAddresses</key>
+				<array>
+					<string>9.9.9.9</string>
+					<string>149.112.112.112</string>
+					<string>2620:fe::fe</string>
+					<string>2620:fe::9</string>
+				</array>
+				<key>ServerURL</key>
+				<string>https://dns.quad9.net/dns-query</string>
+			</dict>
+			<key>OnDemandRules</key>
+			<array>
+				<dict>
+					<key>Action</key>
+					<string>Connect</string>
+				</dict>
+			</array>
+			<key>PayloadDescription</key>
+			<string>Configura el dispositivo para usar Quad9 por DNS sobre HTTPS (DoH) en todo el sistema, Wi-Fi y datos móviles. Sin VPN.</string>
+			<key>PayloadDisplayName</key>
+			<string>DNS Seguro — Quad9</string>
+			<key>PayloadIdentifier</key>
+			<string>com.apple.dnsSettings.managed.DE800057-050E-42C5-A695-1013D163991A</string>
+			<key>PayloadType</key>
+			<string>com.apple.dnsSettings.managed</string>
+			<key>PayloadUUID</key>
+			<string>D64DA981-3760-46F5-BDA7-7E6CE4ABE57B</string>
+			<key>PayloadVersion</key>
+			<integer>1</integer>
+			<key>ProhibitDisablement</key>
+			<false/>
+		</dict>
+	</array>
+	<key>PayloadDescription</key>
+	<string>DNS cifrado de Quad9 (9.9.9.9) por HTTPS para todo el sistema, incluidos los datos móviles. No instala VPN ni da acceso remoto. Se puede eliminar cuando quieras en Ajustes &gt; General &gt; VPN y gestión de dispositivos.</string>
+	<key>PayloadDisplayName</key>
+	<string>DNS Seguro — Quad9 (Máximo)</string>
+	<key>PayloadIdentifier</key>
+	<string>org.ernesto5058.dns-quad9</string>
+	<key>PayloadOrganization</key>
+	<string>Máximo — asistente de Ernesto</string>
+	<key>PayloadRemovalDisallowed</key>
+	<false/>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadUUID</key>
+	<string>1E6FD5E1-2D3D-4168-90B9-FE60F9F27978</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+</dict>
+</plist>
