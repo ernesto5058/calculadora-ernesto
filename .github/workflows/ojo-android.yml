@@ -113,6 +113,21 @@ jobs:
           echo "${VERSION_APK}" > "$OUT/version.txt"
           shot(){ adb exec-out screencap -p > "$CAP/$1" 2>/dev/null; echo "$1|$2" >> "$MAN"; sleep 1; }
           dumpw(){ adb shell uiautomator dump /sdcard/w.xml >/dev/null 2>&1; adb pull /sdcard/w.xml /tmp/w.xml >/dev/null 2>&1; }
+          sin_dialogos(){ # Arnés v1.5: quita los diálogos del SISTEMA que tapan la app (ANR «Pixel Launcher isn't responding» de la corrida 43129480421, permiso de notificaciones de la 43128713939): el dump solo ve el diálogo y cualquier juicio sobre la app sale falso.
+            local i
+            for i in 1 2 3; do
+              dumpw
+              if grep -qiE "isn't responding|no responde" /tmp/w.xml 2>/dev/null; then
+                python3 ojo/tap.py "Wait" || python3 ojo/tap.py "Esperar" || adb shell input keyevent 4 >/dev/null 2>&1; sleep 2
+                EXTRA="$EXTRA Un diálogo de «app no responde» del sistema tapaba la pantalla y se descartó (Wait)."
+              elif grep -qiE "send you notifications|to send you|notificaciones" /tmp/w.xml 2>/dev/null; then
+                python3 ojo/tap.py "Don’t allow" || python3 ojo/tap.py "Don't allow" || python3 ojo/tap.py "No permitir" || adb shell input keyevent 4 >/dev/null 2>&1; sleep 2
+                EXTRA="$EXTRA El diálogo de permiso de notificaciones apareció y se descartó antes de juzgar."
+              else
+                return 0
+              fi
+            done
+          }
           wait_text(){ local i; for i in $(seq 1 "$2"); do dumpw; if grep -q "$1" /tmp/w.xml 2>/dev/null; then return 0; fi; sleep 2; done; return 1; }
           gone_text(){ local i; for i in $(seq 1 "$2"); do dumpw; if ! grep -q "$1" /tmp/w.xml 2>/dev/null; then return 0; fi; sleep 2; done; return 1; }
           winsize(){ adb shell wm size 2>/dev/null | grep -oE '[0-9]+x[0-9]+' | head -1; }
@@ -135,6 +150,8 @@ jobs:
             adb logcat -c >/dev/null 2>&1
             adb shell monkey -p "$PKG" -c android.intent.category.LAUNCHER 1 >/dev/null 2>&1
             sleep 8
+            sin_dialogos
+            if ! wait_text "código personal" 20; then sin_dialogos; fi
             if wait_text "código personal" 20; then
               shot "01-puerta.png" "La puerta de acceso: la app pide el código personal"
               # --- Código inválido: tiene que rechazarlo con su aviso ---
@@ -165,17 +182,9 @@ jobs:
                   if grep -q "${CODIGO_PRUEBA}" /tmp/w.xml 2>/dev/null; then EXTRA="$EXTRA El código de prueba quedó escrito en el campo antes de tocar Entrar."; fi
                   python3 ojo/tap.py "Entrar" || tap_tabla 0.5 0.63
                   sleep 8
-                  # Arnés v1.4: al entrar, Android 13+ muestra el diálogo de
-                  # permiso de notificaciones SOBRE la app y el lector de
-                  # textos solo ve el diálogo — la corrida 43128713939 entró
-                  # con PEUEBA y salió PARCIAL por juzgar con el diálogo
-                  # puesto. Si el diálogo está, se quita ANTES de juzgar.
-                  dumpw
-                  if grep -qiE "send you notifications|to send you|notificaciones" /tmp/w.xml 2>/dev/null; then
-                    python3 ojo/tap.py "Don’t allow" || python3 ojo/tap.py "Don't allow" || python3 ojo/tap.py "No permitir" || adb shell input keyevent 4 >/dev/null 2>&1
-                    sleep 3
-                    EXTRA="$EXTRA El diálogo de permiso de notificaciones apareció al entrar y se descartó antes de juzgar la entrada."
-                  fi
+                  # Arnés v1.4/v1.5: tras tocar Entrar puede haber diálogos
+                  # del sistema sobre la app: se quitan antes de juzgar.
+                  sin_dialogos
                   if gone_text "Tu código personal" 25 && wait_text "Reportar" 10; then
                     shot "03-entrada.png" "Dentro: la primera pantalla tras entrar con la cuenta de prueba"
                     tap_tab "Reportar" 1; sleep 6; shot "04-reportar.png" "Pestaña Reportar: reportar un trato de saldo o transferencia"
