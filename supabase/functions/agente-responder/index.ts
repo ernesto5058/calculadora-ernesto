@@ -211,6 +211,7 @@ interface Salida {
   silencio?: boolean;
   accion: string;
   botones?: boolean;
+  pin?: { lat: number; lng: number };
   panel?: { texto: string; teclado: unknown; vista: string };
   panelConRespuesta?: boolean;
   convId?: string;
@@ -265,12 +266,23 @@ async function entregarTg(env: Env, token: string, chatId: number, salida: Salid
       }
       await accion(env, "panel", { vista: salida.panel.vista, editado: false, msg_id: typeof mid === "number" ? mid : null });
     }
-    if (!salida.panelConRespuesta) return;
+    if (!salida.panelConRespuesta) {
+      if (salida.pin) {
+        await tgLlamar(token, "sendLocation",
+          { chat_id: chatId, latitude: salida.pin.lat, longitude: salida.pin.lng });
+      }
+      return;
+    }
   }
   if (!salida.respuesta) return;
   const cuerpo: Record<string, unknown> = { chat_id: chatId, text: salida.respuesta };
   if (salida.botones) cuerpo.reply_markup = TECLADO;
   await tgLlamar(token, "sendMessage", cuerpo);
+  // v2.1: el PIN viaja ADEMÁS del texto (sendLocation de Telegram).
+  if (salida.pin) {
+    await tgLlamar(token, "sendLocation",
+      { chat_id: chatId, latitude: salida.pin.lat, longitude: salida.pin.lng });
+  }
 }
 /* Aplica un CAMBIO del modo dueño (v2): parches validados por la
    lógica contra fuente/catálogo/config/faq. Al aplicar, guarda el
@@ -410,6 +422,13 @@ async function procesar(env: Env, e: Entrada): Promise<Salida> {
     }
   }
 
+  // v2.1: la instrucción del dueño queda en la bitácora como tal
+  // (tipo «instruccion_dueno»), jamás en la cola de clientes.
+  if (dec.accion === "instruccion_dueno") {
+    await accion(env, "instruccion_dueno",
+      { canal: e.canal, texto: enmascarar(e.texto).slice(0, 200) });
+  }
+
   if (dec.registrar_sin_respuesta) {
     await rpc(env, "agente_registrar_sin_respuesta", {
       p_pregunta: enmascarar(e.texto), p_canal: e.canal, p_conversacion: conv.id,
@@ -508,6 +527,7 @@ async function procesar(env: Env, e: Entrada): Promise<Salida> {
     }
   }
   return { respuesta: dec.respuesta ?? null, opciones: dec.opciones, accion: dec.accion,
+           pin: dec.pin ? { lat: Number(dec.pin.lat), lng: Number(dec.pin.lng) } : undefined,
            botones: dec.botones === true && !panel, panel, panelConRespuesta,
            convId: String(conv.id),
            panelMsgId: typeof conv.panel_msg_id === "number" ? conv.panel_msg_id : null };
