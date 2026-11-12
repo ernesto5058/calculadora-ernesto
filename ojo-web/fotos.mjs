@@ -16,6 +16,10 @@ const sitios = [
     marcador: 'Barbería', espera: 2500,
     fotos: [ { archivo: '04-negocio.png', bajar: 0,
                pie: 'La paginita — la tarjeta pública del negocio (barbería, baterías, lavadoras y compra de saldo).' } ] },
+  { id: 'negocio-chat', url: 'https://ernesto5058.github.io/calculadora-ernesto/negocio/?chat=1',
+    marcador: 'Barbería', espera: 6000,
+    fotos: [ { archivo: '18-negocio-chat.png', bajar: 0,
+               pie: 'La paginita con el chat del agente ABIERTO — la burbuja de atención a clientes recién montada, fotografiada en su bautizo.' } ] },
   { id: 'mi-mercado', url: 'https://mi-mercado-ernesto.lovable.app',
     marcador: 'ETECSA', espera: 6000,
     fotos: [ { archivo: '05-mi-mercado.png', bajar: 0,
@@ -93,4 +97,5 @@ for (const s of sitios) {
 }
 await browser.close();
 fs.writeFileSync('ojo-web/resultados.json', JSON.stringify(resultados, null, 2));
+man.sort();
 fs.writeFileSync('ojo-web/capturas.txt', man.join('\n') + '\n');

@@ -27,6 +27,12 @@
     "error": ""
   },
   {
+    "id": "negocio-chat",
+    "url": "https://ernesto5058.github.io/calculadora-ernesto/negocio/?chat=1",
+    "ok": true,
+    "error": ""
+  },
+  {
     "id": "mi-mercado",
     "url": "https://mi-mercado-ernesto.lovable.app",
     "ok": true,
