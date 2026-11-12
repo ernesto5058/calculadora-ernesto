@@ -1,5 +1,5 @@
 "use strict";
-var APP_VERSION = "1.4.7";
+var APP_VERSION = "1.4.8";
 /* Tarifa de respaldo: se usa sin conexión si nunca se ha descargado datos.json.
    La tarifa viva viene de datos.json (la actualiza Ernesto/Máximo). */
 var DEFAULT_TARIFA = { ingresoRef360: 1092.65, libroRef: 1110, salidaRef: 950,
@@ -582,6 +582,50 @@ function cerrarVisorMT(){
   var v = document.getElementById("visorFoto");
   if (v) { v.classList.remove("abierto"); var im = v.querySelector("#visorImg"); if (im) im.removeAttribute("src"); }
   if (visorUrlRevocarMT) { try { URL.revokeObjectURL(visorUrlRevocarMT); } catch(e){} visorUrlRevocarMT = null; }
+}
+/* ===== v1.4.8: EDITOR DE FOTO A PANTALLA COMPLETA (paso WhatsApp) =====
+   Igual que en Mi Negocio v11: elegir una foto abre el editor — la
+   foto grande, el texto (pie de foto) abajo y el botón redondo de
+   enviar. Al enviar, el pie pasa al compositor y sale por la cola
+   de siempre (chatEnviar): foto y texto en UN solo mensaje. */
+function editorFotoElMT(){
+  var v = document.getElementById("editorFoto");
+  if (!v) {
+    v = document.createElement("div");
+    v.className = "editorFotoWA"; v.id = "editorFoto";
+    v.innerHTML = '<div class="edFotoBar"><button type="button" class="visorBtn" id="edFotoXMT">✕ Descartar</button><span class="edFotoNom" id="edFotoNomMT"></span></div>'
+      + '<div class="edFotoImgWrap"><img class="edFotoImg" id="edFotoImgMT" alt="Foto a enviar"></div>'
+      + '<div class="edFotoPie"><div class="compBox"><textarea id="edFotoTxtMT" rows="1" placeholder="Escribe el texto de la foto…"></textarea></div>'
+      + '<button type="button" class="sendBtn" id="edFotoOkMT" aria-label="Enviar la foto con su texto"><svg class="ic" aria-hidden="true"><use href="#i-send"/></svg></button></div>';
+    document.body.appendChild(v);
+    v.querySelector("#edFotoXMT").addEventListener("click", function(){
+      CHAT_ADJ = null; pintarPreviaAdjMT(); cerrarEditorFotoMT();
+    });
+    v.querySelector("#edFotoOkMT").addEventListener("click", function(){
+      var cap = v.querySelector("#edFotoTxtMT").value || "";
+      var t = $("c_txt"); if (t) t.value = cap;
+      cerrarEditorFotoMT();
+      chatEnviar();
+    });
+    v.querySelector("#edFotoTxtMT").addEventListener("keydown", function(e){
+      if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); v.querySelector("#edFotoOkMT").click(); }
+    });
+  }
+  return v;
+}
+function abrirEditorFotoMT(){
+  if (!CHAT_ADJ || CHAT_ADJ.tipo !== "foto") return;
+  var v = editorFotoElMT();
+  v.querySelector("#edFotoNomMT").textContent = CHAT_ADJ.nombre || "Foto";
+  v.querySelector("#edFotoImgMT").src = CHAT_ADJ.datos;
+  v.querySelector("#edFotoTxtMT").value = "";
+  v.classList.add("abierto");
+  var t = v.querySelector("#edFotoTxtMT");
+  if (t) setTimeout(function(){ try { t.focus(); } catch(e){} }, 80);
+}
+function cerrarEditorFotoMT(){
+  var v = document.getElementById("editorFoto");
+  if (v) { v.classList.remove("abierto"); var im = v.querySelector("#edFotoImgMT"); if (im) im.removeAttribute("src"); }
 }
 function abrirVisorMsgMT(m){
   if (!m) return;
@@ -1469,7 +1513,11 @@ function renderOutbox(){
   box.innerHTML = h || '<div class="rep"><span>Todavía no has reportado nada.</span></div>';
   box.querySelectorAll("[data-edrep]").forEach(function(b){
     b.addEventListener("click", function(){
-      var rp = outboxGet().filter(function(x){ return x.id === Number(b.getAttribute("data-edrep")); })[0];
+      /* v1.4.8: comparación por CADENA — los ids del servidor son
+         UUID y Number(uuid) da NaN: el botón «Editar» nunca
+         encontraba el reporte (la otra mitad de la fila 20 de
+         CHEQUEOS: la puerta editar_reporte ya acepta uuid). */
+      var rp = outboxGet().filter(function(x){ return String(x.id) === String(b.getAttribute("data-edrep")); })[0];
       if (!rp) return;
       REP_EDIT_ID = rp.id;
       if (rp.tipo === "saldo") { $("r_tipo_s").click(); $("r_precio").value = rp.precio || ""; $("r_cant").value = rp.cantidad || 1; }
@@ -1853,7 +1901,13 @@ function showView(v){
     });
     $("c_file_foto").addEventListener("change", function(){
       var f = $("c_file_foto").files && $("c_file_foto").files[0]; if (!f) return;
-      leerArchivoMT(f, true).then(function(a){ CHAT_ADJ = a; pintarPreviaAdjMT(); }).catch(function(e){ chatFallo(e.message); });
+      leerArchivoMT(f, true).then(function(a){
+        CHAT_ADJ = a; pintarPreviaAdjMT();
+        /* v1.4.8 (paso WhatsApp, la misma tanda que Mi Negocio
+           v11): la foto abre su editor a pantalla completa — texto
+           abajo y botón redondo; foto y texto salen en UN mensaje. */
+        if (a && a.tipo === "foto") abrirEditorFotoMT();
+      }).catch(function(e){ chatFallo(e.message); });
     });
     $("c_file_arch").addEventListener("change", function(){
       var f = $("c_file_arch").files && $("c_file_arch").files[0]; if (!f) return;
