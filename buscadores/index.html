@@ -366,9 +366,9 @@
   <div id="viewCalc">
     <div class="card">
       <h2><svg class="ic" aria-hidden="true"><use href="#i-phone"/></svg> Saldo — ¿cuánto cobro?</h2>
-      <div class="hint">Cobras el <b>25% del excedente</b> de cada recarga de 360 que consigas.</div>
+      <div class="hint">Cobras <b>tu % según tus estrellas</b> del excedente de cada recarga de 360 que consigas. Tu nivel y tu % viven en «Mi panel».</div>
       <button type="button" class="hintBtn" data-hint="h_calc_s">ⓘ ¿Cómo se calcula?</button>
-      <div class="hintFull hide" id="h_calc_s">Consigues una recarga de 360 y cobras el 25% del excedente: lo que se gana por encima del precio que pagaste. Pon el precio que lograste y la app te dice tu parte al momento. Entre más barato consigas la recarga, más cobras tú.</div>
+      <div class="hintFull hide" id="h_calc_s">Consigues una recarga de 360 y cobras tu % según tus estrellas del excedente: lo que se gana por encima del precio que pagaste. Pon el precio que lograste y la app te dice tu parte al momento. Entre más barato consigas la recarga, más cobras tú.</div>
       <label>Precio que conseguiste por la recarga de 360 (CUP)</label>
       <input type="number" id="s_precio" inputmode="decimal" placeholder="Ej: 950">
       <div class="chips">
@@ -389,9 +389,9 @@
 
     <div class="card">
       <h2><svg class="ic" aria-hidden="true"><use href="#i-bank"/></svg> Transferencia — ¿cuánto cobro?</h2>
-      <div class="hint">Cobras el <b>20% de la ganancia</b> de la vuelta completa, cuando la vuelta cierra.</div>
+      <div class="hint">Cobras <b>tu % según tus estrellas</b> de la ganancia de la vuelta completa, cuando la vuelta cierra. Tu nivel y tu % viven en «Mi panel».</div>
       <button type="button" class="hintBtn" data-hint="h_calc_t">ⓘ ¿Cómo se calcula?</button>
-      <div class="hintFull hide" id="h_calc_t">Traes a una persona conocida que cambia efectivo por transferencia. Cobras el 20% de la ganancia de la vuelta completa, cuando la vuelta cierra. Solo se aceptan tratos <b>al 25% o más</b>: por debajo, la app te avisa y no hay trato.</div>
+      <div class="hintFull hide" id="h_calc_t">Traes a una persona conocida que cambia efectivo por transferencia. Cobras tu % según tus estrellas de la ganancia de la vuelta completa, cuando la vuelta cierra. Solo se aceptan tratos <b>al 25% o más</b>: por debajo, la app te avisa y no hay trato.</div>
       <label>Efectivo que entrega la persona (CUP)</label>
       <input type="number" id="t_ef" inputmode="decimal" placeholder="Ej: 5000">
       <label>¿Al cuánto es el trato? (<span id="t_pct_lab">30</span>%)</label>
@@ -523,6 +523,18 @@
       <div class="sesLab">Tu sesión: <b id="p_ses">—</b></div>
       <div class="warn" id="p_warn"></div>
       <div id="p_body" class="hide">
+        <div id="p_cupo" class="hide">
+          <div class="total">
+            <div class="lab">TU NIVEL · MI CUPO</div>
+            <div class="num" id="cu_est">⭐ —</div>
+            <div class="lab" id="cu_pct"></div>
+          </div>
+          <label>⭐ Tu camino a la siguiente media estrella</label>
+          <div class="bar"><div id="cu_prog_bar"></div></div>
+          <div class="hint" id="cu_prog_lab"></div>
+          <div class="hint" id="cu_info"></div>
+          <div id="cu_vueltas"></div>
+        </div>
         <div class="total">
           <div class="lab">TOTAL GANADO</div>
           <div class="num" id="p_total">$0.00</div>
@@ -1629,7 +1641,52 @@ function leerPanelVivo(){
     if (r && r.ok) { PANEL_VIVO = { nombre: r.nombre || "", tratos: r.tratos || [] }; panelCacheSet(PANEL_VIVO); renderPanel(); }
   });
 }
-function cargarVivo(){ leerTarifaViva(); leerPanelVivo(); }
+function cargarVivo(){ leerTarifaViva(); leerPanelVivo(); cargarDinero(); }
+
+/* ===== v1.5.6: MI CUPO + ESTRELLAS (Libro del Dinero) =====
+   dinero_leer_estado con SU codigo devuelve SOLO lo suyo: su nivel
+   de estrellas, su % vigente, su cupo, su dinero en mano y sus
+   vueltas abiertas con reloj y comision proyectada. Su % de
+   estrellas manda en los estimados de SU calculadora. Si la puerta
+   no responde, la app sigue como siempre, sin el bloque. */
+var DINERO = null;
+function cargarDinero(){
+  if (!SESION) return;
+  fetch(SB_RPC + "dinero_leer_estado", { method: "POST", headers: sbHeaders(), body: JSON.stringify({ p_codigo: SESION }) })
+    .then(function(r){ return r.ok ? r.json() : null; })
+    .then(function(d){
+      if (!d || d.rol !== "buscador") return;
+      DINERO = d;
+      if (d.estrellas) { T.pctSaldo = Number(d.estrellas.pct_saldo); T.pctTransf = Number(d.estrellas.pct_transferencia); }
+      pintarCupo();
+    }).catch(function(){});
+}
+function pintarCupo(){
+  var box = $("p_cupo"); if (!box || !DINERO || !DINERO.estrellas) return;
+  var e = DINERO.estrellas;
+  box.classList.remove("hide");
+  $("cu_est").textContent = "⭐ " + (Math.round(Number(e.estrellas) * 10) / 10);
+  $("cu_pct").textContent = "Cobras el " + e.pct_saldo + "% del saldo · " + e.pct_transferencia + "% de la transferencia";
+  var s = e.siguiente;
+  if (s) {
+    $("cu_prog_lab").innerHTML = "Llevas <b>" + e.conteo_ganadoras + " de " + s.umbral_conteo + "</b> transacciones ganadoras pa ⭐ " + s.estrellas + " — te faltan <b>" + s.faltan + "</b>. Al subir, cobras " + s.pct_saldo + "% del saldo.";
+    $("cu_prog_bar").style.width = Math.min(100, s.umbral_conteo ? (e.conteo_ganadoras / s.umbral_conteo * 100) : 0) + "%";
+  } else {
+    $("cu_prog_lab").innerHTML = "Llevas <b>" + e.conteo_ganadoras + "</b> transacciones ganadoras · ¡nivel máximo! ⭐ 5";
+    $("cu_prog_bar").style.width = "100%";
+  }
+  $("cu_info").innerHTML = "Tu cupo: <b>" + fmtN(DINERO.cupo || 0) + "</b> · dinero en tu mano: <b>" + fmtN(DINERO.en_mano || 0) + "</b>";
+  var html = "";
+  (DINERO.vueltas || []).filter(function(v){ return v.estado === "abierta"; }).forEach(function(v){
+    var h = v.reloj ? Number(v.reloj.horas_desde_entrega || 0) : 0;
+    html += '<div class="trato"><span>' + (v.tipo === "saldo" ? "📱 Saldo" : "🏦 Transferencia") + " · capital " + fmtN(v.capital) +
+      "<br><small>⏱️ " + (h < 1 ? "menos de 1 h" : Math.round(h) + " h") + " en la calle — el mercado no espera" +
+      (v.pago_hecho ? " · ✅ tu pago está hecho: " + fmtN(v.comision) : "") +
+      (v.proyeccion ? "<br>Si Ernesto vende ahora, tu comisión sería " + fmtN(v.proyeccion.comision_proyectada) : "") +
+      "</small></span></div>";
+  });
+  $("cu_vueltas").innerHTML = html ? ('<label>Tus vueltas abiertas</label>' + html) : "";
+}
 
 function chatEnviar(){
   var warn = $("c_warn"); warn.style.display = "none";
@@ -2957,7 +3014,7 @@ function showView(v){
     if (vw) vw.classList.toggle("hide", x !== v);
   });
   if (v === "Rep") renderOutbox();
-  if (v === "Panel") renderPanel();
+  if (v === "Panel") { renderPanel(); pintarCupo(); }
   if (v === "Ayuda") chatCargar();
   if (v === "Perfil") { cargarPerfil(); pintarAvisos(); }
   if (v === "Textos") { txHistPintar(); cargarCatalogoTextos(); }
