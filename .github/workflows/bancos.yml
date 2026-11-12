@@ -49,10 +49,10 @@ jobs:
       - name: Banco Mi Trabajo v1.4.6 — Firebase y guía del trabajador
         run: node bancos/prueba-mitrabajo-v146.mjs
 
-      - name: Banco Mercado v2 — lector, Analista INV-A y render (135 chequeos)
+      - name: Banco Mercado v2 — lector, Analista INV-A y render (139 chequeos)
         run: node bancos/prueba-mercado-v2.mjs
 
-      - name: Banco puerta de acción — barandas del Nivel 1 (41 chequeos)
+      - name: Banco puerta de acción — barandas del Nivel 1 (43 chequeos)
         run: node bancos/prueba-actuar-v1.mjs
 
       - name: Banco Bot PRO — Telegram (30 chequeos)
