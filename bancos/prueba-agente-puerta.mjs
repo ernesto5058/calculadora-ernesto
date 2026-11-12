@@ -106,5 +106,27 @@ ok(src.includes("agente_ensenar_responder") && src.includes("dueno_ensenar"), "F
 ok(src.includes("agente_pendientes") && src.includes("pendientesSinRespuesta"), "F2-F2 index.ts carga la cola de sin-respuesta pa el panel");
 ok(src.includes("contacto: dec.cita.contacto"), "F3-F1 index.ts guarda el contacto de la cita en su columna");
 
+/* ============ (g) CER — parseo dual de Cloudflare (insumo Ola 2) ====
+   El modelo devuelve result.response como OBJETO cuando la salida es
+   JSON válido; la lectura solo-string devolvía null (fallo latente
+   cazado por la tanda de Textos PRO en su copia del cerebro). */
+{
+  let CER = null;
+  try { CER = await import("../supabase/functions/agente-responder/cerebro.ts"); } catch { CER = null; }
+  ok(typeof CER?.extraerTextoRespuesta === "function", "CER-0 cerebro.ts exporta extraerTextoRespuesta (parseo dual)");
+  if (CER) {
+    const E = CER.extraerTextoRespuesta;
+    ok(E({ response: "texto plano" }) === "texto plano", "CER-1 response string pasa tal cual");
+    ok(E({ response: { respuesta: "desde el objeto" } }) === "desde el objeto", "CER-2 response OBJETO con campo de texto: se extrae, no se tira");
+    ok(E({ response: { versiones: [1, 2] } }) === JSON.stringify({ versiones: [1, 2] }), "CER-3 response objeto sin campo de texto: se re-serializa");
+    ok(E({ choices: [{ message: { content: "por choices" } }] }) === "por choices", "CER-4 choices[0].message.content también vale");
+    ok(E({ response: "   " }) === null && E({}) === null && E(null) === null && E(undefined) === null,
+       "CER-5 vacío o ausente: null honesto (degradación de siempre)");
+    ok(E({ response: { texto: "  con espacios  " } }) === "con espacios", "CER-6 el texto extraído va recortado");
+  }
+  const srcCer = readFileSync(new URL("../supabase/functions/agente-responder/cerebro.ts", import.meta.url), "utf8");
+  ok(srcCer.includes("extraerTextoRespuesta(j?.result)"), "CER-7 cerebroCloudflare USA el parseo dual (no la lectura solo-string)");
+}
+
 console.log(`\nprueba-agente-puerta: ${pass} PASS · ${fail} FAIL`);
 if (fail) { console.log("Fallos:", fails.join(" | ")); process.exit(1); }
