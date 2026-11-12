@@ -1,4 +1,5 @@
-adb shell input tap 500 1358
+adb shell settings put global hide_error_dialogs 1
+adb shell am force-stop com.google.android.apps.nexuslauncher
 sleep 2
 adb shell input tap 541 1351
 sleep 2
