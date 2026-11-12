@@ -23,7 +23,7 @@ function ok(c, n){ if (c) pass++; else { fail++; console.log("FAIL:", n); } }
 ok(/var APP_VERSION = "1\.5\.1"/.test(html), "G1 APP_VERSION 1.5.1 en el build ensamblado");
 ok(sw.includes('CACHE = "mitrabajo-v18"'), "G2 el SW sube a mitrabajo-v18");
 ok(datos.versionApp === "1.5.0" && /apk-v1\.5\.0\/Mi-Trabajo-v1\.5\.0\.apk$/.test(datos.apkUrl),
-   "G3 datos.json: versionApp 1.5.0 y apkUrl de la v1.5.0");
+   "G3 datos.json: versionApp 1.5.1 y apkUrl de la v1.5.1");
 ok(datos.tarifa && datos.tarifa.ingresoRef360 === 1098.68 && datos.tarifa.libroRef === 1069.38 &&
    datos.tarifa.pctSaldo === 25 && datos.tarifa.pctTransf === 20 && datos.tarifa.pisoTransf === 25 &&
    datos.publico && datos.publico.telefono === "51231558",
