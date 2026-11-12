@@ -51,6 +51,20 @@ servidor (territorio de la tanda que tenga Mi Trabajo en vuelo) — esta
 suite lo deja cazado y su flujo 2 seguirá en rojo hasta que la puerta
 sane: es exactamente su trabajo.
 
+**RESUELTO el mismo 2026-11-12:** la puerta se reparó en el servidor
+(`supabase/sql/reparacion-registrar-reporte-2026-11-12.sql`): la tabla
+había cambiado (`telefono` → `telefono_vendedor`; id bigint → uuid) y
+la puerta no la siguió — el mismo drift tumbaba también
+`sincronizar_reportes` (42883), reparada en la misma tanda. Verificado
+con la petición exacta de la app (200 + uuid, idempotente por op_id,
+visible por `admin_reportes`) y con la corrida 43265568379 de esta
+suite: la foto del fallo muestra «✓ REPORTE ENVIADO» — el flujo 2 solo
+seguía rojo por su segunda aserción, que exigía la nota-marca como
+texto visible cuando la lista pinta resumen + estado; aserción
+adjudicada y corregida (la nota queda como llave de limpieza en el
+servidor). Trinquete: CHEQUEOS-ETERNOS fila 49 ·
+`bancos/prueba-puertas-sin-gemelas.mjs` V3/V4 · REGRESSIONS §25.
+
 ## Límites honestos
 
 - 4 flujos, no 40: la disciplina del humo es «pocos y los que duelen»
