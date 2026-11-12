@@ -1,6 +1,6 @@
 {
   "actualizado": "2026-11-12",
-  "apkUrl": "https://github.com/ernesto5058/calculadora-ernesto/releases/download/apk-v1.4.9/Mi-Trabajo-v1.4.9.apk",
+  "apkUrl": "https://github.com/ernesto5058/calculadora-ernesto/releases/download/apk-v1.5.0/Mi-Trabajo-v1.5.0.apk",
   "buscadores": {
     "ABRAHAM-5ZU": {
       "nombre": "Abraham",
@@ -39,5 +39,5 @@
     "salidaRef": 950
   },
   "version": 5,
-  "versionApp": "1.4.9"
+  "versionApp": "1.5.0"
 }
