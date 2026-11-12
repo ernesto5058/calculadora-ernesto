@@ -1,11 +1,11 @@
-/* «Mercado» — Service Worker (mercado-v3).
+/* «Mercado» — Service Worker (mercado-v4).
    Estrategia como las demás apps de la casa:
    - La cáscara (index, tema, manifest, iconos) se cachea al instalar.
    - La navegación: red primero y, sin conexión, la cáscara guardada
      (la app muestra entonces la última foto con «dato de hace X»).
    - Las puertas RPC de Supabase NUNCA se cachean aquí: la frescura
      la manda el dato, no una copia escondida. */
-const CACHE = "mercado-v3";
+const CACHE = "mercado-v4";
 const CASCARA = ["./", "./index.html", "./tema-pro.css", "./manifest.webmanifest", "./icon-192.png", "./icon-512.png"];
 
 self.addEventListener("install", (e) => {
