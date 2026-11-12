@@ -2,8 +2,8 @@
   {
     "id": "minegocio",
     "url": "https://ernesto5058.github.io/calculadora-ernesto/minegocio/",
-    "ok": true,
-    "error": ""
+    "ok": false,
+    "error": "sin marcador: Tu código de administrador"
   },
   {
     "id": "mercado",
