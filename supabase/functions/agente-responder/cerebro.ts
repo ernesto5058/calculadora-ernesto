@@ -50,6 +50,11 @@ const SISTEMA =
   "medido al inicio de cada bloque temático (💈 corte · 🧺 lavadora · 🔋 batería · " +
   "📱 saldo · 🕘 horario · 📍 ubicación · 🏠 domicilio · 💵 pagos · ✅ garantía · " +
   "📲 contacto); prohibida la lluvia de emojis; jamás alteres cifras ni teléfonos. " +
+  "EXPLICAR ES TU TRABAJO: si el cliente pregunta qué es, para qué sirve o cómo funciona " +
+  "algo del negocio (un producto, un servicio, la compra de saldo o la de transferencia), " +
+  "explícaselo con tus palabras usando SOLO los datos del contexto (sección CATÁLOGO y " +
+  "demás datos públicos). Preguntar por un tema NO es pedir un compromiso: explicar la " +
+  "compra de saldo con sus precios públicos es información del negocio, no un trato. " +
   "CAPACIDADES REALES del bot (son verdad: NUNCA niegues ninguna): enviar el pin de " +
   "ubicación del negocio, mostrar el panel de temas, tomar citas paso a paso, responder " +
   "precios, horario y datos públicos de la ficha, y pasar notas al dueño. Está PROHIBIDO " +
@@ -88,6 +93,35 @@ export const cerebroNinguno: Cerebro = {
   },
 };
 
+/* Parseo DUAL de la respuesta de Cloudflare (insumo de Textos PRO,
+   Ola 2, 2026-11-12 — la copia de textos-generar lo cazó en vivo):
+   el modelo devuelve `result.response` como OBJETO ya parseado
+   cuando la salida es JSON válido; la lectura ingenua (solo string)
+   devolvía null y el cerebro «no respondía». Se acepta, en orden:
+   choices[0].message.content (string), response string, o response
+   objeto — de un objeto se extrae su campo de texto si lo trae
+   (texto/respuesta/response/content) y si no, se re-serializa: el
+   contenido jamás se tira a null por la forma. Función pura y
+   exportada: la prueba el banco de la puerta (casos CER). */
+export function extraerTextoRespuesta(result: unknown): string | null {
+  const res = result as Record<string, unknown> | undefined;
+  if (!res) return null;
+  const choices = res.choices as Record<string, unknown>[] | undefined;
+  const msg = choices?.[0]?.message as Record<string, unknown> | undefined;
+  if (typeof msg?.content === "string" && msg.content.trim()) return msg.content.trim();
+  const r = res.response;
+  if (typeof r === "string" && r.trim()) return r.trim();
+  if (r && typeof r === "object") {
+    const o = r as Record<string, unknown>;
+    for (const k of ["texto", "respuesta", "response", "content"]) {
+      const v = o[k];
+      if (typeof v === "string" && v.trim()) return v.trim();
+    }
+    return JSON.stringify(r);
+  }
+  return null;
+}
+
 /* Cloudflare Workers AI (el ámbar menos cerrado del estudio). */
 function cerebroCloudflare(key: string, cuenta: string, modelo: string): Cerebro {
   return {
@@ -97,9 +131,9 @@ function cerebroCloudflare(key: string, cuenta: string, modelo: string): Cerebro
         "https://api.cloudflare.com/client/v4/accounts/" + cuenta + "/ai/run/" + modelo,
         { Authorization: "Bearer " + key },
         { messages: mensajes(ctx), max_tokens: 240, temperature: 0.2 });
-      const texto = (j?.result as Record<string, unknown>)?.response;
-      if (typeof texto !== "string" || !texto.trim()) return null;
-      return { texto: texto.trim(), fuentes_citadas: [] };
+      const texto = extraerTextoRespuesta(j?.result);
+      if (!texto) return null;
+      return { texto, fuentes_citadas: [] };
     },
   };
 }
