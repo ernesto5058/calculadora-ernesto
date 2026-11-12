@@ -1,0 +1,36 @@
+rules:
+  # ─────────────────────────────────────────────────────────────────────────
+  # Origen: DESARROLLO-PRO §5 — «El motor no es Node: sin setTimeout
+  # nativo en el contexto del script (los temporizadores se resuelven con
+  # la arquitectura del propio script: ejecutar → guardar → salir)».
+  # Precisión POR CONSTRUCCIÓN: (1) la regla solo corre sobre archivos
+  # de Scriptable por nombre (paths.include); (2) el setTimeout que vive
+  # DENTRO de la página WebView va dentro de un literal de cadena del
+  # script anfitrión (buildHTML devuelve un string) y Semgrep no lo ve
+  # como llamada — verificado contra CalculadoraPRO.js real: su
+  # setTimeout de autosave (contexto página, legítimo) NO salta, y un
+  # setTimeout en el contexto nativo SÍ. Ver casos/casa-scriptable.js.
+  - id: casa-js-settimeout-scriptable
+    languages: [javascript]
+    severity: ERROR
+    message: >-
+      setTimeout en el contexto NATIVO de un script de Scriptable
+      (DESARROLLO-PRO §5): JavaScriptCore de Scriptable no trae ese
+      temporizador; la lógica que «espera» se cuelga o no corre. El
+      setTimeout de la PÁGINA WebView es legítimo y esta regla no lo ve
+      (vive dentro del string de buildHTML). Reestructura:
+      ejecutar → guardar → salir.
+    metadata:
+      origen: "DESARROLLO-PRO §5 / checklist Scriptable §10"
+      precision: "probada — ver casos/casa-scriptable.js y corrida sobre CalculadoraPRO.js (0 hallazgos)"
+    paths:
+      include:
+        - "**/CalculadoraPRO.js"
+        - "**/PanelPRO*.js"
+        - "**/*[Ss]criptable*.js"
+        - "**/casa-scriptable.js"
+      exclude:
+        - "**/.semgrep/casos/**"
+    pattern-either:
+      - pattern: setTimeout(...)
+      - pattern: setInterval(...)
