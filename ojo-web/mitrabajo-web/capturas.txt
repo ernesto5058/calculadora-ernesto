@@ -1,0 +1,4 @@
+04-chat.png|Mi Trabajo · Chat — la conversación con Ernesto de la cuenta de prueba.
+05-textos.png|Mi Trabajo · Textos — los anuncios listos pa copiar.
+06-mi-perfil.png|Mi Trabajo · Mi perfil — nombre, color y avisos de PEUEBA.
+07-chat-editor-foto.png|Mi Trabajo · Chat — el editor de foto a pantalla completa (paso WhatsApp): foto elegida y pie escrito. NO se envió nada: se descartó con la ✕.

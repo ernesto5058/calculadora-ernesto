@@ -1,0 +1,17 @@
+{
+  "entrada": true,
+  "pantallas": [
+    "Chat",
+    "Textos",
+    "Mi perfil"
+  ],
+  "editor": true,
+  "editar": false,
+  "editarModo": false,
+  "notas": [
+    "No se pudo fotografiar Calculadora: TimeoutError: page.click: Timeout 8000ms exceeded.\nCall log:\n  - waiting for locator('#tabCalc')\n    - locator resolved ",
+    "No se pudo fotografiar Reportar: TimeoutError: page.click: Timeout 8000ms exceeded.\nCall log:\n  - waiting for locator('#tabRep')\n    - locator resolved t",
+    "No se pudo fotografiar Mi panel: TimeoutError: page.click: Timeout 8000ms exceeded.\nCall log:\n  - waiting for locator('#tabPanel')\n    - locator resolved",
+    "Editar no alcanzado: TimeoutError: page.click: Timeout 8000ms exceeded.\nCall log:\n  - waiting for locator('#tabRep')\n    - locator resolved to <div class=\"tab\" id=\"tabRep\">…</div>\n "
+  ]
+}
