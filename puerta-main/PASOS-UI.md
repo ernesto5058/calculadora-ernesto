@@ -25,8 +25,8 @@ bypass consciente (paso 4).
    modo **Always allow**. (Eres tú: tu vía de emergencia consciente.)
 5. **Target branches** → **Add target** → **Include default branch**.
 6. En **Branch rules**, marca **Require status checks to pass** y añade
-   estos dos checks con **Add checks** (búscalos por su nombre exacto; ya
-   corrieron en PRs de prueba, así que aparecen en la lista):
+   estos dos checks con **Add checks** (escribe el nombre exacto en el
+   buscador; ambos checks corren a diario sobre `main`, así que aparecen):
    - `Bancos de las apps`
    - `Analizar (javascript-typescript)`
    - Deja SIN marcar «Require branches to be up to date before merging».
