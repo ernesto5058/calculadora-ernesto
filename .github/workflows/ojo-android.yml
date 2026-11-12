@@ -165,6 +165,17 @@ jobs:
                   if grep -q "${CODIGO_PRUEBA}" /tmp/w.xml 2>/dev/null; then EXTRA="$EXTRA El código de prueba quedó escrito en el campo antes de tocar Entrar."; fi
                   python3 ojo/tap.py "Entrar" || tap_tabla 0.5 0.63
                   sleep 8
+                  # Arnés v1.4: al entrar, Android 13+ muestra el diálogo de
+                  # permiso de notificaciones SOBRE la app y el lector de
+                  # textos solo ve el diálogo — la corrida 43128713939 entró
+                  # con PEUEBA y salió PARCIAL por juzgar con el diálogo
+                  # puesto. Si el diálogo está, se quita ANTES de juzgar.
+                  dumpw
+                  if grep -qiE "send you notifications|to send you|notificaciones" /tmp/w.xml 2>/dev/null; then
+                    python3 ojo/tap.py "Don’t allow" || python3 ojo/tap.py "Don't allow" || python3 ojo/tap.py "No permitir" || adb shell input keyevent 4 >/dev/null 2>&1
+                    sleep 3
+                    EXTRA="$EXTRA El diálogo de permiso de notificaciones apareció al entrar y se descartó antes de juzgar la entrada."
+                  fi
                   if gone_text "Tu código personal" 25 && wait_text "Reportar" 10; then
                     shot "03-entrada.png" "Dentro: la primera pantalla tras entrar con la cuenta de prueba"
                     tap_tab "Reportar" 1; sleep 6; shot "04-reportar.png" "Pestaña Reportar: reportar un trato de saldo o transferencia"
