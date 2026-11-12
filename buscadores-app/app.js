@@ -1,6 +1,6 @@
 "use strict";
 /*__SENTRY_CASA__*/
-var APP_VERSION = "1.5.5";
+var APP_VERSION = "1.5.6";
 /* Tarifa de respaldo (E-7, Tanda Nº6): SOLO se usa si nunca llegó ni
    datos.json ni la tarifa viva, y mientras manda ella la app lo dice
    a la vista («RESPALDO» + su origen en tarifaText/pintaFrescura).
