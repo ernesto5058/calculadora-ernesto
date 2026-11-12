@@ -17,7 +17,7 @@ function datosFixture(){
     tarifa: { version: 4, ingresoRef360: 1098.68, libroRef: 1069.38, salidaRef: 950, pctSaldo: 25, pctTransf: 20, pisoTransf: 25, bonoSaldoMeta: 150, bonoSaldoMonto: 300, bonoTransfMeta: 10, bonoTransfMonto: 300 },
     publico: { telefono: "51231558", zona: "Micro 10, distrito José Martí, Santiago de Cuba", domicilio: "Domicilio gratis en Santiago de Cuba",
       saldo: { tasa: 2, tasaAlta: 2.2, desdeAlta: 5000, recarga: 720 } },
-    buscadores: { "BUSC-1": { nombre: "Busc Uno", tratos: [] } }, actualizado: "2026-11-11" };
+    actualizado: "2026-11-11" };
 }
 let llamadas = [], cuerpos = {};
 function stubPush(cfg){
@@ -182,12 +182,12 @@ function crear(opts){
 {
   const w = crear({});
   await sleep(300);
-  ok(w.APP_VERSION === "1.5.1", "V1 APP_VERSION 1.5.1");
+  ok(w.APP_VERSION === "1.5.2", "V1 APP_VERSION 1.5.2");
   w.close();
   const sw = fs.readFileSync(HOME + "/buscadores/sw.js", "utf8");
-  ok(sw.includes('CACHE = "mitrabajo-v18"'), "V2 el SW sube a mitrabajo-v18");
+  ok(sw.includes('CACHE = "mitrabajo-v19"'), "V2 el SW sube a mitrabajo-v19");
   const datos = JSON.parse(fs.readFileSync(HOME + "/buscadores/datos.json", "utf8"));
-  ok(datos.versionApp === "1.5.1" && /apk-v1\.5\.1\/Mi-Trabajo-v1\.5\.1\.apk$/.test(datos.apkUrl), "V3 datos.json: versionApp 1.5.1 y apkUrl de la v1.5.1");
+  ok(datos.versionApp === "1.5.2" && /apk-v1\.5\.2\/Mi-Trabajo-v1\.5\.2\.apk$/.test(datos.apkUrl), "V3 datos.json: versionApp 1.5.2 y apkUrl de la v1.5.2");
   ok(datos.tarifa.ingresoRef360 === 1098.68 && datos.tarifa.libroRef === 1069.38 && datos.tarifa.salidaRef === 950 && datos.tarifa.pctSaldo === 25 && datos.tarifa.pisoTransf === 25, "V4 la tarifa de datos.json queda INTACTA");
   ok(datos.publico.telefono === "51231558" && datos.publico.saldo.tasa === 2 && datos.publico.saldo.recarga === 720, "V5 el bloque público queda INTACTO (teléfono de Ernesto, al 2, recargas 720)");
 }
