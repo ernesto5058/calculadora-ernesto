@@ -179,6 +179,39 @@ for (const [txt, nombre] of [
   ok(r.accion !== "cita_completa", "CI-3 el cliente no puede auto-confirmarse");
 }
 
+/* ============ v2.3 — CI: la cosecha natural (frases del fallo) ============ */
+{
+  // CI-4: la secuencia EXACTA del fallo en vivo (2026-11-12, 15:04
+  // UTC): nombre → «Si» → «Hoy a las 2:00 pm». Antes el bot volvía a
+  // preguntar «¿A qué hora?» y Ernesto tuvo que repetir «2 pm».
+  let c = conv();
+  let r = L.orquestar(DATOS, c, "/cita", AHORA); c = { ...c, flujo: r.flujo };
+  r = L.orquestar(DATOS, c, "Ernesto prueba", AHORA); c = { ...c, flujo: r.flujo };
+  r = L.orquestar(DATOS, c, "Si", AHORA); c = { ...c, flujo: r.flujo };
+  r = L.orquestar(DATOS, c, "Hoy a las 2:00 pm", AHORA);
+  ok(r.accion === "cita_completa" && r.cita?.dia === AHORA && r.cita?.hora === "14:00",
+     "CI-4 la frase exacta del fallo: «Hoy a las 2:00 pm» llena día y hora en UN mensaje y completa sin re-preguntar");
+  const fd = (paso, datos) => ({ tipo: "cita", paso, datos });
+  const base = { nombre: "Ana", servicio: "corte" };
+  const r5 = L.flujoCitaPaso(fd("dia", { ...base }), "mañana 3 pm", AHORA);
+  ok(r5.completa && r5.datos.dia === "2026-11-12" && r5.datos.hora === "15:00", "CI-5 «mañana 3 pm» en el paso del día: completa");
+  const r6 = L.flujoCitaPaso(fd("dia", { ...base }), "el viernes a las 10", AHORA);
+  ok(r6.completa && r6.datos.dia === "2026-11-13" && r6.datos.hora === "10:00", "CI-6 «el viernes a las 10»: completa con el próximo viernes");
+  const r7 = L.flujoCitaPaso(fd("dia", { ...base }), "hoy 2:00pm", AHORA);
+  ok(r7.completa && r7.datos.dia === AHORA && r7.datos.hora === "14:00", "CI-7 «hoy 2:00pm» (pegado): completa");
+  const r8 = L.flujoCitaPaso(fd("servicio", { nombre: "Ana" }), "sí, mañana a las 14:00", AHORA);
+  ok(r8.completa && r8.datos.dia === "2026-11-12" && r8.datos.hora === "14:00", "CI-8 la cosecha también vale en el paso del servicio");
+  const r9 = L.flujoCitaPaso(fd("dia", { ...base }), "mañana a las 8 de la noche", AHORA);
+  ok(!r9.completa && r9.flujo?.paso === "hora" && /fuera del horario/.test(r9.respuesta) && r9.flujo.datos.dia === "2026-11-12",
+     "CI-9 hora fuera en el mismo mensaje: se señala, el día NO se pierde");
+  const r9b = L.flujoCitaPaso(r9.flujo, "5 pm", AHORA);
+  ok(r9b.completa && r9b.datos.hora === "17:00" && r9b.datos.dia === "2026-11-12", "CI-9b tras el aviso, «5 pm» completa con el día guardado");
+  const r10 = L.flujoCitaPaso(fd("hora", { ...base, dia: "2026-11-12" }), "a las 14:00", AHORA);
+  ok(r10.completa && r10.datos.hora === "14:00", "CI-10 «a las 14:00» en el paso de la hora: completa");
+  const r11 = L.flujoCitaPaso(fd("hora", { ...base, dia: "2026-11-12" }), "10", AHORA);
+  ok(r11.completa && r11.datos.hora === "10:00", "CI-11 la hora pelada («10») sigue valiendo en su paso");
+}
+
 /* ================= RG — registro y límites ================= */
 {
   const enm = L.enmascarar("mi tarjeta es 9225 1234 5678 9012 y el pin: 4321");
@@ -534,6 +567,54 @@ ok(cobertura >= 0.8, "ARNÉS cobertura ≥ 80 %");
   const cW = { escalada: false, flujo: {}, canal: "web" };
   const pw = L.orquestar(DATOS, cW, "Me puedes mandar la localización?", AHORA);
   ok(pw.accion === "ubicacion_pin" && pw.pin === undefined && pw.respuesta.includes("https://www.google.com/maps?q="), "PIN-7 web intacta: enlace de Maps, sin campo pin");
+}
+
+/* ============ v2.3 — CIT: control de citas del dueño ============ */
+{
+  const CITA1 = { id: "cita-1", nombre: "Ana Pérez", servicio: "corte", dia: "2026-11-12", hora: "10:00:00", estado: "pendiente", canal: "telegram", conversacion_id: "conv-x" };
+  const CITA2 = { id: "cita-2", nombre: "Luis", servicio: "corte", dia: "2026-11-13", hora: "16:30:00", estado: "pendiente", canal: "web", conversacion_id: "conv-y" };
+  const DC = { ...DATOS, esDueno: true, citasPendientes: [CITA1, CITA2] };
+  const cbsD = (pv) => (pv.teclado.inline_keyboard.flat()).map((b) => b.callback_data);
+  const txtsD = (pv) => (pv.teclado.inline_keyboard.flat()).map((b) => b.text);
+  // CIT-1: Ajustes trae la entrada de citas, con el conteo
+  const pvD = L.panelVista("dueno", DC, conv());
+  ok(cbsD(pvD).includes("v2:d:citas") && txtsD(pvD).some((t) => t.includes("Citas") && t.includes("2")), "CIT-1 Ajustes: botón «📋 Citas (2)»");
+  // CIT-2: la vista lista las pendientes con sus botones de decisión
+  const rV = L.orquestar(DC, conv(), "/dueno citas", AHORA);
+  ok(rV.accion === "dueno" && rV.panel?.texto.includes("Ana Pérez") && rV.panel.texto.includes("10:00") && rV.panel.texto.includes("Luis"),
+     "CIT-2 la vista «📋 Citas» lista nombre, día y hora de cada pendiente");
+  ok(cbsD(rV.panel).includes("v2:c:ok:cita-1") && cbsD(rV.panel).includes("v2:c:no:cita-2") && cbsD(rV.panel).includes("v2:d:menu"),
+     "CIT-2 cada cita trae [Confirmar]/[Rechazar] y la vista, vuelta a Ajustes");
+  // CIT-3: un cliente no ve ni decide nada de esto
+  const rC1 = L.orquestar(DATOS, conv(), "/dueno citas", AHORA);
+  ok(rC1.accion === "no_se" && !rC1.panel, "CIT-3 /dueno citas de un cliente: nada");
+  const rC2 = L.orquestar(DATOS, conv(), "/citadec ok cita-1", AHORA);
+  ok(rC2.accion === "denegar" && !rC2.citaDecision && /las citas las decide el dueño/.test(rC2.respuesta),
+     "CIT-3 /citadec de un cliente: denegado determinista (jamás no_se: el cerebro no puede improvisar una confirmación)");
+  // CIT-4: confirmar compone el aviso al cliente (Telegram: al momento)
+  const dOk = L.decisionCita(DC, "cita-1", "ok");
+  ok(dOk.ok && dOk.estadoNuevo === "confirmada" && dOk.avisoTexto.includes("CONFIRMADA") &&
+     dOk.avisoTexto.includes("jueves, 12 de noviembre") && dOk.avisoTexto.includes("10:00") &&
+     !dOk.avisoTexto.includes("10:00:00"), "CIT-4 confirmar: aviso al cliente con día legible y hora corta");
+  ok(dOk.textoDueno.includes("CONFIRMADA") && dOk.textoDueno.includes("al momento"), "CIT-4 el texto del dueño dice que el aviso salió al momento (Telegram)");
+  // CIT-5: rechazar ofrece otra hora y NO promete inmediatez en web
+  const dNo = L.decisionCita(DC, "cita-2", "no");
+  ok(dNo.ok && dNo.estadoNuevo === "rechazada" && /no se pudo confirmar/.test(dNo.avisoTexto) && /otra hora/.test(dNo.avisoTexto),
+     "CIT-5 rechazar: aviso amable ofreciendo otra hora");
+  ok(/próxima visita/.test(dNo.textoDueno), "CIT-5 web: el texto del dueño dice «próxima visita», sin prometer instantaneidad");
+  // CIT-6: lo que ya no está pendiente no se decide dos veces
+  ok(L.decisionCita(DC, "no-existe", "ok").ok === false, "CIT-6 cita que no está pendiente: no se decide");
+  // CIT-7: sin pendientes, la vista lo dice y no trae botones de cita
+  ok(/No tienes citas pendientes/.test(L.textoCitasPendientes([])) &&
+     !JSON.stringify(L.tecladoCitasPendientes([])).includes("v2:c:"), "CIT-7 sin pendientes: texto claro y cero botones de decisión");
+  // CIT-8: el callback de decisión del dueño llega a cita_decision
+  const rD = L.orquestar(DC, conv(), "/citadec ok cita-1", AHORA);
+  ok(rD.accion === "cita_decision" && rD.citaDecision?.id === "cita-1" && rD.citaDecision?.decision === "ok", "CIT-8 /citadec del dueño: cita_decision con id y decisión");
+  // CIT-9: el aviso de cita nueva y su teclado de decisión
+  ok(L.textoAvisoCitaNueva(CITA1).includes("Nueva solicitud de cita") && L.textoAvisoCitaNueva(CITA1).includes("Ana Pérez"),
+     "CIT-9 el aviso de cita nueva trae el resumen");
+  ok(JSON.stringify(L.tecladoDecisionCita("cita-1").inline_keyboard.flat().map((b) => b.callback_data)) ===
+     JSON.stringify(["v2:c:ok:cita-1", "v2:c:no:cita-1"]), "CIT-9 el teclado del aviso: [✅ Confirmar] [✖️ Rechazar] con su id");
 }
 
 console.log("\nprueba-agente-v1: " + pass + " PASS · " + fail + " FAIL");
