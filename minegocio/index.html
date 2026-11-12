@@ -189,6 +189,19 @@ label { display:block; font:600 13px var(--fuente); color:var(--txt-2); margin:v
 .docDl { flex:0 0 auto; width:38px; height:38px; border-radius:50%; border:1px solid var(--borde-fuerte); background:var(--bg-2); color:inherit; font-size:16px; cursor:pointer; display:flex; align-items:center; justify-content:center; padding:0; margin:0; }
 .visorFoto { position:fixed; inset:0; z-index:9999; background:rgba(0,0,0,.94); display:none; flex-direction:column; }
 .visorFoto.abierto { display:flex; }
+/* v11: editor de foto a pantalla completa (paso WhatsApp) + detalle
+   técnico plegado de los mensajes fallidos (patrón de Actividad). */
+.editorFotoWA { position:fixed; inset:0; z-index:9999; background:rgba(0,0,0,.94); display:none; flex-direction:column; }
+.editorFotoWA.abierto { display:flex; }
+.edFotoBar { display:flex; align-items:center; gap:10px; padding:12px 14px; color:#E8ECF1; }
+.edFotoNom { flex:1; min-width:0; font-size:13.5px; overflow-wrap:anywhere; }
+.edFotoImgWrap { flex:1; display:flex; align-items:center; justify-content:center; overflow:auto; padding:6px; }
+.edFotoImg { max-width:100%; max-height:100%; object-fit:contain; border-radius:8px; }
+.edFotoPie { display:flex; gap:8px; align-items:center; padding:10px 12px 14px; }
+.edFotoPie .compBox { flex:1; }
+.opDet { margin-top:6px; }
+.opDet summary { cursor:pointer; font-size:12.5px; opacity:.75; }
+.opDetTxt { font-size:12px; word-break:break-word; opacity:.85; margin-top:4px; }
 .visorBar { display:flex; align-items:center; gap:10px; padding:12px 14px; color:var(--txt-1); }
 .visorNom { flex:1; min-width:0; font:var(--t-sub); overflow-wrap:anywhere; }
 .visorBtn { flex:0 0 auto; width:auto; border:1px solid var(--borde-fuerte); background:var(--bg-2); color:var(--txt-1); border-radius:var(--r-pildora); padding:8px 14px; font:600 13px var(--fuente); cursor:pointer; text-decoration:none; display:inline-block; margin:0; }
@@ -416,6 +429,10 @@ var sinLeerTotal = 0;
 var puertasChat = null;  /* null sin comprobar · true activas · false falta activar */
 var chatCon = null, chatNombre = "", chatMsgs = [], chatTimer = null;
 var chatFijado = null, chatTempSeg = 0, chatResp = null, chatAdj = null, chatEditId = null, grabandoVoz = null;
+/* v11: borrador del compositor — pintarChat reconstruye el hilo
+   entero (refresco de 3 s) y sin esto lo que Ernesto estuviera
+   escribiendo se borraba a mitad de frase. */
+var chatBorrador = "";
 /* Estado de la grabación PRO y de los reproductores de voz (punto 4). */
 var grabVoz = null;      /* { mr, stream, chunks, inicio, timer, analyser, ctxA } */
 var grabVozEnviar = false; /* true si la grabación termina con ➤ (envío directo) */
@@ -744,9 +761,20 @@ function ejecutarAccion(a){
     case "nuevo": return rpc("usuarioNuevo", { p_codigo: cod, p_codigo_usuario: a.codigoUsuario, p_nombre: a.nombre });
     case "chat": {
       var enviarC = function(datosAdj){
-        var cuerpoC = { p_de: "ADMIN", p_para: a.para, p_texto: a.texto, p_clave: cod };
-        if (a.resp_de) cuerpoC.p_resp_de = a.resp_de;
-        if (a.adj) { cuerpoC.p_adj_tipo = a.adj.tipo; cuerpoC.p_adj_datos = datosAdj; cuerpoC.p_adj_nombre = a.adj.nombre || null; cuerpoC.p_adj_tam = a.adj.tam || null; }
+        /* v11 (tanda foto+texto): el juego COMPLETO siempre +
+           p_op_id. Con subconjuntos, PostgREST no podía elegir
+           entre las sobrecargas de la puerta (PGRST203) y TODO
+           envío de Mi Negocio moría aunque hubiera internet; el
+           opId es el de la propia operación de la cola, así que
+           reintentar jamás duplica en el servidor. */
+        var cuerpoC = { p_de: "ADMIN", p_para: a.para, p_texto: a.texto, p_clave: cod,
+          p_adj_tipo: a.adj ? a.adj.tipo : null,
+          p_adj_nombre: a.adj ? (a.adj.nombre || null) : null,
+          p_adj_mime: a.adj ? (a.adj.mime || null) : null,
+          p_adj_datos: a.adj ? datosAdj : null,
+          p_adj_tam: a.adj ? (a.adj.tam || null) : null,
+          p_resp_de: a.resp_de || null,
+          p_op_id: a.opId || null };
         /* Timbre: SOLO tras el envío bueno por la puerta; el timbre
            no lleva texto, solo avisa «hay algo nuevo en este chat». */
         return rpc("enviarMensaje", cuerpoC).then(function(r){ rtTimbre(a.para); return r; });
@@ -1328,6 +1356,50 @@ function abrirVisorDatos(datos, nombre){
   if (!datos) return;
   if (visorUrlRevocar) { try { URL.revokeObjectURL(visorUrlRevocar); } catch(e){} visorUrlRevocar = null; }
   mostrarVisor(String(datos), nombre || "Foto");
+}
+/* ===== v11: EDITOR DE FOTO A PANTALLA COMPLETA (paso WhatsApp) =====
+   Elegir una foto abre el editor, como en WhatsApp: la foto grande,
+   el texto (pie de foto) abajo y el botón redondo de enviar. Foto y
+   texto salen en UN solo mensaje por la cola de siempre
+   (enviarChatUI con el texto del editor). El editor vive en <body>,
+   fuera del repintado del hilo: ni el refresco de 3 s lo desarma. */
+function editorFotoEl(){
+  var v = document.getElementById("editorFoto");
+  if (!v) {
+    v = document.createElement("div");
+    v.className = "editorFotoWA"; v.id = "editorFoto";
+    v.innerHTML = '<div class="edFotoBar"><button class="visorBtn" id="edFotoX">✕ Descartar</button><span class="edFotoNom" id="edFotoNom"></span></div>'
+      + '<div class="edFotoImgWrap"><img class="edFotoImg" id="edFotoImg" alt="Foto a enviar"></div>'
+      + '<div class="edFotoPie"><div class="compBox"><input id="edFotoTxt" placeholder="Escribe el texto de la foto…"></div>'
+      + '<button class="sendBtn" id="edFotoOk" title="Enviar la foto con su texto">' + icono("enviar") + '</button></div>';
+    document.body.appendChild(v);
+    v.querySelector("#edFotoX").addEventListener("click", function(){
+      chatAdj = null; cerrarEditorFoto(); pintarChat();
+    });
+    v.querySelector("#edFotoOk").addEventListener("click", function(){
+      var cap = v.querySelector("#edFotoTxt").value || "";
+      cerrarEditorFoto();
+      enviarChatUI(cap);
+    });
+    v.querySelector("#edFotoTxt").addEventListener("keydown", function(e){
+      if (e.key === "Enter") { e.preventDefault(); v.querySelector("#edFotoOk").click(); }
+    });
+  }
+  return v;
+}
+function abrirEditorFotoMN(){
+  if (!chatAdj || chatAdj.tipo !== "foto") return;
+  var v = editorFotoEl();
+  v.querySelector("#edFotoNom").textContent = chatAdj.nombre || "Foto";
+  v.querySelector("#edFotoImg").src = chatAdj.datos;
+  v.querySelector("#edFotoTxt").value = "";
+  v.classList.add("abierto");
+  var t = v.querySelector("#edFotoTxt");
+  if (t) setTimeout(function(){ try { t.focus(); } catch(e){} }, 80);
+}
+function cerrarEditorFoto(){
+  var v = document.getElementById("editorFoto");
+  if (v) { v.classList.remove("abierto"); var im = v.querySelector("#edFotoImg"); if (im) im.removeAttribute("src"); }
 }
 function descargarDoc(m){
   if (!m) return Promise.resolve();
@@ -2176,7 +2248,9 @@ function rtTimbre(para){
 function cargarChat(){
   if (!chatCon) return;
   rpc("marcarRecibidos", { p_codigo: "ADMIN", p_clave: state.codigo }).catch(function(){});
-  rpc("leerChat", { p_codigo: "ADMIN", p_con: chatCon, p_clave: state.codigo }).then(function(r){
+  /* v11: p_buscar SIEMPRE presente (aunque sea null): es parte del
+     juego completo de la puerta leer_chat (misma lección PGRST203). */
+  rpc("leerChat", { p_codigo: "ADMIN", p_con: chatCon, p_clave: state.codigo, p_buscar: null }).then(function(r){
     puertasChat = true;
     chatFijado = (r && r.fijado) || null;
     chatTempSeg = Number((r && r.temporal_seg) || 0);
@@ -2441,7 +2515,7 @@ function pintarChat(){
   var v = $("chVolver"); if (v) v.addEventListener("click", volverEquipo);
   var tb = $("chTempBtn"); if (tb) tb.addEventListener("click", hojaTemporalesMN);
   var ib = $("chInfoBtn"); if (ib) ib.addEventListener("click", function(){
-    abrirHoja("Estados de tus mensajes", "✓ enviado: salió de tu teléfono y quedó guardado en el servidor. ✓✓ entregado: su app recibió el mensaje (sello real del servidor). ✓✓ Visto: abrió este chat y lo leyó. 🕐 sin enviar: está en la cola de este teléfono y sale solo al volver la conexión. Mantén presionada una burbuja para responder, reaccionar, fijar o (en tus mensajes) editar y eliminar. Foto: toca 📎 y elige la foto (un toque; se comprime sola, máx 1280 px); mantén presionado 📎 para Archivo o Nota de voz. La foto y el texto que escribas salen en UN solo mensaje. Archivo: hasta 5 MB. ⚠ sin enviar: la app lo intentó 3 veces y no pudo — mantén presionada la burbuja para reintentar el envío o quitarla de la cola. Voz: toca 🎤 y habla; la barra de grabación trae Cancelar, ✓ para adjuntar y escucharla antes de enviar, o ➤ para enviar directo (máx 2 min).<br><br>" + selloVersion(), []);
+    abrirHoja("Estados de tus mensajes", "✓ enviado: salió de tu teléfono y quedó guardado en el servidor. ✓✓ entregado: su app recibió el mensaje (sello real del servidor). ✓✓ Visto: abrió este chat y lo leyó. 🕐 sin enviar: está en la cola de este teléfono y sale solo al volver la conexión. Mantén presionada una burbuja para responder, reaccionar, fijar o (en tus mensajes) editar y eliminar. Foto: toca 📎 y elige la foto (un toque; se comprime sola, máx 1280 px): se abre a pantalla completa, como en WhatsApp — escribe el texto abajo y toca el botón redondo, y la foto y el texto salen en UN solo mensaje. Mantén presionado 📎 para Archivo o Nota de voz. Archivo: hasta 5 MB. ⚠ sin enviar: la app lo intentó 3 veces y no pudo — mantén presionada la burbuja para reintentar el envío o quitarla de la cola. Voz: toca 🎤 y habla; la barra de grabación trae Cancelar, ✓ para adjuntar y escucharla antes de enviar, o ➤ para enviar directo (máx 2 min).<br><br>" + selloVersion(), []);
   });
   var cp = $("chClip"); if (cp) {
     /* v10 (su queja: «para enviar una foto tengo que tocar
@@ -2464,7 +2538,13 @@ function pintarChat(){
     });
   }
   var vb = $("chVozBtn"); if (vb) vb.addEventListener("click", grabarVozMN);
-  var tx = $("chTexto"); if (tx) tx.addEventListener("keydown", function(e){ if (e.key === "Enter") { e.preventDefault(); enviarChatUI(); } });
+  var tx = $("chTexto"); if (tx) {
+    tx.addEventListener("keydown", function(e){ if (e.key === "Enter") { e.preventDefault(); enviarChatUI(); } });
+    /* v11: el borrador se guarda al teclear y se restaura tras
+       cada repintado del hilo (el refresco ya no lo borra). */
+    tx.addEventListener("input", function(){ chatBorrador = tx.value; });
+    if (!chatEditId && chatBorrador) tx.value = chatBorrador;
+  }
   var b = $("chEnviar"); if (b) b.addEventListener("click", enviarChatUI);
   var bk = $("chBuscar"); if (bk) bk.addEventListener("input", function(){
     var q = (bk.value || "").toLowerCase();
@@ -2479,7 +2559,11 @@ function pintarChat(){
   var fi = $("chFile"); if (fi) fi.addEventListener("change", function(){
     var f = fi.files && fi.files[0]; if (!f) return;
     prepararAdjuntoMN(f).then(function(a){
-      chatAdj = a; pintarChat();
+      chatAdj = a;
+      /* v11 (paso WhatsApp): la FOTO abre su editor a pantalla
+         completa (texto abajo + botón redondo); el archivo sigue
+         con su previa de siempre sobre el hilo. */
+      if (a.tipo === "foto") abrirEditorFotoMN(); else pintarChat();
       /* LOCAL-FIRST: el adjunto queda guardado como Blob en la
          base del teléfono; al enviar, la cola lleva la REFERENCIA
          y el dataURL se reconstruye solo al subir. */
@@ -2639,7 +2723,7 @@ function hojaMensajeMN(m){
     btns.push({ txt: "Copiar texto", cls: "bGhost", fn: function(){ copiarTexto(m.texto || ""); } });
     abrirHoja(mio ? "Tu mensaje (en cola)" : "Mensaje",
       '<div class="kv">' + esc(m.texto || "(adjunto)")
-      + (m.op_estado === "fallida" ? '<div class="mut">⚠ No se pudo enviar: la app lo intentó ' + (m.op_intentos || 0) + ' veces' + (m.op_error ? " (último error: " + esc(m.op_error) + ")" : "") + '. Reinténtalo o quítalo de la cola.</div>' : "")
+      + (m.op_estado === "fallida" ? '<div class="mut">⚠ No se pudo enviar: la app lo intentó ' + (m.op_intentos || 0) + ' veces y el servidor no lo aceptó. Reinténtalo o quítalo de la cola.</div>' + (m.op_error ? '<details class="opDet"><summary>ver detalle</summary><div class="opDetTxt">' + esc(m.op_error) + '</div></details>' : "") : "")
       + '</div>', btns);
     return;
   }
@@ -2685,12 +2769,14 @@ function hojaTemporalesMN(){
 function copiarTexto(t){
   if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(t).then(function(){ toast("📋 Texto copiado"); }).catch(function(){});
 }
-function enviarChatUI(){
+function enviarChatUI(textoForzado){
   var txEl = $("chTexto");
-  var texto = txEl ? (txEl.value || "").trim() : "";
+  /* v11: el editor de foto a pantalla completa manda SU texto (el
+     pie de la foto); sin argumento se lee el compositor de siempre. */
+  var texto = (typeof textoForzado === "string") ? textoForzado.trim() : (txEl ? (txEl.value || "").trim() : "");
   if (chatEditId) {
     if (!texto) { toast("Escribe el texto corregido", false); return; }
-    var idEd = chatEditId; chatEditId = null;
+    var idEd = chatEditId; chatEditId = null; chatBorrador = "";
     if (!online) {
       encolar({ tipo: "editarChat", id: idEd, texto: texto, cuando: new Date().toISOString() });
       guardar(); pintarChat();
@@ -2719,6 +2805,9 @@ function enviarChatUI(){
   }
   chatResp = null; chatAdj = null;
   encolar(accion);
+  /* v11: enviado desde el compositor = borrador cumplido; desde el
+     editor de foto, el borrador del compositor (si lo hay) se queda. */
+  if (typeof textoForzado !== "string") chatBorrador = "";
   guardar(); cargarChat();
   despacharCola().then(function(){ setTimeout(cargarChat, 600); });
 }
@@ -2970,14 +3059,14 @@ function intentarEntrar(){
    controllerchange recarga la app UNA sola vez (marca en
    sessionStorage por versión: sin bucles). MN_VERSION se sube
    junto con el CACHE de sw.js. */
-var MN_VERSION = "v10";
+var MN_VERSION = "v11";
 /* Sello VISIBLE de compilación (punto 6): Ernesto quejándose con
    razón — «no sé si se actualizó o no». Una sola constante que
    sube con cada publicación; se ve en Inicio y en la hoja ℹ️ del
    chat. Formato: «Mi Negocio · versión 2026-11-11 HH:MM · caché v6»
    (fecha Y HORA de la publicación, para distinguir dos subidas
    del mismo día). La hora es la de Cuba (CST) al compilar. */
-var MN_COMPILACION = "2026-11-11 20:02";
+var MN_COMPILACION = "2026-11-11 20:46";
 function selloVersion(){ return "Mi Negocio · versión " + MN_COMPILACION + " · caché " + MN_VERSION; }
 var regSW = null;
 var swConControladorAlArrancar = false;
