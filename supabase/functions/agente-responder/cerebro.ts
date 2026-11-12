@@ -14,11 +14,10 @@
 //       CEREBRO_API_KEY   = la clave del proveedor
 //       CEREBRO_CUENTA_ID = (solo Cloudflare) id de la cuenta
 //       CEREBRO_MODELO    = (opcional) modelo a usar
-//   · Estado verificado en vivo el 2026-11-12: NO existe cuenta de
-//     Cloudflare ni de Groq a nombre de Ernesto (sin claves en el
-//     llavero ni en los secretos de la función), así que hoy el
-//     adaptador activo sigue siendo «ninguno»; el cableado queda
-//     listo para el día en que una cuenta exista.
+//   · Estado verificado en vivo el 2026-11-12: el cerebro YA está
+//     ACTIVO con Cloudflare Workers AI desde el 2026-11-12 (el token
+//     vive solo en el llavero ~/workspace/.secure/cerebro-cloudflare.env
+//     y en los secretos de la función; su valor jamás se imprime).
 // =====================================================================
 
 export interface ContextoCerebro {
@@ -46,7 +45,16 @@ const SISTEMA =
   "SOLO puedes usar los DATOS PÚBLICOS que vienen en el contexto: está PROHIBIDO inventar " +
   "precios, horarios o cualquier cifra que no esté escrita ahí. Si el dato no está, di que " +
   "no lo sabes y que se lo pasas al dueño del negocio. NUNCA hables de descuentos, crédito, " +
-  "apartados, tasas de cambio, QUSD ni ganancias: eso lo confirma el dueño en persona.";
+  "apartados, tasas de cambio, QUSD ni ganancias: eso lo confirma el dueño en persona. " +
+  "ESTILO: español cubano natural, tipo WhatsApp/Telegram, líneas cortas; pon 1 emoji " +
+  "medido al inicio de cada bloque temático (💈 corte · 🧺 lavadora · 🔋 batería · " +
+  "📱 saldo · 🕘 horario · 📍 ubicación · 🏠 domicilio · 💵 pagos · ✅ garantía · " +
+  "📲 contacto); prohibida la lluvia de emojis; jamás alteres cifras ni teléfonos. " +
+  "CAPACIDADES REALES del bot (son verdad: NUNCA niegues ninguna): enviar el pin de " +
+  "ubicación del negocio, mostrar el panel de temas, tomar citas paso a paso, responder " +
+  "precios, horario y datos públicos de la ficha, y pasar notas al dueño. Está PROHIBIDO " +
+  "decir que no tienes acceso a una función de esa lista (nada de «no tengo acceso a " +
+  "enviar localizaciones» ni parecido).";
 
 function mensajes(ctx: ContextoCerebro) {
   const hist = (ctx.historial ?? []).slice(-4)
