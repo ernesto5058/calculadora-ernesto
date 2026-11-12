@@ -27,6 +27,7 @@
 // =====================================================================
 
 import {
+  cierreCita,
   clasificarSiguiente,
   decisionCita,
   decisionUbicacionPin,
@@ -34,13 +35,16 @@ import {
   esAfirmacionCorta,
   formaGrupo,
   hayPinPendienteEnHistorial,
+  lunesDeSemana,
   normalizar,
   normalizarLigero,
   orquestar,
   panelVista,
   proyeccionPublica,
   resolverAclaracion,
+  resumenCita,
   similitudTrgm,
+  tecladoCierreCita,
   tecladoDecisionCita,
   textoAvisoCitaNueva,
   validarRespuestaCerebro,
@@ -128,9 +132,16 @@ interface Datos {
   sinonimos: Record<string, unknown>[];
   prohibidas: string[];
   citasPendientes: Record<string, unknown>[];
+  citasConfirmadas: Record<string, unknown>[];
+  citasCerradas: Record<string, unknown>[];
 }
 async function cargarDatos(env: Env): Promise<Datos> {
-  const [cfg, cat, fue, faqs, pats, sin, tar, citas] = await Promise.all([
+  // v2.4: la semana del resumen de dinero se acota aquí (lunes a hoy,
+  // hora de La Habana): la lógica agrega, la puerta solo trae la
+  // ventana — el resumen jamás lee totales guardados.
+  const hoyH = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Havana" }).format(new Date());
+  const lunesH = lunesDeSemana(hoyH);
+  const [cfg, cat, fue, faqs, pats, sin, tar, citas, citasConf, citasCer] = await Promise.all([
     leerTabla(env, "agente_config", "id=eq.1&select=*"),
     leerTabla(env, "agente_catalogo", "activo=eq.true&select=*"),
     leerTabla(env, "agente_fuente", "select=*"),
@@ -142,6 +153,13 @@ async function cargarDatos(env: Env): Promise<Datos> {
     // dueño y la validación de sus decisiones (la puerta SQL decide).
     leerTabla(env, "agente_citas",
       "estado=eq.pendiente&order=dia.asc,hora.asc&limit=20&select=id,nombre,servicio,dia,hora,canal,conversacion_id,creada_en"),
+    // v2.4: confirmadas SIN cerrar (asistencia nula) pa la vista de
+    // gestión y la validación de los cierres.
+    leerTabla(env, "agente_citas",
+      "estado=eq.confirmada&asistencia=is.null&order=dia.asc,hora.asc&limit=20&select=id,nombre,servicio,dia,hora,canal,conversacion_id,creada_en,decidida_en"),
+    // v2.4: cerradas de ESTA semana pa el resumen de dinero en vivo.
+    leerTabla(env, "agente_citas",
+      "asistencia=not.is.null&dia=gte." + lunesH + "&order=dia.asc,hora.asc&limit=200&select=id,nombre,servicio,dia,hora,asistencia,pago_monto,pago_metodo,cerrada_en"),
   ]);
   const porFaq = new Map<string, string[]>();
   for (const p of pats) {
@@ -162,6 +180,8 @@ async function cargarDatos(env: Env): Promise<Datos> {
     sinonimos: sin,
     prohibidas,
     citasPendientes: citas,
+    citasConfirmadas: citasConf,
+    citasCerradas: citasCer,
   };
 }
 
@@ -548,6 +568,66 @@ async function procesar(env: Env, e: Entrada): Promise<Salida> {
       } else {
         dec = { ...dec, respuesta: dd.textoDueno };
         await entregarAvisoDecisionCita(env, real, dd.avisoTexto);
+        // v2.4: si la cita quedó CONFIRMADA, el dueño recibe en su
+        // chat los botones de CIERRE de esta cita pa cuando pase
+        // ([✅ Vino] / [🚫 No vino]): el control completo sin tener
+        // que abrir la vista.
+        if (dd.estadoNuevo === "confirmada") {
+          const tokenK = env("AGENTE_TG_BOT_TOKEN") || "";
+          const duenoIdK = cfg.dueno_tg_id != null ? String(cfg.dueno_tg_id) : "";
+          if (tokenK && duenoIdK) {
+            const rk = await tgLlamar(tokenK, "sendMessage", {
+              chat_id: Number(duenoIdK),
+              text: "Cuando pase esta cita, ciérrala aquí 👇\n" + resumenCita(real as never),
+              reply_markup: tecladoCierreCita(cd.id),
+            });
+            await accion(env, rk?.ok === true ? "cita_cierre_botones" : "cita_cierre_botones_error",
+              { cita_id: cd.id });
+          }
+        }
+      }
+    }
+  }
+
+  // v2.4 — CIERRE de cita del dueño: se ejecuta por la puerta SQL
+  // `agente_cita_cerrar` (hermana de la de decidir: valida dueño,
+  // exige estado «confirmada» y asistencia nula, audita y es
+  // idempotente). La fila se RELEE aquí igual que en la decisión.
+  // El cliente NO recibe nada: esta capa es interna del negocio.
+  if (dec.accion === "cita_cierre" && dec.citaCierre && esDuenoTg) {
+    const cc = dec.citaCierre as { id: string; vino: boolean; metodo?: string; monto?: number };
+    const filasK = await leerTabla(env, "agente_citas",
+      "id=eq." + encodeURIComponent(cc.id) + "&select=*");
+    const realK = filasK[0];
+    if (!realK) {
+      dec = { ...dec, respuesta: "Esa cita ya no existe: no toqué nada." };
+    } else if (realK.asistencia != null) {
+      dec = { ...dec, respuesta: "Esa cita ya estaba cerrada: no toqué nada." };
+      await accion(env, "cita_cierre_doble", { cita_id: cc.id, asistencia: realK.asistencia });
+    } else if (realK.estado !== "confirmada") {
+      dec = { ...dec, respuesta: "Esa cita no está confirmada (" + String(realK.estado) + "): no la cerré." };
+      await accion(env, "cita_cierre_no_confirmada", { cita_id: cc.id, estado: realK.estado });
+    } else {
+      const kk = cierreCita({ citasConfirmadas: [realK] } as never, cc.id,
+        { vino: cc.vino, metodo: cc.metodo, monto: cc.monto });
+      if (!kk?.ok) {
+        dec = { ...dec, respuesta: "⚠️ Ese cierre no vale: no toqué nada." };
+        await accion(env, "cita_cierre_error", { cita_id: cc.id, motivo: kk?.motivo ?? "?" });
+      } else {
+        const r = await rpc(env, "agente_cita_cerrar", {
+          p_chat_id: e.externo_id, p_id: cc.id, p_vino: cc.vino,
+          p_monto: cc.vino ? (cc.monto ?? null) : null,
+          p_metodo: cc.vino ? (cc.metodo ?? null) : null,
+        });
+        if (r?.ya_cerrada === true) {
+          dec = { ...dec, respuesta: "Esa cita ya estaba cerrada: no toqué nada." };
+          await accion(env, "cita_cierre_doble", { cita_id: cc.id, asistencia: r.asistencia });
+        } else if (r?.ok !== true) {
+          dec = { ...dec, respuesta: "⚠️ No pude guardar el cierre (falló el servidor). La cita sigue abierta; inténtalo otra vez." };
+          await accion(env, "cita_cierre_error", { cita_id: cc.id, motivo: String(r?.error ?? "rpc") });
+        } else {
+          dec = { ...dec, respuesta: kk.textoDueno };
+        }
       }
     }
   }
@@ -759,6 +839,16 @@ export async function manejar(req: Request, env: Env = (k) => Deno.env.get(k)): 
       // v2.3: decisión de cita — «v2:c:ok:<uuid>» / «v2:c:no:<uuid>»
       const partesCb = data.split(":");
       texto = "/citadec " + (partesCb[2] ?? "") + " " + (partesCb[3] ?? "");
+    }
+    if (!texto && data.startsWith("v2:k:")) {
+      // v2.4: cierre de cita — «v2:k:vino:<uuid>» / «v2:k:no:<uuid>» /
+      // «v2:k:pago:<uuid>:ef|tr» / «v2:k:otro:<uuid>» / «v2:k:met:ef|tr»
+      const pK = data.split(":");
+      if (pK[2] === "vino") texto = "/citacierre vino " + (pK[3] ?? "");
+      else if (pK[2] === "no") texto = "/citacierre novino " + (pK[3] ?? "");
+      else if (pK[2] === "pago") texto = "/citapago " + (pK[3] ?? "") + " " + (pK[4] ?? "");
+      else if (pK[2] === "otro") texto = "/citaotro " + (pK[3] ?? "");
+      else if (pK[2] === "met") texto = "/citamet " + (pK[3] ?? "");
     }
     if (texto) {
       if (token) await tgLlamar(token, "sendChatAction", { chat_id: chatId, action: "typing" });
