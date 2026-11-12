@@ -286,8 +286,13 @@ textarea.input { min-height: 48px; resize: none; line-height: 1.4; }
 }
 .fila:last-child { border-bottom: 0; }
 .fila:active { background: var(--bg-2); }
-.fila .fila-titulo { font: var(--t-cuerpo-f); }
-.fila .fila-sub { font: var(--t-sub); color: var(--txt-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fila .fila-titulo, .fila .fila-tit { font: var(--t-cuerpo-f); }
+/* Columna de texto de la fila: DEBE poder encogerse (min-width:0) o la
+   fila entera se pasa del ancho y .lista la recorta a media palabra.
+   El subtítulo ENVUELVE siempre (lección 2026-11-11: las descripciones
+   de las promos se cortaban a la derecha en el iPhone XR). */
+.fila .fila-cuerpo { flex: 1 1 auto; min-width: 0; }
+.fila .fila-sub { font: var(--t-sub); color: var(--txt-2); overflow-wrap: break-word; }
 .fila .fila-hora { font: var(--t-nota); color: var(--txt-3); margin-left: auto; flex: 0 0 auto; }
 .fila .crece { flex: 1 1 auto; min-width: 0; }
 .fila .chevron { color: var(--txt-3); flex: 0 0 auto; }
