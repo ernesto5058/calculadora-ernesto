@@ -1,9 +1,15 @@
-name: Lighthouse — presupuestos de las webs (suave)
+name: Lighthouse CI (presupuestos)
 
-# INSPECTOR v2 · Capa 0c: Lighthouse CI en modo suave sobre las 4 webs
-# publicadas. Solo avisa (warn): reporta presupuestos sin bloquear nada.
-# Los usuarios de Ernesto son móviles, así que manda la emulación móvil
-# por defecto de Lighthouse.
+# FUSIÓN 2026-11-12 (un solo job, una sola verdad): el workflow suave del
+# Inspector v2 + los presupuestos duros del programa Dominio Total
+# (líneas base medidas 2026-11-12: minegocio 91 · mercado 61 ·
+# negocio 92 · buscadores 79). La config vive en lighthouserc.json
+# (raíz): 3 corridas por URL, assertMatrix por página, `error` SOLO en
+# métricas deterministas (categorías estables, resource-summary en
+# bytes/conteos, CLS estable) y `warn` en performance y tiempos
+# (varianza medida de hasta 43 puntos entre corridas idénticas).
+# La puerta muerde porque NO hay continue-on-error ni `|| true`:
+# si `lhci assert` devuelve una aserción en error, el job cae.
 
 on:
   workflow_dispatch:
@@ -12,6 +18,14 @@ on:
     - cron: '17 7 * * 1'
   push:
     branches: [main]
+    paths:
+      - 'minegocio/**'
+      - 'mercado/**'
+      - 'negocio/**'
+      - 'buscadores/**'
+      - 'lighthouserc.json'
+      - '.github/workflows/lighthouse.yml'
+  pull_request:
     paths:
       - 'minegocio/**'
       - 'mercado/**'
@@ -29,7 +43,7 @@ concurrency:
 
 jobs:
   lighthouse:
-    name: Lighthouse (suave)
+    name: Lighthouse (presupuestos)
     runs-on: ubuntu-latest
     steps:
       - name: Descargar el repo
@@ -41,24 +55,17 @@ jobs:
           node-version: '22'
 
       - name: Instalar Lighthouse CI
-        run: npm install -g @lhci/cli@0.14.x || npm install -g @lhci/cli@0.14
+        run: npm install -g @lhci/cli@0.15.1
 
-      - name: Recoger mediciones (collect)
-        run: lhci collect
+      - name: Correr Lighthouse CI (collect + assert + upload)
+        run: lhci autorun
 
-      - name: Comprobar presupuestos (assert, suave)
-        continue-on-error: true
-        run: lhci assert
-
-      - name: Guardar informes en .lighthouseci (upload filesystem)
-        if: always()
-        run: lhci upload
-
-      - name: Subir informes como artefacto
+      - name: Guardar informes como artefacto
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: lighthouseci
+          name: lighthouseci-reports
           path: .lighthouseci
           if-no-files-found: ignore
           include-hidden-files: true
+          retention-days: 14
