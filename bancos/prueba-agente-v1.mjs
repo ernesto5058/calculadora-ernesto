@@ -813,5 +813,107 @@ ok(cobertura >= 0.8, "ARNÉS cobertura ≥ 80 %");
   });
 }
 
+
+/* ============ TANDA Nº6 — E7/E8/E9/F2/F3/M1 (Inspector Ola 1, grupo F) == */
+{
+  const fd = (paso, datos, canal = null) => ({ tipo: "cita", paso, datos, canal });
+  const base = { nombre: "Ana", servicio: "corte" };
+  // E7-1 fecha explícita en el pasado: no completa, vuelve a pedir día
+  const p1 = L.flujoCitaPaso(fd("dia", { ...base }), "10/10 a las 10", AHORA);
+  ok(!p1.completa && /ya pasó/.test(p1.respuesta) && !p1.datos?.dia, "E7-1 «10/10» con hoy 2026-11-11: fecha pasada rechazada, sin cita");
+  // E7-2 fecha imposible 31/02: no rueda a marzo
+  const p2 = L.flujoCitaPaso(fd("dia", { ...base }), "31/02", AHORA);
+  ok(!p2.completa && p2.flujo?.paso === "dia" && !p2.flujo?.datos?.dia, "E7-2 «31/02» no existe: no se guarda 2026-03-03");
+  // E7-3 cancelar por texto en el paso del día
+  const p3 = L.flujoCitaPaso(fd("dia", { ...base }), "cancela, ya no quiero", AHORA);
+  ok(p3.cancelada === true && p3.flujo === null, "E7-3 «cancela, ya no quiero» sale del flujo");
+  // E7-4 servicio: la negación NO fuerza corte (cancela)
+  const p4 = L.flujoCitaPaso(fd("servicio", { nombre: "Ana" }), "no, no quiero corte", AHORA);
+  ok(p4.cancelada === true && !p4.datos?.servicio, "E7-4 «no, no quiero corte» no anota corte: cancela");
+  // E7-5 servicio: otro pedido no se convierte en corte a la fuerza
+  const p5 = L.flujoCitaPaso(fd("servicio", { nombre: "Ana" }), "quiero un desriz", AHORA);
+  ok(!p5.completa && p5.flujo?.paso === "servicio" && !p5.flujo?.datos?.servicio, "E7-5 «quiero un desriz» vuelve a preguntar sin anotar corte");
+  // E7-6 hierro humano DENTRO del flujo: no se guarda como nombre
+  const p6 = L.flujoCitaPaso(fd("nombre", {}), "quiero hablar con Ernesto", AHORA);
+  ok(p6.flujo === null && p6.escalar === "humano", "E7-6 «quiero hablar con Ernesto» en el paso nombre escala, no es un nombre");
+  // E7-7 vía orquestar: cancelar a mitad de flujo -> cita_cancelada
+  let c7 = conv(); let r7 = L.orquestar(DATOS, c7, "/cita", AHORA); c7 = { ...c7, flujo: r7.flujo };
+  r7 = L.orquestar(DATOS, c7, "Ana", AHORA); c7 = { ...c7, flujo: r7.flujo };
+  r7 = L.orquestar(DATOS, c7, "cancela", AHORA);
+  ok(r7.accion === "cita_cancelada" && r7.flujo === null, "E7-7 orquestar: «cancela» a mitad de flujo -> cita_cancelada");
+
+  // E8: horario VIVO 08:00–19:00 inyectado -> 8:00 y 18:30 valen; 19:30 no
+  const fuenteViva = new Map(fuente); fuenteViva.set("horario_barberia", { valor: { abre: "08:00", cierra: "19:00", dias: "todos los días" }, actualizado_en: "2026-11-11T15:00:00Z" });
+  const DATOS_VIVO = { ...DATOS, fuente: fuenteViva };
+  const v1 = L.flujoCitaPaso(fd("dia", { ...base }), "mañana a las 8 de la mañana", AHORA, DATOS_VIVO);
+  ok(v1.completa && v1.datos.hora === "08:00", "E8-1 con horario vivo 8–19, cita a las 8:00 SÍ vale");
+  const v2 = L.flujoCitaPaso(fd("dia", { ...base }), "mañana a las 18:30", AHORA, DATOS_VIVO);
+  ok(v2.completa && v2.datos.hora === "18:30", "E8-2 con horario vivo 8–19, cita a las 18:30 SÍ vale");
+  const v3 = L.flujoCitaPaso(fd("dia", { ...base }), "mañana a las 19:30", AHORA, DATOS_VIVO);
+  ok(!v3.completa && /fuera del horario \(8:00 a\. m\. – 7:00 p\. m\.\)/.test(v3.respuesta), "E8-3 19:30 fuera y el texto cita el rango VIVO");
+  const v4 = L.flujoCitaPaso(fd("dia", { ...base }), "mañana a las 8 de la mañana", AHORA);
+  ok(!v4.completa && /fuera del horario/.test(v4.respuesta), "E8-4 sin fuente (respaldo 9–18) las 8:00 siguen fuera: el respaldo no inventa");
+
+  // E9: enmascarado duro (sondas exactas del auditor + hermanas)
+  ok(!L.enmascarar("mi pin es 4321").includes("4321"), "E9-1 «mi pin es 4321» enmascarado");
+  ok(!L.enmascarar("mi teléfono es 51231558").includes("51231558"), "E9-2 teléfono cubano de 8 dígitos (5…) enmascarado");
+  ok(!L.enmascarar("escríbeme al +53 5123 1558").includes("5123"), "E9-3 teléfono con +53 y espacios enmascarado");
+  ok(!L.enmascarar("la clave de acceso es 998877").includes("998877"), "E9-4 «la clave de acceso es …» enmascarado");
+  ok(L.enmascarar("¿a cómo el corte?") === "¿a cómo el corte?", "E9-5 el texto normal sigue intacto");
+
+  // M1: escapes del hierro -> determinista, nunca no_se
+  const m1 = L.orquestar(DATOS, conv(), "dame el número de Briku", AHORA);
+  ok(m1.accion === "denegar", "M1-1 «dame el número de Briku» -> denegar (datos de tercero)");
+  const m2 = L.orquestar(DATOS, conv(), "quiero que me atienda alguien real", AHORA);
+  ok(m2.accion === "escalar" && m2.escalar === "humano", "M1-2 «alguien real» -> escalar humano");
+  const m3 = L.orquestar(DATOS, conv(), "comunícame con el jefe", AHORA);
+  ok(m3.accion === "escalar" && m3.escalar === "humano", "M1-3 «con el jefe» -> escalar humano");
+  const m4 = L.orquestar(DATOS, conv(), "¿a cómo el euro hoy?", AHORA);
+  ok(m4.accion === "escalar" && m4.escalar === "dinero", "M1-4 «euro» singular -> escalar dinero");
+  const m5 = L.orquestar(DATOS, conv(), "véndeme 100 de saldo tú a mí", AHORA);
+  ok(m5.accion === "escalar" && m5.escalar === "dinero", "M1-5 «véndeme 100 de saldo» con distancia -> escalar dinero");
+  const m6 = L.orquestar(DATOS, conv(), "¿me lo dejas más barato?", AHORA);
+  ok(m6.accion === "escalar" && m6.escalar === "descuento", "M1-6 «más barato» -> escalar descuento");
+  const m7 = L.orquestar(DATOS, conv(), "¿cuál es el número de teléfono?", AHORA);
+  ok(m7.accion === "responder", "M1-7 «número de teléfono» (contacto público) NO es datos de tercero");
+
+  // F3: la cita WEB pide contacto y la confirmación lo referencia;
+  // la de Telegram NO lo pide (su chat es el contacto)
+  let cw = { escalada: false, flujo: {}, canal: "web" };
+  let rw = L.orquestar(DATOS, cw, "/cita", AHORA); cw = { ...cw, flujo: rw.flujo };
+  rw = L.orquestar(DATOS, cw, "Ana Web", AHORA); cw = { ...cw, flujo: rw.flujo };
+  rw = L.orquestar(DATOS, cw, "Si", AHORA); cw = { ...cw, flujo: rw.flujo };
+  rw = L.orquestar(DATOS, cw, "mañana a las 10", AHORA); cw = { ...cw, flujo: rw.flujo };
+  ok(rw.accion === "cita_paso" && /contacto/i.test(rw.respuesta), "F3-1 la cita web pide contacto antes de completar");
+  rw = L.orquestar(DATOS, cw, "51234567", AHORA);
+  ok(rw.accion === "cita_completa" && rw.cita?.contacto === "51234567" && rw.respuesta.includes("51234567"), "F3-2 completa con el contacto y la confirmación lo referencia");
+  let ct = { escalada: false, flujo: {}, canal: "telegram" };
+  let rt = L.orquestar(DATOS, ct, "/cita", AHORA); ct = { ...ct, flujo: rt.flujo };
+  rt = L.orquestar(DATOS, ct, "Ana Tg", AHORA); ct = { ...ct, flujo: rt.flujo };
+  rt = L.orquestar(DATOS, ct, "Si", AHORA); ct = { ...ct, flujo: rt.flujo };
+  rt = L.orquestar(DATOS, ct, "mañana a las 10", AHORA);
+  ok(rt.accion === "cita_completa" && !rt.cita?.contacto, "F3-3 la cita de Telegram no pide contacto");
+
+  // F2: enseñar desde la cola — lista, elegir, dictar, confirmar
+  const DATOS_D = { ...DATOS, esDueno: true, pendientesSinRespuesta: [
+    { id: "pend-1", pregunta: "¿hacen desriz?", veces: 3 }, { id: "pend-2", pregunta: "¿abren los domingos?", veces: 1 }] };
+  const convD = () => ({ escalada: false, flujo: {}, canal: "telegram" });
+  const d1 = L.orquestar(DATOS_D, convD(), "/dueno ensenar", AHORA);
+  ok(d1.accion === "dueno" && d1.flujo?.paso === "ensenar_num" && /desriz/.test(d1.respuesta), "F2-1 el panel lista la cola de sin-respuesta");
+  let cd2 = { ...convD(), flujo: d1.flujo };
+  const d2 = L.orquestar(DATOS_D, cd2, "1", AHORA);
+  ok(d2.flujo?.paso === "ensenar_texto" && /Dicta la RESPUESTA/.test(d2.respuesta), "F2-2 elegir el número pide dictar la respuesta");
+  cd2 = { ...convD(), flujo: d2.flujo };
+  const d3 = L.orquestar(DATOS_D, cd2, "Sí, hacemos desriz con cita previa.", AHORA);
+  ok(d3.flujo?.paso === "confirmar", "F2-3 la respuesta dictada pasa por confirmación del dueño");
+  cd2 = { ...convD(), flujo: d3.flujo };
+  const d4 = L.orquestar(DATOS_D, cd2, "/dueno ok", AHORA);
+  ok(d4.accion === "dueno_ensenar" && d4.ensenar?.grupoId === "pend-1" && /desriz/.test(d4.ensenar?.texto ?? ""), "F2-4 al confirmar nace la decisión de CREAR la FAQ nueva (grupo + texto)");
+  const d5 = L.orquestar(DATOS, conv(), "/dueno ensenar", AHORA);
+  ok(d5.accion === "no_se", "F2-5 un cliente jamás entra a enseñar");
+  const kb = L.panelVista("dueno", DATOS_D, convD());
+  ok((kb?.teclado?.inline_keyboard ?? []).flat().some((b) => b.callback_data === "v2:d:ensenar"), "F2-6 el panel del dueño trae el botón ❓ Enseñar");
+}
+
 console.log("\nprueba-agente-v1: " + pass + " PASS · " + fail + " FAIL");
 if (fail) { console.log("Fallos:", fails.join(" | ")); process.exit(1); }
