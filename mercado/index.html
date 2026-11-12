@@ -217,7 +217,7 @@
    base: sin costo, el número NO se inventa (se explica qué falta).
    ===================================================================== */
 const MERCADO_VERSION = "v2";
-const SELLO = "Mercado · versión 2026-11-11 21:20 · caché v3";
+const SELLO = "Mercado · versión 2026-11-12 10:50 · caché v3";
 const SB_URL = "https://otsudfgwpapkluusrlnj.supabase.co";
 const SB_KEY = "sb_publishable_Uchl5QnojJkZbXR5ar8vDg_5CXnqi_d"; // pública: solo lee por las puertas de mercado
 const LS_CLAVE = "mercado_cache_v1";
@@ -415,7 +415,7 @@ function renderEquilibrio() {
   const salida = num(tarifa.salida_ref) !== null ? tarifa.salida_ref : f.salida_ref;
   const costo = u.config ? u.config.costo_ref360 : null;
   const eq = num(f.equilibrio);
-  let h = bandaRed() + '<p class="explica">Tu tasa de empate del día: si vendes por encima de ella ganas; por debajo, pierdes.</p>';
+  let h = bandaRed() + '<p class="explica">Tu tasa de empate del día: vendiendo a esta tasa o por debajo, ganas; por encima de ella, pierdes.</p>';
   if (eq === null) {
     h += '<div class="estado"><div class="estado-tit">Falta tu costo del día</div>' +
       '<p>El equilibrio es 360 × salida ÷ costo. Tu salida viva de la tarifa es <b>' + fmt(salida) +
