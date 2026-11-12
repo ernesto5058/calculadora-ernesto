@@ -42,7 +42,7 @@ jobs:
 
           const sitios = [
             { id: 'minegocio', url: 'https://ernesto5058.github.io/calculadora-ernesto/minegocio/',
-              marcador: 'MI NEGOCIO', espera: 4000,
+              marcador: 'Tu código de administrador', espera: 4000,
               fotos: [ { archivo: '01-minegocio-puerta.png', bajar: 0,
                          pie: 'Mi Negocio — SOLO la puerta: el código del dueño no viaja a ningún robot. La carga y la puerta ya cazan errores reales.' } ] },
             { id: 'mercado', url: 'https://ernesto5058.github.io/calculadora-ernesto/mercado/',
@@ -158,6 +158,7 @@ jobs:
       - name: Publicar las fotos en Pages (carpeta ojo-web/)
         if: always()
         run: |
+          git checkout -- package.json package-lock.json 2>/dev/null || true
           git config user.name "Ojo Web (Actions)"
           git config user.email "actions@users.noreply.github.com"
           git add ojo-web
