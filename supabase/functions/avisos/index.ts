@@ -57,6 +57,7 @@ import {
   plTarifa,
   type Plantilla,
 } from "../_shared/telegram-pro.ts";
+import { decidirAcceso } from "./logica.js";
 
 function b64urlToBytes(s: string): Uint8Array {
   const pad = "=".repeat((4 - (s.length % 4)) % 4);
@@ -300,8 +301,16 @@ export async function manejar(req: Request, env: (k: string) => string | undefin
      vive en la función SEPARADA telegram-webhook. Esta emisora solo
      envía: Web Push + Telegram. */
 
-  const secreto = env("AVISOS_WEBHOOK_SECRET") || "";
-  if (secreto && ev.secreto !== secreto) return new Response("no autorizado", { status: 401 });
+  /* Puerta FAIL-CLOSED (Tanda 1 Ola 2; decisión pura en logica.js,
+     banco prueba-avisos-puerta): sin AVISOS_WEBHOOK_SECRET fijado en
+     el entorno la emisora responde 503 y no envía nada — antes, con
+     el secreto sin fijar, cualquiera podía inyectar avisos falsos. */
+  const acceso = decidirAcceso(env("AVISOS_WEBHOOK_SECRET"), ev.secreto);
+  if (!acceso.permitido) {
+    return acceso.status === 503
+      ? new Response("emisora sin secreto configurado", { status: 503 })
+      : new Response("no autorizado", { status: 401 });
+  }
 
   const para = String(ev.para || "");
   /* Plantillas PRO compartidas (_shared/telegram-pro.ts): si el
