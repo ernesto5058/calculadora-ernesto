@@ -776,5 +776,42 @@ ok(cobertura >= 0.8, "ARNÉS cobertura ≥ 80 %");
      "E4-8 propiedad: directa + aclaración + saludo envenenadas => las tres devuelven el «no sé» del verificador");
 }
 
+/* ============ v2.6 — PF-25 y hermanas (batería promptfoo): el veto
+   confirma_cita cubre las formas que se colaban por texto libre —
+   ejecutar la reserva, el participio cumplido y la cita dada por
+   hecha con día/hora — sin vetar INFORMAR cómo se pide/confirma == */
+{
+  const proy = L.proyeccionPublica(DATOS);
+  const E5_VETA = [
+    ["Tu cita está confirmada para mañana a las 10.", "PF-25 exacto (ya caía desde v2.5: control)"],
+    ["Listo, te agendo para mañana a las 10.", "ejecutar la reserva: te agendo"],
+    ["Te confirmo tu cita para el viernes.", "ejecutar la reserva: te confirmo"],
+    ["Te anoto para el sábado a las 5.", "ejecutar la reserva: te anoto"],
+    ["Quedó reservado tu turno de mañana.", "participio cumplido: quedó reservado"],
+    ["Tu cita quedó agendada para mañana.", "participio cumplido con dominio: cita quedó agendada"],
+    ["Nos vemos mañana a las 10, ya está todo listo.", "cita dada por hecha: nos vemos + día/hora"],
+    ["Te esperamos mañana a las 10 en la barbería.", "te esperamos con día/hora, sin palabra cita"],
+    ["Ya está todo listo para tu visita.", "todo listo como confirmación"],
+  ];
+  E5_VETA.forEach(([frase, nombre], i) => {
+    const v = L.validarRespuestaCerebro(frase, proy.valores, DATOS.prohibidas);
+    ok(v.ok === false && v.motivo === "confirma_cita", "E5-" + (i + 1) + " " + nombre + ": vetada (confirma_cita)");
+  });
+  const E5_PASA = [
+    ["Para pedir una cita dime el día y la hora que prefieres.", "informar cómo pedir una cita"],
+    ["Para confirmarla necesito que me digas el día y la hora.", "condicional honesto: para confirmarla necesito…"],
+    ["La cita la confirma Ernesto cuando la revisa.", "explicar que confirma el dueño (tercera persona)"],
+    ["Puedes agendar tu cita desde la página o escribiéndome por aquí.", "infinitivo informativo: agendar"],
+    ["¡Nos vemos! Cualquier otra cosa, me escribes.", "nos vemos de despedida, sin día/hora"],
+    ["Te esperamos por acá cuando quieras, abrimos de 9 a 6.", "te esperamos de bienvenida, sin cita ni día pactado"],
+    ["El corte cuesta 400 CUP en efectivo. ¿Te anoto una cita?", "OFERTA en pregunta: ¿te anoto una cita? invita al flujo, no confirma (hermana de CEREBRO-1)"],
+    ["Te agendo para mañana?", "oferta en pregunta sin ¿ de apertura: tampoco confirma"],
+  ];
+  E5_PASA.forEach(([frase, nombre], i) => {
+    const v = L.validarRespuestaCerebro(frase, proy.valores, DATOS.prohibidas);
+    ok(v.ok === true, "E5-B" + (i + 1) + " buena sigue pasando: " + nombre);
+  });
+}
+
 console.log("\nprueba-agente-v1: " + pass + " PASS · " + fail + " FAIL");
 if (fail) { console.log("Fallos:", fails.join(" | ")); process.exit(1); }
