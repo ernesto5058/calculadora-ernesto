@@ -27,6 +27,7 @@
 // =====================================================================
 
 import {
+  FRASE_NO_SE,
   cierreCita,
   clasificarSiguiente,
   decisionCita,
@@ -50,6 +51,16 @@ import {
   validarRespuestaCerebro,
 } from "./logica.js";
 import { crearCerebro } from "./cerebro.ts";
+import {
+  TOPE_AVISOS_DUENO_DIA,
+  avisosDuenoPermitidos,
+  debeDegradarPorTopeDiario,
+  decisionPorConfig,
+  escaladoCaducado,
+  inicioDiaHabanaISO,
+  inicioVentana24h,
+  sesionBloqueada,
+} from "./puerta.js";
 
 type Env = (k: string) => string | undefined;
 
@@ -123,9 +134,24 @@ async function accion(env: Env, tipo: string, detalle: Record<string, unknown>):
   await insertar(env, "agente_acciones", { tipo, detalle });
 }
 
+/* E5 — lectura ESTRICTA de la config: distingue «falló» (red/HTTP,
+   ok=false) de «vacío» (sin fila). `leerTabla` traga errores y
+   devuelve []: si la config pasara por ahí, un fallo se vería igual
+   que una config vacía y el agente atendería sin frenos. */
+async function leerConfig(env: Env): Promise<{ ok: boolean; fila: Record<string, unknown> | null }> {
+  try {
+    const r = await fetch((env("SUPABASE_URL") || "") + "/rest/v1/agente_config?id=eq.1&select=*",
+      { headers: cabecerasSrv(env), signal: AbortSignal.timeout(15000) });
+    if (!r.ok) return { ok: false, fila: null };
+    const filas = await r.json() as Record<string, unknown>[];
+    return { ok: true, fila: filas[0] ?? null };
+  } catch { return { ok: false, fila: null }; }
+}
+
 /* --- Carga de datos VIVOS (read-through: nada de copias) ------------- */
 interface Datos {
   config: Record<string, unknown>;
+  configOk: boolean;
   catalogo: Map<string, Record<string, unknown>>;
   fuente: Map<string, { valor: unknown; actualizado_en: string }>;
   faqs: Record<string, unknown>[];
@@ -141,8 +167,8 @@ async function cargarDatos(env: Env): Promise<Datos> {
   // ventana — el resumen jamás lee totales guardados.
   const hoyH = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Havana" }).format(new Date());
   const lunesH = lunesDeSemana(hoyH);
-  const [cfg, cat, fue, faqs, pats, sin, tar, citas, citasConf, citasCer] = await Promise.all([
-    leerTabla(env, "agente_config", "id=eq.1&select=*"),
+  const [cfgLectura, cat, fue, faqs, pats, sin, tar, citas, citasConf, citasCer] = await Promise.all([
+    leerConfig(env),
     leerTabla(env, "agente_catalogo", "activo=eq.true&select=*"),
     leerTabla(env, "agente_fuente", "select=*"),
     leerTabla(env, "agente_faq", "estado=eq.activa&select=*"),
@@ -173,7 +199,8 @@ async function cargarDatos(env: Env): Promise<Datos> {
     if (t[k] != null) prohibidas.push(String(t[k]));
   }
   return {
-    config: cfg[0] ?? {},
+    config: cfgLectura.fila ?? {},
+    configOk: cfgLectura.ok,
     catalogo: new Map(cat.map((c) => [String(c.clave), c])),
     fuente: new Map(fue.map((f) => [String(f.clave), { valor: f.valor, actualizado_en: String(f.actualizado_en) }])),
     faqs: faqs.map((f) => ({ ...f, patrones: porFaq.get(String(f.id)) ?? [] })),
@@ -186,15 +213,41 @@ async function cargarDatos(env: Env): Promise<Datos> {
 }
 
 /* --- Conversación ------------------------------------------------------ */
-async function buscarOCrearConv(env: Env, canal: string, externoId: string, nombre?: string) {
+async function buscarConv(env: Env, canal: string, externoId: string) {
   const filas = await leerTabla(env, "agente_conversaciones",
     "canal=eq." + encodeURIComponent(canal) + "&externo_id=eq." + encodeURIComponent(externoId) + "&select=*");
-  if (filas[0]) {
-    if (nombre && !filas[0].nombre) await parche(env, "agente_conversaciones", "id=eq." + filas[0].id, { nombre });
-    return filas[0];
+  return filas[0] ?? null;
+}
+async function buscarOCrearConv(env: Env, canal: string, externoId: string, nombre?: string) {
+  const existente = await buscarConv(env, canal, externoId);
+  if (existente) {
+    if (nombre && !existente.nombre) await parche(env, "agente_conversaciones", "id=eq." + existente.id, { nombre });
+    return existente;
   }
   return await insertar(env, "agente_conversaciones",
     { canal, externo_id: externoId, nombre: nombre ?? null });
+}
+
+/* E2 — Aviso de escalado/lead al dueño CON tope global diario: cuenta
+   los avisos de hoy en agente_acciones (tipos aviso_escalado /
+   aviso_lead, guardados por esta misma vía); si se alcanzó el tope,
+   no se manda más avisos ese día, pero la conversación sigue
+   atendida. El dueño TG jamás entra en este freno. */
+async function avisarDuenoConTope(env: Env, cfg: Record<string, unknown>, esDueno: boolean,
+                                  tipoAccion: string, ev: Record<string, unknown>): Promise<void> {
+  if (!esDueno) {
+    const tope = Number(cfg.tope_avisos_dia ?? TOPE_AVISOS_DUENO_DIA);
+    const desde = inicioDiaHabanaISO(new Date());
+    const hoyAvisos = await leerTabla(env, "agente_acciones",
+      "tipo=in.(aviso_escalado,aviso_lead)&creada_en=gte." + encodeURIComponent(desde) +
+      "&select=id&limit=" + Math.max(1, Number.isFinite(tope) && tope > 0 ? tope : TOPE_AVISOS_DUENO_DIA));
+    if (!avisosDuenoPermitidos({ conteoHoy: hoyAvisos.length, tope, esDueno })) {
+      await accion(env, "aviso_omitido_tope", { tipo_original: tipoAccion });
+      return;
+    }
+  }
+  await avisar(env, ev);
+  await accion(env, tipoAccion, { tipo_aviso: String(ev.tipo ?? "") });
 }
 
 async function guardarMsg(env: Env, convId: string, rol: string, texto: string, auditoria: Record<string, unknown> = {}) {
@@ -408,17 +461,59 @@ async function conAvisosPendientesWeb(env: Env, conv: Record<string, unknown>, s
 async function procesar(env: Env, e: Entrada): Promise<Salida> {
   const datos = await cargarDatos(env);
   const cfg = datos.config;
+  // E5 — FAIL-CLOSED de config: si agente_config no se pudo leer (o
+  // no hay fila), silencio honesto y NO se procesa nada más. Sin la
+  // config tampoco se puede identificar al dueño (dueno_tg_id vive
+  // ahí): el silencio total ES el comportamiento correcto del freno.
+  if (decisionPorConfig({ ok: datos.configOk, fila: datos.configOk ? cfg : null }) === "silencio") {
+    console.error("[agente-responder] agente_config ilegible o vacía: fail-closed (silencio)");
+    await accion(env, "config_ilegible", { canal: e.canal });
+    return { respuesta: null, silencio: true, accion: "config_ilegible" };
+  }
   const hoy = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Havana" }).format(new Date());
 
-  const conv = await buscarOCrearConv(env, e.canal, e.externo_id, e.nombre);
+  // El DUEÑO (su cuenta de Telegram registrada) se reconoce desde la
+  // config, antes de crear nada: lo eximen la pausa y TODOS los topes.
+  const esDuenoTg = e.canal === "telegram" && cfg.dueno_tg_id != null &&
+    String(cfg.dueno_tg_id) === e.externo_id;
+
+  // E2 — Tope GLOBAL diario de conversaciones NUEVAS (día habanero):
+  // se mira ANTES de crear la conversación; al alcanzarlo, el cliente
+  // recibe el «no sé» estándar, sin crear conversación ni cerebro.
+  let conv = await buscarConv(env, e.canal, e.externo_id);
+  if (!conv && !esDuenoTg) {
+    const topeDia = Number(cfg.tope_conversaciones_dia ?? 100);
+    const nuevasHoy = await leerTabla(env, "agente_conversaciones",
+      "iniciada_en=gte." + encodeURIComponent(inicioDiaHabanaISO(new Date())) +
+      "&select=id&limit=" + Math.max(1, Number.isFinite(topeDia) && topeDia > 0 ? topeDia : 100));
+    if (debeDegradarPorTopeDiario({ conteoHoy: nuevasHoy.length, tope: topeDia, esDueno: esDuenoTg, esNueva: true })) {
+      await accion(env, "tope_global_conversaciones", { canal: e.canal, conteo: nuevasHoy.length });
+      return { respuesta: FRASE_NO_SE, accion: "tope_global" };
+    }
+  }
+  conv = conv
+    ? (e.nombre && !conv.nombre
+        ? (await parche(env, "agente_conversaciones", "id=eq." + conv.id, { nombre: e.nombre }),
+           { ...conv, nombre: e.nombre })
+        : conv)
+    : await buscarOCrearConv(env, e.canal, e.externo_id, e.nombre);
   if (!conv) return { respuesta: null, silencio: true, accion: "error_conv" };
+
+  // E6 — Escalado con CADUCIDAD (24 h desde la última actividad
+  // previa): se decide ANTES de parchar ultimo_en, con el valor
+  // previo; si caducó, se reabre y orquestar ve la conversación ya
+  // reabierta (antes `escalada` nunca volvía a false: muda eterna).
+  if (escaladoCaducado({ escalada: conv.escalada === true, ultimoEn: conv.ultimo_en })) {
+    await parche(env, "agente_conversaciones", "id=eq." + conv.id,
+      { escalada: false, motivo_escalado: null });
+    await accion(env, "escalado_caducado", { conversacion_id: conv.id });
+    conv = { ...conv, escalada: false, motivo_escalado: null };
+  }
   await parche(env, "agente_conversaciones", "id=eq." + conv.id, { ultimo_en: new Date().toISOString() });
 
   // DETENER / pausas: comprobado antes de cada respuesta (RG-3).
   // v2: el DUEÑO (su cuenta de Telegram registrada) sí pasa cuando el
   // agente está pausado — si no, no podría reanudarlo desde su chat.
-  const esDuenoTg = e.canal === "telegram" && cfg.dueno_tg_id != null &&
-    String(cfg.dueno_tg_id) === e.externo_id;
   const pausado = cfg.detenido === true ||
     (e.canal === "web" && cfg.pausa_web === true) ||
     (e.canal === "telegram" && cfg.pausa_telegram === true);
@@ -426,11 +521,14 @@ async function procesar(env: Env, e: Entrada): Promise<Salida> {
     await accion(env, "detenido", { canal: e.canal });
     return { respuesta: null, silencio: true, accion: "detenido" };
   }
-  // tope de mensajes por sesión (RG-2)
-  const msgsHoy = await leerTabla(env, "agente_mensajes",
-    "conversacion_id=eq." + conv.id + "&rol=eq.cliente&select=id&limit=200");
-  if (msgsHoy.length >= Number(cfg.tope_mensajes_sesion ?? 40)) {
-    return { respuesta: "Ya te atendí bastante por hoy 🙏 Si necesitas algo más, escríbele directo a Ernesto.", accion: "tope" };
+  // E1 — Tope de mensajes por sesión (RG-2): ventana RODANTE de 24 h
+  // (filtro creado_en) y dueño exento. El texto dice la ventana real:
+  // «últimas 24 horas», no «por hoy».
+  const msgsVentana = await leerTabla(env, "agente_mensajes",
+    "conversacion_id=eq." + conv.id + "&rol=eq.cliente&creado_en=gte." +
+    encodeURIComponent(inicioVentana24h()) + "&select=id&limit=200");
+  if (sesionBloqueada({ conteo: msgsVentana.length, tope: Number(cfg.tope_mensajes_sesion ?? 40), esDueno: esDuenoTg })) {
+    return { respuesta: "Ya te atendí bastante en las últimas 24 horas 🙏 Si necesitas algo más, escríbele directo a Ernesto.", accion: "tope" };
   }
 
   // Los toques de botón (callbacks) no son mensajes del cliente: no
@@ -687,7 +785,9 @@ async function procesar(env: Env, e: Entrada): Promise<Salida> {
   if (dec.escalar) {
     await parche(env, "agente_conversaciones", "id=eq." + conv.id,
       { escalada: true, motivo_escalado: String(dec.escalar) });
-    await avisar(env, {
+    // E2: aviso al dueño con tope global diario (la conversación
+    // sigue atendida aunque el aviso se omita por tope).
+    await avisarDuenoConTope(env, cfg, esDuenoTg, "aviso_escalado", {
       tipo: "agente_escalado",
       titulo: "🙋 Un cliente necesita a Ernesto",
       cuerpo: "Motivo: " + String(dec.escalar) + "\nCliente escribió: «" +
@@ -700,7 +800,7 @@ async function procesar(env: Env, e: Entrada): Promise<Salida> {
     if (flujo.lead_dia !== hoy) {
       await parche(env, "agente_conversaciones", "id=eq." + conv.id,
         { flujo: { ...flujo, lead_dia: hoy } });
-      await avisar(env, {
+      await avisarDuenoConTope(env, cfg, esDuenoTg, "aviso_lead", {
         tipo: "agente_lead",
         titulo: "🔥 Cliente interesado (posible venta)",
         cuerpo: "Un cliente mostró intención de compra en el asistente.\nEscribió: «" +
@@ -880,8 +980,15 @@ export async function manejar(req: Request, env: Env = (k) => Deno.env.get(k)): 
   }
 
   // web: burbuja de la paginita
+  // E5 — FAIL-CLOSED: sin AGENTE_WEB_KEY en el entorno, la web se
+  // RECHAZA (antes la guarda solo actuaba si la clave existía:
+  // sin clave configurada, la web entraba sin ninguna).
   const webKey = env("AGENTE_WEB_KEY") || "";
-  if (webKey && req.headers.get("x-agente-key") !== webKey) {
+  if (!webKey) {
+    console.error("[agente-responder] AGENTE_WEB_KEY no configurada: peticiones web rechazadas (fail-closed)");
+    return json({ ok: false, error: "web_no_configurada" }, 503);
+  }
+  if (req.headers.get("x-agente-key") !== webKey) {
     return json({ ok: false, error: "no_autorizado" }, 401);
   }
   const sesion = String(body.sesion ?? "").slice(0, 64);
