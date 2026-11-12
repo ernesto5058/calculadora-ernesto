@@ -21,6 +21,9 @@ los propuestos sin aserción van al final, marcados como pendientes.
 | 8 | Bot PRO: las fórmulas del bot se calculan contra la tarifa viva y cada rol ve solo sus vistas | 2026-11-11: Bot PRO v2 (y el hallazgo de que los botones de decidir de la v1 nunca funcionaron con reportes reales por el choque uuid/bigint) | `bancos/test-telegram-pro-banco.mjs` — TP-1…TP-30 (30 aserciones; copia local en research_notes) | ✅ Sí — verde en local, en simulación exacta del repo (30/30) y en la nube (corrida 43107334440, commit `8cab4f6a6c`, success). Las fuentes de `telegram-webhook` y `_shared` están espejadas en el repo; el 2026-11-11 (tanda H-1) el `_shared` se refrescó con la lectura normalizada del efectivo y la función se redesplegó en Supabase; `avisos` no se tocó |
 | 9 | Invariantes de dinero INV-1…INV-9 del estudio de método: conservación del dinero, 0 ≤ comisión ≤ ganancia bruta, sin ganancia no hay comisión, el equilibrio da ganancia 0 en su tasa, monotonías, bordes exactos de los bonos (149/150/151 recargas · 9/10/11 tratos), tabla de decisión de 24 celdas, el sello PAGADO solo existe si el servidor lo trae, y la foto local sobrevive la ida y vuelta sin cambiar los totales — TODO contra las fórmulas VIVAS (apps + espejo anclado del cierre del servidor), con barridos, no solo el caso feliz | 2026-11-11: el estudio de método (§11.3) exigía pasar de aserciones de ejemplo a propiedades con barrido; escribir el banco destapó los hallazgos H-1…H-4 de la sección siguiente | `bancos/test-invariantes-dinero.mjs` — 46 aserciones bloqueantes + 1 propiedad-hallazgo vigilada (H-4) (fixture del cierre: `bancos/fixtures/cierre-semana.sql`, regenerado de la definición VIVA) | ✅ Sí — verde en local, en simulación exacta del repo y en la nube (46 PASS · 0 FAIL · 1 hallazgo; corrida 43107334440, commit `8cab4f6a6c`, success) |
 | 10 | La guía del trabajador «¿Para qué es esta app?» es la primera tarjeta de Ayuda de Mi Trabajo (y NO existe en Mi Negocio ni en Mercado) y la cadena Firebase está completa en el repo (`android/app/google-services.json` del proyecto `mi-trabajo-77b9b`, paquete `cu.ernesto.mitrabajo`; el build sigue llamando a `registrar_push_nativo`) | 2026-11-11: tanda Firebase de la v1.4.6 — sin banco, la guía y el google-services podían perderse en un re-ensamblado silencioso | `bancos/prueba-mitrabajo-v146.mjs` — G1–G10 | ✅ Sí — en el workflow desde la tanda H-1/H-2/H-3, verde en local, en simulación exacta del repo (31/31) y en la nube (corrida 43107334440, commit `8cab4f6a6c`, success) |
+| 11 | Analista de Mercado — invariantes INV-A1…A10 del estudio: la fórmula madre G(R)=(360÷R)×salida−costo contra los vectores del estudio (G(333)=0 · G(320)=+40,63 · G(305,08)=+91,52), el menú maker con el peldaño que pierde BLOQUEADO y su porqué, el VWAP ejecutable con null honesto sin profundidad, las duras con marca de contraparte probada (sin campos de reputación no hay marca), la transferencia en las dos notaciones (descuento d y prima «al %»), la señal que no sale de foto no usable, la sonda que jamás lleva valores personales y las reservas de la Fase 2 (sin patrones, velas ni tendencia en la Fase 1) | 2026-11-11: aprobación del Analista «así tal cual» — la matemática vive en el lector (`analista.js`) y la app solo pinta; sin banco, la matemática podía derivar del estudio sin que nadie lo notara | `bancos/prueba-mercado-v2.mjs` — secciones A (v1 íntegro) y C (INV-A1…A10) | ✅ Sí |
+| 12 | Puerta de acción del Nivel 1 — barandas con mock (nunca contra la QvaPay real): el collar niega con la tarifa del instante, veto por foto de más de 20 min (reloj de recepción), DETENER y pausa bloquean antes que todo, topes $40/oferta · $120/día · 2/hora · enfriamiento 10 min, doble lectura con banda de 5, una sola oferta automática abierta, `P2P_SIDE_NOT_ALLOWED` pausa todo con el motivo en claro y sin bucle, el tercer error seguido pausa, y la idempotencia: un segundo toque con la misma acción NO crea dos ofertas | 2026-11-11: el Nivel 1 crea ofertas reales con el toque de Ernesto — cada baranda del Estudio 2 §3 tiene que estar probada ANTES de que exista el primer botón | `bancos/prueba-actuar-v1.mjs` (41 aserciones; la ganancia de la puerta se barre idéntica a la del Analista) | ✅ Sí |
+| 13 | La pantalla «Analista» de la app Mercado: la señal con dos relojes, el peldaño bloqueado con su porqué, el estado DETENER activado con su Reanudar, la foto vieja marcada «DATO VIEJO», la transferencia con B_ej y B_max en las dos notaciones, el texto anti-humo y la línea de la señal en Ahora | 2026-11-11: refuerzo de diseño de Ernesto — la pantalla nace a nivel DISENO-PRO completo y sus estados diseñados (sin datos, foto vieja, detenido, bloqueado) quedan fijados por banco | `bancos/prueba-mercado-v2.mjs` — secciones B (v1 íntegro) y D (S6–S9) | ✅ Sí |
 
 ## Hallazgos vigilados (corregidos y abiertos)
 
@@ -87,6 +90,24 @@ de invariantes con los mismos contraejemplos. Quedan abiertos H-4 e INV-8b.
   Pendiente de aserción.
 
 ## Mantenimiento
+
+- **Tanda del Analista (2026-11-11):** el lector `mercado-lector` ganó las
+  escaleras (ETECSA y BANK_CUP), la sonda de contraparte y el bloque
+  `analisis`; nació la puerta `mercado-actuar` (Nivel 1) con su lógica pura en
+  `mercado-src`; `avisos` se extendió para adjuntar el botón de acción
+  (`a:<id>`) y la fila de control Detener/Reanudar (`x:`) a los avisos del
+  Analista — la rama de reportes quedó intacta — y `telegram-webhook` ganó los
+  callbacks `a:`/`x:` y los comandos `/detener` `/reanudar` (el `_shared`
+  `telegram-pro.ts` NO se tocó: parseCallback sigue devolviendo null para los
+  callbacks nuevos y el webhook los intercepta antes). El banco de Mercado
+  pasa de v1 a **v2** (`bancos/prueba-mercado-v2.mjs`, 135 chequeos: los 58
+  del v1 íntegros + INV-A y el render de la pantalla Analista); el v1 se
+  retira de `bancos/` y del workflow. Los módulos puros del Analista y de la
+  puerta viven fuera del repo (en `mercado-src`), por eso el banco los
+  importa de fixtures vendorizados (`bancos/fixtures/mercado-analista.js`,
+  `bancos/fixtures/actuar-logica.js`) que se refrescan cuando las fuentes
+  cambian, como el fixture del lector.
+
 
 - **Nota — corrida en la nube bloqueada (2026-11-11):** el espejo del bot y los
   dos bancos nuevos entraron en el repo y en el workflow (commits `ceeb3c0f`,
