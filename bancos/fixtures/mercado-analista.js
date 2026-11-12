@@ -96,6 +96,53 @@ export function usdTotalEscalera(esc) {
 }
 
 // ---------------------------------------------------------------------
+// Ofertas NOMBRADAS (Vigía de Ivan, 2026-11-12): la escalera agrega por
+// tasa y pierde al oferente; esta vista guarda las ofertas individuales
+// del top-10 de cada lado CON su usuario público del tablón
+// (owner/User.username — el mismo campo que usa «marcarPropias» en el
+// lector), tasa (saldo por QUSD), USD tomables y su equivalente en
+// saldo (USD × tasa). Solo ofertas válidas y con USD > 0, en el orden
+// del libro (compra desc, venta asc). Sin username no hay atribución
+// posible: la oferta no entra. Es el ÚNICO dato de contraparte que la
+// foto guarda: actividad pública del libro, nada más.
+// ---------------------------------------------------------------------
+export function nombreDe(o) {
+  const u = (o && o.owner && o.owner.username) ??
+    (o && o.User && o.User.username) ?? (o && o.owner_username) ?? null;
+  return u ? String(u) : null;
+}
+
+// El nombre visible del tablón (User.name): el payload lo trae junto
+// al username (sonda de contraparte, foto del 2026-11-12) y no siempre
+// coinciden — la pared de Ivan se anuncia «Ivan» con username
+// ivan8oe5370, distinto de su cuenta principal @ivanleyva.
+export function nombreVisibleDe(o) {
+  const n = (o && o.User && o.User.name) ?? (o && o.owner && o.owner.name) ?? null;
+  return n ? String(n) : null;
+}
+
+export function ofertasNombradas(ofertas, lado) {
+  const filas = [];
+  for (const o of ofertas || []) {
+    if (!ofertaValida(o)) continue;
+    const usd = usdDeOferta(o);
+    if (!(usd > 0)) continue;
+    const u = nombreDe(o);
+    if (!u) continue;
+    const r = ratioDe(o);
+    if (r === null) continue;
+    const tasa = Math.round(r * 100) / 100;
+    const usdR = Math.round(usd * 100) / 100;
+    const fila = { u, tasa, usd: usdR, saldo: Math.round(usdR * tasa * 100) / 100 };
+    const n = nombreVisibleDe(o);
+    if (n) fila.n = n;
+    filas.push(fila);
+  }
+  filas.sort((a, b) => (lado === "compra" ? b.tasa - a.tasa : a.tasa - b.tasa));
+  return filas.slice(0, NIVELES_ESCALERA);
+}
+
+// ---------------------------------------------------------------------
 // Precio EJECUTABLE (taker): recorrer la escalera de COMPRA en su
 // orden (desde la mayor tasa, como nivel20) hasta juntar el tamaño S.
 // Sin profundidad bastante -> null HONESTO («solo hay Y USD»): un
