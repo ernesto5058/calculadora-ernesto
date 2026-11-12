@@ -1,0 +1,15 @@
+<!-- =====================================================================
+     SENTRY DE LA CASA · BLOQUE DE <head> (uno por app, en el <head>,
+     ANTES del script de la app). Rellenar solo APP / VERSION / DSN.
+     · APP:     minegocio | mitrabajo | mercado | paginita
+     · VERSION: la vigente de la app al publicar (APP_VERSION en
+       Mi Trabajo, MN_VERSION en Mi Negocio, el sello en Mercado, 1
+       en la paginita).
+     · DSN:     la clave pública del proyecto en Sentry (Settings →
+       Client Keys). Es pública por diseño, como la publishable de
+       Supabase: NO es un secreto. Sin DSN (vacío) todo es no-op.
+     El SDK va con defer + SRI: si el CDN cae o el archivo cambiara,
+     no carga y la app sigue intacta (solo se pierde la vigilancia).
+     ===================================================================== -->
+<script>window.SENTRY_CASA={app:"APP",version:"VERSION",dsn:"DSN"};</script>
+<script defer crossorigin="anonymous" integrity="sha384-48iagrZwMa6wkDoJKNyCk4jgMHcOcsBK/DzZAJInl1ZhtunellJDCRNZuomfHefF" src="https://browser.sentry-cdn.com/8.38.0/bundle.min.js"></script>
