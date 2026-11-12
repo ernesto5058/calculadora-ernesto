@@ -1,0 +1,4 @@
+01-minegocio-puerta.png|Mi Negocio en Safari — SOLO la puerta: el código del dueño no viaja a ningún robot.
+02-mercado.png|Mercado en Safari — el panel del mercado QvaPay con sus datos en vivo.
+03-negocio.png|La paginita en Safari — la tarjeta pública del negocio.
+04-mi-mercado.png|Mi Mercado (Lovable) en Safari — el conversor alimentado por los datos del vigía.
