@@ -1,0 +1,59 @@
+name: Lighthouse — presupuestos de las webs (suave)
+
+# INSPECTOR v2 · Capa 0c: Lighthouse CI en modo suave sobre las 4 webs
+# publicadas. Solo avisa (warn): reporta presupuestos sin bloquear nada.
+# Los usuarios de Ernesto son móviles, así que manda la emulación móvil
+# por defecto de Lighthouse.
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Semanal: lunes 07:17 UTC
+    - cron: '17 7 * * 1'
+  push:
+    branches: [main]
+    paths:
+      - 'minegocio/**'
+      - 'mercado/**'
+      - 'negocio/**'
+      - 'buscadores/**'
+      - 'lighthouserc.json'
+      - '.github/workflows/lighthouse.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: lighthouse-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  lighthouse:
+    name: Lighthouse (suave)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar el repo
+        uses: actions/checkout@v4
+
+      - name: Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Instalar Lighthouse CI
+        run: npm install -g @lhci/cli@0.14.x || npm install -g @lhci/cli@0.14
+
+      - name: Recoger mediciones (collect)
+        run: lhci collect
+
+      - name: Comprobar presupuestos (assert, suave)
+        continue-on-error: true
+        run: lhci assert
+
+      - name: Subir informes como artefacto
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lighthouseci
+          path: .lighthouseci
+          if-no-files-found: ignore
