@@ -1,0 +1,60 @@
+# Comparación de secretos con ==/=== (Inspector Ola 1, Mercado F-4:
+# el secreto del webhook se comparaba en claro).
+# Términos deliberadamente SIN «clave»: en este código «clave» es
+# también la llave de fecha de los reportes (clave(d)) y disparaba
+# falsos positivos comprobados en el humo del 2026-11-12. Su caso de
+# regresión vive en casos/proyecto-comparacion.js.
+rules:
+  - id: proyecto-secreto-comparacion-insegura
+    languages: [javascript, typescript]
+    severity: WARNING
+    paths:
+      exclude:
+        - "**/bancos/**"
+        - "**/node_modules/**"
+        - "**/.semgrep/casos/**"
+    message: >-
+      Un secreto/token se compara con ==/===/!=/!==: la comparación
+      ordinaria filtra tiempo y contenido (Inspector Ola 1, Mercado
+      F-4). Usa comparación de tiempo constante
+      (crypto.timingSafeEqual o el equivalente de la plataforma).
+    metadata:
+      category: security
+      technology: [proyecto, inspector]
+    pattern-either:
+      - patterns:
+          - pattern-either:
+              - pattern: $A == $B
+              - pattern: $A === $B
+              - pattern: $A != $B
+              - pattern: $A !== $B
+          - metavariable-regex:
+              metavariable: $A
+              regex: '(?i).*(secreto|secret|token|api[_-]?key|password|contrasena).*'
+      - patterns:
+          - pattern-either:
+              - pattern: $A == $B
+              - pattern: $A === $B
+              - pattern: $A != $B
+              - pattern: $A !== $B
+          - metavariable-regex:
+              metavariable: $B
+              regex: '(?i).*(secreto|secret|token|api[_-]?key|password|contrasena).*'
+      - patterns:
+          - pattern-either:
+              - pattern: $O.$P == $B
+              - pattern: $O.$P === $B
+              - pattern: $O.$P != $B
+              - pattern: $O.$P !== $B
+          - metavariable-regex:
+              metavariable: $P
+              regex: '(?i).*(secreto|secret|token|api[_-]?key|password|contrasena).*'
+      - patterns:
+          - pattern-either:
+              - pattern: $A == $O.$P
+              - pattern: $A === $O.$P
+              - pattern: $A != $O.$P
+              - pattern: $A !== $O.$P
+          - metavariable-regex:
+              metavariable: $P
+              regex: '(?i).*(secreto|secret|token|api[_-]?key|password|contrasena).*'
