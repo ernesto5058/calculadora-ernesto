@@ -26,20 +26,20 @@ let pass = 0, fail = 0;
 function ok(c, n){ if (c) pass++; else { fail++; console.log("FAIL:", n); } }
 
 /* ---- Versión y caché ---- */
-ok(/var APP_VERSION = "1\.4\.9"/.test(html), "P1 APP_VERSION 1.4.9 en el build ensamblado");
-ok(sw.includes('CACHE = "mitrabajo-v16"'), "P2 el SW sube a mitrabajo-v16 (sin esto, el arreglo no aterriza)");
+ok(/var APP_VERSION = "1\.5\.0"/.test(html), "P1 APP_VERSION 1.5.0 en el build ensamblado");
+ok(sw.includes('CACHE = "mitrabajo-v17"'), "P2 el SW sube a mitrabajo-v17 (sin esto, el arreglo no aterriza)");
 ok(datos.versionApp === "1.4.9" && /apk-v1\.4\.9\/Mi-Trabajo-v1\.4\.9\.apk$/.test(datos.apkUrl),
    "P3 datos.json: versionApp 1.4.9 y apkUrl de la v1.4.9");
 
 /* ---- Chat duro v1.4.7 ---- */
 ok(!html.includes("Nota de voz · en cola"), "C1 el chip sordo «Nota de voz · en cola» ya NO existe: la nota en cola se pinta con su reproductor");
-ok(html.includes("vozColaMT") && html.includes("adj_dur: it.adj.dur || null"), "C2 las notas en cola se registran y se pintan reproducibles, con su duración");
+ok(html.includes('reproductorVozHtmlMT({ id: "cola-" + it.opId, adj_datos: it.adj.datos, adj_dur: it.adj.dur || null })'), "C2 (v1.5.0) las notas en cola se pintan con su reproductor y su duración DIRECTO en su nodo (clave estable «cola-<opId>»; retirado el truco del marcador VC de la v1.4.7)");
 ok(/dur: Math\.max\(1, Math\.round\(\(Date\.now\(\) - grabT0MT\) \/ 1000\)\)/.test(html), "C3 al grabar, la duración se captura del TEMPORIZADOR (grabT0MT), no del metadato del archivo");
 ok(html.includes("dur: CHAT_ADJ.dur || null"), "C4 el adjunto que entra a la cola conserva la duración");
 ok(html.includes("estFallo") && html.includes("No se pudo enviar — toca el mensaje para reintentar"), "C5 el estado «⚠️ No se pudo enviar» existe y explica su salida (tocar para reintentar)");
 ok(html.includes("data-colafallida") && html.includes("x.fallida = true"), "C6 la burbuja fallida es tocable para reintentar y el despacho marca fallida al tercer intento");
 ok(/a\.filter\(function\(x\)\{ return !x\.fallida; \}\)\[0\]/.test(html), "C7 una fallida NO bloquea la cola: el despacho salta a la primera que no lo esté");
-ok(html.includes("clipLargoMT") && /\$\("c_file_foto"\)\.click\(\)/.test(html), "C8 el clip abre la FOTO directo en un toque; la hoja (Foto · Archivo) quedó a presión larga");
+ok(html.includes("filaAdjMT") && html.includes("elegirFotoNativaMT") && html.includes("pickImages") && html.includes('filaAdjMT("c_adj_cam", "c_file_cam")') && html.includes('filaAdjMT("c_adj_arch", "c_file_arch")') && !html.includes("clipLargoMT"), "C8 (v1.5.0, orden de Ernesto) el clip abre la HOJA en un toque; «Foto o vídeo» usa la galería nativa del APK (@capacitor/camera pickImages) con caída al selector web, Cámara y Documento disparan su selector; la presión larga quedó retirada");
 ok(html.includes("salen JUNTO con la foto, en un solo mensaje") || html.includes("sale JUNTO con la foto, en un solo mensaje"), "C9 la previa de la foto dice que el texto sale junto, en UN solo mensaje");
 
 /* ---- Regresión de Textos (lo aprobado en v1.4.6, intacto) ---- */

@@ -182,10 +182,10 @@ function crear(opts){
 {
   const w = crear({});
   await sleep(300);
-  ok(w.APP_VERSION === "1.4.9", "V1 APP_VERSION 1.4.9");
+  ok(w.APP_VERSION === "1.5.0", "V1 APP_VERSION 1.5.0");
   w.close();
   const sw = fs.readFileSync(HOME + "/buscadores/sw.js", "utf8");
-  ok(sw.includes('CACHE = "mitrabajo-v16"'), "V2 el SW sube a mitrabajo-v16");
+  ok(sw.includes('CACHE = "mitrabajo-v17"'), "V2 el SW sube a mitrabajo-v17");
   const datos = JSON.parse(fs.readFileSync(HOME + "/buscadores/datos.json", "utf8"));
   ok(datos.versionApp === "1.4.9" && /apk-v1\.4\.9\/Mi-Trabajo-v1\.4\.9\.apk$/.test(datos.apkUrl), "V3 datos.json: versionApp 1.4.9 y apkUrl de la v1.4.9");
   ok(datos.tarifa.ingresoRef360 === 1098.68 && datos.tarifa.libroRef === 1069.38 && datos.tarifa.salidaRef === 950 && datos.tarifa.pctSaldo === 25 && datos.tarifa.pisoTransf === 25, "V4 la tarifa de datos.json queda INTACTA");

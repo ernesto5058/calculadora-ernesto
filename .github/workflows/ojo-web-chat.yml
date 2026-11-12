@@ -1,0 +1,54 @@
+name: Ojo Web — Chat PRO (caza en vivo del compositor)
+
+# CAZA EN VIVO (orden de Ernesto, 2026-11-12: «no fotos solamente»):
+# Chromium real entra a los dos chats, ESCRIBE en el compositor
+# mientras el refresco de 3 s corre y muestrea activeElement/valor
+# cada segundo — la evidencia queda en ojo-web/chat-pro/evidencia.txt
+# junto a las fotos. Mi Negocio se caza sobre el build local con red
+# simulada y cuenta de prueba (el código del dueño NO viaja a
+# robots); Mi Trabajo, sobre el sitio publicado con la cuenta
+# PEUEBA y el backend real. Se dispara a mano tras publicar.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ojo-web-chat
+  cancel-in-progress: false
+
+jobs:
+  ojo:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Instalar Playwright + Chromium
+        run: |
+          npm init -y >/dev/null 2>&1
+          npm i playwright@1.49 --no-fund --no-audit
+          npx playwright install --with-deps chromium
+
+      - name: Cazar (foco vivo, hoja 📎, Textos) y fotografiar
+        run: node scripts/ojo-chat-pro.mjs
+
+      - name: Publicar el álbum (con rebase y reintentos)
+        run: |
+          git config user.name "ojo-web-chat"
+          git config user.email "actions@github.com"
+          for i in 1 2 3 4; do
+            git add ojo-web/chat-pro
+            if git diff --cached --quiet; then echo "sin cambios que publicar"; exit 0; fi
+            git commit -m "Ojo Chat PRO: caza en vivo del compositor (foco, hoja, Textos)"
+            git pull --rebase origin main || true
+            if git push origin main; then echo "álbum publicado (intento $i)"; exit 0; fi
+            echo "push rechazado (intento $i): reintentando con rebase…"; sleep 5
+          done
+          echo "no se pudo publicar el álbum tras 4 intentos"; exit 1

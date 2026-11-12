@@ -1,5 +1,5 @@
 "use strict";
-var APP_VERSION = "1.4.9";
+var APP_VERSION = "1.5.0";
 /* Tarifa de respaldo: se usa sin conexión si nunca se ha descargado datos.json.
    La tarifa viva viene de datos.json (la actualiza Ernesto/Máximo). */
 var DEFAULT_TARIFA = { ingresoRef360: 1092.65, libroRef: 1110, salidaRef: 950,
@@ -974,7 +974,10 @@ function picosVozMT(semilla, n) {
   return out;
 }
 function reproductorVozHtmlMT(m) {
-  var id = "m" + (++vozContadorMT);
+  /* v1.5.0: la clave sale del ID del mensaje (estable entre
+     repintados incrementales); sin id (previas sueltas) se sigue
+     usando el contador de siempre. */
+  var id = (m && m.id != null) ? "vm" + String(m.id).replace(/[^a-zA-Z0-9]/g, "") : "m" + (++vozContadorMT);
   vozDatosMT[id] = m.adj_datos;
   var picos = picosVozMT(datosCuerpoMT(m.adj_datos).slice(0, 48), 24);
   var onda = "";
@@ -1276,6 +1279,106 @@ function tempTexto(seg){
   if (seg <= 7 * 86400) return "Los mensajes desaparecen en 7 días";
   return "Los mensajes desaparecen en 90 días";
 }
+/* ===== CHAT PRO v1.5.0 — repintado INCREMENTAL por nodos =====
+   La disciplina del estudio, la misma que en Mi Negocio v12: el
+   hilo se reconcilia por claves — la burbuja que ya estaba conserva
+   su nodo; solo entra, cambia o sale lo que cambió — y el scroll
+   solo sigue al final si el buscador YA estaba pegado abajo (si
+   está leyendo arriba o escribiendo, el refresco de 3 s no lo
+   arrastra). El compositor #c_txt siempre fue estático aquí; lo
+   que moría en cada repintado era el estado de las notas de voz:
+   vozDatosMT se borraba entero y las claves nuevas (contador) ya
+   no coincidían con las pintadas en el DOM. Ahora la clave de voz
+   sale del ID del mensaje y los mapas no se borran jamás: solo se
+   retira la entrada del nodo que sale del hilo. */
+var hiloNodosMT = {}, hiloFirmasMT = {}, hiloClavesMT = {};
+function firmaMsgMT(m){
+  return JSON.stringify([m.texto || "", m.borrado ? 1 : 0, m.editado ? 1 : 0, m.leido ? 1 : 0, m.recibido ? 1 : 0,
+    m.adj_tipo || "", m.adj_datos ? String(m.adj_datos).length : 0, String(m.adj_datos || "").slice(0, 24),
+    m.adj_dur || 0, m.resp_texto || "", m.resp_autor || "",
+    ((m.reacciones || []).map(function(r){ return r.emoji + r.total; }).join(","))]);
+}
+function burbujaInnerMT(m){
+  var mio = m.de === SESION;
+  var est = mio ? estadoMsgBusc(m) : "";
+  var inner = "";
+  if (m.borrado) inner = '<span class="eliminado">Este mensaje fue eliminado</span>';
+  else {
+    if (m.resp_texto) inner += '<span class="cita">' + escChat(m.resp_autor === SESION ? "Tú" : (m.resp_autor || "")) + ": " + escChat(String(m.resp_texto).slice(0, 90)) + "</span>";
+    if (m.adj_tipo === "foto" && m.adj_datos) inner += '<img class="adjFoto" alt="Foto" src="' + (String(m.adj_datos).indexOf("data:") === 0 ? m.adj_datos : "data:image/jpeg;base64," + m.adj_datos) + '">';
+    else if (m.adj_tipo === "voz" && m.adj_datos) inner += reproductorVozHtmlMT(m);
+    else if (m.adj_datos) inner += tarjetaDocMT(m);
+    if (m.texto) inner += escChat(m.texto);
+  }
+  inner += '<span class="burMeta">' + (m.editado ? '<span class="editadoLab">editado</span> ' : "") + hora12Chat(m.creado) + est + "</span>";
+  var reac = "";
+  if (!m.borrado && m.reacciones && m.reacciones.length) {
+    reac = '<div class="reacRow">' + m.reacciones.map(function(r){ return '<span class="reac">' + r.emoji + " " + r.total + "</span>"; }).join("") + "</div>";
+  }
+  return '<div class="bur">' + inner + "</div>" + reac;
+}
+function alistarNodoMsgMT(nodo, id){
+  nodo.querySelectorAll("img.adjFoto").forEach(function(img){
+    img.addEventListener("click", function(e){
+      e.stopPropagation();
+      var mm = (CHAT_MSGS || []).filter(function(x){ return String(x.id) === String(id); })[0];
+      if (mm) abrirVisorMsgMT(mm);
+    });
+  });
+  nodo.querySelectorAll("[data-docdl]").forEach(function(b){
+    b.addEventListener("click", function(e){
+      e.stopPropagation();
+      var mm = (CHAT_MSGS || []).filter(function(x){ return String(x.id) === String(b.getAttribute("data-docdl")); })[0];
+      if (mm) descargarDocMT(mm);
+    });
+  });
+  alistarReproductoresVozMT(nodo);
+}
+function crearNodoMsgMT(m){
+  var nodo = document.createElement("div");
+  nodo.className = "msg " + (m.de === SESION ? "me" : "him");
+  nodo.setAttribute("data-mid", String(m.id));
+  nodo.innerHTML = burbujaInnerMT(m);
+  hiloClavesMT["m:" + String(m.id)] = "vm" + String(m.id).replace(/[^a-zA-Z0-9]/g, "");
+  nodo.addEventListener("click", function(){ abrirMenuMsg(Number(nodo.getAttribute("data-mid"))); });
+  alistarNodoMsgMT(nodo, m.id);
+  return nodo;
+}
+function burbujaColaInnerMT(it){
+  var innerC = "";
+  if (it.adj && it.adj.tipo === "foto" && it.adj.datos) innerC += '<img class="adjFoto" alt="Foto" src="' + it.adj.datos + '">';
+  else if (it.adj && it.adj.tipo === "voz" && it.adj.datos) innerC += reproductorVozHtmlMT({ id: "cola-" + it.opId, adj_datos: it.adj.datos, adj_dur: it.adj.dur || null });
+  else if (it.adj && it.adj.datos) innerC += tarjetaDocMT({ id: "cola-" + it.opId, adj_nombre: it.adj.nombre, adj_datos: it.adj.datos, adj_mime: it.adj.mime, adj_bytes: it.adj.tam });
+  if (it.texto) innerC += escChat(it.texto);
+  innerC += '<span class="burMeta">' + hora12Chat(it.creado)
+    + (it.fallida
+        ? ' <span class="estFallo">⚠️ No se pudo enviar — toca el mensaje para reintentar</span>'
+        : ' <span class="estCola" title="Sin enviar todavía: sale solo cuando vuelva la conexión">🕐</span>')
+    + "</span>";
+  return '<div class="bur">' + innerC + "</div>";
+}
+function firmaColaMT(it){
+  return JSON.stringify([it.texto || "", it.fallida ? 1 : 0, it.adj ? (it.adj.tipo || "") : "", it.adj && it.adj.datos ? String(it.adj.datos).length : 0, it.adj ? (it.adj.dur || 0) : 0]);
+}
+function crearNodoColaMT(it){
+  var nodo = document.createElement("div");
+  nodo.className = "msg me";
+  if (it.fallida) nodo.setAttribute("data-colafallida", it.opId);
+  nodo.innerHTML = burbujaColaInnerMT(it);
+  hiloClavesMT["cola:" + it.opId] = "vmcola" + String(it.opId).replace(/[^a-zA-Z0-9]/g, "");
+  if (it.fallida) {
+    nodo.addEventListener("click", function(){
+      var opId = nodo.getAttribute("data-colafallida");
+      var aR = chatOutGet();
+      aR.forEach(function(x){ if (x.opId === opId) { x.intentos = 0; x.fallida = false; } });
+      chatOutSet(aR);
+      pintarChat(CHAT_MSGS);
+      despacharChat();
+    });
+  }
+  alistarReproductoresVozMT(nodo);
+  return nodo;
+}
 function pintarChat(msgs){
   var box = $("c_hilo"); if (!box) return;
   msgs = msgs || [];
@@ -1288,102 +1391,82 @@ function pintarChat(msgs){
   var tl = $("c_temp");
   if (tl) { var tt = tempTexto(CHAT_TEMP_SEG); tl.style.display = tt ? "block" : "none"; tl.textContent = tt; }
   var colaChat = chatOutGet();
-  var vozColaMT = []; /* v1.4.7: las notas en cola se registran tras el reseteo de vozDatosMT (abajo) */
-  if ((!msgs || !msgs.length) && !colaChat.length){
-    box.innerHTML = '<div class="chatVacio">Todavía no hay mensajes. Escríbele a Ernesto lo que necesites: dudas de un trato, algo que no funciona o una idea.</div>';
-    return;
-  }
   var filtro = (($("c_buscar") && $("c_buscar").value) || "").trim().toLowerCase();
-  var h = "";
-  var ultimoDia = "";
-  msgs.forEach(function(m){
-    if (m.tipo === "sistema") { h += '<div class="msgSistema">' + escChat(m.texto) + "</div>"; return; }
+  var pegado = (box.scrollTop + box.clientHeight) >= (box.scrollHeight - 90);
+  var deseados = [], vivos = {}, ultimoDia = "";
+  msgs.forEach(function(m, ix){
+    if (m.tipo === "sistema") { deseados.push({ k: "sis:" + String(m.id != null ? m.id : (ix + "|" + m.creado)), sis: m }); return; }
     if (filtro && String(m.texto || "").toLowerCase().indexOf(filtro) === -1 && !m.adj_tipo) return;
     var dia = String(m.creado || "").slice(0, 10);
-    if (!filtro && dia && dia !== ultimoDia) { h += '<div class="fechaSep"><span>' + escChat(etiquetaFechaChat(m.creado)) + "</span></div>"; ultimoDia = dia; }
-    var mio = m.de === SESION;
-    var est = mio ? estadoMsgBusc(m) : "";
-    var inner = "";
-    if (m.borrado) inner = '<span class="eliminado">Este mensaje fue eliminado</span>';
-    else {
-      if (m.resp_texto) inner += '<span class="cita">' + escChat(m.resp_autor === SESION ? "Tú" : (m.resp_autor || "")) + ": " + escChat(String(m.resp_texto).slice(0, 90)) + "</span>";
-      if (m.adj_tipo === "foto" && m.adj_datos) inner += '<img class="adjFoto" alt="Foto" src="' + (String(m.adj_datos).indexOf("data:") === 0 ? m.adj_datos : "data:image/jpeg;base64," + m.adj_datos) + '">';
-      else if (m.adj_tipo === "voz" && m.adj_datos) inner += reproductorVozHtmlMT(m);
-      else if (m.adj_datos) inner += tarjetaDocMT(m);
-      if (m.texto) inner += escChat(m.texto);
-    }
-    /* v1.4.1: hora y estado DENTRO de la burbuja, como en WhatsApp. */
-    inner += '<span class="burMeta">' + (m.editado ? '<span class="editadoLab">editado</span> ' : "") + hora12Chat(m.creado) + est + "</span>";
-    var reac = "";
-    if (!m.borrado && m.reacciones && m.reacciones.length) {
-      reac = '<div class="reacRow">' + m.reacciones.map(function(r){ return '<span class="reac">' + r.emoji + " " + r.total + "</span>"; }).join("") + "</div>";
-    }
-    h += '<div class="msg ' + (mio ? "me" : "him") + '" data-mid="' + m.id + '"><div class="bur">' + inner + "</div>" + reac + "</div>";
+    if (!filtro && dia && dia !== ultimoDia) { deseados.push({ k: "sep:" + dia, sep: dia, creado: m.creado }); ultimoDia = dia; }
+    deseados.push({ k: "m:" + String(m.id), m: m });
   });
-  /* v1.4.4: al final del hilo van los mensajes EN COLA (🕐): se
-     ven ya, como en WhatsApp, y salen solos cuando vuelva la red. */
   if (!filtro && colaChat.length) {
-    colaChat.forEach(function(it){
-      var innerC = "";
-      if (it.adj && it.adj.tipo === "foto" && it.adj.datos) innerC += '<img class="adjFoto" alt="Foto" src="' + it.adj.datos + '">';
-      else if (it.adj && it.adj.tipo === "voz" && it.adj.datos) { innerC += "\u0001VC" + vozColaMT.length + "\u0001"; vozColaMT.push(it); }
-      else if (it.adj && it.adj.datos) innerC += tarjetaDocMT({ id: "cola-" + it.opId, adj_nombre: it.adj.nombre, adj_datos: it.adj.datos, adj_mime: it.adj.mime, adj_bytes: it.adj.tam });
-      if (it.texto) innerC += escChat(it.texto);
-      innerC += '<span class="burMeta">' + hora12Chat(it.creado)
-        + (it.fallida
-            ? ' <span class="estFallo">⚠️ No se pudo enviar — toca el mensaje para reintentar</span>'
-            : ' <span class="estCola" title="Sin enviar todavía: sale solo cuando vuelva la conexión">🕐</span>')
-        + '</span>';
-      h += '<div class="msg me"' + (it.fallida ? ' data-colafallida="' + it.opId + '"' : "") + '><div class="bur">' + innerC + "</div></div>";
-    });
+    colaChat.forEach(function(it){ deseados.push({ k: "cola:" + it.opId, cola: it }); });
   }
-  box.innerHTML = h || '<div class="chatVacio">Ningún mensaje coincide con la búsqueda en lo cargado. Prueba «Buscar más».</div>';
-  vozDatosMT = {}; vozAudiosMT = {};
-  var conVoz = (msgs || []).filter(function(m){ return m.adj_tipo === "voz" && m.adj_datos && !m.borrado; });
-  conVoz.forEach(function(m){ reproductorVozHtmlMT(m); });
-  /* v1.4.7: las notas EN COLA también se escuchan antes de salir
-     (antes eran un chip de texto sordo): se pintan ahora, con su
-     dato ya registrado y su duración del temporizador. */
-  if (vozColaMT.length) {
-    var htmlCola = box.innerHTML;
-    vozColaMT.forEach(function(it, ix){
-      htmlCola = htmlCola.split("\u0001VC" + ix + "\u0001").join(reproductorVozHtmlMT({ adj_datos: it.adj.datos, adj_dur: it.adj.dur || null }));
-    });
-    box.innerHTML = htmlCola;
+  if (!deseados.length) {
+    deseados.push((!msgs.length && !colaChat.length)
+      ? { k: "vacio", txt: "Todavía no hay mensajes. Escríbele a Ernesto lo que necesites: dudas de un trato, algo que no funciona o una idea." }
+      : { k: "sinres", txt: "Ningún mensaje coincide con la búsqueda en lo cargado. Prueba «Buscar más»." });
   }
-  /* v1.4.7: tocar una burbuja «fallida» reintenta su envío. */
-  box.querySelectorAll("[data-colafallida]").forEach(function(n){
-    n.addEventListener("click", function(){
-      var opId = n.getAttribute("data-colafallida");
-      var aR = chatOutGet();
-      aR.forEach(function(x){ if (x.opId === opId) { x.intentos = 0; x.fallida = false; } });
-      chatOutSet(aR);
-      pintarChat(CHAT_MSGS);
-      despacharChat();
-    });
+  deseados.forEach(function(dd){ vivos[dd.k] = true; });
+  Array.prototype.slice.call(box.children).forEach(function(n){
+    var k = n.getAttribute("data-k");
+    if (!k || !vivos[k]) {
+      if (k && hiloClavesMT[k]) {
+        var au = vozAudiosMT[hiloClavesMT[k]];
+        if (au) { try { au.pause(); } catch(e){} }
+        delete vozAudiosMT[hiloClavesMT[k]]; delete vozDatosMT[hiloClavesMT[k]];
+        delete hiloClavesMT[k];
+      }
+      if (k) { delete hiloNodosMT[k]; delete hiloFirmasMT[k]; }
+      box.removeChild(n);
+    }
   });
-  alistarReproductoresVozMT(box);
-  /* KIT DE MEDIOS v1.4.3: tocar la foto abre el VISOR (sin abrir el
-     menú del mensaje); el botón de la tarjeta descarga el archivo. */
-  box.querySelectorAll("img.adjFoto").forEach(function(img){
-    img.addEventListener("click", function(e){
-      e.stopPropagation();
-      var wrap = img.closest("[data-mid]");
-      var mm = (CHAT_MSGS || []).filter(function(x){ return String(x.id) === String(wrap ? wrap.getAttribute("data-mid") : ""); })[0];
-      if (mm) abrirVisorMsgMT(mm);
-    });
+  deseados.forEach(function(dd, i){
+    var nodo = hiloNodosMT[dd.k];
+    if (!nodo) {
+      if (dd.m) { nodo = crearNodoMsgMT(dd.m); hiloFirmasMT[dd.k] = firmaMsgMT(dd.m); }
+      else if (dd.cola) { nodo = crearNodoColaMT(dd.cola); hiloFirmasMT[dd.k] = firmaColaMT(dd.cola); }
+      else {
+        nodo = document.createElement("div");
+        if (dd.sep) { nodo.className = "fechaSep"; nodo.innerHTML = "<span>" + escChat(etiquetaFechaChat(dd.creado)) + "</span>"; }
+        else if (dd.sis) { nodo.className = "msgSistema"; nodo.textContent = dd.sis.texto || ""; }
+        else { nodo.className = "chatVacio"; nodo.textContent = dd.txt || ""; }
+      }
+      nodo.setAttribute("data-k", dd.k);
+      hiloNodosMT[dd.k] = nodo;
+    } else if (dd.m) {
+      var f = firmaMsgMT(dd.m);
+      if (hiloFirmasMT[dd.k] !== f) {
+        hiloFirmasMT[dd.k] = f;
+        nodo.innerHTML = burbujaInnerMT(dd.m);
+        alistarNodoMsgMT(nodo, dd.m.id);
+      }
+    } else if (dd.cola) {
+      var fc = firmaColaMT(dd.cola);
+      if (hiloFirmasMT[dd.k] !== fc) {
+        hiloFirmasMT[dd.k] = fc;
+        var eraFallida = nodo.hasAttribute("data-colafallida");
+        nodo.innerHTML = burbujaColaInnerMT(dd.cola);
+        if (dd.cola.fallida && !eraFallida) {
+          nodo.setAttribute("data-colafallida", dd.cola.opId);
+          nodo.addEventListener("click", function(){
+            var opId = nodo.getAttribute("data-colafallida");
+            var aR = chatOutGet();
+            aR.forEach(function(x){ if (x.opId === opId) { x.intentos = 0; x.fallida = false; } });
+            chatOutSet(aR);
+            pintarChat(CHAT_MSGS);
+            despacharChat();
+          });
+        }
+        alistarReproductoresVozMT(nodo);
+      }
+    }
+    var actual = box.children[i];
+    if (actual !== nodo) box.insertBefore(nodo, actual || null);
   });
-  box.querySelectorAll("[data-docdl]").forEach(function(b){
-    b.addEventListener("click", function(e){
-      e.stopPropagation();
-      var mm = (CHAT_MSGS || []).filter(function(x){ return String(x.id) === String(b.getAttribute("data-docdl")); })[0];
-      if (mm) descargarDocMT(mm);
-    });
-  });
-  box.querySelectorAll("[data-mid]").forEach(function(el){
-    el.addEventListener("click", function(){ abrirMenuMsg(Number(el.getAttribute("data-mid"))); });
-  });
-  try { box.scrollTop = box.scrollHeight; } catch(e){}
+  if (pegado) { try { box.scrollTop = box.scrollHeight; } catch(e){} }
 }
 function abrirMenuMsg(id){
   var m = (CHAT_MSGS || []).filter(function(x){ return x.id === id; })[0];
@@ -1868,49 +1951,72 @@ function showView(v){
     $("r_cancel_edit").addEventListener("click", function(){
       REP_EDIT_ID = null; $("r_editando").style.display = "none"; $("r_btn").textContent = "Enviar reporte a Ernesto";
     });
-    /* Chat: adjuntos, voz, búsqueda */
-    $("c_adj_foto").addEventListener("click", function(){ $("c_file_foto").click(); });
-    $("c_adj_arch").addEventListener("click", function(){ $("c_file_arch").click(); });
-    /* v1.4.1: el clip del compositor abre la hoja de adjuntos y el
-       botón (i) muestra la explicación breve de estados. */
-    var clipMT = $("c_clip");
-    if (clipMT) {
-      /* v1.4.7 (la misma orden que en Mi Negocio): el clip abre la
-         FOTO directo en UN toque; la hoja (Foto · Archivo) queda a
-         presión larga. Antes: clip → hoja → Foto = un toque de más. */
-      var clipTimerMT = null, clipLargoMT = false;
-      clipMT.addEventListener("pointerdown", function(){
-        clipLargoMT = false;
-        clipTimerMT = setTimeout(function(){
-          clipLargoMT = true;
-          var hoja = $("c_adj_hoja"); if (hoja) hoja.style.display = "flex";
-        }, 550);
-      });
-      ["pointerup", "pointerleave", "pointercancel"].forEach(function(ev){
-        clipMT.addEventListener(ev, function(){ if (clipTimerMT) { clearTimeout(clipTimerMT); clipTimerMT = null; } });
-      });
-      clipMT.addEventListener("click", function(){
-        if (clipLargoMT) { clipLargoMT = false; return; }
-        $("c_file_foto").click();
-      });
+    /* Chat: adjuntos, voz, búsqueda.
+       v1.5.0 (Chat PRO, la misma orden que en Mi Negocio v12): el
+       clip abre la HOJA de adjuntos con un toque — filas «Foto o
+       vídeo · Cámara · Documento» — y cada fila dispara SU selector
+       sincrónicamente dentro del mismo gesto (en Android el
+       selector del sistema; en el APK, si el plugin de cámara está
+       presente, su galería nativa). Se acabó el atajo escondido a
+       presión larga que Ernesto cazó como «programación básica». */
+    function cerrarHojaAdjMT(){ var hj = $("c_adj_hoja"); if (hj) hj.classList.remove("abierta"); }
+    function filaAdjMT(idBtn, idFile){
+      var btn = $(idBtn), fi = $(idFile);
+      if (btn && fi) btn.addEventListener("click", function(){ cerrarHojaAdjMT(); fi.click(); });
     }
+    /* En el APK (Capacitor), «Foto o vídeo» usa la GALERÍA NATIVA
+       del sistema vía @capacitor/camera (Photo Picker de Android,
+       sin permisos); en la web/PWA — o si el plugin no responde —
+       cae limpio al selector de archivos de siempre. */
+    function elegirFotoNativaMT(){
+      var Cap = window.Capacitor;
+      var Cam = Cap && Cap.Plugins && Cap.Plugins.Camera;
+      if (!Cam || !Cap.isNativePlatform || !Cap.isNativePlatform()) return false;
+      cerrarHojaAdjMT();
+      Cam.pickImages({ quality: 90, limit: 1 }).then(function(res){
+        var ph = res && res.photos && res.photos[0];
+        if (!ph || !ph.webPath) return;
+        return fetch(ph.webPath).then(function(r){ return r.blob(); }).then(function(b){
+          procesarFotoMT(new File([b], "foto-galeria.jpg", { type: b.type || "image/jpeg" }));
+        });
+      }).catch(function(){ var fi = $("c_file_foto"); if (fi) fi.click(); });
+      return true;
+    }
+    var btnAdjFotoMT = $("c_adj_foto");
+    if (btnAdjFotoMT) btnAdjFotoMT.addEventListener("click", function(){ if (!elegirFotoNativaMT()) { cerrarHojaAdjMT(); $("c_file_foto").click(); } });
+    filaAdjMT("c_adj_cam", "c_file_cam");
+    filaAdjMT("c_adj_arch", "c_file_arch");
+    var cerrarAdjMT = $("c_adj_cerrar");
+    if (cerrarAdjMT) cerrarAdjMT.addEventListener("click", cerrarHojaAdjMT);
+    var clipMT = $("c_clip");
+    if (clipMT) clipMT.addEventListener("click", function(){
+      var hj = $("c_adj_hoja"); if (hj) hj.classList.toggle("abierta");
+    });
     var infoMT = $("c_info");
     if (infoMT) infoMT.addEventListener("click", function(){
       var d = $("c_estados"); if (!d) return;
       d.style.display = (d.style.display === "block") ? "none" : "block";
     });
-    $("c_file_foto").addEventListener("change", function(){
-      var f = $("c_file_foto").files && $("c_file_foto").files[0]; if (!f) return;
+    function procesarFotoMT(f){
+      if (!f) return;
       leerArchivoMT(f, true).then(function(a){
         CHAT_ADJ = a; pintarPreviaAdjMT();
-        /* v1.4.8 (paso WhatsApp, la misma tanda que Mi Negocio
-           v11): la foto abre su editor a pantalla completa — texto
-           abajo y botón redondo; foto y texto salen en UN mensaje. */
+        /* La foto abre su editor a pantalla completa — texto abajo
+           y botón redondo; foto y texto salen en UN mensaje. */
         if (a && a.tipo === "foto") abrirEditorFotoMT();
       }).catch(function(e){ chatFallo(e.message); });
-    });
+    }
+    function alElegirFotoMT(input){
+      var f = input.files && input.files[0];
+      try { input.value = ""; } catch(e){}
+      procesarFotoMT(f);
+    }
+    $("c_file_foto").addEventListener("change", function(){ alElegirFotoMT($("c_file_foto")); });
+    $("c_file_cam").addEventListener("change", function(){ alElegirFotoMT($("c_file_cam")); });
     $("c_file_arch").addEventListener("change", function(){
-      var f = $("c_file_arch").files && $("c_file_arch").files[0]; if (!f) return;
+      var f = $("c_file_arch").files && $("c_file_arch").files[0];
+      try { $("c_file_arch").value = ""; } catch(e){}
+      if (!f) return;
       leerArchivoMT(f, false).then(function(a){ CHAT_ADJ = a; pintarPreviaAdjMT(); }).catch(function(e){ chatFallo(e.message); });
     });
     $("c_buscar").addEventListener("input", function(){ pintarChat(CHAT_MSGS); });

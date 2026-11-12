@@ -57,6 +57,9 @@ jobs:
       - name: Banco barra inferior — la .tabbar de Mi Trabajo sin el translateX heredado (fila 21)
         run: node bancos/prueba-barra-inferior.mjs
 
+      - name: Banco FOCO-CHAT — la sonda de foco del compositor y Textos con modo (fila 22)
+        run: node bancos/prueba-foco-chat.mjs
+
       - name: Banco Mercado v2 — lector, Analista INV-A y render (139 chequeos)
         run: node bancos/prueba-mercado-v2.mjs
 

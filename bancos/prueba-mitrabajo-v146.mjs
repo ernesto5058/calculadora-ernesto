@@ -20,8 +20,8 @@ let pass = 0, fail = 0;
 function ok(c, n){ if (c) pass++; else { fail++; console.log("FAIL:", n); } }
 
 /* ---- Versión y caché ---- */
-ok(/var APP_VERSION = "1\.4\.9"/.test(html), "G1 APP_VERSION 1.4.9 en el build ensamblado");
-ok(sw.includes('CACHE = "mitrabajo-v16"'), "G2 el SW sube a mitrabajo-v16");
+ok(/var APP_VERSION = "1\.5\.0"/.test(html), "G1 APP_VERSION 1.5.0 en el build ensamblado");
+ok(sw.includes('CACHE = "mitrabajo-v17"'), "G2 el SW sube a mitrabajo-v17");
 ok(datos.versionApp === "1.4.9" && /apk-v1\.4\.9\/Mi-Trabajo-v1\.4\.9\.apk$/.test(datos.apkUrl),
    "G3 datos.json: versionApp 1.4.9 y apkUrl de la v1.4.9");
 ok(datos.tarifa && datos.tarifa.ingresoRef360 === 1098.68 && datos.tarifa.libroRef === 1069.38 &&
