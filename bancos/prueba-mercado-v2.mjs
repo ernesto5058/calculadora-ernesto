@@ -299,6 +299,8 @@ async function crearDom(fx) {
         else if (u.includes("mercado_historial")) data = fx.historial;
         else if (u.includes("mercado_promos")) data = fx.promos;
         else if (u.includes("mercado_avisos")) data = fx.avisos;
+        else if (u.includes("mercado_accion_app")) data = fx.accionApp || { ok: false, codigo: "sin_fixture", motivo: "sin fixture de acción" };
+        else if (u.includes("mercado_accion_estado")) data = fx.accionEstado || { ok: false, codigo: "sin_fixture" };
         else if (u.includes("ultimo.json")) { fx.llamadasRespaldo = (fx.llamadasRespaldo || 0) + 1; data = { ts: isoMin(60 * 30), ETECSA: { average: 312.9, count_buy: 27, count: 86 }, BANK_CUP: { average: 1110.25 } }; }
         return Promise.resolve({ ok: true, status: 200, json: async () => data });
       };
@@ -406,7 +408,7 @@ function analisisFixture(extra) {
 }
 function fotoAnalista(extraFoto, extraAnalisis, extraUltima) {
   const f = fotoBase(Object.assign({ detalle: { analisis: analisisFixture(extraAnalisis) } }, extraFoto || {}));
-  return ultimaBase(f, Object.assign({ acciones: { detenidas: false, pausadas: false, pausa_motivo: null, monto_qusd: 40 } }, extraUltima || {}));
+  return ultimaBase(f, Object.assign({ acciones: { detenidas: false, pausadas: false, pausa_motivo: null, monto_qusd: 40, respeta_promo: false } }, extraUltima || {}));
 }
 // S6: señal VENDER + menú con peldaño bloqueado + duras + transferencia + anti-humo
 {
@@ -449,6 +451,119 @@ function fotoAnalista(extraFoto, extraAnalisis, extraUltima) {
   const dom = await crearDom(fx);
   ok(txt(dom, "ctAnalista").includes("se estrena con la próxima foto"), "S9 Analista: sin análisis se dice, no se inventa");
   dom.window.close();
+}
+
+/* ================= E) BOTÓN POR PELDAÑO + NO-DESBORDAMIENTO (v3) ================= */
+// E1: foto fresca con libro, sin promo -> botón en los 2 peldaños
+// sanos (Inmediato y Equilibrado) y NINGUNO en el bloqueado (Paciente,
+// G negativa): la pantalla ya no es «una foto».
+{
+  const fx = { ultima: fotoAnalista(), historial: histBase, promos: promosBase, avisos: avisosBase };
+  const dom = await crearDom(fx);
+  const an = txt(dom, "ctAnalista");
+  const n = (an.match(/Crear oferta a esta tasa/g) || []).length;
+  ok(n === 2, "E1 Analista: botón «Crear oferta a esta tasa» en Inmediato y Equilibrado (2), ninguno en el bloqueado");
+  ok(!an.includes("Sin botones de crear"), "E1 Analista: con foto fresca no se anuncia la ausencia de botones");
+  dom.window.close();
+}
+// E2: DETENER activo -> sin botones de crear en ningún peldaño
+{
+  const fx = { ultima: fotoAnalista(null, null, { acciones: { detenidas: true, pausadas: false, pausa_motivo: null, monto_qusd: 40, respeta_promo: false } }),
+    historial: histBase, promos: promosBase, avisos: avisosBase };
+  const dom = await crearDom(fx);
+  const an = txt(dom, "ctAnalista");
+  ok(!an.includes("Crear oferta a esta tasa") && !an.includes("Congelado por la promo"), "E2 Analista: con DETENER activo no hay botones de crear");
+  dom.window.close();
+}
+// E3: pausa por freno -> sin botones de crear
+{
+  const fx = { ultima: fotoAnalista(null, null, { acciones: { detenidas: false, pausadas: true, pausa_motivo: "freno de prueba", monto_qusd: 40, respeta_promo: false } }),
+    historial: histBase, promos: promosBase, avisos: avisosBase };
+  const dom = await crearDom(fx);
+  ok(!txt(dom, "ctAnalista").includes("Crear oferta a esta tasa"), "E3 Analista: con la pausa activa no hay botones de crear");
+  dom.window.close();
+}
+// E4: foto de más de 20 minutos (la regla de la puerta) -> sin botones
+// y con el porqué escrito bajo el menú
+{
+  const fx = { ultima: fotoAnalista({ recibida_en: isoMin(25), origen_en: isoMin(27) }),
+    historial: histBase, promos: promosBase, avisos: avisosBase };
+  const dom = await crearDom(fx);
+  const an = txt(dom, "ctAnalista");
+  ok(!an.includes("Crear oferta a esta tasa"), "E4 Analista: foto de 25 min -> sin botones de crear");
+  ok(an.includes("Sin botones de crear en esta foto"), "E4 Analista: la ausencia del botón se explica (foto >20 min)");
+  dom.window.close();
+}
+// E5: foto sin libro -> sin botones (no se actúa a ciegas)
+{
+  const fx = { ultima: fotoAnalista({ libro_ok: false }), historial: histBase, promos: promosBase, avisos: avisosBase };
+  const dom = await crearDom(fx);
+  ok(!txt(dom, "ctAnalista").includes("Crear oferta a esta tasa"), "E5 Analista: sin libro no hay botones de crear");
+  dom.window.close();
+}
+// E6: promo activa + flag respeta_promo = true -> botón visible pero
+// dormido «Congelado por la promo» (deshabilitado), sin botón vivo
+{
+  const fx = { ultima: fotoAnalista(null, { promoActiva: { titulo: "Recarga internacional ×5", hasta: "2026-11-14" } },
+      { acciones: { detenidas: false, pausadas: false, pausa_motivo: null, monto_qusd: 40, respeta_promo: true } }),
+    historial: histBase, promos: promosBase, avisos: avisosBase };
+  const dom = await crearDom(fx);
+  const an = txt(dom, "ctAnalista");
+  ok(an.includes("Congelado por la promo"), "E6 Analista: promo + respeto -> botón marcado «Congelado por la promo»");
+  ok(!an.includes("Crear oferta a esta tasa"), "E6 Analista: promo + respeto -> ningún botón vivo");
+  const dormidos = [...dom.window.document.querySelectorAll("#ctAnalista button")].filter((b) => b.disabled && b.textContent.includes("Congelado por la promo"));
+  ok(dormidos.length === 2, "E6 Analista: los botones congelados están DESHABILITADOS de verdad (2 peldaños sanos)");
+  dom.window.close();
+}
+// E7: promo activa + flag en false (decisión de Ernesto: su toque
+// manda siempre) -> botón VIVO también en promo, con su nota
+{
+  const fx = { ultima: fotoAnalista(null, { promoActiva: { titulo: "Recarga internacional ×5", hasta: "2026-11-14" } }),
+    historial: histBase, promos: promosBase, avisos: avisosBase };
+  const dom = await crearDom(fx);
+  const an = txt(dom, "ctAnalista");
+  ok((an.match(/Crear oferta a esta tasa/g) || []).length === 2, "E7 Analista: promo + toque manda -> botones vivos (2)");
+  ok(an.includes("tu toque manda"), "E7 Analista: la nota de promo dice que su toque manda");
+  ok(!an.includes("Congelado por la promo"), "E7 Analista: con el flag en false nada se pinta congelado");
+  dom.window.close();
+}
+// E8: flujo completo con clics — abrir la hoja (monto de la config,
+// tasa del peldaño, G por 360, hora de la foto), confirmar y ver el
+// desenlace que escribe la puerta (ganancia real del collar)
+{
+  const fx = { ultima: fotoAnalista(), historial: histBase, promos: promosBase, avisos: avisosBase,
+    accionApp: { ok: true, accion_id: "a-test-1", tasa: 320, monto_qusd: 40, ganancia360: 40.63 },
+    accionEstado: { ok: true, estado: "ejecutada", tasa: 320, monto_qusd: 40, ganancia360: 40.63, ganancia_real: 41.2, motivo: null } };
+  const dom = await crearDom(fx);
+  const doc = dom.window.document;
+  const btn = doc.querySelector('.js-crear-oferta[data-peldano="Equilibrado"]');
+  ok(!!btn, "E8 Analista: el botón del peldaño Equilibrado existe y es localizable");
+  btn.click();
+  let an = txt(dom, "ctAnalista");
+  ok(an.includes("Vas a publicar tu venta") && an.includes("$40") && an.includes("320,00") && an.includes("+40,63"),
+    "E8 Analista: la hoja de confirmación trae monto ($40 de la config), tasa (320,00) y G por 360 (+40,63)");
+  ok(an.includes("Foto de las"), "E8 Analista: la hoja trae la hora de la foto");
+  const inp = doc.getElementById("inputCodigoAccion");
+  if (inp) inp.value = "CODIGO-PRUEBA";
+  doc.querySelector('.js-confirmar-oferta[data-peldano="Equilibrado"]').click();
+  await new Promise((r) => setTimeout(r, 2600));
+  an = txt(dom, "ctAnalista");
+  ok(an.includes("Oferta publicada") && an.includes("+41,20"), "E8 Analista: el desenlace de la puerta se pinta con la ganancia real del collar (+41,20)");
+  dom.window.close();
+}
+// E9: no-desbordamiento (ancho iPhone XR) — proxies honestos de CSS:
+// jsdom no maqueta; la prueba de píxeles la hace el Ojo web. Aquí se
+// caza la ENFERMEDAD en el CSS servido: el subtítulo de fila no puede
+// llevar nowrap/ellipsis y la columna de texto debe poder encogerse.
+{
+  const css = fs.readFileSync(REPO + "mercado/tema-pro.css", "utf8");
+  const reglaSub = (css.match(/\.fila \.fila-sub \{[^}]*\}/) || [""])[0];
+  ok(reglaSub && !reglaSub.includes("nowrap") && !reglaSub.includes("text-overflow"),
+    "E9 CSS: .fila-sub ya NO corta con nowrap/ellipsis (las descripciones de Promos envuelven)");
+  const reglaCuerpo = (css.match(/\.fila \.fila-cuerpo \{[^}]*\}/) || [""])[0];
+  ok(reglaCuerpo.includes("min-width: 0"), "E9 CSS: .fila-cuerpo existe y puede encogerse (min-width: 0)");
+  ok(/\.fila \.fila-tit\b/.test(css), "E9 CSS: la clase que la app usa (fila-tit) tiene estilo de título");
+  ok(!/\.fila[^{]*\{[^}]*white-space:\s*nowrap/.test(css), "E9 CSS: ninguna regla de .fila impone nowrap");
 }
 
 console.log(`\nMERCADO v2: ${pass} PASS · ${fail} FAIL`);
