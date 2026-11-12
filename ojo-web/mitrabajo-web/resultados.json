@@ -11,9 +11,5 @@
   "editor": true,
   "editar": true,
   "editarModo": true,
-  "notas": [
-    "Calculadora: el toque normal fue interceptado; entró el toque DOM.",
-    "Reportar: el toque normal fue interceptado; entró el toque DOM.",
-    "Mi panel: el toque normal fue interceptado; entró el toque DOM."
-  ]
+  "notas": []
 }
