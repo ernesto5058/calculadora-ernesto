@@ -235,6 +235,39 @@ if (process.env.SUPABASE_PAT) {
   });
   const defs = await r2.json();
   ok(Array.isArray(defs) && defs.length === 1 && !/set\s+\w+\.borrado/.test(defs[0].def), "V2 VIVA: barrer_temporales ya no califica el SET con el alias (el 42703 no puede volver por esa puerta)");
+  /* V3/V4 — fila 49 de CHEQUEOS (reparación 2026-11-12): la tabla
+     reportes cambió (telefono → telefono_vendedor; id bigint → uuid)
+     y registrar_reporte quedó insertando en la columna muerta: TODO
+     reporte rebotaba 42703 y se quedaba en la cola del teléfono.
+     sincronizar_reportes tenía el mismo drift por el id (42883).
+     V3 vigila la forma viva; V4 hace el viaje completo y se limpia. */
+  const mgmt = (query) => fetch("https://api.supabase.com/v1/projects/otsudfgwpapkluusrlnj/database/query", {
+    method: "POST",
+    headers: { "Authorization": "Bearer " + process.env.SUPABASE_PAT, "Content-Type": "application/json" },
+    body: JSON.stringify({ query })
+  }).then(x => x.json());
+  const defsV3 = await mgmt("select p.proname as f, pg_get_function_result(p.oid) as ret, pg_get_function_identity_arguments(p.oid) as args, pg_get_functiondef(p.oid) as def from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and p.proname in ('registrar_reporte', 'sincronizar_reportes')");
+  const dReg = Array.isArray(defsV3) && defsV3.find(x => x.f === "registrar_reporte");
+  const dSin = Array.isArray(defsV3) && defsV3.find(x => x.f === "sincronizar_reportes");
+  ok(!!dReg && dReg.ret === "uuid" && dReg.def.includes("telefono_vendedor") && !/cantidad,\s*telefono\s*,/.test(dReg.def),
+     "V3a VIVA: registrar_reporte devuelve uuid e inserta en telefono_vendedor (la columna «telefono» muerta no puede volver a su INSERT)");
+  ok(!!dSin && /p_desde_id uuid/.test(dSin.args) && !/::bigint/.test(dSin.def),
+     "V3b VIVA: sincronizar_reportes usa cursor uuid (sin comparaciones ni casts contra el bigint muerto)");
+  /* El viaje son TRES llamadas separadas a propósito: dentro de una
+     sola sentencia, los CTE hermanos no ven la fila que la función
+     acaba de insertar (snapshot de la sentencia) y la lectura saldría
+     vacía aunque la puerta esté sana — cazado al estrenar este caso. */
+  const opBanco = "banco-puertas-v4-" + Date.now();
+  const ins = await mgmt("select public.registrar_reporte('PEUEBA', 'saldo', 950, null, 1, '51000000', 'BANCO PUERTAS V4', null, null, '" + opBanco + "')::text as id");
+  const idV4 = Array.isArray(ins) && ins[0] && ins[0].id;
+  let v4ok = !!idV4;
+  if (idV4) {
+    const lee = await mgmt("select estado, telefono_vendedor as tel from public.reportes where id = '" + idV4 + "'::uuid");
+    v4ok = v4ok && Array.isArray(lee) && lee[0] && lee[0].estado === "pendiente" && lee[0].tel === "51000000";
+    const del = await mgmt("delete from public.reportes where id = '" + idV4 + "'::uuid returning id");
+    v4ok = v4ok && Array.isArray(del) && del.length === 1;
+  }
+  ok(v4ok, "V4 VIVA: registrar_reporte completa el viaje (entra con PEUEBA, se lee pendiente con su teléfono y el residuo se borra al final)");
 } else {
   console.log("VIVA SALTADA: sin SUPABASE_PAT en el entorno (en CI es lo esperado; la parte viva se corre en la tanda).");
 }
