@@ -143,6 +143,7 @@
   .msg .mhora { color: var(--txt-3); font-size: 11px; margin-top: 3px; }
   .msg .estVisto { color: var(--visto); font-weight: 700; }
   .msg .estCola { opacity: .85; }
+  .msg .estFallo { color: var(--rojo); font-weight: 700; }
   .cpres { color: var(--txt-2); font-size: 12.5px; margin: -4px 0 10px; }
   .cpres b { color: var(--txt-1); }
   /* Voz PRO v1.4.2 */
@@ -391,7 +392,7 @@
         </div>
         <button type="button" class="chatIco" id="c_info" aria-label="Qué significan los estados"><svg class="ic" aria-hidden="true"><use href="#i-help"/></svg></button>
       </div>
-      <div class="hint" id="c_estados" style="display:none">Tus mensajes, como en WhatsApp: <b>✓</b> enviado (salió de tu app y quedó guardado) · <b>✓✓</b> entregado (el panel de Ernesto recibió el mensaje) · <b>✓✓ Visto</b> (Ernesto abrió el chat y lo leyó) · <b>🕐</b> en cola (guardado en tu teléfono: sale solo cuando vuelva la conexión). Toca un mensaje para responder, reaccionar ❤️👍😂👏🔥, o editar/eliminar los tuyos.</div>
+      <div class="hint" id="c_estados" style="display:none">Tus mensajes, como en WhatsApp: <b>✓</b> enviado (salió de tu app y quedó guardado) · <b>✓✓</b> entregado (el panel de Ernesto recibió el mensaje) · <b>✓✓ Visto</b> (Ernesto abrió el chat y lo leyó) · <b>🕐</b> en cola (guardado en tu teléfono: sale solo cuando vuelva la conexión) · <b>⚠️ No se pudo enviar</b> (la app lo intentó 3 veces: toca el mensaje para reintentar). Foto: toca el clip 📎 y elige (un toque); mantén presionado el clip para mandar un archivo. La foto y el texto salen en UN solo mensaje. Toca un mensaje para responder, reaccionar ❤️👍😂👏🔥, o editar/eliminar los tuyos.</div>
       <div class="fijadoBar" id="c_fijado"></div>
       <div class="tempLinea" id="c_temp"></div>
       <div class="chatBuscarRow">
@@ -540,7 +541,7 @@
 
 <script>
 "use strict";
-var APP_VERSION = "1.4.6";
+var APP_VERSION = "1.4.7";
 /* Tarifa de respaldo: se usa sin conexión si nunca se ha descargado datos.json.
    La tarifa viva viene de datos.json (la actualiza Ernesto/Máximo). */
 var DEFAULT_TARIFA = { ingresoRef360: 1092.65, libroRef: 1110, salidaRef: 950,
@@ -1168,7 +1169,7 @@ function pintarPreviaAdjMT(){
     im.addEventListener("click", function(){ if (CHAT_ADJ) mostrarVisorMT(CHAT_ADJ.datos, CHAT_ADJ.nombre); });
     wrap.appendChild(im);
     var meta = document.createElement("span"); meta.className = "prevMeta";
-    meta.innerHTML = "<b>" + escChat(CHAT_ADJ.nombre || "Foto") + "</b>" + (fmtBytesMT(CHAT_ADJ.tam || tamDeDatosMT(CHAT_ADJ.datos)) || "") + " · Toca la imagen para verla grande";
+    meta.innerHTML = "<b>" + escChat(CHAT_ADJ.nombre || "Foto") + "</b>" + (fmtBytesMT(CHAT_ADJ.tam || tamDeDatosMT(CHAT_ADJ.datos)) || "") + " · Toca la imagen para verla grande. El texto que escribas sale JUNTO con la foto, en un solo mensaje.";
     wrap.appendChild(meta);
   } else {
     var ic = document.createElement("span"); ic.className = "docIco"; ic.innerHTML = iconoDocMT({ adj_mime: CHAT_ADJ.mime, adj_nombre: CHAT_ADJ.nombre });
@@ -1538,7 +1539,7 @@ function reproductorVozHtmlMT(m) {
   var onda = "";
   for (var i = 0; i < picos.length; i++) onda += '<i style="height:' + picos[i] + '%"></i>';
   return '<div class="vozP" data-vid="' + id + '"><button type="button" class="vozBtn" data-vplay="' + id + '" aria-label="Escuchar nota de voz">▶</button>' +
-    '<div class="vozOnda">' + onda + '</div><span class="vozT">0:00</span></div>';
+    '<div class="vozOnda">' + onda + '</div><span class="vozT">' + (m.adj_dur ? fmtTiempoVozMT(m.adj_dur) : "0:00") + '</span></div>';
 }
 function pararOtrasVocesMT(excepto) {
   Object.keys(vozAudiosMT).forEach(function (k) {
@@ -1793,7 +1794,10 @@ var chatDespachando = false;
 function despacharChat(){
   if (chatDespachando || EN_PAUSA || !SESION) return;
   var a = chatOutGet(); if (!a.length) return;
-  var item = a[0];
+  /* v1.4.7: una «fallida» no bloquea la cola: se despacha la
+     primera que NO esté marcada (la fallida espera su toque). */
+  var item = a.filter(function(x){ return !x.fallida; })[0];
+  if (!item) return;
   chatDespachando = true;
   var body = { p_de: SESION, p_para: "ADMIN", p_texto: item.texto || "", p_clave: SESION,
     p_adj_tipo: item.adj ? item.adj.tipo : null,
@@ -1812,10 +1816,17 @@ function despacharChat(){
       else chatCargar();
     } else if (marcarPausaSiToca(r.error)) {
       chatFallo("Estás en pausa: habla con Ernesto");
+    } else {
+      /* v1.4.7: el fallo ya no es mudo para siempre — se cuentan
+         los intentos y al tercero la burbuja pasa a «⚠️ No se pudo
+         enviar: toca para reintentar» (la misma lección del audio
+         eterno de Mi Negocio: nada de relojes mudos sin salida).
+         El mensaje NO se pierde: sigue en la cola. */
+      var aF = chatOutGet();
+      aF.forEach(function(x){ if (x.opId === item.opId) { x.intentos = (x.intentos || 0) + 1; if (x.intentos >= 3) x.fallida = true; } });
+      chatOutSet(aF);
+      pintarChat(CHAT_MSGS);
     }
-    /* Cualquier otro fallo: el mensaje SE QUEDA en la cola con su
-       🕐 y sale solo en el próximo despacho. Sin carteles de error
-       ni carteles de reintento manual: nada se pierde. */
   });
 }
 function tempTexto(seg){
@@ -1836,6 +1847,7 @@ function pintarChat(msgs){
   var tl = $("c_temp");
   if (tl) { var tt = tempTexto(CHAT_TEMP_SEG); tl.style.display = tt ? "block" : "none"; tl.textContent = tt; }
   var colaChat = chatOutGet();
+  var vozColaMT = []; /* v1.4.7: las notas en cola se registran tras el reseteo de vozDatosMT (abajo) */
   if ((!msgs || !msgs.length) && !colaChat.length){
     box.innerHTML = '<div class="chatVacio">Todavía no hay mensajes. Escríbele a Ernesto lo que necesites: dudas de un trato, algo que no funciona o una idea.</div>';
     return;
@@ -1873,17 +1885,42 @@ function pintarChat(msgs){
     colaChat.forEach(function(it){
       var innerC = "";
       if (it.adj && it.adj.tipo === "foto" && it.adj.datos) innerC += '<img class="adjFoto" alt="Foto" src="' + it.adj.datos + '">';
-      else if (it.adj && it.adj.tipo === "voz" && it.adj.datos) innerC += '<span class="adjChip">Nota de voz · en cola</span>';
+      else if (it.adj && it.adj.tipo === "voz" && it.adj.datos) { innerC += "\u0001VC" + vozColaMT.length + "\u0001"; vozColaMT.push(it); }
       else if (it.adj && it.adj.datos) innerC += tarjetaDocMT({ id: "cola-" + it.opId, adj_nombre: it.adj.nombre, adj_datos: it.adj.datos, adj_mime: it.adj.mime, adj_bytes: it.adj.tam });
       if (it.texto) innerC += escChat(it.texto);
-      innerC += '<span class="burMeta">' + hora12Chat(it.creado) + ' <span class="estCola" title="Sin enviar todavía: sale solo cuando vuelva la conexión">🕐</span></span>';
-      h += '<div class="msg me"><div class="bur">' + innerC + "</div></div>";
+      innerC += '<span class="burMeta">' + hora12Chat(it.creado)
+        + (it.fallida
+            ? ' <span class="estFallo">⚠️ No se pudo enviar — toca el mensaje para reintentar</span>'
+            : ' <span class="estCola" title="Sin enviar todavía: sale solo cuando vuelva la conexión">🕐</span>')
+        + '</span>';
+      h += '<div class="msg me"' + (it.fallida ? ' data-colafallida="' + it.opId + '"' : "") + '><div class="bur">' + innerC + "</div></div>";
     });
   }
   box.innerHTML = h || '<div class="chatVacio">Ningún mensaje coincide con la búsqueda en lo cargado. Prueba «Buscar más».</div>';
   vozDatosMT = {}; vozAudiosMT = {};
   var conVoz = (msgs || []).filter(function(m){ return m.adj_tipo === "voz" && m.adj_datos && !m.borrado; });
   conVoz.forEach(function(m){ reproductorVozHtmlMT(m); });
+  /* v1.4.7: las notas EN COLA también se escuchan antes de salir
+     (antes eran un chip de texto sordo): se pintan ahora, con su
+     dato ya registrado y su duración del temporizador. */
+  if (vozColaMT.length) {
+    var htmlCola = box.innerHTML;
+    vozColaMT.forEach(function(it, ix){
+      htmlCola = htmlCola.split("\u0001VC" + ix + "\u0001").join(reproductorVozHtmlMT({ adj_datos: it.adj.datos, adj_dur: it.adj.dur || null }));
+    });
+    box.innerHTML = htmlCola;
+  }
+  /* v1.4.7: tocar una burbuja «fallida» reintenta su envío. */
+  box.querySelectorAll("[data-colafallida]").forEach(function(n){
+    n.addEventListener("click", function(){
+      var opId = n.getAttribute("data-colafallida");
+      var aR = chatOutGet();
+      aR.forEach(function(x){ if (x.opId === opId) { x.intentos = 0; x.fallida = false; } });
+      chatOutSet(aR);
+      pintarChat(CHAT_MSGS);
+      despacharChat();
+    });
+  });
   alistarReproductoresVozMT(box);
   /* KIT DE MEDIOS v1.4.3: tocar la foto abre el VISOR (sin abrir el
      menú del mensaje); el botón de la tarjeta descarga el archivo. */
@@ -2010,7 +2047,7 @@ function chatEnviar(){
      momento con 🕐; despacharChat() lo entrega. Sin red no se
      pierde ni hay que reintentar a mano: sale solo. */
   var item = { opId: nuevoOpId(), texto: txt, respId: CHAT_RESP ? CHAT_RESP.id : null,
-    adj: CHAT_ADJ ? { tipo: CHAT_ADJ.tipo, datos: CHAT_ADJ.datos, nombre: CHAT_ADJ.nombre || null, tam: CHAT_ADJ.tam || null, mime: CHAT_ADJ.mime || null } : null,
+    adj: CHAT_ADJ ? { tipo: CHAT_ADJ.tipo, datos: CHAT_ADJ.datos, nombre: CHAT_ADJ.nombre || null, tam: CHAT_ADJ.tam || null, mime: CHAT_ADJ.mime || null, dur: CHAT_ADJ.dur || null } : null,
     creado: new Date().toISOString() };
   var a = chatOutGet(); a.push(item); chatOutSet(a);
   $("c_txt").value = ""; CHAT_RESP = null; CHAT_ADJ = null;
@@ -2392,10 +2429,26 @@ function showView(v){
     /* v1.4.1: el clip del compositor abre la hoja de adjuntos y el
        botón (i) muestra la explicación breve de estados. */
     var clipMT = $("c_clip");
-    if (clipMT) clipMT.addEventListener("click", function(){
-      var hoja = $("c_adj_hoja"); if (!hoja) return;
-      hoja.style.display = (hoja.style.display === "flex") ? "none" : "flex";
-    });
+    if (clipMT) {
+      /* v1.4.7 (la misma orden que en Mi Negocio): el clip abre la
+         FOTO directo en UN toque; la hoja (Foto · Archivo) queda a
+         presión larga. Antes: clip → hoja → Foto = un toque de más. */
+      var clipTimerMT = null, clipLargoMT = false;
+      clipMT.addEventListener("pointerdown", function(){
+        clipLargoMT = false;
+        clipTimerMT = setTimeout(function(){
+          clipLargoMT = true;
+          var hoja = $("c_adj_hoja"); if (hoja) hoja.style.display = "flex";
+        }, 550);
+      });
+      ["pointerup", "pointerleave", "pointercancel"].forEach(function(ev){
+        clipMT.addEventListener(ev, function(){ if (clipTimerMT) { clearTimeout(clipTimerMT); clipTimerMT = null; } });
+      });
+      clipMT.addEventListener("click", function(){
+        if (clipLargoMT) { clipLargoMT = false; return; }
+        $("c_file_foto").click();
+      });
+    }
     var infoMT = $("c_info");
     if (infoMT) infoMT.addEventListener("click", function(){
       var d = $("c_estados"); if (!d) return;
@@ -2445,14 +2498,17 @@ function showView(v){
           if (blob.size > MAX_ADJ_MT) { chatFallo("La nota pesa más de 5 MB: graba una más corta (máx 2 min)."); return; }
           var fr = new FileReader();
           fr.onload = function(){
-            CHAT_ADJ = { tipo: "voz", datos: String(fr.result), nombre: "Nota de voz", tam: blob.size };
+            /* v1.4.7: la duración sale del temporizador de la
+               grabación (grabT0MT), no del metadato: la burbuja y
+               la previa la pintan al instante, sin «0:00» eterno. */
+            CHAT_ADJ = { tipo: "voz", datos: String(fr.result), nombre: "Nota de voz", tam: blob.size, dur: Math.max(1, Math.round((Date.now() - grabT0MT) / 1000)) };
             /* v1.4.2: vista previa con su propio ▶ para ESCUCHAR antes de enviar */
             var an = $("c_adj_nom");
             an.innerHTML = "";
             var et = document.createElement("span"); et.textContent = "Nota de voz lista — escúchala y toca Enviar: ";
             an.appendChild(et);
             var cont = document.createElement("span");
-            cont.innerHTML = reproductorVozHtmlMT({ adj_datos: String(fr.result) });
+            cont.innerHTML = reproductorVozHtmlMT({ adj_datos: String(fr.result), adj_dur: CHAT_ADJ.dur });
             an.appendChild(cont);
             alistarReproductoresVozMT(an);
             /* v1.4.3: la previa de voz lleva el mismo marco del kit

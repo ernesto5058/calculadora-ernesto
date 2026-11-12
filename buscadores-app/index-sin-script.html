@@ -143,6 +143,7 @@
   .msg .mhora { color: var(--txt-3); font-size: 11px; margin-top: 3px; }
   .msg .estVisto { color: var(--visto); font-weight: 700; }
   .msg .estCola { opacity: .85; }
+  .msg .estFallo { color: var(--rojo); font-weight: 700; }
   .cpres { color: var(--txt-2); font-size: 12.5px; margin: -4px 0 10px; }
   .cpres b { color: var(--txt-1); }
   /* Voz PRO v1.4.2 */
@@ -391,7 +392,7 @@
         </div>
         <button type="button" class="chatIco" id="c_info" aria-label="Qué significan los estados"><svg class="ic" aria-hidden="true"><use href="#i-help"/></svg></button>
       </div>
-      <div class="hint" id="c_estados" style="display:none">Tus mensajes, como en WhatsApp: <b>✓</b> enviado (salió de tu app y quedó guardado) · <b>✓✓</b> entregado (el panel de Ernesto recibió el mensaje) · <b>✓✓ Visto</b> (Ernesto abrió el chat y lo leyó) · <b>🕐</b> en cola (guardado en tu teléfono: sale solo cuando vuelva la conexión). Toca un mensaje para responder, reaccionar ❤️👍😂👏🔥, o editar/eliminar los tuyos.</div>
+      <div class="hint" id="c_estados" style="display:none">Tus mensajes, como en WhatsApp: <b>✓</b> enviado (salió de tu app y quedó guardado) · <b>✓✓</b> entregado (el panel de Ernesto recibió el mensaje) · <b>✓✓ Visto</b> (Ernesto abrió el chat y lo leyó) · <b>🕐</b> en cola (guardado en tu teléfono: sale solo cuando vuelva la conexión) · <b>⚠️ No se pudo enviar</b> (la app lo intentó 3 veces: toca el mensaje para reintentar). Foto: toca el clip 📎 y elige (un toque); mantén presionado el clip para mandar un archivo. La foto y el texto salen en UN solo mensaje. Toca un mensaje para responder, reaccionar ❤️👍😂👏🔥, o editar/eliminar los tuyos.</div>
       <div class="fijadoBar" id="c_fijado"></div>
       <div class="tempLinea" id="c_temp"></div>
       <div class="chatBuscarRow">
