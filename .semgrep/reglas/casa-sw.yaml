@@ -1,0 +1,28 @@
+# FUSIONADA (Inspector Mercado E-5 + Dominio casa-js-sw): el SW de
+# Mercado borraba las cachés de TODAS las apps del origen
+# (DESARROLLO-PRO §9 trampa 2). La forma buena filtra por prefijo
+# propio ANTES de comparar contra su CACHE.
+rules:
+  - id: proyecto-sw-borra-caches-ajenas
+    languages: [javascript]
+    severity: WARNING
+    paths:
+      include:
+        - "**/sw.js"
+        - "**/casa-sw.js"
+      exclude:
+        - "**/.semgrep/casos/**"
+    message: >-
+      Service worker que borra cachés filtrando SOLO por «distinta de
+      la mía» (DESARROLLO-PRO §9 trampa 2): Cache Storage es por
+      origen y este borrado se lleva el cascarón de la app hermana que
+      comparte dominio. Filtra por tu prefijo propio ("mitrabajo-",
+      "minegocio-", "mercado-") Y por !== CACHE.
+    metadata:
+      category: security
+      technology: [proyecto, inspector, dominio, service-worker]
+    pattern-either:
+      - pattern: $KS.filter(($K) => $K !== $C)
+      - pattern: $KS.filter(($K) => $K != $C)
+      - pattern: $KS.filter(function ($K) { return $K !== $C; })
+      - pattern: $KS.filter(function ($K) { return $K != $C; })
