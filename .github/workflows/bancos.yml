@@ -109,6 +109,9 @@ jobs:
       - name: Banco Mercado v2 — lector, Analista INV-A y render (139 chequeos)
         run: node bancos/prueba-mercado-v2.mjs
 
+      - name: Banco Vigía de Ivan — ofertas nombradas y eventos en dos fotos (fila 51)
+        run: node bancos/prueba-vigia-ivan.mjs
+
       - name: Banco puerta de acción — barandas del Nivel 1 (43 chequeos)
         run: node bancos/prueba-actuar-v1.mjs
 
