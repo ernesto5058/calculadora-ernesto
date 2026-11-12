@@ -135,6 +135,19 @@ export function verificarCifras(texto, fuentesValores, prohibidas, extraPermitid
   return { ok: !interna && huerfanas.length === 0, interna, huerfanas };
 }
 
+/* E4 — El verificador de una respuesta de TEXTO de FAQ, con las
+   reglas de origen EXACTAS de la vía principal (rama «texto» de
+   orquestar): sin fuentes de dato (fuentes = []); si la dictó
+   Ernesto (origen «ernesto»), SUS cifras son su propia fuente; las
+   PROHIBIDAS bloquean siempre (van primero dentro del verificador).
+   TODA salida de texto de FAQ — vía principal, aclaración o saludo —
+   pasa por aquí antes de llegar al cliente. */
+export function verificarTextoFaq(f, datos) {
+  const texto = f?.respuesta_texto ?? "";
+  const extra = f?.origen === "ernesto" ? extraerCifras(texto) : [];
+  return verificarCifras(texto, [], datos?.prohibidas, extra);
+}
+
 /* --- Detección de productos e intenciones (sinónimos curados) -------- */
 /* El destino de un token: exacto, o DIFUSO si el token se parece mucho
    a un término curado («presio» ~ «precio», «labadora» ~ «lavadora»):
@@ -1275,8 +1288,20 @@ export function orquestar(datos, conv, textoCrudo, hoyISO) {
   const esSaludo = norm === "" && /hola|buenas|saludos/i.test(quitarAcentos(crudo));
   if (esSaludo) {
     const f = (datos.faqs ?? []).find((x) => x.intencion === "saludo" && x.respuesta_tipo === "texto");
-    if (f) return { ...base, accion: "responder", respuesta: f.respuesta_texto, faq_id: f.id,
-                    botones: true, auditoria: { saludo: true } };
+    if (f) {
+      // E4 (Inspector Ola 1, 2026-11-12): el saludo es una respuesta
+      // de TEXTO como cualquier otra — pasa por el MISMO verificador
+      // con las mismas reglas de origen que la vía principal; si no
+      // pasa, «no sé» + bloqueo del verificador, jamás el texto crudo.
+      const verSal = verificarTextoFaq(f, datos);
+      if (!verSal.ok) {
+        return { ...base, accion: "bloqueada", respuesta: FRASE_NO_SE,
+                 escalar: "verificador", faq_id: f.id,
+                 auditoria: { saludo: true, verificador: verSal } };
+      }
+      return { ...base, accion: "responder", respuesta: f.respuesta_texto, faq_id: f.id,
+               botones: true, auditoria: { saludo: true } };
+    }
   }
 
   // Identidad (v1.1, F3): al dueño, la explicación de su cuenta
@@ -1472,10 +1497,29 @@ export function resolverAclaracion(flujo, textoCrudo, datos) {
     const r = renderDato(f.dato_clave, datos);
     if (!r) return null;
     const ver = verificarCifras(r.texto, r.fuentes, datos.prohibidas, r.extra ?? []);
-    if (!ver.ok) return null;
+    if (!ver.ok) {
+      // E4: si no pasa, «no sé» + bloqueo del verificador (como la
+      // vía principal), jamás null pa que otro camino improvise.
+      return { faq_id: f.id, respuesta: FRASE_NO_SE, accion: "bloqueada",
+               escalar: "verificador", verificador: ver };
+    }
     return { faq_id: f.id, respuesta: r.texto };
   }
-  if (f.respuesta_tipo === "texto") return { faq_id: f.id, respuesta: f.respuesta_texto };
+  if (f.respuesta_tipo === "texto") {
+    // E4 (Inspector Ola 1, 2026-11-12): esta rama devolvía el texto
+    // CRUDO sin verificar — la sonda del auditor sacó la cifra
+    // INTERNA 925 respondiendo «1» a la aclaración, aunque la
+    // pregunta directa quedaba bloqueada. Ahora pasa por el MISMO
+    // verificador, con las mismas reglas de origen que la vía
+    // principal; si no pasa, «no sé» + bloqueo, jamás el texto.
+    if (!f.respuesta_texto) return null;
+    const ver = verificarTextoFaq(f, datos);
+    if (!ver.ok) {
+      return { faq_id: f.id, respuesta: FRASE_NO_SE, accion: "bloqueada",
+               escalar: "verificador", verificador: ver };
+    }
+    return { faq_id: f.id, respuesta: f.respuesta_texto };
+  }
   return null;
 }
 
@@ -1946,15 +1990,79 @@ const RE_DOMINIO_CAPACIDAD = /\b(ubicacion|localizacion|pin|mapa|cita|panel)\w*/
    «promete_accion»). La capacidad en abstracto («puedo mandarte…»)
    sin afirmación de envío inminente no casa aquí. */
 const RE_PROMETE_ACCION = /(\bte (la|lo|las|los) (mando|envio|paso)\b[^.]{0,16}\b(ahora|ahorita|enseguida|ya)\b|\bahora (mismo )?(te )?(la|lo|las|los )?(mando|envio|paso)\b|\bte estoy (mandando|enviando|pasando)\b|\bya te (la|lo) (mando|envio|paso)\b|\ben ?seguida te\b[^.]{0,20}\b(mando|envio|paso)\b)/;
+/* v2.5 — E3 (Inspector Ola 1, 2026-11-12): vetos por TEMA. La
+   auditoría fría probó que el cerebro podía CONFIRMAR citas,
+   inventar stock, prometer entregas imposibles, ofrecer precios y
+   soltar enlaces, y todo pasaba con «ok» porque solo se vigilaban
+   cifras y dos regex estrechas. El validador SOLO juzga salidas del
+   cerebro (los textos deterministas jamás pasan por aquí) y el
+   cerebro jamás confirma, jamás afirma stock y jamás enlaza: la
+   cita la anota el flujo, el stock lo rinde el dato y los enlaces
+   los pone la puerta. Cada veto con su motivo, en el estilo de los
+   existentes; el fallback sigue siendo el «no sé» suave de siempre. */
+const SRC_PROD_CATALOGO = "lavadora|lavadoras|hys|bateria|baterias|lifepo4|litio|corte|pelado";
+const RE_CONFIRMA_CITA = /\bconfirmad[oa]s?\b|\bqueda(n)? anotad[oa]s?\b|\bquedo anotad[oa]s?\b|\bqueda(n)? reservad[oa]s?\b|\bconfirmo (tu |la |una )?(citas?|turnos?|reservas?)\b|\b(citas?|turnos?|reservas?) (queda|esta|quedo) (confirmada|anotada|reservada|lista)\b/;
+const RE_TE_ESPERAMOS_CITA = /\bte esperamos\b/;
+const RE_DOMINIO_CITA = /\b(citas?|turnos?|reservas?)\b/;
+const RE_AFIRMA_STOCK_A = new RegExp("\\b(hay|quedan|queda|disponible|disponibles)\\b.{0,40}\\b(" + SRC_PROD_CATALOGO + ")\\b");
+const RE_AFIRMA_STOCK_B = new RegExp("\\b(" + SRC_PROD_CATALOGO + ")\\b.{0,40}\\b(disponible|disponibles|hay|quedan|queda)\\b");
+const RE_NIEGA_CATALOGO_A = new RegExp("\\b(no hay|no quedan|no queda|no tenemos)\\b.{0,50}\\b(" + SRC_PROD_CATALOGO + ")\\b");
+const RE_NIEGA_CATALOGO_B = new RegExp("\\b(" + SRC_PROD_CATALOGO + ")\\b.{0,30}\\b(se acabo|se acabaron|agotad[oa]s?)\\b");
+const RE_PROMETE_ENTREGA_A = new RegExp("\\b(te )?(llevamos|llevo|traemos|traigo|entregamos|entrego)\\b.{0,50}\\b(" + SRC_PROD_CATALOGO + "|casa|domicilio|direccion)\\b");
+const RE_PROMETE_ENTREGA_B = /\b(llevamos|traemos|entregamos|te llevo|te traigo)\b.{0,30}\bhasta\b/;
+const RE_OFERTA_TEXTO = /\bprecio especial\b|\boferta especial\b/;
+const RE_OFERTA_DEJO = new RegExp("\\bte (lo |la )?dejo\\b.{0,40}\\b(" + SRC_PROD_CATALOGO + "|precio)\\b");
+const RE_GRATIS = /\bgratis\b/;
+const RE_GRATIS_DOMINIO = new RegExp("\\b(" + SRC_PROD_CATALOGO + "|llevamos|traemos|entregamos|llevo|traigo|servicios?)\\b");
+/* niega_capacidad AMPLIADA (E3-e): negar anotar citas, negar vender
+   productos del catálogo y «eso solo lo hace Ernesto» pa capacidades
+   que el bot SÍ tiene. «No puedo hacer descuentos» NO casa: su
+   dominio no entra en ninguno de estos patrones (lo caza el hierro). */
+const RE_NIEGA_ANOTAR = /no puedo (anotar|agendar|reservar|tomar|hacer) (una |la |las )?(citas?|turnos?|reservas?)\b/;
+const RE_NIEGA_VENDER = new RegExp("no (puedo )?(vender|ofrecer)\\b.{0,40}\\b(" + SRC_PROD_CATALOGO + ")\\b|no (vendemos|vendo|tenemos)\\b.{0,40}\\b(" + SRC_PROD_CATALOGO + ")\\b");
+const RE_SOLO_LO_HACE = /eso solo lo hace (ernesto|el dueno)\b/;
+const RE_SOLO_DOMINIO = new RegExp("\\b(anotar|agendar|reservar|vender|enviar|mandar|mostrar|citas?|turnos?|reservas?|pin|ubicacion|localizacion|panel|precio|horario|" + SRC_PROD_CATALOGO + ")\\b");
 export function validarRespuestaCerebro(texto, fuentesValores, prohibidas) {
   const t = String(texto ?? "").trim();
   if (!t || t.length > 700) return { ok: false, motivo: "largo_o_vacio" };
+  // (c) cualquier URL en la salida del cerebro — sobre el texto
+  // CRUDO («https://», «www.»): el cerebro jamás enlaza a nada.
+  if (/https?:\/\/|www\./i.test(t)) return { ok: false, motivo: "url_en_respuesta" };
   const ligVeto = normalizarLigero(t);
-  if (RE_NIEGA_CAPACIDAD.test(ligVeto) && RE_DOMINIO_CAPACIDAD.test(ligVeto)) {
+  if ((RE_NIEGA_CAPACIDAD.test(ligVeto) && RE_DOMINIO_CAPACIDAD.test(ligVeto)) ||
+      RE_NIEGA_ANOTAR.test(ligVeto) || RE_NIEGA_VENDER.test(ligVeto) ||
+      (RE_SOLO_LO_HACE.test(ligVeto) && RE_SOLO_DOMINIO.test(ligVeto))) {
     return { ok: false, motivo: "niega_capacidad" };
   }
   if (RE_PROMETE_ACCION.test(ligVeto)) {
     return { ok: false, motivo: "promete_accion" };
+  }
+  // (a) confirmación de cita/reserva: confirmad*, «queda anotada»
+  // afirmativo, «te esperamos» en contexto de cita.
+  if (RE_CONFIRMA_CITA.test(ligVeto) ||
+      (RE_TE_ESPERAMOS_CITA.test(ligVeto) && RE_DOMINIO_CITA.test(ligVeto))) {
+    return { ok: false, motivo: "confirma_cita" };
+  }
+  // (b) negar el catálogo real («no hay/no quedan» de lo que SÍ se
+  // vende) — vender ya cayó en niega_capacidad; esto caza el resto.
+  if (RE_NIEGA_CATALOGO_A.test(ligVeto) || RE_NIEGA_CATALOGO_B.test(ligVeto)) {
+    return { ok: false, motivo: "niega_catalogo" };
+  }
+  // (b) afirmar disponibilidad/stock sin render determinista.
+  if (RE_AFIRMA_STOCK_A.test(ligVeto) || RE_AFIRMA_STOCK_B.test(ligVeto)) {
+    return { ok: false, motivo: "afirma_stock" };
+  }
+  // (d) promesa de entrega («te llevamos…», «…hasta <lugar>»).
+  if (RE_PROMETE_ENTREGA_A.test(ligVeto) || RE_PROMETE_ENTREGA_B.test(ligVeto)) {
+    return { ok: false, motivo: "promete_entrega" };
+  }
+  // (d) ofertas fuera de lo público: «precio especial», «te lo dejo
+  // <producto>» y «gratis» pa servicios/entregas de productos. El
+  // domicilio gratis de la compra de saldo (lo público) no trae
+  // producto ni verbo de entrega en su frase: no casa.
+  if (RE_OFERTA_TEXTO.test(ligVeto) || RE_OFERTA_DEJO.test(ligVeto) ||
+      (RE_GRATIS.test(ligVeto) && RE_GRATIS_DOMINIO.test(ligVeto))) {
+    return { ok: false, motivo: "oferta_no_publica" };
   }
   const hierro = detectarHierro(normalizarLigero(t), t);
   if (hierro) return { ok: false, motivo: "hierro_" + hierro.tipo };
