@@ -507,8 +507,7 @@ ok(inv3Tr, "INV-3 transferencia: vuelta sin ganancia ⇒ comisión 0 (sugerencia
    ===================================================================== */
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const datosPublicadosINV = { version: 4, versionApp: "1.4.5", apkUrl: "https://example.invalid/apk",
-  tarifa: { version: 4, ingresoRef360: 1098.68, libroRef: 1069.38, salidaRef: 950, pctSaldo: 25, pctTransf: 20, pisoTransf: 25, bonoSaldoRecargas: 150, bonoSaldoCUP: 300, bonoTransfTratos: 10, bonoTransfCUP: 300 },
-  buscadores: [{ codigo: "BUSC-1", nombre: "Busc Uno", tratos: [] }] };
+  tarifa: { version: 4, ingresoRef360: 1098.68, libroRef: 1069.38, salidaRef: 950, pctSaldo: 25, pctTransf: 20, pisoTransf: 25, bonoSaldoRecargas: 150, bonoSaldoCUP: 300, bonoTransfTratos: 10, bonoTransfCUP: 300 } };
 let R8 = { reportes: [], usuarios: [], persistePago: true, llamadas: [] };
 function crearINV(extra) {
   R8.llamadas = [];
