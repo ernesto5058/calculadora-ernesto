@@ -154,6 +154,7 @@ interface Datos {
   config: Record<string, unknown>;
   configOk: boolean;
   catalogo: Map<string, Record<string, unknown>>;
+  catalogoTodos: Map<string, Record<string, unknown>>;
   fuente: Map<string, { valor: unknown; actualizado_en: string }>;
   faqs: Record<string, unknown>[];
   sinonimos: Record<string, unknown>[];
@@ -169,9 +170,12 @@ async function cargarDatos(env: Env): Promise<Datos> {
   // ventana — el resumen jamás lee totales guardados.
   const hoyH = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Havana" }).format(new Date());
   const lunesH = lunesDeSemana(hoyH);
-  const [cfgLectura, cat, fue, faqs, pats, sin, tar, citas, citasConf, citasCer, pendSR] = await Promise.all([
+  const [cfgLectura, cat, catTodos, fue, faqs, pats, sin, tar, citas, citasConf, citasCer, pendSR] = await Promise.all([
     leerConfig(env),
     leerTabla(env, "agente_catalogo", "activo=eq.true&select=*"),
+    // v3: el panel 🧾 Catálogo del dueño necesita TAMBIÉN las filas
+    // apagadas (pa reactivarlas); los clientes jamás ven este mapa.
+    leerTabla(env, "agente_catalogo", "select=*"),
     leerTabla(env, "agente_fuente", "select=*"),
     leerTabla(env, "agente_faq", "estado=eq.activa&select=*"),
     leerTabla(env, "agente_patrones", "select=faq_id,patron_norm"),
@@ -208,6 +212,7 @@ async function cargarDatos(env: Env): Promise<Datos> {
     config: cfgLectura.fila ?? {},
     configOk: cfgLectura.ok,
     catalogo: new Map(cat.map((c) => [String(c.clave), c])),
+    catalogoTodos: new Map(catTodos.map((c) => [String(c.clave), c])),
     fuente: new Map(fue.map((f) => [String(f.clave), { valor: f.valor, actualizado_en: String(f.actualizado_en) }])),
     faqs: faqs.map((f) => ({ ...f, patrones: porFaq.get(String(f.id)) ?? [] })),
     sinonimos: sin,
@@ -512,9 +517,9 @@ async function procesar(env: Env, e: Entrada): Promise<Salida> {
   // reabierta (antes `escalada` nunca volvía a false: muda eterna).
   if (escaladoCaducado({ escalada: conv.escalada === true, ultimoEn: conv.ultimo_en })) {
     await parche(env, "agente_conversaciones", "id=eq." + conv.id,
-      { escalada: false, motivo_escalado: null });
+      { escalada: false, motivo_escalado: null, temas_escalados: [] });
     await accion(env, "escalado_caducado", { conversacion_id: conv.id });
-    conv = { ...conv, escalada: false, motivo_escalado: null };
+    conv = { ...conv, escalada: false, motivo_escalado: null, temas_escalados: [] };
   }
   await parche(env, "agente_conversaciones", "id=eq." + conv.id, { ultimo_en: new Date().toISOString() });
 
@@ -671,6 +676,43 @@ async function procesar(env: Env, e: Entrada): Promise<Salida> {
     }
   }
 
+  // v3 — CATÁLOGO del dueño: la lógica validó el cambio guiado y la
+  // puerta lo ejecuta por la RPC `agente_catalogo_guardar` (puerta
+  // SQL única: valida al dueño contra agente_config, parchea/crea la
+  // fila y audita en agente_acciones). La respuesta final se compone
+  // con lo que la RPC devuelva; un fallo se dice en claro.
+  if (dec.accion === "dueno_catalogo" && dec.catalogoGuardar && esDuenoTg) {
+    const g = dec.catalogoGuardar as Record<string, unknown>;
+    const r = await rpc(env, "agente_catalogo_guardar", {
+      p_dueno_tg_id: e.externo_id,
+      p_accion: String(g.accion ?? "editar"),
+      p_clave: g.clave ? String(g.clave) : "",
+      p_nombre: g.nombre ? String(g.nombre) : null,
+      p_precio: g.precio != null ? Number(g.precio) : null,
+      p_moneda: g.moneda ? String(g.moneda) : null,
+      p_precio_al_privado: typeof g.precio_al_privado === "boolean" ? g.precio_al_privado : null,
+      p_estado: g.estado ? String(g.estado) : null,
+      p_nota: g.nota ? String(g.nota) : null,
+      p_descripcion: g.descripcion ? String(g.descripcion) : null,
+      p_tipo: g.tipo ? String(g.tipo) : null,
+    });
+    const filaR = (r?.fila ?? {}) as Record<string, unknown>;
+    const nombreR = String(filaR.nombre ?? g.nombre ?? g.clave ?? "el producto");
+    if (r?.ok !== true) {
+      dec = { ...dec, respuesta: "⚠️ No pude guardar el cambio del catálogo (falló el servidor). No quedó aplicado; inténtalo otra vez." };
+      await accion(env, "catalogo_guardar_error", { accion_rpc: String(g.accion ?? "?"), motivo: String(r?.motivo ?? "rpc") });
+    } else if (g.accion === "crear") {
+      dec = { ...dec, respuesta: "✅ «" + nombreR + "» quedó en el catálogo: desde ahora el asistente lo explica a los clientes con tu descripción." };
+      await accion(env, "catalogo_creada", { clave: filaR.clave ?? null });
+    } else if (g.accion === "activar") {
+      dec = { ...dec, respuesta: "✅ «" + nombreR + "» ACTIVADO: el asistente vuelve a explicarlo y ofrecerlo." };
+    } else if (g.accion === "desactivar") {
+      dec = { ...dec, respuesta: "✅ «" + nombreR + "» DESACTIVADO: el asistente ya no lo explica ni lo ofrece (la fila sigue guardada)." };
+    } else {
+      dec = { ...dec, respuesta: "✅ Catálogo actualizado: «" + nombreR + "» ya se explica con los datos nuevos." };
+    }
+  }
+
   // v2.3 — DECISIÓN de cita del dueño: se ejecuta por la puerta SQL
   // `agente_cita_decidir` (la MISMA del bot de gestión: valida que
   // el chat sea el del dueño, pone estado + decidida_en, audita y
@@ -823,8 +865,16 @@ async function procesar(env: Env, e: Entrada): Promise<Salida> {
   }
 
   if (dec.escalar) {
+    // v3: el tema queda anotado en temas_escalados (escalado POR
+    // TEMA); `escalada` se mantiene como señal del panel y ancla de
+    // la caducidad E6, pero ya no enmudece la conversación.
+    const temaNuevo = String(dec.escalar);
+    const temasPrev = Array.isArray(conv.temas_escalados) ? conv.temas_escalados : [];
+    const temas = temasPrev.some((t) => (typeof t === "string" ? t : (t as Record<string, unknown>)?.tema) === temaNuevo)
+      ? temasPrev
+      : [...temasPrev, { tema: temaNuevo, en: new Date().toISOString() }];
     await parche(env, "agente_conversaciones", "id=eq." + conv.id,
-      { escalada: true, motivo_escalado: String(dec.escalar) });
+      { escalada: true, motivo_escalado: temaNuevo, temas_escalados: temas });
     // E2: aviso al dueño con tope global diario (la conversación
     // sigue atendida aunque el aviso se omita por tope).
     await avisarDuenoConTope(env, cfg, esDuenoTg, "aviso_escalado", {
