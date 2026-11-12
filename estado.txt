@@ -14,3 +14,5 @@
 [13:54:11] Orden ejecutada; foto 'ahora' publicada
 [13:55:15] Orden recibida (cb2e869b)
 [13:55:28] Orden ejecutada; foto 'ahora' publicada
+[13:56:31] Orden recibida (a65efca9)
+[13:56:39] Orden ejecutada; foto 'ahora' publicada
