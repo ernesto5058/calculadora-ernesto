@@ -489,5 +489,52 @@ ok(cobertura >= 0.8, "ARNÉS cobertura ≥ 80 %");
   ok(cap2.motivo !== "niega_capacidad", "CAP-2 «no puedo hacer descuentos» NO cae en niega_capacidad (lo caza el hierro)");
 }
 
+/* ============ v2.2 — pin en Telegram: frase exacta, promesa vetada, seguimiento ============ */
+{
+  const cT = { escalada: false, flujo: {}, canal: "telegram" };
+  // PIN-4: la frase EXACTA de Ernesto (la que falló en vivo por Telegram)
+  const p4 = L.orquestar(DATOS, cT, "Me puedes mandar la localización?", AHORA);
+  ok(p4.accion === "ubicacion_pin" && p4.pin?.lat === DATOS.config.negocio_lat && p4.pin?.lng === DATOS.config.negocio_lng, "PIN-4 frase exacta de Ernesto: ubicacion_pin con las coords de config");
+  const p5 = L.orquestar(DATOS, cT, "¿Puedes enviarme tu ubicación?", AHORA);
+  ok(p5.accion === "ubicacion_pin" && !!p5.pin, "PIN-5 «puedes enviarme tu ubicación» también ejecuta el pin");
+  const p6 = L.orquestar(DATOS, cT, "pásame la localización por favor", AHORA);
+  ok(p6.accion === "ubicacion_pin" && !!p6.pin, "PIN-6 «pásame la localización» también ejecuta el pin");
+  // PROM: la promesa falsa del cerebro (textos exactos del fallo) queda vetada
+  const proy = L.proyeccionPublica(DATOS);
+  const prom1 = L.validarRespuestaCerebro("Puedo mandarte la localización del negocio. Te la mando ahora. 📍", proy.valores, DATOS.prohibidas);
+  ok(prom1.ok === false && prom1.motivo === "promete_accion", "PROM-1 la promesa exacta de las 14:53: vetada por promete_accion");
+  const prom2 = L.validarRespuestaCerebro("¡Claro! Puedo mandarte la localización del negocio. Te la mando ahora. 📍", proy.valores, DATOS.prohibidas);
+  ok(prom2.ok === false && prom2.motivo === "promete_accion", "PROM-2 la segunda promesa exacta: vetada por promete_accion");
+  const prom3 = L.validarRespuestaCerebro("Ahora te envío el pin enseguida.", proy.valores, DATOS.prohibidas);
+  ok(prom3.ok === false && prom3.motivo === "promete_accion", "PROM-3 variante «ahora te envío… enseguida»: vetada");
+  const prom4 = L.validarRespuestaCerebro("La barbería abre todos los días, de 9:00 a. m. a 6:00 p. m.", proy.valores, DATOS.prohibidas);
+  ok(prom4.motivo !== "promete_accion", "PROM-4 un texto honesto sin promesa NO cae en promete_accion");
+  // CTX: seguimiento — afirmación corta + pin pendiente en el historial
+  ok(L.esAfirmacionCorta("Si") === true && L.esAfirmacionCorta("?") === true && L.esAfirmacionCorta("¿cuánto cuesta el corte de pelo?") === false, "CTX-1 afirmaciones cortas: «Si» y «?» sí; una pregunta larga, no");
+  const histReal = [
+    { rol: "cliente", texto: "Me puedes mandar la localización?" },
+    { rol: "agente", texto: "Lo siento, pero no tengo acceso a la función de enviar localizaciones." },
+    { rol: "cliente", texto: "?" },
+    { rol: "agente", texto: "Puedo mandarte la localización del negocio. Te la mando ahora. 📍" },
+  ];
+  ok(L.hayPinPendienteEnHistorial(histReal) === true, "CTX-2 el historial real de las 14:53 deja el pin pendiente");
+  const histPrecio = [
+    { rol: "cliente", texto: "¿a cómo el corte?" },
+    { rol: "agente", texto: "💈 El corte cuesta 400 CUP en efectivo." },
+  ];
+  ok(L.hayPinPendienteEnHistorial(histPrecio) === false, "CTX-3 historial de precios: sin pin pendiente");
+  const histEntregado = [
+    { rol: "cliente", texto: "mándame la localización" },
+    { rol: "agente", texto: "📍 Ernesto está en Micro 10, distrito José Martí, Santiago de Cuba." },
+  ];
+  ok(L.hayPinPendienteEnHistorial(histEntregado) === false, "CTX-4 pin ya entregado: un «Si» suelto no lo repite");
+  const pd = L.decisionUbicacionPin(DATOS, cT, "mandame la localizacion");
+  ok(pd?.accion === "ubicacion_pin" && pd?.pin?.lat === DATOS.config.negocio_lat, "CTX-5 decisionUbicacionPin (la del seguimiento) devuelve el pin de config");
+  // WEB intacta: la misma frase en web da enlace, jamás campo pin
+  const cW = { escalada: false, flujo: {}, canal: "web" };
+  const pw = L.orquestar(DATOS, cW, "Me puedes mandar la localización?", AHORA);
+  ok(pw.accion === "ubicacion_pin" && pw.pin === undefined && pw.respuesta.includes("https://www.google.com/maps?q="), "PIN-7 web intacta: enlace de Maps, sin campo pin");
+}
+
 console.log("\nprueba-agente-v1: " + pass + " PASS · " + fail + " FAIL");
 if (fail) { console.log("Fallos:", fails.join(" | ")); process.exit(1); }
