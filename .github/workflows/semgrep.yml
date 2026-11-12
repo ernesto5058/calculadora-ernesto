@@ -1,7 +1,8 @@
 name: Semgrep (Inspector capa 0)
 
-# Capa 0 del INSPECTOR v2: escaneo con las reglas del proyecto
-# (.semgrep/reglas-proyecto.yml), nacidas de los incidentes reales.
+# Capa 0 del INSPECTOR v2: escaneo con el set UNIDO de reglas de la
+# casa (.semgrep/reglas/, 11 reglas: Inspector v2 + Dominio Total,
+# probadas con semgrep --test 9/9 en .semgrep/casos/).
 # NO bloqueante a propósito en esta etapa: informa y deja el informe
 # como artefacto; endurecer a bloqueante es decisión posterior con
 # los falsos positivos ya medidos.
@@ -28,7 +29,7 @@ jobs:
         continue-on-error: true
         run: >-
           semgrep scan
-          --config .semgrep/reglas-proyecto.yml
+          --config .semgrep/reglas/
           --metrics=off
           --exclude node_modules
           --json --output semgrep-resultados.json
