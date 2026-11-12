@@ -690,12 +690,79 @@ export function esInstruccionDueno(ligero, crudo) {
    envío, sin «pin»/«mapa» y con «ubicado», no «ubicación»). */
 export function esPedidoPin(ligero) {
   const t = String(ligero ?? "");
-  const envio = /\b(manda|mandame|envia|enviame|pasa|pasame|comparte|comparteme|mandar|enviar|pasar|compartir)\b[^]*\b(localizacion|ubicacion|pin|mapa)\b/.test(t);
+  const envio = /\b(manda\w*|envia\w*|pasa\w*|comparte\w*)\b[^]*\b(localizacion|ubicacion|pin|mapa)\b/.test(t);
   if (envio) return true;
   const explicito = /\b(quiero|necesito|dame|pasame|mandame|enviame|muestrame|ensename|ver)\b[^]*\b(pin|mapa)\b/.test(t) ||
                     /\b(el|tu|su|un) pin\b/.test(t) ||
                     /\bpin de (la |el )?(ubicacion|local|negocio|barberia)\b/.test(t);
   return explicito;
+}
+
+/* v2.2 — La decisión del PIN como pieza reutilizable: la usa
+   orquestar (pedido directo) y la puerta (seguimiento: afirmación
+   corta con el pin pendiente, o promesa vetada del cerebro). La
+   respuesta es el render de ubicación de siempre; las coords salen
+   de la config (negocio_lat/negocio_lng): en Telegram viaja el pin,
+   en web el enlace al mapa. Sin coords: ubicación normal, sin más. */
+export function decisionUbicacionPin(datos, conv, norm) {
+  const r = renderDato("ubicacion", datos);
+  if (!r) return null;
+  const ver = verificarCifras(r.texto, r.fuentes, datos.prohibidas, r.extra ?? []);
+  if (!ver.ok) return null;
+  const lat = Number(datos.config?.negocio_lat), lng = Number(datos.config?.negocio_lng);
+  const hayCoords = datos.config?.negocio_lat != null && datos.config?.negocio_lng != null &&
+                    Number.isFinite(lat) && Number.isFinite(lng);
+  const dec = { norm, registrar_sin_respuesta: false, escalar: null, aviso_lead: false,
+                accion: "ubicacion_pin", respuesta: r.texto,
+                auditoria: { pin: hayCoords } };
+  if (hayCoords) {
+    if (conv?.canal === "web") {
+      dec.respuesta = r.texto + "\n📍 Ver en el mapa: https://www.google.com/maps?q=" +
+                      lat + "," + lng;
+    } else {
+      dec.pin = { lat, lng };
+    }
+  }
+  return dec;
+}
+
+/* v2.2 — Afirmación corta («Si», «?», «dale»): no es una pregunta
+   nueva; es el «sí» a lo que el agente acababa de ofrecer. */
+export function esAfirmacionCorta(crudo) {
+  const raw = String(crudo ?? "").trim();
+  if (!raw) return false;
+  if (/^[?¿!¡.\s]+$/.test(raw)) return true;
+  const t = normalizarLigero(raw);
+  if (!t || t.length > 22) return false;
+  return /^(si|sip|sii+|ok|okey|dale|claro|va|bueno|bien|listo|de acuerdo|esa|eso|hazlo|mandala|mandalo|enviamela|pasamela|si por favor|por favor|si dale|dale si)$/.test(t);
+}
+
+/* v2.2 — ¿Quedó un PIN pendiente en la conversación? Dos señales:
+   (A) el último mensaje del agente OFRECE/PROMETE mandar la
+   localización (la promesa no ejecuta nada: queda pendiente);
+   (B) el último mensaje del cliente PIDE el pin y después no llegó
+   la entrega (la entrega es el render que empieza con «📍»).
+   historial: [{rol, texto}] en orden, SIN el mensaje actual. */
+export function hayPinPendienteEnHistorial(historial) {
+  const h = (historial ?? []).slice(-6);
+  const lig = (m) => normalizarLigero(m?.texto ?? "");
+  for (let i = h.length - 1; i >= 0; i--) {
+    if (h[i].rol !== "agente") continue;
+    const t = lig(h[i]);
+    if (/(localizacion|ubicacion)/.test(t) &&
+        /(puedo mandarte|te la mando|te mando|mandarte|te la envio|te envio|te la paso)/.test(t)) return true;
+    break;
+  }
+  let idxCliente = -1;
+  for (let i = h.length - 1; i >= 0; i--) {
+    if (h[i].rol === "cliente") { idxCliente = i; break; }
+  }
+  if (idxCliente >= 0 && esPedidoPin(lig(h[idxCliente]))) {
+    const entregado = h.slice(idxCliente + 1).some((m) => m.rol === "agente" &&
+      String(m.texto ?? "").trimStart().startsWith("📍") && /micro 10/.test(lig(m)));
+    if (!entregado) return true;
+  }
+  return false;
 }
 
 export function orquestar(datos, conv, textoCrudo, hoyISO) {
@@ -860,31 +927,10 @@ export function orquestar(datos, conv, textoCrudo, hoyISO) {
     };
   }
 
-  // v2.1 — PIN de ubicación: ANTES del matcher y del cerebro. La
-  // respuesta es el render de ubicación de siempre; las coords salen
-  // de la config (negocio_lat/negocio_lng): en Telegram viaja el pin,
-  // en web el enlace al mapa. Sin coords: ubicación normal, sin más.
+  // v2.1 — PIN de ubicación: ANTES del matcher y del cerebro.
   if (esPedidoPin(ligero)) {
-    const r = renderDato("ubicacion", datos);
-    if (r) {
-      const ver = verificarCifras(r.texto, r.fuentes, datos.prohibidas, r.extra ?? []);
-      if (ver.ok) {
-        const lat = Number(datos.config?.negocio_lat), lng = Number(datos.config?.negocio_lng);
-        const hayCoords = datos.config?.negocio_lat != null && datos.config?.negocio_lng != null &&
-                          Number.isFinite(lat) && Number.isFinite(lng);
-        const dec = { ...base, accion: "ubicacion_pin", respuesta: r.texto,
-                      auditoria: { pin: hayCoords } };
-        if (hayCoords) {
-          if (conv?.canal === "web") {
-            dec.respuesta = r.texto + "\n📍 Ver en el mapa: https://www.google.com/maps?q=" +
-                            lat + "," + lng;
-          } else {
-            dec.pin = { lat, lng };
-          }
-        }
-        return dec;
-      }
-    }
+    const decPin = decisionUbicacionPin(datos, conv, norm);
+    if (decPin) return decPin;
   }
 
   // reglas de hierro (sobre la forma ligera)
@@ -1445,12 +1491,22 @@ export function proyeccionPublica(datos) {
    cazando el hierro, como siempre). */
 const RE_NIEGA_CAPACIDAD = /(no tengo acceso|no puedo (enviar|mandar|mostrar)|no cuento con|no me es posible|no tengo la (capacidad|funcion))/;
 const RE_DOMINIO_CAPACIDAD = /\b(ubicacion|localizacion|pin|mapa|cita|panel)\w*/;
+/* v2.2 — Regla anti-promesa-falsa (espejo de la anterior): el cerebro
+   redacta, NO ejecuta; una frase que afirma estar mandando algo
+   («te la mando ahora», «ahora te envío», «te lo paso ahora») promete
+   una acción del sistema que nadie cumple y se veta (motivo
+   «promete_accion»). La capacidad en abstracto («puedo mandarte…»)
+   sin afirmación de envío inminente no casa aquí. */
+const RE_PROMETE_ACCION = /(\bte (la|lo|las|los) (mando|envio|paso)\b[^.]{0,16}\b(ahora|ahorita|enseguida|ya)\b|\bahora (mismo )?(te )?(la|lo|las|los )?(mando|envio|paso)\b|\bte estoy (mandando|enviando|pasando)\b|\bya te (la|lo) (mando|envio|paso)\b|\ben ?seguida te\b[^.]{0,20}\b(mando|envio|paso)\b)/;
 export function validarRespuestaCerebro(texto, fuentesValores, prohibidas) {
   const t = String(texto ?? "").trim();
   if (!t || t.length > 700) return { ok: false, motivo: "largo_o_vacio" };
   const ligVeto = normalizarLigero(t);
   if (RE_NIEGA_CAPACIDAD.test(ligVeto) && RE_DOMINIO_CAPACIDAD.test(ligVeto)) {
     return { ok: false, motivo: "niega_capacidad" };
+  }
+  if (RE_PROMETE_ACCION.test(ligVeto)) {
+    return { ok: false, motivo: "promete_accion" };
   }
   const hierro = detectarHierro(normalizarLigero(t), t);
   if (hierro) return { ok: false, motivo: "hierro_" + hierro.tipo };
