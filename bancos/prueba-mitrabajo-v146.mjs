@@ -20,10 +20,10 @@ let pass = 0, fail = 0;
 function ok(c, n){ if (c) pass++; else { fail++; console.log("FAIL:", n); } }
 
 /* ---- Versión y caché ---- */
-ok(/var APP_VERSION = "1\.4\.6"/.test(html), "G1 APP_VERSION 1.4.6 en el build ensamblado");
-ok(sw.includes('CACHE = "mitrabajo-v14"'), "G2 el SW sube a mitrabajo-v14");
-ok(datos.versionApp === "1.4.6" && /apk-v1\.4\.6\/Mi-Trabajo-v1\.4\.6\.apk$/.test(datos.apkUrl),
-   "G3 datos.json: versionApp 1.4.6 y apkUrl de la v1.4.6");
+ok(/var APP_VERSION = "1\.4\.7"/.test(html), "G1 APP_VERSION 1.4.7 en el build ensamblado");
+ok(sw.includes('CACHE = "mitrabajo-v15"'), "G2 el SW sube a mitrabajo-v15");
+ok(datos.versionApp === "1.4.7" && /apk-v1\.4\.7\/Mi-Trabajo-v1\.4\.7\.apk$/.test(datos.apkUrl),
+   "G3 datos.json: versionApp 1.4.7 y apkUrl de la v1.4.7");
 ok(datos.tarifa && datos.tarifa.ingresoRef360 === 1098.68 && datos.tarifa.libroRef === 1069.38 &&
    datos.tarifa.pctSaldo === 25 && datos.tarifa.pctTransf === 20 && datos.tarifa.pisoTransf === 25 &&
    datos.publico && datos.publico.telefono === "51231558",

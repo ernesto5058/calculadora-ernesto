@@ -121,7 +121,7 @@ function crear(extra){
             json: () => Promise.resolve({ code: "PGRST202", message: "Could not find the function public.registrar_push_admin in the schema cache" }) });
           return json({ ok: true });
         case "admin_cierres": return json([]);
-        case "admin_actividad": return json([]);
+        case "admin_actividad": return json(R.actividad || []);
         case "guardar_perfil": return json({ ok: true });
         case "leer_perfil": return json(null);
         case "tocar_presencia":
@@ -434,7 +434,7 @@ function pestaña(w, nombre){ [...w.document.querySelectorAll(".tab")].forEach(t
 /* ===== 10. SERVICE WORKER: scope y caché propios ===== */
 {
   const sw = fs.readFileSync(REPO + "minegocio/sw.js", "utf8");
-  ok(sw.includes('CACHE = "minegocio-v9"'), "MN-50 SW con caché propio minegocio-v9 (v9 botón «Enviar su enlace» en Equipo; v8 rediseño PRO de toda la app; v7 rediseño Contabilidad, v6 Fase 1, v5 local-first, v4 ronda 2, v3 ronda 1)");
+  ok(sw.includes('CACHE = "minegocio-v10"'), "MN-50 SW con caché propio minegocio-v10 (v10 tanda 3 errores: textos único, actividad en claro, chat duro; v9 botón «Enviar su enlace» en Equipo; v8 rediseño PRO de toda la app; v7 rediseño Contabilidad, v6 Fase 1, v5 local-first, v4 ronda 2, v3 ronda 1)");
   ok(sw.includes("SKIP_WAITING") && sw.includes('addEventListener("message"'), "MN-50b el SW acepta SKIP_WAITING por mensaje (forzar activación desde la app)");
   ok(!sw.includes("mitrabajo"), "MN-51 el SW de Mi Negocio no toca el de Mi Trabajo");
   const mf = JSON.parse(fs.readFileSync(REPO + "minegocio/manifest.webmanifest", "utf8"));
@@ -509,7 +509,7 @@ function pestaña(w, nombre){ [...w.document.querySelectorAll(".tab")].forEach(t
   ok(d.getElementById("bannerVer").style.display === "block" && d.getElementById("bannerVer").textContent.includes("Nueva versión lista"), "R2-2 SW nuevo instalado con controlador → aviso «Nueva versión lista» visible");
   w.__swReg.__controllerchange();
   await sleep(60);
-  ok(("" + w.sessionStorage.getItem("mnRecarga_v9")) === "1", "R2-3 controllerchange marca la recarga única de la v9 (sin bucles)");
+  ok(("" + w.sessionStorage.getItem("mnRecarga_v10")) === "1", "R2-3 controllerchange marca la recarga única de la v10 (sin bucles)");
   const antes = w.__fakeReg.actualizaciones;
   click(d.getElementById("btnAct"));
   await sleep(120);
@@ -606,11 +606,11 @@ function pestaña(w, nombre){ [...w.document.querySelectorAll(".tab")].forEach(t
   ok(chat.querySelectorAll("[data-vplay]").length === 3 && chat.querySelectorAll(".vozOnda i").length === 72, "R2-25 cada reproductor trae su ▶ circular y su onda de 24 picos");
   ok(typeof w.mejorMimeVoz === "function" && typeof w.hashParChat === "function" && typeof w.rtTimbre === "function", "R2-26 existen mejorMimeVoz, hashParChat y rtTimbre");
   ok(w.hashParChat("ADMIN", "BUSC-1") === w.hashParChat("BUSC-1", "ADMIN") && w.hashParChat("ADMIN", "BUSC-1") !== w.hashParChat("ADMIN", "BUSC-2"), "R2-27 el canal del timbre es el mismo para la pareja en ambos sentidos y distinto por pareja");
-  ok(w.selloVersion() === "Mi Negocio · versión 2026-11-11 14:31 · caché v9", "R2-28 sello de versión exacto: «" + w.selloVersion() + "»");
+  ok(w.selloVersion() === "Mi Negocio · versión 2026-11-11 20:02 · caché v10", "R2-28 sello de versión exacto: «" + w.selloVersion() + "»");
   ok(chat.textContent.includes("cada 3 s"), "R2-29 la ayuda del chat dice el refresco nuevo de 3 s (ya no 15 s)");
   pestaña(w, "Inicio");
   await sleep(120);
-  ok(d.getElementById("pgInicio").textContent.includes("Mi Negocio · versión 2026-11-11 14:31 · caché v9"), "R2-30 el sello de versión se ve en Inicio");
+  ok(d.getElementById("pgInicio").textContent.includes("Mi Negocio · versión 2026-11-11 20:02 · caché v10"), "R2-30 el sello de versión se ve en Inicio");
   w.close();
   R.chatMsgs = [];
 }
@@ -787,7 +787,7 @@ function pestaña(w, nombre){ [...w.document.querySelectorAll(".tab")].forEach(t
   await sleep(350);
   const d = w.document;
   ok(w.PUERTAS.marcarPrueba === "admin_marcar_prueba", "F1-1 la puerta nueva está registrada: PUERTAS.marcarPrueba = admin_marcar_prueba");
-  ok(w.MN_VERSION === "v9", "F1-2 MN_VERSION subió a v9");
+  ok(w.MN_VERSION === "v10", "F1-2 MN_VERSION subió a v10");
   /* Funciones puras con las fórmulas del servidor (tarifa del banco: 1098.68 / 1069.38 / 950) */
   ok(cerca(w.contaGananciaBruta({ tipo: "saldo", precio: 1000, cantidad: 100 }), 9868) && cerca(w.contaNeta({ tipo: "saldo", precio: 1000, cantidad: 100, comision: 2467 }), 7401), "F1-3 saldo r1: bruta 9868 · neta 7401 (comisión GUARDADA, no recalculada)");
   /* NOTA (desviación de la espec, verificada con la fórmula): la
@@ -1012,12 +1012,12 @@ function pestaña(w, nombre){ [...w.document.querySelectorAll(".tab")].forEach(t
   ok(pgC.querySelectorAll(".chips.unaFila").length >= 3, "F3-6 los presets van en filas de chips de UNA sola fila deslizable (.chips.unaFila)");
   pestaña(w, "Textos");
   await sleep(80);
-  const selsTx = ["txTipo", "txMoneda", "txEmojis", "txTono", "txTam", "txDest"].map(id => d.getElementById(id));
-  ok(selsTx.every(s => !!s && s.classList.contains("selOculto")) && d.querySelectorAll(".chipsSel").length === 6, "F3-7 Textos: los 6 selects viven ocultos (.selOculto) detrás de sus chips — el motor lee el mismo .value");
-  const chipCompro = d.querySelector('.chipsSel[data-sel="txTipo"] .chip[data-v="compro"]');
-  click(chipCompro);
+  const selsTx = ["txEmojis", "txTono", "txTam", "txDest", "txpMoneda"].map(id => d.getElementById(id));
+  ok(selsTx.every(s => !!s && s.classList.contains("selOculto")) && d.querySelectorAll(".chipsSel").length === 5, "F3-7 Textos v10: quedan SOLO los selects de Estilo y la moneda del producto (5), ocultos tras sus chips — el formulario de oferta viejo (txTipo/txMoneda/txProd…) se amputó");
+  const chipCom = d.querySelector('.chipsSel[data-sel="txTono"] .chip[data-v="comercial"]');
+  click(chipCom);
   await sleep(30);
-  ok(d.getElementById("txTipo").value === "compro" && chipCompro.classList.contains("activa"), "F3-8 tocar el chip «Compro» fija txTipo.value = compro y marca el chip activo");
+  ok(d.getElementById("txTono").value === "comercial" && chipCom.classList.contains("activa"), "F3-8 tocar el chip «Comercial vendedor» fija txTono.value = comercial y marca el chip activo");
   pestaña(w, "Inicio");
   await sleep(80);
   ok(d.getElementById("pgInicio").querySelectorAll("h3 .secIco svg").length >= 3, "F3-9 Inicio en rejilla PRO: las tarjetas llevan su icono de trazo fino (.secIco)");
@@ -1110,6 +1110,118 @@ function pestaña(w, nombre){ [...w.document.querySelectorAll(".tab")].forEach(t
   await sleep(300);
   ok(ultimosCuerpos.admin_guardar_tarifa.p_salida === 930 && w.state.calcSync.estado === "guardado" && w.state.calcSync.salida === 930, "S9-13 al volver la red, la cola aplica la salida pendiente (930) y el estado pasa a «guardado»");
   w.close();
+}
+
+/* ===== 25. v10 — TANDA 3 ERRORES DE ERNESTO (2026-11-11) =====
+   (1) Textos: UNA vía inteligente (el formulario viejo amputado
+   también aquí — en Mi Trabajo cayó por la mañana y aquí seguía);
+   (2) Actividad traducida a su lenguaje, sin UUID de frente;
+   (3) el chat: la nota de voz ya no depende del Blob de IndexedDB
+   para enviarse ni para oírse, la duración sale del temporizador
+   y el fallo se ve (⚠) con reintento, no un 🕐 eterno mudo. */
+{
+  R.usuarios = [ { codigo: "BRIKU-SEF", nombre: "Briku", activo: true }, { codigo: "PEUEBA", nombre: "Prueba", activo: true } ];
+  const { w } = crear({ preState: { codigo: adminValido, foto: { reportes: [], ayudas: [], usuarios: R.usuarios, datos: datosPublicados, cuando: "", publicar: [], borrados: [], tarifaPanel: null, mercado: null }, cola: [], sellos: {}, tarifaViva: null, tarifaVivaEn: "", publicarPendiente: null } });
+  await sleep(300);
+  const d = w.document;
+  pestaña(w, "Textos");
+  await sleep(80);
+  ok(!!d.getElementById("txSaldo") && !!d.getElementById("txTransf") && !!d.getElementById("txProdBtn"), "TX-1 Textos v10: los TRES botones inteligentes (saldo · transferencia · producto) y ningún otro camino");
+  ok(["txGen", "txProd", "txPrecio", "txMoneda", "txTipo", "txCant", "txDet", "txCond", "txPrivado"].every(id => !d.getElementById(id)), "TX-2 el formulario manual viejo NO existe (sin txGen/txProd/txPrecio/txMoneda/txTipo/txCant/txDet/txCond/txPrivado)");
+  ok(d.getElementById("txTel").value === "51231558" && d.getElementById("txZona").value.includes("Micro 10"), "TX-3 «Tus datos de anuncio» nacen con SU teléfono (51231558) y SU zona: los botones ya no leen de un formulario");
+  click(d.getElementById("txSaldo"));
+  await sleep(60);
+  const outSaldo = d.getElementById("txOut").textContent;
+  ok(outSaldo.includes("51231558") && !/comisi/i.test(outSaldo), "TX-4 el texto de saldo sale con su teléfono y sin ningún número interno");
+  click(d.getElementById("txProdBtn"));
+  await sleep(30);
+  ok(d.getElementById("txProdForm").style.display !== "none", "TX-5 «Texto de producto» abre SOLO los datos mínimos del producto");
+  input(d.getElementById("txpNombre"), "Batería LiFePO4 12.8V 100Ah");
+  input(d.getElementById("txpGarantia"), "6 meses");
+  click(d.getElementById("txpGen"));
+  await sleep(60);
+  const outProd = d.getElementById("txOut").textContent;
+  ok(outProd.includes("SE VENDE BATERÍA LIFEPO4") && outProd.includes("Precio por privado") && outProd.includes("📍 Micro 10, distrito José Martí, Santiago de Cuba") && outProd.includes("51231558"), "TX-6 el texto de producto ES su plantilla de Facebook (gancho · baterías por privado · 📍 su zona · su teléfono)");
+  ok(typeof w.TextosMotor.textoRapidoProducto === "function", "TX-7 el motor compartido trae textoRapidoProducto: la plantilla vive en el motor (una sola fuente para las dos apps)");
+  input(d.getElementById("txpPrecio"), "250");
+  click(d.querySelector('.chipsSel[data-sel="txpMoneda"] .chip[data-v="USD"]'));
+  click(d.getElementById("txpGen"));
+  await sleep(60);
+  ok(d.getElementById("txOut").textContent.includes("250 USD"), "TX-8 con precio y moneda, el texto de producto lleva «250 USD» (en SU app sus monedas se quedan)");
+  w.close();
+}
+{
+  const ahoraA = new Date().toISOString();
+  R.actividad = [
+    { accion: "pagar_comision", quien: "ADMIN", creado_en: ahoraA, detalle: { reporte: "83dd3d64-9c59-4720-8220-733ee0ccfd63", buscador: "PEUEBA", comision: 2467 } },
+    { accion: "cambiar_tarifa", quien: "ADMIN", creado_en: ahoraA, detalle: { libro: 1069.38, salida: 925, ingreso: 1098.68 } },
+    { accion: "pagar_comision_telegram", quien: "ADMIN", creado_en: ahoraA, detalle: { reporte: "c98e57dc-69f9-400a-a7fc-b5425469d3e2", buscador: "BRIKU-SEF", comision: 246.7, ya_pagado: true } },
+    { accion: "telegram_vinculo_fallido", quien: "telegram", creado_en: ahoraA, detalle: { via: "token" } },
+    { accion: "generar_cierre", quien: "ADMIN", creado_en: ahoraA, detalle: { semana_inicio: "2026-11-09" } },
+    { accion: "evento_que_no_existe", quien: "ADMIN", creado_en: ahoraA, detalle: { x: 1 } }
+  ];
+  R.usuarios = [ { codigo: "BRIKU-SEF", nombre: "Briku", activo: true }, { codigo: "PEUEBA", nombre: "Prueba", activo: true } ];
+  const { w } = crear({ preState: { codigo: adminValido, foto: { reportes: [], ayudas: [], usuarios: R.usuarios, datos: datosPublicados, cuando: "", publicar: [], borrados: [], tarifaPanel: null, mercado: null }, cola: [], sellos: {}, tarifaViva: null, tarifaVivaEn: "", publicarPendiente: null } });
+  await sleep(300);
+  const d = w.document;
+  pestaña(w, "Actividad");
+  await sleep(150);
+  const pgA = d.getElementById("pgActividad");
+  const filasA = [...pgA.querySelectorAll(".actFila")];
+  ok(filasA.length === 6, "AC-1 la Actividad pinta las 6 filas del registro");
+  ok(filasA[0].querySelector("b").textContent.includes("Marcaste como PAGADA la comisión de la cuenta de prueba") && filasA[0].querySelector("b").textContent.includes("2467.00 CUP"), "AC-2 pagar_comision se lee en claro: quién (la cuenta de prueba, no «PEUEBA») y cuánto (2467.00 CUP)");
+  ok(!filasA.some(f => f.querySelector("b").textContent.includes("83dd3d64")), "AC-3 ningún UUID se ve en la vista normal (los títulos son frases, no códigos)");
+  const det0 = d.getElementById("acDet0");
+  ok(!!det0 && det0.style.display === "none" && det0.textContent.includes("83dd3d64"), "AC-4 el detalle técnico existe pero nace PLEGADO tras «ver detalle»");
+  click(pgA.querySelector("[data-acdet]"));
+  await sleep(30);
+  ok(det0.style.display === "block", "AC-5 «ver detalle» despliega el JSON crudo solo cuando Ernesto lo pide");
+  ok(filasA[1].textContent.includes("salida (efectivo) a 925.00 CUP por QUSD") && filasA[1].textContent.includes("libro (transferencia) a 1069.38 CUP por QUSD"), "AC-6 cambiar_tarifa se lee con dimensiones escritas (efectivo ≠ transferencia, cada cifra con su unidad)");
+  ok(filasA[2].textContent.includes("Briku") && filasA[2].textContent.includes("no se pagó dos veces"), "AC-7 el pago repetido desde Telegram se cuenta como lo que es: YA estaba pagado, no se cobró de nuevo (y «BRIKU-SEF» se lee «Briku»)");
+  ok(filasA[3].textContent.includes("FALLÓ") && filasA[4].textContent.includes("Generaste el cierre de la semana") && filasA[5].textContent.includes("Evento del sistema"), "AC-8 vínculo fallido, cierre y hasta un tipo desconocido tienen su frase (respaldo humanizado, nunca código crudo)");
+  const CATALOGO = ["cambiar_tarifa", "generar_cierre", "pagar_comision", "pagar_comision_telegram", "publicar_tratos", "aprobar_telegram", "rechazar_telegram", "fijar_mensaje", "desfijar_mensaje", "bloquear", "desbloquear", "marcar_prueba", "desmarcar_prueba", "vincular_telegram", "telegram_vinculo_fallido", "analista_accion"];
+  const detGen = { libro: 1, salida: 2, ingreso: 3, semana_inicio: "2026-11-09", reporte: "x", buscador: "BRIKU-SEF", comision: 5, ya_pagado: false, usuarios: 2, conversacion: "BRIKU-SEF", usuario: "BRIKU-SEF", via: "token", ok: true };
+  ok(CATALOGO.every(t => { const f = w.actividadFrase({ accion: t, quien: "ADMIN", detalle: detGen }); return typeof f === "string" && f.length > 10 && !/undefined|null/.test(f); }), "AC-9 los 16 tipos del catálogo real tienen traducción (ninguna frase sale vacía ni con «undefined»)");
+  R.actividad = null;
+  w.close();
+}
+{
+  R.chat = true; R.chatMsgs = [];
+  R.usuarios = [ { codigo: "BUSC-1", nombre: "Busc Uno", activo: true } ];
+  const { w } = crear({ preState: { codigo: adminValido, foto: { reportes: [], ayudas: [], usuarios: R.usuarios, datos: datosPublicados, cuando: "", publicar: [], borrados: [], tarifaPanel: null, mercado: null }, cola: [], sellos: {}, tarifaViva: null, tarifaVivaEn: "", publicarPendiente: null } });
+  await sleep(300);
+  const d = w.document;
+  pestaña(w, "Equipo");
+  await sleep(120);
+  click(d.querySelector("[data-chat]"));
+  await sleep(250);
+  ok(w.reproductorVozHtml({ adj_datos: "data:audio/mp4;base64,AAAA", adj_dur: 65, id: "prueba" }, 0).includes("1:05"), "CH-1 el reproductor pinta la duración GUARDADA al grabar (65 s → «1:05») sin esperar el metadato del archivo");
+  ok(w.estadoMsg({ local: true, op_estado: "fallida", op_intentos: 3 }).includes("⚠"), "CH-2 una burbuja «fallida» se pinta ⚠ con su salida (reintentar), no un reloj mudo eterno");
+  const estCola = w.estadoMsg({ local: true, op_estado: "pendiente", op_intentos: 0 });
+  ok(estCola.includes("sin enviar") && !estCola.includes("⚠"), "CH-3 en cola normal sigue el 🕐 de siempre, sin ⚠");
+  w.chatAdj = { tipo: "voz", datos: "data:audio/mp4;base64,AAAA", nombre: "Nota de voz", mime: "audio/mp4", tam: 4, dur: 7, adjRef: "adj-x" };
+  w.pintarChat();
+  click(d.getElementById("chEnviar"));
+  const opVoz = w.state.cola[w.state.cola.length - 1];
+  ok(!!opVoz && opVoz.tipo === "chat" && !!opVoz.adj && opVoz.adj.datos === "data:audio/mp4;base64,AAAA" && opVoz.adj.adjRef === "adj-x" && opVoz.adj.dur === 7, "CH-4 la operación en cola lleva el DATO íntegro + la referencia + la duración: enviar y oír ya no dependen de recuperar el Blob de IndexedDB");
+  w.state.cola.length = 0;
+  await sleep(200); /* que el despacho de CH-4 se asiente antes de contar */
+  w.encolar({ tipo: "chat", para: "BUSC-1", texto: "x", cuando: new Date().toISOString(), estado: "fallida", intentos: 3 });
+  const antesEnv = llamadas.filter(x => x === "rpc:enviar_mensaje").length;
+  await w.despacharCola();
+  await sleep(60);
+  ok(llamadas.filter(x => x === "rpc:enviar_mensaje").length === antesEnv, "CH-5 una operación «fallida» NO se reintenta sola en cada latido: espera el toque de Ernesto en su burbuja");
+  w.state.cola.length = 0;
+  let clicksFile = 0;
+  const fi = d.getElementById("chFile");
+  const clickOrig = fi.click.bind(fi);
+  fi.click = function(){ clicksFile++; };
+  click(d.getElementById("chClip"));
+  await sleep(30);
+  ok(clicksFile === 1 && fi.getAttribute("accept") === "image/*", "CH-6 el clip abre la FOTO en UN toque (la hoja quedó a presión larga): de 3 toques de app a 2");
+  fi.click = clickOrig;
+  w.close();
+  R.chatMsgs = [];
 }
 
 console.log("\nBANCO MI NEGOCIO: " + pass + " PASS · " + fail + " FAIL");
