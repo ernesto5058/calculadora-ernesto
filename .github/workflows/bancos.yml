@@ -91,6 +91,9 @@ jobs:
       - name: Banco Mi Trabajo v1.5.3 — Tanda Nº6 Inspector (escape total, colas, pausa, tarifa RESPALDO, chat ligero)
         run: node bancos/prueba-mitrabajo-v153.mjs
 
+      - name: Banco Mi Trabajo v1.5.4 — Sentry de la casa cableado (fila 40)
+        run: node bancos/prueba-mitrabajo-v154.mjs
+
       - name: Banco sin códigos públicos — login solo por servidor (fila 38)
         run: node bancos/prueba-sin-codigos-publicos.mjs
 

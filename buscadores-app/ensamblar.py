@@ -25,6 +25,9 @@ def main():
     with io.open(ruta_shared("push-cliente.js"), encoding="utf-8") as f:
         pushjs = f.read()
     js = js.replace("/*__PUSH_CLIENTE__*/", pushjs)
+    with io.open(ruta_shared("sentry-casa.js"), encoding="utf-8") as f:
+        sentryjs = f.read()
+    js = js.replace("/*__SENTRY_CASA__*/", sentryjs)
     if 'id="appjs"' not in sin:
         print("FALTA el marcador en index-sin-script.html")
         return 1

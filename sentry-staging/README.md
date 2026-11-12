@@ -1,6 +1,6 @@
 # SENTRY DE LA CASA — paquete STAGED (TOP 2 · estudio de huecos, 2026-11-12)
 
-**Estado: PUBLICADO el 2026-11-12 en Mercado, Mi Negocio (v15) y la paginita, con pruebas de fuego reales aceptadas por la ingestión de Sentry. Mi Trabajo queda pendiente SOLO por la Tanda Nº6 en vuelo (ver CHEQUEOS fila 40).** Sin DSN todo el cableado es no-op: aunque se publicara por error, las apps no cambian en nada.
+**Estado: PUBLICADO el 2026-11-12 en las 4 apps — Mercado, Mi Negocio (v15), la paginita y Mi Trabajo (v1.5.4, cierre diferido tras la Tanda Nº6) — con pruebas de fuego reales aceptadas por la ingestión de Sentry. 4/4 cableadas (ver CHEQUEOS fila 40).** Sin DSN todo el cableado es no-op: aunque se publicara por error, las apps no cambian en nada.
 
 ## Piezas
 
