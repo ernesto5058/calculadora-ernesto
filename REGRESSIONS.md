@@ -91,3 +91,38 @@ Cada entrada lleva: fecha · síntoma · causa raíz · chequeo eterno.
 - **Síntoma:** La FAQ de texto «El desriz cuesta 925 CUP…» (925 = cifra interna) quedaba bloqueada por la pregunta directa, pero respondiendo «1» a la aclaración salió el 925 literal; el saludo tampoco verificaba su texto.
 - **Causa raíz:** `resolverAclaracion` devolvía `respuesta_texto` crudo sin pasar `verificarCifras`, y la rama de saludo de `orquestar` hacía lo mismo.
 - **Chequeo eterno:** [CHEQUEOS-ETERNOS.md](CHEQUEOS-ETERNOS.md) fila 29 · `bancos/prueba-agente-v1.mjs` (E4-1…8: las tres rutas envenenadas devuelven el «no sé» del verificador; la cifra fija de origen «ernesto» sigue saliendo).
+
+### 11. La puerta del Analista no reclamaba la acción: dos ejecuciones podían crear dos ofertas (E-1)
+
+- **Fecha:** 2026-11-12
+- **Síntoma:** Latente, cazado por el Inspector sin disparo real: dos ejecuciones simultáneas de la misma acción (doble toque o reintento) pasaban todas las barandas en paralelo y podían crear dos ofertas de $40 burlando topes y enfriamiento; dos acciones distintas en paralelo corrían la misma suerte porque el conteo solo contaba «ejecutada».
+- **Causa raíz:** Leer → barandas → crear sin compare-and-swap en ningún punto; el PATCH final no llevaba condición de estado.
+- **Chequeo eterno:** [CHEQUEOS-ETERNOS.md](CHEQUEOS-ETERNOS.md) fila 30 · `bancos/prueba-actuar-v1.mjs` (CONC-1…CONC-4) + reclamo CAS con columna `reclamada_en` (migración `mercado-src/supabase/sql/mercado-v3-reclamo-atomico-2026-11-12.sql`).
+
+### 12. La bitácora de la puerta guardaba los datos de pago en claro (E-6)
+
+- **Fecha:** 2026-11-12
+- **Síntoma:** Latente, cazado por el Inspector: cada desenlace con payload guardaba en `mercado_acciones.detalle` el payload completo, con los `details` de pago de Ernesto en claro y pa siempre, duplicados en cada fila.
+- **Causa raíz:** La bitácora guardaba el mismo objeto payload que se enviaba a QvaPay, sin redacción.
+- **Chequeo eterno:** [CHEQUEOS-ETERNOS.md](CHEQUEOS-ETERNOS.md) fila 31 · `bancos/prueba-actuar-v1.mjs` (BIT-1…BIT-4) + purga verificada en producción (0 filas con `detalle->'payload' ? 'details'`).
+
+### 13. El botón de la app reutilizaba cualquier acción pendiente y confirmaba la tasa pedida (E-2)
+
+- **Fecha:** 2026-11-12
+- **Síntoma:** `mercado_accion_app` podía reutilizar y disparar una acción pendiente de Telegram (otra tasa, otro origen — y sin la exención de promo del toque manual) y responder a la app la tasa del peldaño pedido en vez de la ejecutada (cazado por auditoría, sin disparo cruzado constatado).
+- **Causa raíz:** El select de reuso filtraba solo `estado='pendiente' and expira_en > now()`, y el `return` final se armaba desde `v_pel`/`v_cfg` en vez de leerse de la acción fijada.
+- **Chequeo eterno:** [CHEQUEOS-ETERNOS.md](CHEQUEOS-ETERNOS.md) fila 32 · paquete `research_notes/analista-app-boton-fix-e2-sql-2026-11-12.sql` verificado en vivo (definición + BEGIN…ROLLBACK, residuo 0).
+
+### 14. La v3 de Mercado existía solo en el desplegado: la fuente era v2 (F-1)
+
+- **Fecha:** 2026-11-12
+- **Síntoma:** Los botones por peldaño (`mercado_accion_app`) y el CSS anti-desbordamiento de la carcasa vivían solo en el `index.html` servido; la fuente `app.js` seguía en v2 y correr `ensamblar.py` habría borrado el botón de publicar y bajado la caché a v2 en silencio.
+- **Causa raíz:** La v3 se editó sobre el artefacto desplegado y nunca volvió a la fuente: se quebró la regla de oro de una sola fuente de verdad.
+- **Chequeo eterno:** [CHEQUEOS-ETERNOS.md](CHEQUEOS-ETERNOS.md) fila 33 · `bancos/prueba-mercado-paridad.mjs` (P-1…P-3) — v3 rescatada íntegra a fuente + plantilla y ensamblar en v3.
+
+### 15. La pantalla Equilibrio explicaba la ganancia al revés (E-3)
+
+- **Fecha:** 2026-11-12
+- **Síntoma:** El texto guía decía «si vendes por encima de ella ganas; por debajo, pierdes» cuando G(R) decrece con R: creerlo era publicar perdiendo CUP por recarga convencido de que ganaba, y contradecía a la tarjeta inferior de la misma pantalla y al aviso del lector.
+- **Causa raíz:** Frase de dirección invertida en la fuente (y por tanto en el desplegado) sin ningún chequeo de texto contra la fórmula.
+- **Chequeo eterno:** [CHEQUEOS-ETERNOS.md](CHEQUEOS-ETERNOS.md) fila 34 · `bancos/prueba-mercado-paridad.mjs` (P-4: frase invertida prohibida, dirección correcta presente en fuente y desplegado).
