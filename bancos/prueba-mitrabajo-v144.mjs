@@ -16,7 +16,7 @@ function datosFixture(pub){
     tarifa: { version: 4, ingresoRef360: 1098.68, libroRef: 1069.38, salidaRef: 950, pctSaldo: 25, pctTransf: 20, pisoTransf: 25, bonoSaldoMeta: 150, bonoSaldoMonto: 300, bonoTransfMeta: 10, bonoTransfMonto: 300 },
     publico: pub || { telefono: "51231558", zona: "Micro 10, distrito José Martí, Santiago de Cuba", domicilio: "Domicilio gratis en Santiago de Cuba",
       saldo: { tasa: 2, tasaAlta: 2.2, desdeAlta: 5000, recarga: 720 } },
-    buscadores: { "BUSC-1": { nombre: "Busc Uno", tratos: [] } }, actualizado: "2026-11-11" };
+    actualizado: "2026-11-11" };
 }
 /* modo: "ok" | "caida" (todo rechaza) | "chat-caida" (solo leer_chat rechaza) */
 let MODO = "ok";
