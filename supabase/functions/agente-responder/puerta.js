@@ -135,3 +135,21 @@ export function decisionPorConfig({ ok, fila } = {}) {
   if (!fila || typeof fila !== "object" || Object.keys(fila).length === 0) return "silencio";
   return "seguir";
 }
+
+/* F1 (Tanda Nº6) — Mensaje de Telegram que NO es texto (voz, foto,
+   ubicación…): antes recibía SILENCIO total. La decisión pura: qué
+   tipo es y qué texto corto pedir. La puerta lo manda tal cual, SIN
+   crear conversación, SIN registrar pregunta y SIN gastar cerebro. */
+const NO_TEXTO_GUIA = "Escríbeme tu pregunta en texto y te respondo al momento: precios, horario, ubicación o una cita.";
+export function respuestaNoTextoTelegram(msg) {
+  if (!msg || typeof msg !== "object") return null;
+  if (String(msg.text ?? "").trim()) return null;
+  if (msg.voice || msg.audio) return { tipo: "audio", texto: "🎙 Recibí tu audio, pero por aquí no puedo escucharlo. " + NO_TEXTO_GUIA };
+  if (msg.photo) return { tipo: "foto", texto: "🖼 Recibí tu foto, pero por aquí no puedo verla. " + NO_TEXTO_GUIA };
+  if (msg.location || msg.venue) return { tipo: "ubicacion", texto: "📍 Recibí tu ubicación, gracias. " + NO_TEXTO_GUIA };
+  if (msg.video || msg.video_note) return { tipo: "video", texto: "🎬 Recibí tu video, pero por aquí no puedo verlo. " + NO_TEXTO_GUIA };
+  if (msg.document || msg.animation) return { tipo: "archivo", texto: "📎 Recibí tu archivo, pero por aquí no puedo abrirlo. " + NO_TEXTO_GUIA };
+  if (msg.sticker) return { tipo: "sticker", texto: "😊 " + NO_TEXTO_GUIA };
+  if (msg.contact) return { tipo: "contacto", texto: "📲 Recibí tu contacto, gracias. " + NO_TEXTO_GUIA };
+  return { tipo: "otro", texto: "💬 Por aquí solo puedo leer texto. " + NO_TEXTO_GUIA };
+}
