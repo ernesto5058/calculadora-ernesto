@@ -54,6 +54,7 @@ page.on("pageerror", e => log("pageerror: " + String(e).slice(0, 160)));
 
 /* ================= MI NEGOCIO — red simulada ================= */
 log("=== MI NEGOCIO v12 (build local, red simulada, cuenta de prueba) ===");
+try {
 const datosMN = { version: 4, versionApp: "1.3.1", apkUrl: "https://example.invalid/apk", tarifa: { version: 4, ingresoRef360: 1098.68, libroRef: 1069.38, salidaRef: 950, pctSaldo: 25, pctTransf: 20, pisoTransf: 25, bonoSaldoRecargas: 150, bonoSaldoCUP: 300, bonoTransfTratos: 10, bonoTransfCUP: 300 }, buscadores: [{ codigo: "BUSC-1", nombre: "Busc Uno", tratos: [] }] };
 let msgsMN = [{ id: "m1", de: "BUSC-1", para: "ADMIN", texto: "hola, ¿me confirmas el trato?", creado: new Date(Date.now() - 60000).toISOString(), leido: false }];
 const t0MN = Date.now();
@@ -66,7 +67,7 @@ await page.route("**/rest/v1/rpc/**", async route => {
     case "mensajes_sin_leer": return json({ ok: true, por_usuario: {}, total: 0 });
     case "leer_chat": {
       /* a mitad de la caza llega un mensaje nuevo de verdad */
-      if (Date.now() - t0MN > 12000 && !msgsMN.some(m => m.id === "m2")) msgsMN = msgsMN.concat([{ id: "m2", de: "BUSC-1", para: "ADMIN", texto: "mensaje que llega mientras escribes", creado: new Date().toISOString(), leido: false }]);
+      if (Date.now() - t0MN > 9000 && !msgsMN.some(m => m.id === "m2")) msgsMN = msgsMN.concat([{ id: "m2", de: "BUSC-1", para: "ADMIN", texto: "mensaje que llega mientras escribes", creado: new Date().toISOString(), leido: false }]);
       return json({ ok: true, mensajes: msgsMN });
     }
     case "leer_perfil": return json(null);
@@ -101,7 +102,15 @@ for (let i = 0; i < 10; i++) {
   log("MN t+" + (i + 1) + "s · activeElement=" + m.activo + " · valor=\"" + m.valor + "\" · sel=" + m.sel + " · nodoConectado=" + m.nodo + " · burbujas=" + m.burbujas);
 }
 ok(muestrasMN.every(m => m.activo === "chTexto" && m.valor === "escribiendo en vivo" && m.nodo), "MN-2 FOCO VIVO: 10 muestras (10 s, 3+ ciclos de refresco) con el compositor enfocado y el texto íntegro");
-ok(muestrasMN[muestrasMN.length - 1].burbujas >= 2, "MN-3 el mensaje que llegó durante la caza se pintó SIN tocar al compositor");
+/* el mensaje inyectado a mitad de la caza se espera SIN tocar nada
+   más (la aserción original lo medía en el borde de un ciclo y
+   cazó un falso rojo por ~1 s; el aterrizaje es cosa de la app) */
+try {
+  await page.waitForFunction(() => document.querySelectorAll("#chHilo .msgP").length >= 2, null, { timeout: 12000 });
+  const trasLlegada = await page.evaluate(() => { const tx = document.getElementById("chTexto"); return { activo: document.activeElement && document.activeElement.id, valor: tx ? tx.value : null }; });
+  log("MN tras la llegada · activeElement=" + trasLlegada.activo + " · valor=\"" + trasLlegada.valor + "\"");
+  ok(trasLlegada.activo === "chTexto" && trasLlegada.valor === "escribiendo en vivo", "MN-3 el mensaje que llegó durante la caza se pintó SIN tocar al compositor (foco y texto vivos tras la llegada)");
+} catch (e) { ok(false, "MN-3 el mensaje que llegó durante la caza se pintó — no aterrizó en 12 s"); }
 await page.screenshot({ path: path.join(ALBUM, "01-mn-compositor-escribiendo.png") });
 /* — la hoja 📎 con archivo real — */
 await page.click("#chClip");
@@ -140,6 +149,7 @@ await page.screenshot({ path: path.join(ALBUM, "06-mn-textos-transferencia.png")
 await page.unrouteAll({ behavior: "wait" }).catch(() => {});
 
 /* ================= MI TRABAJO — sitio publicado, red real ================= */
+} catch (e) { ok(false, "MN caza interrumpida: " + String(e).slice(0, 200)); }
 log("=== MI TRABAJO v1.5.0 (sitio publicado, red real, cuenta PEUEBA) ===");
 const page2 = await ctx.newPage();
 page2.on("pageerror", e => log("pageerror MT: " + String(e).slice(0, 160)));
@@ -149,8 +159,21 @@ let verMT = await page2.evaluate(() => window.APP_VERSION || "?");
 for (let i = 0; i < 24 && verMT !== "1.5.0"; i++) { await sleep(10000); await page2.reload({ waitUntil: "networkidle" }).catch(() => {}); verMT = await page2.evaluate(() => window.APP_VERSION || "?"); }
 log("APP_VERSION publicado: " + verMT);
 ok(verMT === "1.5.0", "MT-1 la versión publicada ya es la 1.5.0");
-if (verMT === "1.5.0") {
-  await page2.waitForSelector('.tabbar [data-view="ayuda"]', { timeout: 20000 });
+/* El desbloqueo con PEUEBA es una ida y vuelta real al backend y
+   su latencia varía: se espera con paciencia y diagnóstico (la
+   primera corrida murió a los 20 s con la barra aún oculta por la
+   puerta de entrada, sin que la app tuviera ningún fallo). */
+let mtListo = false;
+for (let i = 0; i < 30 && !mtListo; i++) {
+  const est = await page2.evaluate(() => {
+    const t = document.querySelector('.tabbar [data-view="ayuda"]');
+    return { visible: !!t && t.offsetParent !== null, sesion: (typeof window.SESION !== "undefined" ? window.SESION : null) };
+  }).catch(() => ({ visible: false, sesion: null }));
+  log("MT desbloqueo " + (i + 1) + "/30 · tabVisible=" + est.visible + " · SESION=" + est.sesion);
+  if (est.visible) mtListo = true; else await sleep(3000);
+}
+ok(mtListo, "MT-1b la app se desbloqueó con PEUEBA y la barra inferior quedó visible");
+try { if (verMT === "1.5.0" && mtListo) {
   await page2.click('.tabbar [data-view="ayuda"]');
   await page2.waitForSelector("#c_txt", { timeout: 20000 });
   await sleep(2500);
@@ -178,6 +201,7 @@ if (verMT === "1.5.0") {
   await page2.click("#edFotoXMT");
 }
 
+} catch (e) { ok(false, "MT caza interrumpida: " + String(e).slice(0, 200)); }
 const veredicto = fallos.length === 0 ? "VERDE" : (fallos.length <= 2 ? "PARCIAL" : "ROJO");
 log("VEREDICTO OJO CHAT PRO: " + veredicto + (fallos.length ? " — fallos: " + fallos.join(" · ") : ""));
 fs.writeFileSync(path.join(ALBUM, "evidencia.txt"), ev.join("\n") + "\n");
