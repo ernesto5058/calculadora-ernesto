@@ -24,6 +24,9 @@ los propuestos sin aserción van al final, marcados como pendientes.
 | 11 | Analista de Mercado — invariantes INV-A1…A10 del estudio: la fórmula madre G(R)=(360÷R)×salida−costo contra los vectores del estudio (G(333)=0 · G(320)=+40,63 · G(305,08)=+91,52), el menú maker con el peldaño que pierde BLOQUEADO y su porqué, el VWAP ejecutable con null honesto sin profundidad, las duras con marca de contraparte probada (sin campos de reputación no hay marca), la transferencia en las dos notaciones (descuento d y prima «al %»), la señal que no sale de foto no usable, la sonda que jamás lleva valores personales y las reservas de la Fase 2 (sin patrones, velas ni tendencia en la Fase 1) | 2026-11-11: aprobación del Analista «así tal cual» — la matemática vive en el lector (`analista.js`) y la app solo pinta; sin banco, la matemática podía derivar del estudio sin que nadie lo notara | `bancos/prueba-mercado-v2.mjs` — secciones A (v1 íntegro) y C (INV-A1…A10) | ✅ Sí |
 | 12 | Puerta de acción del Nivel 1 — barandas con mock (nunca contra la QvaPay real): el collar niega con la tarifa del instante, veto por foto de más de 20 min (reloj de recepción), DETENER y pausa bloquean antes que todo, topes $40/oferta · $120/día · 2/hora · enfriamiento 10 min, doble lectura con banda de 5, una sola oferta automática abierta, `P2P_SIDE_NOT_ALLOWED` pausa todo con el motivo en claro y sin bucle, el tercer error seguido pausa, y la idempotencia: un segundo toque con la misma acción NO crea dos ofertas | 2026-11-11: el Nivel 1 crea ofertas reales con el toque de Ernesto — cada baranda del Estudio 2 §3 tiene que estar probada ANTES de que exista el primer botón | `bancos/prueba-actuar-v1.mjs` (43 aserciones; la ganancia de la puerta se barre idéntica a la del Analista) | ✅ Sí |
 | 13 | La pantalla «Analista» de la app Mercado: la señal con dos relojes, el peldaño bloqueado con su porqué, el estado DETENER activado con su Reanudar, la foto vieja marcada «DATO VIEJO», la transferencia con B_ej y B_max en las dos notaciones, el texto anti-humo y la línea de la señal en Ahora | 2026-11-11: refuerzo de diseño de Ernesto — la pantalla nace a nivel DISENO-PRO completo y sus estados diseñados (sin datos, foto vieja, detenido, bloqueado) quedan fijados por banco | `bancos/prueba-mercado-v2.mjs` — secciones B (v1 íntegro) y D (S6–S9) | ✅ Sí |
+| 14 | UNA sola vía de textos también en Mi Negocio (v10): existen los 3 botones inteligentes (saldo · transferencia · producto) y el formulario manual viejo está AUSENTE (ids `txGen`/`txProd`/`txPrecio`/`txMoneda`/`txTipo`/`txCant`/`txDet`/`txCond`/`txPrivado`); el texto de producto nace de SU plantilla real de Facebook (gancho 🚨 SE VENDE, precio o «por privado», ✅, 📍 Micro 10 distrito José Martí, 📲 51231558) desde el motor compartido `textoRapidoProducto`; y Mi Trabajo NO gana el botón de producto ni textos del dueño | 2026-11-11 (18:51, captura de Ernesto): en Mi Negocio convivían los botones nuevos Y el formulario viejo completo — el MISMO defecto amputado en Mi Trabajo por la mañana (fila 2) que aquí seguía vivo: el generador viejo era además la fuente del teléfono/zona de los botones nuevos | `bancos/test-minegocio-banco.mjs` — TX-1…TX-8 · `bancos/prueba-mitrabajo-v147.mjs` — T1–T3 | ✅ Sí |
+| 15 | La Actividad de Mi Negocio habla en su lenguaje: los 16 tipos del catálogo real de la tabla `actividad` tienen frase humana completa (qué pasó, a quién por su NOMBRE — la cuenta PEUEBA se lee «cuenta de prueba» —, cuánto con su unidad y su dimensión: salida-efectivo ≠ libro-transferencia), NINGÚN UUID se ve en la vista normal y el detalle técnico nace plegado tras «ver detalle» | 2026-11-11 (18:51, captura): el registro se pintaba crudo (`pagar_comision` + JSON + UUID) — inentendible para el dueño de la app | `bancos/test-minegocio-banco.mjs` — AC-1…AC-9 | ✅ Sí |
+| 16 | Chat duro en AMBAS apps (el kit es paralelo: cada arreglo se aplica dos veces): la operación de chat lleva SIEMPRE el dato del adjunto + su duración + la referencia (enviar y oír ya no dependen de recuperar el Blob de IndexedDB); la duración de la voz sale del TEMPORIZADOR al grabar y el reproductor la pinta al instante; al tercer fallo la burbuja pasa a «⚠ sin enviar» / «⚠️ No se pudo enviar» con reintento al toque y la cola NO la reintenta sola ni queda bloqueada por ella; el clip 📎 abre la FOTO en un toque (la hoja, a presión larga) y foto+texto sale como UN solo mensaje | 2026-11-11 (18:51, captura): audio propio atascado en 🕐 con duración 0:00 que ni se enviaba ni sonaba (la nota viajaba solo como referencia a un Blob que el iPhone no devolvió; la cola tragaba el error en silencio) y mandar una foto costaba 3 toques de app | `bancos/test-minegocio-banco.mjs` — CH-1…CH-6 · `bancos/prueba-mitrabajo-v147.mjs` — C1…C9, P1–P3 | ✅ Sí |
 
 ## Hallazgos vigilados (corregidos y abiertos)
 
@@ -162,6 +165,27 @@ de invariantes con los mismos contraejemplos. Quedan abiertos H-4 e INV-8b.
   la corrida final 43107334440 (commit `8cab4f6a6c`) cerró el workflow
   completo en verde — ver la resolución en la nota siguiente.
 
+- **Tanda de 3 errores (2026-11-11, capturas de las 18:51):** Mi Negocio sube a
+  **v10** y Mi Trabajo a **v1.4.7** (el kit de chat/medios es PARALELO en las
+  dos apps — no un archivo compartido — así que cada arreglo del chat se aplicó
+  dos veces; lo único compartido de verdad es `shared/textos-motor.js` y
+  `shared/push-cliente.js`). **Barrido lateral de la tanda (obligatorio desde
+  hoy):** Textos únicos → barridas Mi Negocio (arreglada) y Mi Trabajo (ya
+  estaba bien desde la v1.4.6; se fijó con T1–T3 que no gana el botón de
+  producto); Actividad → solo existe en Mi Negocio (Mi Trabajo no tiene esa
+  pantalla); chat/medios → barrido en AMBAS apps (mismo kit, mismos defectos:
+  chip sordo de voz en cola, duración por metadato y fallo mudo también en Mi
+  Trabajo); la puerta de pago → su gemela de Telegram ya distinguía
+  `ya_pagado` (no se tocó). **SQL desplegado:** `admin_marcar_pagado` audita
+  SOLO si esa llamada selló el pago — el duplicado `pagar_comision` ×2 de la
+  captura era la cola re-despachando tras perder la respuesta (el sello y el
+  dinero siempre fueron únicos; la auditoría mentía). Verificado en la base
+  viva con transacción desechable BEGIN…ROLLBACK: 2 llamadas → 1 fila de
+  actividad y `ya_pagado` honesto; el paquete quedó en
+  `research_notes/pagar-idempotente-sql-2026-11-11.sql`. La fila duplicada
+  histórica (ids 6–7) NO se borra: la auditoría es append-only y ya quedó
+  explicada. Suites: MN 246 · MT 38+38+31+16 · invariantes 46 · Mercado 139 ·
+  bot 30 · actuar 43, todo en verde en local antes de publicar.
 - Los archivos de `bancos/` son los bancos vivos de `research_notes` con SOLO
   las rutas adaptadas (jsdom por nombre; la raíz del repo se resuelve desde el
   propio archivo o con la variable `BANCO_REPO`). Cuando un banco vivo cambia,
