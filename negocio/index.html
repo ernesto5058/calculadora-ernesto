@@ -11,31 +11,55 @@
 <meta property="og:url" content="https://ernesto5058.github.io/calculadora-ernesto/negocio/">
 <meta property="og:locale" content="es_CU">
 <style>
+  :root {
+    --fondo:#FBF5EA; --fondo-2:#FFF9EF;
+    --tinta:#2A1F0E; --tinta-2:#4A3A1F; --tinta-3:#6B5732;
+    --tarjeta:#FFFEFB; --borde:#EFE3CC; --borde-2:#E4D5B5;
+    --dorado-grad:linear-gradient(135deg,#F5D67B,#E8B84B 55%,#C9962E);
+    --dorado-txt:#7C5206; --foco:#B98A1E;
+    --precio-fondo:linear-gradient(160deg,#FFF6DC,#FFFBEB);
+    --wa:#1E7A46; --wa-osc:#17653A;
+    --sombra:0 12px 32px rgba(122,84,20,.10),0 2px 8px rgba(122,84,20,.06);
+    --sombra-suave:0 8px 24px rgba(122,84,20,.08),0 2px 6px rgba(122,84,20,.05);
+    --fuente:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
   * { margin:0; padding:0; box-sizing:border-box; }
-  body { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; background:#101418; color:#f2f4f6; line-height:1.5; }
-  .wrap { max-width:640px; margin:0 auto; padding:0 16px 40px; }
-  header { text-align:center; padding:36px 12px 26px; }
-  .mono { width:84px; height:84px; margin:0 auto 14px; border-radius:50%; background:linear-gradient(135deg,#F5D67B,#E8B84B 55%,#C9962E); color:#191204; font-size:32px; font-weight:800; display:flex; align-items:center; justify-content:center; letter-spacing:1px; }
-  h1 { font-size:27px; line-height:1.2; font-weight:800; }
-  .oficios { color:#F5D67B; font-weight:600; margin-top:6px; font-size:16px; }
-  .lugar { color:#c8d0d8; margin-top:6px; font-size:15px; }
-  .ctas { display:flex; gap:10px; justify-content:center; flex-wrap:wrap; margin-top:20px; }
-  .btn { display:inline-block; padding:14px 22px; border-radius:12px; font-size:17px; font-weight:700; text-decoration:none; }
-  .btn-tel { background:linear-gradient(135deg,#F5D67B,#E8B84B 55%,#C9962E); color:#191204; }
-  .btn-wa { background:#25D366; color:#062b16; }
-  section { background:#1a2129; border:1px solid #2b3542; border-radius:16px; padding:20px; margin-top:16px; }
-  h2 { font-size:20px; margin-bottom:8px; }
-  p { font-size:16px; color:#e6ebef; }
-  .precio { font-size:19px; font-weight:800; color:#F5D67B; margin:6px 0; }
-  ul { list-style:none; margin-top:6px; }
-  li { font-size:16px; padding:3px 0; }
-  table { width:100%; border-collapse:collapse; margin-top:10px; font-size:16px; }
-  td { padding:7px 4px; border-bottom:1px solid #2b3542; }
-  td:last-child { text-align:right; font-weight:700; color:#F5D67B; white-space:nowrap; }
-  .nota { margin-top:10px; font-size:15px; color:#c8d0d8; }
-  .contacto a { color:#F5D67B; }
-  footer { text-align:center; color:#8b96a1; font-size:13px; margin-top:26px; }
-  a { color:#F5D67B; }
+  html { -webkit-text-size-adjust:100%; }
+  body { font-family:var(--fuente); background:linear-gradient(180deg,var(--fondo-2),var(--fondo) 320px,var(--fondo)); color:var(--tinta); line-height:1.5; -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility; }
+  ::selection { background:#F5D67B; color:var(--tinta); }
+  :focus-visible { outline:3px solid var(--foco); outline-offset:2px; }
+  .wrap { max-width:640px; margin:0 auto; padding:16px 16px 48px; }
+  header { position:relative; overflow:hidden; text-align:center; padding:40px 24px 32px; background:var(--tarjeta); border:1px solid var(--borde); border-radius:28px; box-shadow:var(--sombra); }
+  header::before { content:""; position:absolute; top:0; left:0; right:0; height:8px; background:var(--dorado-grad); }
+  .mono { width:96px; height:96px; margin:0 auto 16px; border-radius:50%; background:var(--dorado-grad); color:#2A1F0E; font-size:36px; font-weight:800; display:flex; align-items:center; justify-content:center; letter-spacing:1px; box-shadow:0 12px 28px rgba(201,150,46,.35),inset 0 0 0 4px rgba(255,255,255,.45); }
+  h1 { font-size:32px; line-height:1.15; font-weight:800; letter-spacing:-0.02em; }
+  .oficios { color:var(--dorado-txt); font-weight:700; margin-top:8px; font-size:16px; }
+  .lugar { color:var(--tinta-2); margin-top:8px; font-size:15px; }
+  .ctas { display:flex; gap:12px; justify-content:center; flex-wrap:wrap; margin-top:24px; }
+  .btn { display:inline-flex; align-items:center; justify-content:center; min-height:56px; padding:12px 24px; border-radius:999px; font-size:17px; font-weight:700; text-decoration:none; transition:transform .15s ease,filter .15s ease,background .15s ease; }
+  .btn:active { transform:scale(.97); }
+  .ctas .btn { flex:1 1 220px; }
+  .btn-tel { background:var(--dorado-grad); color:#2A1F0E; box-shadow:0 8px 20px rgba(201,150,46,.30); }
+  .btn-wa { background:var(--wa); color:#FFFFFF; box-shadow:0 8px 20px rgba(30,122,70,.25); }
+  .btn-wa:active { background:var(--wa-osc); }
+  section { background:var(--tarjeta); border:1px solid var(--borde); border-radius:24px; padding:24px; margin-top:16px; box-shadow:var(--sombra-suave); }
+  h2 { font-size:21px; line-height:1.25; font-weight:800; letter-spacing:-0.01em; margin-bottom:8px; }
+  p { font-size:16px; color:var(--tinta-2); }
+  p + p { margin-top:8px; }
+  .precio { font-size:clamp(24px,6vw,28px); line-height:1.25; font-weight:800; letter-spacing:-0.01em; font-variant-numeric:tabular-nums; color:var(--dorado-txt); background:var(--precio-fondo); border:1px solid #F2DFAC; border-radius:16px; padding:16px; margin:16px 0 8px; }
+  ul { list-style:none; margin-top:8px; }
+  li { font-size:16px; color:var(--tinta-2); padding:4px 0; }
+  table { width:100%; border-collapse:collapse; margin-top:12px; font-size:16px; font-variant-numeric:tabular-nums; }
+  td { padding:8px 4px; border-bottom:1px solid var(--borde); color:var(--tinta-2); }
+  td:last-child { text-align:right; font-weight:800; font-size:19px; color:var(--dorado-txt); white-space:nowrap; }
+  tr:last-child td { border-bottom:none; }
+  .nota { margin-top:12px; font-size:15px; color:var(--tinta-2); }
+  .card-ctas { margin-top:16px; }
+  .btn-card { display:flex; width:100%; }
+  .contacto a { color:var(--dorado-txt); font-weight:600; }
+  footer { text-align:center; color:var(--tinta-3); font-size:13px; margin-top:28px; }
+  a { color:var(--dorado-txt); }
+  @media (prefers-reduced-motion: reduce) { *,*::before,*::after { animation-duration:.01ms !important; transition-duration:.01ms !important; } }
 </style>
 <script type="application/ld+json">
 {
@@ -105,6 +129,7 @@
     <p>Barbero con barbería propia en Micro 10, Santiago de Cuba. Pásate por el local o escríbeme por WhatsApp para coordinar tu corte.</p>
     <p>🕘 Horario: todos los días · 9:00 a. m. – 6:00 p. m.</p>
     <p class="precio" id="cat-precio-corte">✂️ Corte: 400 CUP en efectivo · 700 CUP por transferencia</p>
+    <div class="card-ctas"><a class="btn btn-wa btn-card" href="https://wa.me/5351231558">WhatsApp</a></div>
   </section>
 
   <section data-cat-section="bateria_lifepo4">
@@ -112,6 +137,7 @@
     <p id="cat-desc-bateria_lifepo4">Baterías de litio LiFePO4 de 12.8V y 100Ah en venta, ideales para respaldo eléctrico e inversores.</p>
     <p class="precio" id="cat-precio-bateria_lifepo4">💰 Precio: al privado</p>
     <p>Llama o escribe al <strong>51231558</strong> para el precio y coordinar. Domicilio en Santiago de Cuba.</p>
+    <div class="card-ctas"><a class="btn btn-tel btn-card" href="tel:+5351231558">Llamar al 51231558</a></div>
   </section>
 
   <section data-cat-section="lavadora_hys">
@@ -122,6 +148,7 @@
       <li>✅ Garantía: 1 año</li>
       <li>✅ Domicilio incluido en Santiago</li>
     </ul>
+    <div class="card-ctas"><a class="btn btn-wa btn-card" href="https://wa.me/5351231558">WhatsApp</a></div>
   </section>
 
   <section>
@@ -135,6 +162,7 @@
       <tr><td>5 000 de saldo</td><td>10 000 CUP</td></tr>
     </table>
     <p class="nota">Más de 5 000 de saldo los pago al 2.2. Pago las recargas a 720. Domicilio gratis.</p>
+    <div class="card-ctas"><a class="btn btn-wa btn-card" href="https://wa.me/5351231558">WhatsApp</a></div>
   </section>
 
   <section class="contacto">
@@ -156,37 +184,42 @@
      Habla con la puerta agente-responder; la clave es la PÚBLICA de
      visitante (los límites reales viven en el servidor). -->
 <style>
-  #ag-burbuja { position:fixed; right:18px; bottom:18px; z-index:60; width:60px; height:60px; border:none; border-radius:50%;
-    background:linear-gradient(135deg,#F5D67B,#E8B84B 55%,#C9962E); color:#191204; cursor:pointer;
-    box-shadow:0 8px 24px rgba(0,0,0,.45); display:flex; align-items:center; justify-content:center;
+  #ag-burbuja { position:fixed; right:16px; bottom:16px; z-index:60; width:60px; height:60px; border:1px solid rgba(255,255,255,.55); border-radius:50%;
+    background:linear-gradient(135deg,#F5D67B,#E8B84B 55%,#C9962E); color:#2A1F0E; cursor:pointer;
+    box-shadow:0 12px 28px rgba(122,84,20,.35); display:flex; align-items:center; justify-content:center;
     transition:transform .18s ease, box-shadow .18s ease; }
-  #ag-burbuja:hover { transform:translateY(-2px) scale(1.04); box-shadow:0 12px 28px rgba(0,0,0,.5); }
+  #ag-burbuja:hover { transform:translateY(-2px) scale(1.04); box-shadow:0 16px 32px rgba(122,84,20,.40); }
   #ag-burbuja:active { transform:scale(.96); }
+  #ag-burbuja:focus-visible { outline:3px solid #B98A1E; outline-offset:2px; }
   #ag-burbuja svg { width:30px; height:30px; }
-  #ag-panel { position:fixed; right:18px; bottom:88px; z-index:60; width:min(360px, calc(100vw - 24px)); height:min(520px, calc(100dvh - 120px));
-    background:#141a21; border:1px solid #2b3542; border-radius:18px; overflow:hidden; display:none; flex-direction:column;
-    box-shadow:0 18px 48px rgba(0,0,0,.55); opacity:0; transform:translateY(10px) scale(.98); transition:opacity .18s ease, transform .18s ease; }
+  #ag-panel { position:fixed; right:16px; bottom:88px; z-index:60; width:min(360px, calc(100vw - 24px)); height:min(520px, calc(100dvh - 120px));
+    background:#FFFDF8; border:1px solid #EFE3CC; border-radius:24px; overflow:hidden; display:none; flex-direction:column;
+    box-shadow:0 24px 56px rgba(90,62,12,.28); opacity:0; transform:translateY(10px) scale(.98); transition:opacity .18s ease, transform .18s ease; }
   #ag-panel.abierto { display:flex; opacity:1; transform:none; }
-  #ag-cab { background:linear-gradient(135deg,#F5D67B,#E8B84B 55%,#C9962E); color:#191204; padding:12px 16px; }
+  #ag-cab { background:linear-gradient(135deg,#F5D67B,#E8B84B 55%,#C9962E); color:#2A1F0E; padding:16px; }
   #ag-cab b { font-size:16px; display:block; }
   #ag-cab span { font-size:12.5px; opacity:.85; }
-  #ag-msjs { flex:1; overflow-y:auto; padding:14px 12px; display:flex; flex-direction:column; gap:8px; }
-  .ag-m { max-width:85%; padding:9px 12px; border-radius:14px; font-size:14.5px; line-height:1.45; white-space:pre-wrap; word-break:break-word;
+  #ag-msjs { flex:1; overflow-y:auto; padding:16px 12px; display:flex; flex-direction:column; gap:8px; background:#FBF5EA; }
+  .ag-m { max-width:85%; padding:12px; border-radius:16px; font-size:14.5px; line-height:1.45; white-space:pre-wrap; word-break:break-word;
     animation:ag-entra .18s ease; }
   @keyframes ag-entra { from { opacity:0; transform:translateY(4px); } to { opacity:1; transform:none; } }
-  .ag-el { align-self:flex-start; background:#1f2833; border:1px solid #2b3542; border-bottom-left-radius:4px; color:#eef2f5; }
-  .ag-yo { align-self:flex-end; background:linear-gradient(135deg,#F5D67B,#E8B84B 55%,#C9962E); color:#191204; border-bottom-right-radius:4px; font-weight:600; }
-  .ag-escribiendo { align-self:flex-start; color:#8b96a1; font-size:13px; padding:2px 6px; }
-  #ag-chips { display:none; flex-wrap:wrap; gap:6px; padding:0 12px 8px; }
-  #ag-chips button { background:#1f2833; color:#F5D67B; border:1px solid #C9962E; border-radius:999px; padding:7px 12px; font-size:13.5px; cursor:pointer; }
+  .ag-el { align-self:flex-start; background:#FFFEFB; border:1px solid #EFE3CC; border-bottom-left-radius:6px; color:#2A1F0E; box-shadow:0 2px 8px rgba(122,84,20,.06); }
+  .ag-yo { align-self:flex-end; background:linear-gradient(135deg,#F5D67B,#E8B84B 55%,#C9962E); color:#2A1F0E; border-bottom-right-radius:6px; font-weight:600; }
+  .ag-escribiendo { align-self:flex-start; color:#6B5732; font-size:13px; padding:4px 8px; }
+  #ag-chips { display:none; flex-wrap:wrap; gap:8px; padding:0 12px 8px; background:#FBF5EA; }
+  #ag-chips button { background:#FFFEFB; color:#7C5206; border:1px solid #D9B64A; border-radius:999px; padding:10px 16px; min-height:44px; font-size:13.5px; font-weight:600; cursor:pointer; }
+  #ag-chips button:focus-visible { outline:3px solid #B98A1E; outline-offset:2px; }
   #ag-chips button:active { transform:scale(.96); }
-  #ag-form { display:flex; gap:8px; padding:10px; border-top:1px solid #2b3542; background:#10151b; }
-  #ag-txt { flex:1; background:#1f2833; border:1px solid #2b3542; border-radius:999px; color:#f2f4f6; padding:10px 14px; font-size:15px; outline:none; }
-  #ag-txt:focus { border-color:#C9962E; }
-  #ag-env { width:44px; height:44px; flex:none; border:none; border-radius:50%; cursor:pointer;
-    background:linear-gradient(135deg,#F5D67B,#E8B84B 55%,#C9962E); color:#191204; display:flex; align-items:center; justify-content:center; }
+  #ag-form { display:flex; gap:8px; padding:12px; border-top:1px solid #EFE3CC; background:#FFFDF8; }
+  #ag-txt { flex:1; background:#FFFFFF; border:1px solid #E4D5B5; border-radius:999px; color:#2A1F0E; padding:12px 16px; min-height:48px; font-size:15px; outline:none; }
+  #ag-txt::placeholder { color:#6B5732; }
+  #ag-txt:focus { border-color:#C9962E; box-shadow:0 0 0 3px rgba(232,184,75,.25); }
+  #ag-env { width:48px; height:48px; flex:none; border:none; border-radius:50%; cursor:pointer;
+    background:linear-gradient(135deg,#F5D67B,#E8B84B 55%,#C9962E); color:#2A1F0E; display:flex; align-items:center; justify-content:center; }
+  #ag-env:focus-visible { outline:3px solid #B98A1E; outline-offset:2px; }
   #ag-env:active { transform:scale(.94); }
   #ag-env svg { width:20px; height:20px; }
+  @media (prefers-reduced-motion: reduce) { #ag-burbuja, #ag-panel, .ag-m { animation-duration:.01ms !important; transition-duration:.01ms !important; } }
 </style>
 <button id="ag-burbuja" aria-label="Abrir el chat del asistente" title="Pregúntale al asistente">
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
