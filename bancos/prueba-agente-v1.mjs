@@ -141,7 +141,8 @@ for (const [txt, nombre] of [
 /* ================= FR — frescura y degradación ================= */
 {
   const r = O("¿a cómo el corte?");
-  ok(r.respuesta.includes("actualizado"), "FR-1 la respuesta cita la hora del dato");
+  ok(r.respuesta.includes("400") && !/actualizado|dato de la ficha/.test(r.respuesta), "FR-1 v2: el texto al cliente va LIMPIO, sin notas internas (la trazabilidad vive en la auditoría)");
+  ok(Array.isArray(r.auditoria?.fuentes_detalle) && !!r.auditoria.fuentes_detalle[0]?.actualizado_en, "FR-1b la auditoría SÍ guarda la fuente y la hora del dato");
   // FR-2: sin cerebro (el adaptador devuelve null por diseño) la FAQ
   // exacta responde igual; fuera de FAQ -> no_se honesto, nunca invento.
   const r2 = O("¿haces uñas acrílicas?");
@@ -294,7 +295,7 @@ ok(cobertura >= 0.8, "ARNÉS cobertura ≥ 80 %");
   const r2 = O("/ayuda");
   ok(r2.accion === "comando" && /Te ayudo con/.test(r2.respuesta), "CMD-2 /ayuda: la misma capa de comandos");
   const r3 = O("/precios");
-  ok(r3.accion === "comando" && r3.respuesta.includes("400") && r3.respuesta.includes("250"), "CMD-3 /precios: compone los datos vivos verificados");
+  ok(r3.accion === "comando" && r3.panel?.vista === "inicio" && (r3.opciones?.length === 6) && !/250|cuesta 250/.test(r3.respuesta), "CMD-3 v2 /precios: menú de temas (panel/chips), jamás el volcado");
   const r4 = O("/horario");
   ok(r4.accion === "comando" && /9:00 a\. m\./.test(r4.respuesta), "CMD-4 /horario: dato vivo por comando");
   const r5 = O("/ubicacion");
@@ -318,6 +319,112 @@ ok(cobertura >= 0.8, "ARNÉS cobertura ≥ 80 %");
   }
   const rcap = O("¿qué puedes hacer?");
   ok(rcap.accion === "responder" && rcap.faq_id === "f-cap" && /paso a Ernesto/.test(rcap.respuesta), "CAP-1 capacidades en lenguaje natural: lista + pase a Ernesto");
+}
+
+/* ============ v2 — limpieza, panel, menú, modo dueño, cerebro ============ */
+{
+  // LIMPIO: ningún texto al cliente lleva notas internas (barrido de
+  // TODOS los renders + comandos: la misma logica alimenta web y TG).
+  const textos = [];
+  for (const dc of ["precio_corte", "precio_lavadora", "precio_bateria", "tarifa_saldo",
+                    "horario", "ubicacion", "domicilio", "formas_pago", "garantia_lavadora",
+                    "contacto", "identidad", "stock_lavadora", "stock_bateria"]) {
+    const r = L.renderDato(dc, DATOS);
+    if (r) textos.push(r.texto);
+  }
+  textos.push(O("/horario").respuesta, O("/ubicacion").respuesta, O("¿a cómo el corte?").respuesta);
+  ok(textos.every((t) => !/dato de la ficha/.test(t) && !/actualizado/.test(t)),
+     "LIMPIO-1 ningún texto al cliente lleva «dato de la ficha» ni «actualizado»");
+}
+{
+  // PANEL: cada vista habla SOLO de su tema y trae su navegación.
+  const cbs = (pv) => (pv.teclado.inline_keyboard.flat()).map((b) => b.callback_data);
+  const pvB = L.panelVista("barberia", DATOS);
+  ok(pvB.texto.includes("400") && !pvB.texto.includes("250") && !pvB.texto.includes("720"), "PANEL-1 barbería: solo su tema");
+  const pvS = L.panelVista("saldo", DATOS);
+  ok(pvS.texto.includes("720") && !pvS.texto.includes("400"), "PANEL-2 saldo: solo su tema");
+  const pvL = L.panelVista("lavadora", DATOS);
+  ok(pvL.texto.includes("250") && !pvL.texto.includes("720"), "PANEL-3 lavadora: solo su tema");
+  ok(cbs(pvB).includes("v2:p:inicio") && cbs(pvB).includes("v2:p:cita"), "PANEL-4 la sección trae [Atrás/Inicio] y [Pedir cita]");
+  const pvI = L.panelVista("inicio", DATOS);
+  ok(cbs(pvI).filter((c) => c.startsWith("v2:p:")).length === 6, "PANEL-5 inicio: los 6 temas en botones");
+  ok(L.panelVista("dueno", DATOS) === null, "PANEL-6 la vista del dueño NO existe para un cliente");
+}
+{
+  // MENÚ por texto libre y por chips: «precios» jamás vuelca.
+  const r = O("precios");
+  ok(r.accion === "menu" && r.panel?.vista === "inicio" && r.opciones?.length === 6, "MENU-1 «precios» a secas: menú de temas");
+  const cM = { escalada: false, flujo: r.flujo };
+  const r1 = L.orquestar(DATOS, cM, "1", AHORA);
+  ok(r1.accion === "menu" && r1.respuesta.includes("400") && !r1.respuesta.includes("250"), "MENU-2 chip 1: solo barbería");
+  const r3m = L.orquestar(DATOS, cM, "3", AHORA);
+  ok(r3m.accion === "menu" && r3m.respuesta.includes("250") && !r3m.respuesta.includes("720"), "MENU-3 chip 3: solo lavadora");
+  const rP = O("¿cuánto cuesta?");
+  ok(rP.accion === "menu", "MENU-4 «¿cuánto cuesta?» sin producto: menú, no adivinanza");
+}
+{
+  const D = { ...DATOS, esDueno: true };
+  const rA = L.orquestar(D, conv(), "/admin", AHORA);
+  ok(rA.panel?.vista === "dueno", "DUEÑO2-1 /admin del dueño: su panel de ajustes");
+  const rC = O("/admin");
+  ok(rC.accion === "no_se" && !rC.panel, "DUEÑO2-2 /admin de un cliente: nada, ni el menú");
+  const rPD = L.orquestar(DATOS, conv(), "/panel dueno", AHORA);
+  ok(rPD.accion === "no_se", "DUEÑO2-3 /panel dueno de un cliente: nada");
+  // horario: flujo completo hasta el descriptor, con inverso
+  let c = conv();
+  let r = L.orquestar(D, c, "/dueno horario", AHORA); c = { ...c, flujo: r.flujo };
+  ok(r.flujo?.paso === "horario_abre", "DUEÑO2-4 horario: pide la hora de apertura");
+  r = L.orquestar(D, c, "8:00", AHORA); c = { ...c, flujo: r.flujo };
+  ok(r.flujo?.paso === "horario_cierra" && r.flujo.datos.abre === "08:00", "DUEÑO2-5 apertura validada y normalizada");
+  r = L.orquestar(D, c, "19:00", AHORA); c = { ...c, flujo: r.flujo };
+  r = L.orquestar(D, c, "igual", AHORA); c = { ...c, flujo: r.flujo };
+  ok(r.flujo?.paso === "confirmar" && r.flujo.datos.dias === "todos los días", "DUEÑO2-6 «igual» conserva los días y pasa a confirmar");
+  r = L.orquestar(D, c, "/dueno ok", AHORA);
+  ok(r.cambio?.etiqueta === "horario" && r.cambio.parches[0].parche.valor.abre === "08:00" && r.cambio.parches[0].parche.valor.cierra === "19:00", "DUEÑO2-7 ✅: descriptor del horario nuevo");
+  ok(r.cambio.parches[0].deshacer.valor.abre === "09:00" && r.cambio.parches[0].deshacer.valor.cierra === "18:00", "DUEÑO2-8 el inverso guarda el horario anterior");
+  const cU = { escalada: false, flujo: {}, dueno_ultimo: { etiqueta: "horario", resumen: "Horario: x", parches: r.cambio.parches.map((p) => ({ tabla: p.tabla, filtro: p.filtro, parche: p.deshacer })) } };
+  const rU = L.orquestar(D, cU, "/dueno deshacer", AHORA);
+  ok(rU.cambio?.esDeshacer === true && rU.cambio.parches[0].parche.valor.abre === "09:00", "DUEÑO2-9 deshacer: aplica el inverso guardado");
+  // corte: dos pasos, descriptor doble con inverso
+  c = conv();
+  r = L.orquestar(D, c, "/dueno corte", AHORA); c = { ...c, flujo: r.flujo };
+  r = L.orquestar(D, c, "450", AHORA); c = { ...c, flujo: r.flujo };
+  r = L.orquestar(D, c, "igual", AHORA); c = { ...c, flujo: r.flujo };
+  ok(r.flujo?.paso === "confirmar" && r.flujo.datos.efectivo === 450 && r.flujo.datos.transferencia === 700, "DUEÑO2-10 corte: efectivo nuevo y transferencia «igual»");
+  r = L.orquestar(D, c, "/dueno ok", AHORA);
+  ok(r.cambio?.parches?.length === 2 && r.cambio.parches[0].parche.precio === 450 && r.cambio.parches[0].deshacer.precio === 400, "DUEÑO2-11 ✅: descriptor del precio con su inverso");
+  // faq: su cifra propia pasa; la interna se bloquea en el dictado
+  c = conv();
+  r = L.orquestar(D, c, "/dueno faq", AHORA); c = { ...c, flujo: r.flujo };
+  const idxCap = (r.flujo.datos.ids ?? []).indexOf("f-cap");
+  ok(idxCap >= 0, "DUEÑO2-12 la lista de editables trae las respuestas de texto");
+  r = L.orquestar(D, c, String(idxCap + 1), AHORA); c = { ...c, flujo: r.flujo };
+  ok(r.flujo?.paso === "faq_texto" && r.flujo.datos.faqId === "f-cap", "DUEÑO2-13 el número elige la respuesta a editar");
+  r = L.orquestar(D, c, "El desriz cuesta 900 CUP y es con cita.", AHORA); c = { ...c, flujo: r.flujo };
+  ok(r.flujo?.paso === "confirmar", "DUEÑO2-14 su cifra propia (900) pasa a confirmación");
+  r = L.orquestar(D, c, "/dueno ok", AHORA);
+  ok(r.cambio?.etiqueta === "faq" && /900/.test(r.cambio.parches[0].parche.respuesta_texto), "DUEÑO2-15 ✅: descriptor de la respuesta editada");
+  const cB = { escalada: false, flujo: { tipo: "dueno", paso: "faq_texto", datos: { faqId: "f-cap" } } };
+  const rB = L.orquestar(D, cB, "Di que la salida está a 925 hoy.", AHORA);
+  ok(rB.flujo?.paso === "faq_texto" && !rB.cambio && /INTERNA/.test(rB.respuesta), "DUEÑO2-16 la cifra INTERNA (925) en su dictado: bloqueada, no se guarda");
+  // pausa: descriptor contra agente_config
+  const rPz = L.orquestar(D, conv(), "/dueno pausar", AHORA);
+  const rPz2 = L.orquestar(D, { escalada: false, flujo: rPz.flujo }, "/dueno ok", AHORA);
+  ok(rPz2.cambio?.parches?.[0]?.tabla === "agente_config" && rPz2.cambio.parches[0].parche.detenido === true && rPz2.cambio.parches[0].deshacer.detenido === false, "DUEÑO2-17 pausar: detenido=true con inverso");
+}
+{
+  // CEREBRO (validación pura): la capa conversacional solo sale con
+  // cifras de la proyección pública; lo demás se bloquea igual.
+  const proy = L.proyeccionPublica(DATOS);
+  const okT = L.validarRespuestaCerebro("El corte cuesta 400 CUP en efectivo y la barbería abre de 9:00 a. m. a 6:00 p. m. ¿Te anoto una cita?", proy.valores, DATOS.prohibidas);
+  ok(okT.ok === true, "CEREBRO-1 guía con cifras de la proyección: pasa el verificador");
+  const mal1 = L.validarRespuestaCerebro("El corte te lo dejo hoy a 350 CUP, aprovecha.", proy.valores, DATOS.prohibidas);
+  ok(mal1.ok === false, "CEREBRO-2 cifra inventada (350): bloqueada");
+  const mal2 = L.validarRespuestaCerebro("Su salida de hoy es 925, vende tranquilo.", proy.valores, DATOS.prohibidas);
+  ok(mal2.ok === false, "CEREBRO-3 cifra interna (925): bloqueada");
+  const mal3 = L.validarRespuestaCerebro("Te hago un descuento especial si vienes hoy.", proy.valores, DATOS.prohibidas);
+  ok(mal3.ok === false, "CEREBRO-4 promesa/descuento: la caza el hierro");
+  ok(proy.texto.includes("400") && !/925|1069|1098/.test(proy.texto), "CEREBRO-5 la proyección que ve el cerebro es SOLO lo público");
 }
 
 console.log("\nprueba-agente-v1: " + pass + " PASS · " + fail + " FAIL");
