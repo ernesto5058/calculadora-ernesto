@@ -234,6 +234,30 @@ jobs:
                     adb shell settings put system accelerometer_rotation 1 >/dev/null 2>&1
                     sin_dialogos
                     dumpw; cp /tmp/w.xml "$GITHUB_WORKSPACE/dump-rotacion.xml" 2>/dev/null || true
+                    # Arnés v2.1: la rotación (v2.0) NO movió el árbol — con
+                    # la densidad 420 del Pixel, las tres primeras pestañas
+                    # siguen sin geometría (dump-rotacion de la v2.0). Segundo
+                    # experimento: bajar la densidad a 320 y relanzar la app
+                    # (la sesión vive en el almacenamiento local y sobrevive
+                    # al relanzamiento). Si el árbol se puebla, el tour va
+                    # con 320 y el artefacto queda señalado como del emulador.
+                    dumpw
+                    if ! python3 ojo/arbol.py && grep -q "cuánto cobro" /tmp/w.xml 2>/dev/null; then
+                      adb shell wm density 320 >/dev/null 2>&1; sleep 2
+                      adb shell am force-stop "$PKG" >/dev/null 2>&1; sleep 1
+                      adb shell am start -n "$PKG/.MainActivity" >/dev/null 2>&1; sleep 10
+                      sin_dialogos
+                      dumpw; cp /tmp/w.xml "$GITHUB_WORKSPACE/dump-densidad.xml" 2>/dev/null || true
+                      if grep -q "cuánto cobro" /tmp/w.xml 2>/dev/null && python3 ojo/arbol.py; then
+                        EXTRA="$EXTRA Con densidad 320 el árbol de pestañas se pobló entero: el tour va con esa densidad (la 420 de este emulador es la que rompe la barra; la app no se tocó)."
+                      else
+                        adb shell wm density reset >/dev/null 2>&1; sleep 2
+                        adb shell am force-stop "$PKG" >/dev/null 2>&1; sleep 1
+                        adb shell am start -n "$PKG/.MainActivity" >/dev/null 2>&1; sleep 10
+                        sin_dialogos
+                        EXTRA="$EXTRA Ni con densidad 320 se pobló el árbol: se volvió a la densidad normal pal tour."
+                      fi
+                    fi
                     # Arnés v1.9: el árbol de accesibilidad del WebView tarda
                     # minutos en poblarse en este emulador (las pestañas
                     # nacen con bounds [0,0]: corridas v1.6/v1.7). Se espera
@@ -251,6 +275,56 @@ jobs:
                       VERED="PARCIAL"
                       DET="La app entró con la cuenta de prueba y no se cayó, pero $FALLOS pestaña(s) no respondieron al toque en el teléfono virtual; sus fotos muestran la pantalla donde quedó el recorrido."
                       EXTRA="$EXTRA Recorrido interior hecho con $FALLOS pestaña(s) sin responder."
+                    fi
+                    # ===== Extras v2.1 — lo nuevo de la v1.4.8 =====
+                    # (a) Botón «Editar» de reportes: abrirlo SIN guardar.
+                    tap_tab "Mi panel" 2; sleep 3; dumpw
+                    if grep -q "Editar" /tmp/w.xml 2>/dev/null; then
+                      if python3 ojo/tap.py "Editar"; then
+                        sleep 3; dumpw; cp /tmp/w.xml "$GITHUB_WORKSPACE/dump-editar.xml" 2>/dev/null || true
+                        shot "09-editar-reporte.png" "Extras v1.4.8: el botón «Editar» de un reporte de la cuenta de prueba ABRE su editor (se abrió sin guardar nada)"
+                        EXTRA="$EXTRA El botón «Editar» de reportes respondió y abrió el editor (foto 09; no se guardó ningún cambio)."
+                        adb shell input keyevent 4 >/dev/null 2>&1; sleep 2
+                      fi
+                    else
+                      EXTRA="$EXTRA En «Mi panel» no se vio ningún botón «Editar» (¿la cuenta de prueba no tiene reportes editables?): ese botón queda sin probar en el emulador."
+                    fi
+                    # (b) Editor de foto del Chat: foto+texto como UN mensaje y foto sola.
+                    adb push "$CAP/01-puerta.png" /sdcard/Pictures/ojo-prueba.png >/dev/null 2>&1
+                    adb shell am broadcast -a android.intent.action.MEDIA_SCANNER_SCAN_FILE -d "file:///sdcard/Pictures/ojo-prueba.png" >/dev/null 2>&1; sleep 2
+                    tap_tab "Chat" 3; sleep 3; dumpw; cp /tmp/w.xml "$GITHUB_WORKSPACE/dump-chat.xml" 2>/dev/null || true
+                    adjuntar_y_elegir(){
+                      python3 ojo/tap.py "Adjuntar" || python3 ojo/tap.py "Galería" || python3 ojo/tap.py "Foto" || return 1
+                      sleep 3
+                      tap_tabla 0.16 0.32; sleep 4; dumpw
+                      grep -qiE "escribe|mensaje|añade|envía" /tmp/w.xml 2>/dev/null
+                    }
+                    if adjuntar_y_elegir; then
+                      shot "10-editor-foto.png" "Extras v1.4.8: el editor de foto a pantalla completa con la foto elegida"
+                      python3 ojo/tap.py "Escribe" || python3 ojo/tap.py "mensaje" || tap_tabla 0.45 0.93
+                      sleep 1
+                      adb shell input text "PRUEBA DEL OJO foto con texto"
+                      sleep 1
+                      shot "11-editor-foto-texto.png" "Extras v1.4.8: el editor con la foto y su texto escritos, antes de enviar"
+                      python3 ojo/tap.py "Enviar" || tap_tabla 0.93 0.93
+                      sleep 5; dumpw
+                      if grep -q "PRUEBA DEL OJO" /tmp/w.xml 2>/dev/null; then
+                        EXTRA="$EXTRA La foto+texto salió del editor como UN solo mensaje con su texto (fotos 10-12, cuenta de prueba)."
+                      else
+                        EXTRA="$EXTRA El editor se abrió y se escribió el texto, pero el envío como un solo mensaje no se confirmó en el árbol (foto 12 manda)."
+                      fi
+                      shot "12-chat-foto-texto.png" "Extras v1.4.8: el Chat tras enviar la foto con texto desde el editor"
+                      if adjuntar_y_elegir; then
+                        python3 ojo/tap.py "Enviar" || tap_tabla 0.93 0.93
+                        sleep 5
+                        shot "13-chat-foto-sola.png" "Extras v1.4.8: el Chat tras enviar la foto SOLA desde el editor"
+                        EXTRA="$EXTRA La foto sola también se envió desde el editor (foto 13, cuenta de prueba)."
+                      else
+                        EXTRA="$EXTRA La segunda foto (la sola) no llegó al editor en el emulador."
+                      fi
+                    else
+                      shot "10-chat-adjuntar.png" "Extras v1.4.8: el Chat tras intentar adjuntar (el editor de foto no se alcanzó en el emulador)"
+                      EXTRA="$EXTRA El editor de foto nuevo NO se alcanzó en el emulador (selector o editor sin respuesta al robot): queda sin verificar aquí; su prueba es en un teléfono de verdad."
                     fi
                   else
                     VERED="PARCIAL"
@@ -398,4 +472,7 @@ jobs:
             dump-entrada.xml
             dump-tour.xml
             dump-rotacion.xml
+            dump-densidad.xml
+            dump-editar.xml
+            dump-chat.xml
           if-no-files-found: ignore
