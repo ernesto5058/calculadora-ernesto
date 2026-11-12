@@ -1635,6 +1635,25 @@ function estadoPush(){
   if (esIOS() && !estaInstalada()) return "instalar";
   return "pedir";
 }
+/* TANDA 6 · E-12: ¿la suscripción viva usa la clave VAPID ACTUAL?
+   Tras una rotación de claves, una suscripción vieja queda muda
+   (el servidor ya no puede empujar con ella) y la UI decía «ok». */
+function mismaClaveVapid(sub){
+  try {
+    var k = sub && sub.options && sub.options.applicationServerKey;
+    if (!k) return false;
+    var a = new Uint8Array(k), b = vapidBytes(VAPID_PUBLICA);
+    if (a.length !== b.length) return false;
+    for (var i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
+    return true;
+  } catch(e){ return false; }
+}
+function suscribirPush(reg){
+  return reg.pushManager.subscribe({
+    userVisibleOnly: true,
+    applicationServerKey: vapidBytes(VAPID_PUBLICA)
+  });
+}
 /* Debe llamarse DENTRO del toque del usuario (requisito Apple).
    guardar(suscripcionJson, plataforma) -> Promise de la app. */
 function activarPush(guardar){
@@ -1643,11 +1662,9 @@ function activarPush(guardar){
     return Notification.requestPermission().then(function(perm){
       if (perm !== "granted") throw new Error("permiso no concedido");
       return reg.pushManager.getSubscription().then(function(sub){
-        if (sub) return sub;
-        return reg.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: vapidBytes(VAPID_PUBLICA)
-        });
+        if (sub && mismaClaveVapid(sub)) return sub;
+        if (sub) return sub.unsubscribe().then(function(){ return suscribirPush(reg); });
+        return suscribirPush(reg);
       });
     }).then(function(sub){
       var plataforma = esIOS() ? "ios" : (/android/i.test(navigator.userAgent || "") ? "android" : "web");
