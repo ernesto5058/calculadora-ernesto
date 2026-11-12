@@ -7,6 +7,10 @@ on:
     paths: [".apk-trigger"]
   schedule:
     - cron: "7 * * * *"
+    # Segundo latido: GitHub entrega los schedule con huecos de 4-8 h
+    # (medido el 2026-11-12); este pase extra a :37 cada 2 h sube la
+    # cadencia real sin costo (repo público, minutos gratis).
+    - cron: "37 */2 * * *"
   workflow_dispatch:
 
 permissions:
