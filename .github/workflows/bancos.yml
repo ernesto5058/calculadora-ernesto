@@ -18,6 +18,22 @@ on:
       - 'supabase/functions/**'
       - 'bancos/**'
       - '.github/workflows/bancos.yml'
+  # Puerta de main (TOP 4 del estudio de huecos, 2026-11-12): el ruleset de
+  # main exige el check «Bancos de las apps» en verde pa fusionar un PR;
+  # sin este disparador el check nunca nace en los PRs y la puerta sería
+  # un candado sin llave. Mismos caminos que el push.
+  pull_request:
+    branches: [main]
+    paths:
+      - 'minegocio/**'
+      - 'buscadores/**'
+      - 'buscadores-app/**'
+      - 'mercado/**'
+      - 'shared/**'
+      - 'datos/**'
+      - 'supabase/functions/**'
+      - 'bancos/**'
+      - '.github/workflows/bancos.yml'
   workflow_dispatch:
 
 # Plataforma (Dominio Total, 2026-11-12): permisos mínimos — los bancos
