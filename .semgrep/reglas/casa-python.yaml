@@ -1,0 +1,34 @@
+rules:
+  # ─────────────────────────────────────────────────────────────────────────
+  # Origen: DESARROLLO-PRO §6 + §9 trampa 3 — desde la VM de Máximo, urllib
+  # contra api.github.com devuelve un 401 FALSO por el proxy saliente y ya
+  # costó ~30 min de diagnóstico erróneo. La casa llama a GitHub con
+  # requests o curl, nunca urllib.
+  # Excepción deliberada (paths.exclude): scripts/vigia_supabase.py corre
+  # DENTRO de GitHub Actions (sin proxy) y toca Supabase, no GitHub — el
+  # propio estándar dice «no corregir lo que no está roto en su contexto».
+  # foto_mercado.py importa urllib sin usarlo (import muerto): hallazgo real.
+  - id: casa-python-sin-urllib
+    languages: [python]
+    severity: WARNING
+    message: >-
+      urllib está prohibido en el código Python de la casa (DESARROLLO-PRO §6,
+      trampa §9-3): desde la VM, el proxy corrompe urllib contra
+      api.github.com y devuelve un 401 falso. Usa requests (o curl).
+    metadata:
+      origen: "DESARROLLO-PRO §6 / §9 trampa 3"
+      precision: "probada — ver casos/casa-python.py"
+    paths:
+      exclude:
+        - "**/.semgrep/casos/**"
+        - "**/.semgrep/casos/**"
+        - "**/scripts/vigia_supabase.py"
+    pattern-either:
+      - pattern: import urllib.request
+      - pattern: import urllib.error
+      - pattern: import urllib
+      - pattern: urllib.request.urlopen(...)
+      - pattern: urllib.request.Request(...)
+      # `from urllib import ...` no es patrón válido en Semgrep (la elipsis
+      # no cabe en un import-from): se cubre con regex anclada a línea.
+      - pattern-regex: "(?m)^\\s*from\\s+urllib(\\.request|\\.error|\\.parse)?\\s+import\\s"
