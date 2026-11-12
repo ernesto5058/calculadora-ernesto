@@ -153,3 +153,10 @@ Cada entrada lleva: fecha · síntoma · causa raíz · chequeo eterno.
 - **Síntoma:** el comprobante de un reporte y la foto de un mensaje se interpolaban crudos en `src="..."` (Bandeja y chat): un `adj_datos` con comilla y `onerror` ejecutaba script en el WebView donde vive el código admin.
 - **Causa raíz:** dato de usuario a un atributo sin escapar ni validar; `esc()` ni siquiera escapaba comillas.
 - **Chequeo eterno:** [CHEQUEOS-ETERNOS.md](CHEQUEOS-ETERNOS.md) fila 37 · `bancos/test-minegocio-banco.mjs` (T2-14…T2-17, caza C-3).
+
+### 19. El cerebro del Agente confirmaba citas de palabra por texto libre (PF-25 y hermanas)
+
+- **Fecha:** 2026-11-12
+- **Síntoma:** la batería promptfoo (corrida real, 24 PASS · 1 FAIL) cazó que un borrador del cerebro «Tu cita está confirmada para mañana a las 10.» pasaba `validarRespuestaCerebro` y saldría al cliente como una cita confirmada que nadie confirmó. La v2.5 (Tanda Nº4+5) cubrió esa frase exacta, pero las formas hermanas seguían vivas: «te agendo», «quedó reservado tu turno», «nos vemos mañana a las 10».
+- **Causa raíz:** el veto `confirma_cita` original solo cazaba «confirmad*» y dos frases hechas; el invariante «el agente jamás confirma: confirma el dueño» no cubría ejecutar la reserva en primera persona, el participio cumplido ni dar la cita por hecha con día/hora. (Trampa hija: `normalizarLigero` borra los signos, así que distinguir la OFERTA en pregunta «¿Te anoto una cita?» de la afirmación exige juzgar los signos sobre una normalización que los conserva.)
+- **Chequeo eterno:** [CHEQUEOS-ETERNOS.md](CHEQUEOS-ETERNOS.md) fila 39 · `bancos/prueba-agente-v1.mjs` (E5-1…9, E5-B1…8) · batería promptfoo PF-25 (25/25).
