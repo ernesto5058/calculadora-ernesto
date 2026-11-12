@@ -1,1 +1,1 @@
-El código de prueba no validó en esta corrida: el recorrido interior no se pudo hacer. La puerta y el rechazo del código inválido sí quedaron probados. El aviso de código inválido se vio en pantalla.
+Al reabrir la app para el recorrido interior, la puerta no apareció en el teléfono virtual. La puerta y el rechazo del código inválido sí quedaron probados en la primera parte. El aviso de código inválido se vio en pantalla.
