@@ -1,20 +1,6 @@
 {
   "actualizado": "2026-11-12",
-  "apkUrl": "https://github.com/ernesto5058/calculadora-ernesto/releases/download/apk-v1.5.1/Mi-Trabajo-v1.5.1.apk",
-  "buscadores": {
-    "ABRAHAM-5ZU": {
-      "nombre": "Abraham",
-      "tratos": []
-    },
-    "BRIKU-SEF": {
-      "nombre": "Briku",
-      "tratos": []
-    },
-    "PEUEBA": {
-      "nombre": "PRUEBA OJO",
-      "tratos": []
-    }
-  },
+  "apkUrl": "https://github.com/ernesto5058/calculadora-ernesto/releases/download/apk-v1.5.2/Mi-Trabajo-v1.5.2.apk",
   "publico": {
     "domicilio": "Domicilio gratis en Santiago de Cuba",
     "saldo": {
@@ -38,6 +24,6 @@
     "pisoTransf": 25,
     "salidaRef": 950
   },
-  "version": 5,
-  "versionApp": "1.5.1"
+  "version": 6,
+  "versionApp": "1.5.2"
 }
