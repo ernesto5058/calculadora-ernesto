@@ -218,6 +218,22 @@ jobs:
                   if gone_text "Tu código personal" 25 && wait_text "Reportar" 10; then
                     shot "03-entrada.png" "Dentro: la primera pantalla tras entrar con la cuenta de prueba"
                     dumpw; cp /tmp/w.xml "$GITHUB_WORKSPACE/dump-entrada.xml" 2>/dev/null || true
+                    # Arnés v2.0: en este emulador la capa fija del WebView
+                    # (la barra de pestañas) nace desplazada media pantalla:
+                    # Chat/Textos/Mi perfil ocupan las posiciones 1-3 y las
+                    # tres primeras pestañas quedan fuera, con bounds [0,0]
+                    # (dump-entrada y dump-tour de la corrida v1.9). La CSS
+                    # de la barra es la estándar (left:0;right:0;flex:1) y
+                    # el contenido se pinta perfecto: apunta a la ventana
+                    # visual vieja del WebView virtual. Una rotación ida y
+                    # vuelta fuerza el recálculo completo de la ventana:
+                    # si tras rotar el árbol se puebla bien, queda probado.
+                    adb shell settings put system accelerometer_rotation 0 >/dev/null 2>&1
+                    adb shell settings put system user_rotation 1 >/dev/null 2>&1; sleep 5
+                    adb shell settings put system user_rotation 0 >/dev/null 2>&1; sleep 5
+                    adb shell settings put system accelerometer_rotation 1 >/dev/null 2>&1
+                    sin_dialogos
+                    dumpw; cp /tmp/w.xml "$GITHUB_WORKSPACE/dump-rotacion.xml" 2>/dev/null || true
                     # Arnés v1.9: el árbol de accesibilidad del WebView tarda
                     # minutos en poblarse en este emulador (las pestañas
                     # nacen con bounds [0,0]: corridas v1.6/v1.7). Se espera
@@ -381,4 +397,5 @@ jobs:
             logcat.txt
             dump-entrada.xml
             dump-tour.xml
+            dump-rotacion.xml
           if-no-files-found: ignore
