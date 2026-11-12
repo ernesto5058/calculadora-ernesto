@@ -179,6 +179,9 @@ export function detectarIntencionesLigero(ligero) {
   if (/ donde (queda|esta|es|vives|ubicado) /.test(t) || / direccion /.test(t)) out.add("ubicacion");
   if (/ (quiero|necesito|reservar|pedir) (una )?(cita|turno) /.test(t) ||
       / (cita|turno) /.test(t)) out.add("cita");
+  if (/ que haces /.test(t) || / que puedes hacer /.test(t) ||
+      / para que sirves /.test(t) || / que sabes hacer /.test(t) ||
+      / puedes ayudar /.test(t)) out.add("capacidades");
   if (/ domicilio /.test(t) || / vienen a /.test(t)) out.add("domicilio");
   if (/ garantia /.test(t)) out.add("garantia");
   if (/ (como|formas de) (pago|pagar) /.test(t) || / aceptas transferencia /.test(t)) out.add("pago");
@@ -324,7 +327,7 @@ export function renderDato(datoClave, datos) {
       if (!a) return null;
       return {
         texto: "La batería LiFePO4 12.8V 100Ah es a precio al privado: eso te lo " +
-               "confirma Ernesto directamente, sin intermediarios.",
+               "confirma el dueño del negocio directamente, sin intermediarios.",
         fuentes: [a],
       };
     }
@@ -616,7 +619,42 @@ export function diaLegible(iso) {
    conv:  { escalada, flujo }
    Devuelve la decisión; la puerta hace el IO (guardar, avisar).
    ===================================================================== */
-export const FRASE_NO_SE = "Eso te lo confirma Ernesto 🙏";
+export const FRASE_NO_SE = "Eso no lo sé todavía 🙏 Queda anotado y se lo paso al dueño " +
+  "del negocio. Mientras tanto, puedo ayudarte con precios, horario, ubicación o una cita.";
+export const FRASE_ESCALADO = "Eso te lo confirma el dueño del negocio 🙏 Ya le paso tu mensaje.";
+
+/* Saludos de la capa de comandos (v1.1): deterministas y sin cifras. */
+export const SALUDO_CLIENTE = "¡Hola! 👋 Soy el asistente virtual del negocio de Ernesto.\n" +
+  "Te ayudo con:\n" +
+  "· 💈 Precios: el corte, la lavadora y las baterías\n" +
+  "· 📱 Comprar saldo y a cómo se paga\n" +
+  "· 🕘 Horario y ubicación\n" +
+  "· 📋 Pedir una cita de barbería\n" +
+  "Escríbeme lo que necesites o toca un botón 👇";
+export const SALUDO_DUENO = "¡Hola, Ernesto! 👋 Te saludo por tu nombre porque escribes " +
+  "desde tu cuenta de Telegram, la que quedó registrada como la del dueño.\n" +
+  "Ojo: esto es la VISTA DE CLIENTE — por aquí no muestro nada interno, ni siquiera a ti. " +
+  "A cualquier otra persona la atiendo solo con lo público: precios, horario, ubicación y citas.\n" +
+  "Pruébame como si fueras un cliente 👇";
+
+/* Capa de comandos: /start jamás puede caer al matcher (v1.1, F1). */
+export function detectarComando(crudo) {
+  const primero = String(crudo ?? "").trim().split(/\s+/)[0] ?? "";
+  if (!primero.startsWith("/")) return null;
+  const c = primero.slice(1).split("@")[0].toLowerCase();
+  if (c === "start") return "start";
+  if (c === "ayuda" || c === "help") return "ayuda";
+  if (c === "precios" || c === "horario" || c === "ubicacion" || c === "cita") return c;
+  return null;
+}
+
+/* «¿Cómo sabes que soy Ernesto?»: se responde por diseño (v1.1, F3). */
+export function esPreguntaIdentidad(ligero) {
+  const t = " " + String(ligero ?? "") + " ";
+  return t.includes(" como sabes que soy ") || t.includes(" como sabes quien soy ") ||
+         t.includes(" no un cliente cualquiera ") || t.includes(" sabes quien soy ") ||
+         t.includes(" como me reconoces ") || t.includes(" como sabes que soy yo ");
+}
 export function orquestar(datos, conv, textoCrudo, hoyISO) {
   const crudo = String(textoCrudo ?? "");
   const norm = normalizar(crudo);
@@ -624,6 +662,46 @@ export function orquestar(datos, conv, textoCrudo, hoyISO) {
   const base = { norm, registrar_sin_respuesta: false, escalar: null, aviso_lead: false };
 
   if (conv?.escalada) return { ...base, accion: "silencio", motivo: "ya_escalada" };
+
+  // CAPA DE COMANDOS (v1.1, F1): determinista, ANTES del matcher y de
+  // los flujos. /start jamás puede caer al «no sé».
+  const comando = detectarComando(crudo);
+  if (comando) {
+    if (comando === "cita") {
+      const flujo = inicioCita(null, crudo, hoyISO);
+      return {
+        ...base, accion: "cita_paso", flujo,
+        respuesta: "¡Claro! Te anoto la solicitud de cita 📋 ¿A nombre de quién la pongo?",
+      };
+    }
+    if (comando === "start" || comando === "ayuda") {
+      return {
+        ...base, accion: "comando", comando, flujo: null, botones: true,
+        respuesta: datos.esDueno ? SALUDO_DUENO : SALUDO_CLIENTE,
+        auditoria: { comando },
+      };
+    }
+    if (comando === "precios") {
+      const partes = [], fuentes = [], extra = [];
+      for (const dc of ["precio_corte", "precio_lavadora", "tarifa_saldo", "precio_bateria"]) {
+        const r = renderDato(dc, datos);
+        if (r) { partes.push(r.texto); fuentes.push(...r.fuentes); extra.push(...(r.extra ?? [])); }
+      }
+      const texto = partes.join("\n");
+      const ver = verificarCifras(texto, fuentes, datos.prohibidas, extra);
+      if (!texto || !ver.ok) {
+        return { ...base, accion: "no_se", respuesta: FRASE_NO_SE, registrar_sin_respuesta: true };
+      }
+      return { ...base, accion: "comando", comando, flujo: null, botones: true,
+               respuesta: texto, auditoria: { comando } };
+    }
+    const r = renderDato(comando === "horario" ? "horario" : "ubicacion", datos);
+    if (!r) return { ...base, accion: "no_se", respuesta: FRASE_NO_SE, registrar_sin_respuesta: true };
+    const ver = verificarCifras(r.texto, r.fuentes, datos.prohibidas, r.extra ?? []);
+    if (!ver.ok) return { ...base, accion: "no_se", respuesta: FRASE_NO_SE, registrar_sin_respuesta: true };
+    return { ...base, accion: "comando", comando, flujo: null, botones: true,
+             respuesta: r.texto, auditoria: { comando } };
+  }
 
   // flujo de cita en curso manda sobre el matcher
   if (conv?.flujo?.tipo === "cita") {
@@ -644,7 +722,26 @@ export function orquestar(datos, conv, textoCrudo, hoyISO) {
   if (esSaludo) {
     const f = (datos.faqs ?? []).find((x) => x.intencion === "saludo" && x.respuesta_tipo === "texto");
     if (f) return { ...base, accion: "responder", respuesta: f.respuesta_texto, faq_id: f.id,
-                    auditoria: { saludo: true } };
+                    botones: true, auditoria: { saludo: true } };
+  }
+
+  // Identidad (v1.1, F3): al dueño, la explicación de su cuenta
+  // registrada; a un cliente, la identidad pública del asistente.
+  if (esPreguntaIdentidad(ligero)) {
+    if (datos.esDueno) {
+      return {
+        ...base, accion: "identidad", botones: true,
+        respuesta: "Porque escribes desde la cuenta de Telegram que quedó " +
+          "registrada como la del dueño del negocio 📱 Es la única manera en " +
+          "que reconozco a Ernesto: por su cuenta, no por el nombre que " +
+          "alguien se ponga. A cualquier otra persona la atiendo como " +
+          "cliente, solo con la información pública.",
+        auditoria: { identidad_dueno: true },
+      };
+    }
+    const r = renderDato("identidad", datos);
+    return { ...base, accion: "identidad", botones: true,
+             respuesta: r?.texto ?? FRASE_NO_SE, auditoria: { identidad: true } };
   }
 
   // reglas de hierro (sobre la forma ligera)
@@ -658,9 +755,9 @@ export function orquestar(datos, conv, textoCrudo, hoyISO) {
       };
     }
     const frases = {
-      humano: "Claro 🙏 Te paso con Ernesto ahora mismo; en cuanto vea el mensaje te atiende él personalmente.",
-      dinero: "Ese tema de dinero te lo confirma Ernesto directamente 🙏 Te lo paso con él.",
-      descuento: "Eso lo decide Ernesto personalmente 🙏 Yo no puedo hacer descuentos ni apartar nada; te lo paso con él.",
+      humano: "Claro 🙏 Te paso con el dueño del negocio ahora mismo; en cuanto vea el mensaje te atiende él personalmente.",
+      dinero: "Ese tema de dinero te lo confirma el dueño del negocio directamente 🙏 Te lo paso con él.",
+      descuento: "Eso lo decide el dueño del negocio en persona 🙏 Yo no puedo hacer descuentos ni apartar nada; te lo paso con él.",
     };
     return {
       ...base, accion: "escalar", escalar: hierro.tipo,
@@ -694,7 +791,7 @@ export function orquestar(datos, conv, textoCrudo, hoyISO) {
     if (f.respuesta_tipo === "escalado") {
       return {
         ...base, accion: "escalar", escalar: "ensenado",
-        respuesta: FRASE_NO_SE + " Te lo paso con Ernesto.",
+        respuesta: FRASE_ESCALADO,
         faq_id: f.id, auditoria: { senales: nivel.top.senales, puntaje: nivel.top.total },
       };
     }
@@ -724,6 +821,9 @@ export function orquestar(datos, conv, textoCrudo, hoyISO) {
     }
     return {
       ...base, accion: "responder", respuesta: texto, faq_id: f.id,
+      botones: ["precio_corte", "precio_lavadora", "precio_bateria", "tarifa_saldo",
+                "horario", "ubicacion", "identidad"].includes(f.dato_clave ?? "") ||
+               f.intencion === "capacidades",
       aviso_lead: caliente.caliente,
       auditoria: { senales: nivel.top.senales, puntaje: nivel.top.total, fuentes: fuentes.map((x) => x.clave ?? x.id ?? "fuente"), verificador: { ok: true } },
     };
