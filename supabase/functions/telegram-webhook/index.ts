@@ -231,6 +231,55 @@ async function registrarActividad(env: Env, quien: string, accion: string, detal
 }
 
 /* =====================================================================
+   ANALISTA — Nivel 1 (2026-11-11): el botón blindado y el DETENER.
+   · Callback «a:<uuid>»: ejecuta la acción pendiente por la puerta
+     «mercado-actuar» (la tasa y el monto viven en el servidor; la
+     puerta re-verifica TODAS las barandas al instante del toque).
+   · Callback «x:detener» / «x:reanudar» y comandos /detener y
+     /reanudar: el interruptor global de las acciones, en
+     mercado_config. Al detener NO se cancela nada ya creado.
+   Todo exige el triple chequeo del dueño (esDueno), como decidir.
+   ===================================================================== */
+const fmtTasaBot = (x: unknown) => {
+  const n = Number(x);
+  return Number.isFinite(n) ? n.toFixed(2).replace(".", ",") : "—";
+};
+
+async function patchConfigAcciones(env: Env, parche: Record<string, unknown>): Promise<boolean> {
+  try {
+    const resp = await fetch((env("SUPABASE_URL") || "") + "/rest/v1/mercado_config?id=eq.1", {
+      method: "PATCH",
+      headers: cabecerasSrv(env),
+      body: JSON.stringify(parche),
+    });
+    return resp.ok;
+  } catch { return false; }
+}
+
+async function llamarActuar(env: Env, accionId: string): Promise<Record<string, unknown>> {
+  const secreto = env("MERCADO_ACTUAR_SECRET") || "";
+  const resp = await fetch((env("SUPABASE_URL") || "") + "/functions/v1/mercado-actuar", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ secreto, accion_id: accionId }),
+  });
+  const j = await resp.json().catch(() => ({})) as Record<string, unknown>;
+  if (!resp.ok && !j.codigo) return { ok: false, codigo: "puerta_error", motivo: "La puerta de acción respondió " + resp.status + "." };
+  return j;
+}
+
+function textoResultadoAccion(r: Record<string, unknown>): string {
+  if (r.ok === true) {
+    return "✅ <b>Oferta publicada</b>: vendes $" + String(r.monto_qusd ?? "—") +
+      " QUSD a " + fmtTasaBot(r.tasa) + " saldo por QUSD (ganancia +" +
+      fmtTasaBot(r.ganancia360) + " CUP por recarga de 360). Queda abierta en tu QvaPay" +
+      (r.reconciliada === true ? " (la respuesta tardó, pero la oferta apareció entre las tuyas)" : "") + ".";
+  }
+  if (r.codigo === "ya_ejecutada") return "ℹ️ Esa oferta ya estaba publicada: no se duplicó.";
+  return "⛔ <b>No se publicó</b>: " + esc(String(r.motivo || "la puerta de acción la negó."));
+}
+
+/* =====================================================================
    VISTAS v2 — se calculan al momento, con los datos vivos.
    ===================================================================== */
 const VISTAS_DUENO: VistaId[] = ["pend", "res", "pagar", "equipo", "tarifa"];
@@ -386,12 +435,67 @@ export async function manejar(req: Request, env: Env = (k) => Deno.env.get(k)): 
   const cq = upd.callback_query;
   if (cq && typeof cq.data === "string") {
     const chat = cq.message?.chat;
-    const acc = parseCallback(cq.data);
-    if (!acc || !chat?.id) {
+    if (!chat?.id) {
       await tg(env, "answerCallbackQuery", { callback_query_id: cq.id, text: "Botón no válido." });
       return respJson({ ok: true });
     }
     const chatId = chat.id;
+
+    /* --- Analista: publicar con el botón blindado (a:<uuid>) --- */
+    if (cq.data.startsWith("a:")) {
+      const accionId = cq.data.slice(2);
+      if (!/^[0-9a-f-]{36}$/i.test(accionId)) {
+        await tg(env, "answerCallbackQuery", { callback_query_id: cq.id, text: "Botón no válido." });
+        return respJson({ ok: true });
+      }
+      if (!(await esDueno(env, chat, cq.from?.id))) {
+        await tg(env, "answerCallbackQuery", { callback_query_id: cq.id, text: "Solo Ernesto puede publicar desde aquí." });
+        return respJson({ ok: true });
+      }
+      await tg(env, "answerCallbackQuery", { callback_query_id: cq.id, text: "Revisando las barandas…" });
+      const r = await llamarActuar(env, accionId);
+      const textoOriginal = cq.message?.text ?? "";
+      await tg(env, "editMessageText", {
+        chat_id: chatId,
+        message_id: cq.message?.message_id,
+        text: esc(textoOriginal) + "\n\n" + textoResultadoAccion(r),
+        parse_mode: "HTML",
+      });
+      await registrarActividad(env, "telegram", "analista_accion", {
+        accion_id: accionId, ok: r.ok === true, codigo: String(r.codigo || ""),
+      });
+      return respJson({ ok: true, accion: r.ok === true });
+    }
+
+    /* --- Analista: DETENER / Reanudar las acciones (x:…) --- */
+    if (cq.data === "x:detener" || cq.data === "x:reanudar") {
+      if (!(await esDueno(env, chat, cq.from?.id))) {
+        await tg(env, "answerCallbackQuery", { callback_query_id: cq.id });
+        return respJson({ ok: true, ignorado: "rol" });
+      }
+      const detener = cq.data === "x:detener";
+      const hecho = await patchConfigAcciones(env, detener
+        ? { acciones_detenidas: true }
+        : { acciones_detenidas: false, acciones_pausadas: false, pausa_motivo: null, fallos_seguidos: 0, sin_resultado_seguidos: 0 });
+      await tg(env, "answerCallbackQuery", {
+        callback_query_id: cq.id,
+        text: hecho
+          ? (detener ? "⛔ Acciones detenidas." : "▶️ Acciones reanudadas.")
+          : "⚠️ No se pudo cambiar: revísalo en tu app Mercado.",
+      });
+      if (hecho) {
+        await enviarHtml(env, chatId, detener
+          ? "⛔ <b>Acciones DETENIDAS.</b>\nEl Analista sigue leyendo y avisando, pero ningún botón publicará hasta que reanudes. Lo ya publicado no se toca."
+          : "▶️ <b>Acciones reanudadas.</b>\nEl botón blindado vuelve a estar disponible en las próximas alertas del Analista.");
+      }
+      return respJson({ ok: true, detener });
+    }
+
+    const acc = parseCallback(cq.data);
+    if (!acc) {
+      await tg(env, "answerCallbackQuery", { callback_query_id: cq.id, text: "Botón no válido." });
+      return respJson({ ok: true });
+    }
 
     /* --- Decidir un reporte (v1 reparado: UUID) --- */
     if (acc.tipo === "decidir") {
@@ -554,6 +658,24 @@ export async function manejar(req: Request, env: Env = (k) => Deno.env.get(k)): 
         await enviarHtml(env, chatId, esc(ESTADO_NO_DUENO));
       }
       return respJson({ ok: true });
+    }
+
+    /* /detener y /reanudar: el interruptor global de las acciones
+       del Analista (Nivel 1). SOLO el dueño, con triple chequeo. */
+    if (comando === "/detener" || comando === "/reanudar") {
+      if (!(await esDueno(env, msg?.chat, msg?.from?.id))) {
+        return respJson({ ok: true, ignorado: "rol" });
+      }
+      const detener = comando === "/detener";
+      const hecho = await patchConfigAcciones(env, detener
+        ? { acciones_detenidas: true }
+        : { acciones_detenidas: false, acciones_pausadas: false, pausa_motivo: null, fallos_seguidos: 0, sin_resultado_seguidos: 0 });
+      await enviarHtml(env, chatId, hecho
+        ? (detener
+          ? "⛔ <b>Acciones DETENIDAS.</b>\nEl Analista sigue leyendo y avisando, pero ningún botón publicará hasta que reanudes. Lo ya publicado no se toca."
+          : "▶️ <b>Acciones reanudadas.</b>\nEl botón blindado vuelve a estar disponible en las próximas alertas del Analista.")
+        : "⚠️ No se pudo cambiar: revísalo en tu app Mercado.");
+      return respJson({ ok: true, detener });
     }
 
     /* Botones del teclado fijo: llegan como texto exacto. Sin
