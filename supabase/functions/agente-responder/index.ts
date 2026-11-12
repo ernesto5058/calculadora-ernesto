@@ -28,6 +28,7 @@
 
 import {
   clasificarSiguiente,
+  decisionCita,
   decisionUbicacionPin,
   enmascarar,
   esAfirmacionCorta,
@@ -40,6 +41,8 @@ import {
   proyeccionPublica,
   resolverAclaracion,
   similitudTrgm,
+  tecladoDecisionCita,
+  textoAvisoCitaNueva,
   validarRespuestaCerebro,
 } from "./logica.js";
 import { crearCerebro } from "./cerebro.ts";
@@ -124,9 +127,10 @@ interface Datos {
   faqs: Record<string, unknown>[];
   sinonimos: Record<string, unknown>[];
   prohibidas: string[];
+  citasPendientes: Record<string, unknown>[];
 }
 async function cargarDatos(env: Env): Promise<Datos> {
-  const [cfg, cat, fue, faqs, pats, sin, tar] = await Promise.all([
+  const [cfg, cat, fue, faqs, pats, sin, tar, citas] = await Promise.all([
     leerTabla(env, "agente_config", "id=eq.1&select=*"),
     leerTabla(env, "agente_catalogo", "activo=eq.true&select=*"),
     leerTabla(env, "agente_fuente", "select=*"),
@@ -134,6 +138,10 @@ async function cargarDatos(env: Env): Promise<Datos> {
     leerTabla(env, "agente_patrones", "select=faq_id,patron_norm"),
     leerTabla(env, "agente_sinonimos", "select=*"),
     leerTabla(env, "tarifa", "id=eq.1&select=salida_ref,libro_ref,ingreso_ref360"),
+    // v2.3: las citas pendientes alimentan la vista «📋 Citas» del
+    // dueño y la validación de sus decisiones (la puerta SQL decide).
+    leerTabla(env, "agente_citas",
+      "estado=eq.pendiente&order=dia.asc,hora.asc&limit=20&select=id,nombre,servicio,dia,hora,canal,conversacion_id,creada_en"),
   ]);
   const porFaq = new Map<string, string[]>();
   for (const p of pats) {
@@ -153,6 +161,7 @@ async function cargarDatos(env: Env): Promise<Datos> {
     faqs: faqs.map((f) => ({ ...f, patrones: porFaq.get(String(f.id)) ?? [] })),
     sinonimos: sin,
     prohibidas,
+    citasPendientes: citas,
   };
 }
 
@@ -329,6 +338,53 @@ async function aplicarCambio(env: Env, conv: Record<string, unknown>,
   return true;
 }
 
+/* v2.3 — El aviso de la DECISIÓN de una cita llega al cliente por
+   SU canal de origen: Telegram = push al momento con este bot (y
+   queda en su historial); web = mensaje encolado en su conversación
+   (pendiente_entrega) que se entrega en su próxima interacción —
+   la web no tiene push y jamás se promete lo contrario. */
+async function entregarAvisoDecisionCita(env: Env, cita: Record<string, unknown>, texto: string): Promise<void> {
+  const convs = await leerTabla(env, "agente_conversaciones",
+    "id=eq." + String(cita.conversacion_id) + "&select=canal,externo_id");
+  const cc = convs[0];
+  if (!cc) return;
+  if (cc.canal === "telegram") {
+    const token = env("AGENTE_TG_BOT_TOKEN") || "";
+    if (token) {
+      await tgLlamar(token, "sendMessage", { chat_id: Number(cc.externo_id), text: texto });
+    }
+    await guardarMsg(env, String(cita.conversacion_id), "agente", texto,
+      { via: "cita_decision", cita: String(cita.id) });
+  } else {
+    await insertar(env, "agente_mensajes", {
+      conversacion_id: cita.conversacion_id, rol: "agente",
+      texto: enmascarar(texto),
+      auditoria: { via: "cita_decision", cita: String(cita.id), pendiente_entrega: true },
+    });
+  }
+  await accion(env, "cita_aviso_cliente", { cita_id: cita.id, canal: String(cc.canal) });
+}
+
+/* v2.3 — Entrega web de los avisos encolados (decisiones de cita):
+   en la próxima interacción del cliente se anteponen a la respuesta
+   de ese turno y quedan marcados como entregados. */
+async function conAvisosPendientesWeb(env: Env, conv: Record<string, unknown>, salida: Salida): Promise<Salida> {
+  if (String(conv.canal) !== "web") return salida;
+  const msgs = await leerTabla(env, "agente_mensajes",
+    "conversacion_id=eq." + conv.id + "&rol=eq.agente&order=creado_en.desc&limit=10&select=id,texto,auditoria");
+  const pend = msgs.filter((m) =>
+    (m.auditoria as Record<string, unknown> | null)?.pendiente_entrega === true).reverse();
+  if (!pend.length) return salida;
+  const textos = pend.map((m) => String(m.texto));
+  for (const m of pend) {
+    await parche(env, "agente_mensajes", "id=eq." + m.id, {
+      auditoria: { ...((m.auditoria ?? {}) as Record<string, unknown>),
+                   pendiente_entrega: false, entregado_en: new Date().toISOString() },
+    });
+  }
+  return { ...salida, respuesta: [...textos, salida.respuesta].filter(Boolean).join("\n\n") };
+}
+
 async function procesar(env: Env, e: Entrada): Promise<Salida> {
   const datos = await cargarDatos(env);
   const cfg = datos.config;
@@ -380,7 +436,7 @@ async function procesar(env: Env, e: Entrada): Promise<Salida> {
   if (clasificarSiguiente(e.texto) === "gracias" && flujoPrevio?.tipo !== "cita") {
     const cierre = "¡A ti! 😊 Si necesitas algo más, aquí estoy.";
     await guardarMsg(env, String(conv.id), "agente", cierre, { via: "cierre_gracias" });
-    return { respuesta: cierre, accion: "cierre_gracias" };
+    return await conAvisosPendientesWeb(env, conv, { respuesta: cierre, accion: "cierre_gracias" });
   }
 
   // Reconocimiento del dueño (v1.1, F3): SOLO por su cuenta de
@@ -393,7 +449,10 @@ async function procesar(env: Env, e: Entrada): Promise<Salida> {
   // orquestar: dinero/promesas/quejas jamás llegan hasta aquí). El
   // cerebro ve SOLO la proyección pública y su texto pasa por el
   // verificador antes de salir; si no pasa, manda el «no sé» de siempre.
-  if (dec.accion === "no_se") {
+  if (dec.accion === "no_se" && !e.texto.trim().startsWith("/")) {
+    // v2.3: un COMANDO («/…») jamás lo improvisa el cerebro — la capa
+    // de comandos es determinista; si el determinista no supo qué
+    // hacer con un comando, manda su respuesta, no una invención.
     // v2.2 — Seguimiento del PIN: una afirmación corta («Si», «?»)
     // con un pedido o una promesa de localización pendiente en el
     // historial EJECUTA la intención determinista. Sin esto, el
@@ -458,6 +517,41 @@ async function procesar(env: Env, e: Entrada): Promise<Salida> {
     }
   }
 
+  // v2.3 — DECISIÓN de cita del dueño: se ejecuta por la puerta SQL
+  // `agente_cita_decidir` (la MISMA del bot de gestión: valida que
+  // el chat sea el del dueño, pone estado + decidida_en, audita y
+  // es idempotente). La fila se RELEE aquí: la foto de `datos` pudo
+  // quedar vieja entre el toque y la ejecución. Si la RPC dice que
+  // ya estaba decidida o la fila ya no está pendiente, NO se avisa
+  // al cliente otra vez.
+  if (dec.accion === "cita_decision" && dec.citaDecision && esDuenoTg) {
+    const cd = dec.citaDecision as { id: string; decision: string };
+    const filasC = await leerTabla(env, "agente_citas",
+      "id=eq." + encodeURIComponent(cd.id) + "&select=*");
+    const real = filasC[0];
+    if (!real) {
+      dec = { ...dec, respuesta: "Esa cita ya no existe: no toqué nada." };
+    } else if (real.estado !== "pendiente") {
+      dec = { ...dec, respuesta: "Esa cita ya estaba " + String(real.estado) + ": no toqué nada." };
+      await accion(env, "cita_decision_doble", { cita_id: cd.id, estado: real.estado });
+    } else {
+      const dd = decisionCita({ citasPendientes: [real] } as never, cd.id, cd.decision);
+      const r = await rpc(env, "agente_cita_decidir", {
+        p_chat_id: e.externo_id, p_id: cd.id, p_aprobar: cd.decision === "ok",
+      });
+      if (r?.ya_decidida === true) {
+        dec = { ...dec, respuesta: "Esa cita ya estaba " + String(r.estado ?? real.estado) + ": no toqué nada." };
+        await accion(env, "cita_decision_doble", { cita_id: cd.id, estado: r.estado ?? real.estado });
+      } else if (r?.ok !== true || !dd?.ok) {
+        dec = { ...dec, respuesta: "⚠️ No pude guardar la decisión (falló el servidor). La cita sigue pendiente; inténtalo otra vez." };
+        await accion(env, "cita_decision_error", { cita_id: cd.id });
+      } else {
+        dec = { ...dec, respuesta: dd.textoDueno };
+        await entregarAvisoDecisionCita(env, real, dd.avisoTexto);
+      }
+    }
+  }
+
   // v2.1: la instrucción del dueño queda en la bitácora como tal
   // (tipo «instruccion_dueno»), jamás en la cola de clientes.
   if (dec.accion === "instruccion_dueno") {
@@ -479,13 +573,34 @@ async function procesar(env: Env, e: Entrada): Promise<Salida> {
       canal: e.canal, conversacion_id: conv.id,
     });
     if (cita) {
-      await avisar(env, {
-        tipo: "agente_cita", cita_id: cita.id,
-        titulo: "📋 Solicitud de cita nueva",
-        cuerpo: "Cliente: " + (dec.cita.nombre ?? "—") + "\nServicio: " + (dec.cita.servicio ?? "corte") +
-                "\nDía: " + dec.cita.dia + " · Hora: " + dec.cita.hora +
-                "\nConfírmala o recházala con los botones (es una solicitud, no está confirmada).",
-      });
+      // v2.3: el aviso ACCIONABLE sale por ESTE bot (el de clientes,
+      // donde vive su panel de Ajustes) con los botones de decisión;
+      // el aviso plano por «avisos» se sustituye pa las citas: un
+      // solo aviso, con control. Sin token o sin envío confirmado,
+      // cae al aviso de siempre pa que nunca quede ciego.
+      const token = env("AGENTE_TG_BOT_TOKEN") || "";
+      const duenoId = cfg.dueno_tg_id != null ? String(cfg.dueno_tg_id) : "";
+      let enviado = false;
+      if (token && duenoId) {
+        const r = await tgLlamar(token, "sendMessage", {
+          chat_id: Number(duenoId),
+          text: textoAvisoCitaNueva(cita as never),
+          reply_markup: tecladoDecisionCita(String(cita.id)),
+        });
+        const mid = (r?.result as Record<string, unknown> | undefined)?.message_id;
+        enviado = r?.ok === true;
+        await accion(env, enviado ? "cita_aviso" : "cita_aviso_error",
+          { cita_id: cita.id, message_id: typeof mid === "number" ? mid : null });
+      }
+      if (!enviado) {
+        await avisar(env, {
+          tipo: "agente_cita", cita_id: cita.id,
+          titulo: "📋 Solicitud de cita nueva",
+          cuerpo: "Cliente: " + (dec.cita.nombre ?? "—") + "\nServicio: " + (dec.cita.servicio ?? "corte") +
+                  "\nDía: " + dec.cita.dia + " · Hora: " + dec.cita.hora +
+                  "\nConfírmala o recházala con los botones (es una solicitud, no está confirmada).",
+        });
+      }
     }
   }
 
@@ -562,11 +677,12 @@ async function procesar(env: Env, e: Entrada): Promise<Salida> {
       panelConRespuesta = true; // la respuesta en sí va como mensaje
     }
   }
-  return { respuesta: dec.respuesta ?? null, opciones: dec.opciones, accion: dec.accion,
+  return await conAvisosPendientesWeb(env, conv, {
+           respuesta: dec.respuesta ?? null, opciones: dec.opciones, accion: dec.accion,
            pin: dec.pin ? { lat: Number(dec.pin.lat), lng: Number(dec.pin.lng) } : undefined,
            botones: dec.botones === true && !panel, panel, panelConRespuesta,
            convId: String(conv.id),
-           panelMsgId: typeof conv.panel_msg_id === "number" ? conv.panel_msg_id : null };
+           panelMsgId: typeof conv.panel_msg_id === "number" ? conv.panel_msg_id : null });
 }
 
 /* --- Barrido horario: agrupar + aviso de umbral (máx 1/día) ------------ */
@@ -639,6 +755,11 @@ export async function manejar(req: Request, env: Env = (k) => Deno.env.get(k)): 
       texto = v === "citaflow" ? "/cita" : "/panel " + v;
     }
     if (!texto && data.startsWith("v2:d:")) texto = "/dueno " + data.slice(5);
+    if (!texto && data.startsWith("v2:c:")) {
+      // v2.3: decisión de cita — «v2:c:ok:<uuid>» / «v2:c:no:<uuid>»
+      const partesCb = data.split(":");
+      texto = "/citadec " + (partesCb[2] ?? "") + " " + (partesCb[3] ?? "");
+    }
     if (texto) {
       if (token) await tgLlamar(token, "sendChatAction", { chat_id: chatId, action: "typing" });
       const salida = await procesar(env, {
