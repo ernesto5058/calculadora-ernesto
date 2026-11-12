@@ -19,10 +19,17 @@ const filaCat = (clave, nombre, precio, moneda, extra = {}) => ({
   nota: "", actualizado_en: "2026-11-11T15:00:00Z", ...extra,
 });
 const catalogo = new Map([
-  ["corte", filaCat("corte", "Corte de cabello", 400, "CUP", { nota: "Precio en efectivo. Por transferencia: 700 CUP." })],
-  ["corte_transferencia", filaCat("corte_transferencia", "Corte (transferencia)", 700, "CUP")],
-  ["lavadora_hys", filaCat("lavadora_hys", "Lavadora HYS 7 kg", 250, "USD", { nota: "Semiautomática con Air-Dry. Garantía de 1 año. Domicilio incluido en Santiago." })],
-  ["bateria_lifepo4", filaCat("bateria_lifepo4", "Batería LiFePO4 12.8V 100Ah", null, null, { precio_al_privado: true, nota: "Precio al privado con Ernesto." })],
+  ["corte", filaCat("corte", "Corte de cabello", 400, "CUP", { nota: "Precio en efectivo. Por transferencia: 700 CUP.", tipo: "servicio", descripcion: "Corte de cabello en la barbería de Ernesto, en Micro 10, distrito José Martí, Santiago de Cuba. Atiende todos los días de 9:00 a 18:00. Cuesta 400 CUP en efectivo o 700 CUP por transferencia. La cita se pide por aquí y Ernesto la confirma." })],
+  ["corte_transferencia", filaCat("corte_transferencia", "Corte (transferencia)", 700, "CUP", { tipo: "servicio", descripcion: "El mismo corte de cabello, pagando por transferencia: 700 CUP." })],
+  ["lavadora_hys", filaCat("lavadora_hys", "Lavadora HYS 7 kg", 250, "USD", { nota: "Semiautomática con Air-Dry. Garantía de 1 año. Domicilio incluido en Santiago.", tipo: "producto", descripcion: "Lavadora semiautomática HYS de 7 kg con Air-Dry: lava la ropa en casa sin depender de nadie. Cuesta 250 USD, con garantía de 1 año y domicilio incluido en Santiago de Cuba. Ernesto confirma la disponibilidad y cierra la venta en persona." })],
+  ["bateria_lifepo4", filaCat("bateria_lifepo4", "Batería LiFePO4 12.8V 100Ah", null, null, { precio_al_privado: true, nota: "Precio al privado con Ernesto.", tipo: "producto", descripcion: "Batería LiFePO4 de 12.8 V y 100 Ah: almacena energía pa inversores y pa respaldo eléctrico de la casa cuando falta la corriente. El precio es al privado con Ernesto." })],
+  // v3: las filas que faltaban — la causa raíz del fallo de Ernesto
+  ["compro_saldo", filaCat("compro_saldo", "Compra de saldo móvil", null, "CUP", { tipo: "compra", descripcion: "Ernesto COMPRA saldo móvil: él no vende saldo, te compra el tuyo. Tú le vendes tu saldo y él te paga en efectivo al momento, a 2 CUP por cada 1 de saldo (1.000 de saldo son 2.000 CUP y 5.000 son 10.000 CUP). Si el monto pasa de 5.000 de saldo, paga a 2.2 por cada 1. También compra recargas de 360 a 720 CUP. El domicilio es gratis en Santiago y el trato final se cierra con Ernesto directamente." })],
+  ["transferencia", filaCat("transferencia", "Compra de transferencia", null, "CUP", { tipo: "compra", descripcion: "Ernesto también compra transferencia: recibe el dinero por transferencia y lo paga en efectivo con un descuento. Trabaja solo con personas conocidas y el porciento exacto de cada trato lo confirma Ernesto directamente." })],
+]);
+// v3: TODAS las filas (con las apagadas) pa la vista del dueño
+const catalogoTodos = new Map([...catalogo,
+  ["juegos_recarga", filaCat("juegos_recarga", "Recarga de juegos", 300, "CUP", { activo: false, tipo: "producto", descripcion: "Recargas de juegos por ID." })],
 ]);
 const fuente = new Map([
   ["horario_barberia", { valor: { abre: "09:00", cierra: "18:00", dias: "todos los días" }, actualizado_en: "2026-11-11T15:00:00Z" }],
@@ -64,7 +71,7 @@ const DATOS = {
   // Reparto José Martí, geocodificado); Ernesto pondrá el pin exacto
   // de su puerta en agente_config y esto se sustituye sin tocar código.
   config: { umbral_responder: 70, umbral_aclarar: 45, negocio_lat: 20.01722, negocio_lng: -75.8284 },
-  catalogo, fuente, faqs: FAQS, sinonimos: SIN,
+  catalogo, catalogoTodos, fuente, faqs: FAQS, sinonimos: SIN,
   prohibidas: ["925", "1069.38", "1098.68"], // tarifa INTERNA viva (salida/libro/ingreso)
 };
 const conv = () => ({ escalada: false, flujo: {} });
@@ -138,14 +145,14 @@ for (const [txt, nombre] of [
   const r = O("quiero hablar con Ernesto", conv());
   ok(r.accion === "escalar" && r.escalar === "humano", "ES-3 humano: escalado inmediato");
   const r2 = L.orquestar(DATOS, { escalada: true, flujo: {} }, "¿y el precio del corte?", AHORA);
-  ok(r2.accion === "silencio", "ES-3 tras escalar, el agente calla en esa conversación");
+  ok(r2.accion !== "silencio" && /400/.test(r2.respuesta ?? ""), "ES-3 v3: tras escalar un tema, OTRO tema se sigue atendiendo (el muro se fue)");
   // E6-D: el silencio por escalado NO ata al dueño (tanda Nº4+5,
   // reverificación): su /admin responde aunque su conversación esté
   // escalada; el cliente sigue en silencio.
   const rD = L.orquestar({ ...DATOS, esDueno: true }, { escalada: true, flujo: {} }, "/admin", AHORA);
   ok(rD.accion !== "silencio", "E6-D1 dueño con conversación escalada: su /admin NO cae en silencio");
   const rC = L.orquestar(DATOS, { escalada: true, flujo: {} }, "/admin", AHORA);
-  ok(rC.accion === "silencio", "E6-D2 cliente con conversación escalada: sigue en silencio");
+  ok(rC.accion === "no_se", "E6-D2 v3: cliente con temas escalados pide /admin: no_se, sin muro de silencio");
 }
 
 /* ================= FR — frescura y degradación ================= */
@@ -158,7 +165,7 @@ for (const [txt, nombre] of [
   const r2 = O("¿haces uñas acrílicas?");
   ok(r2.accion === "no_se" && r2.respuesta === L.FRASE_NO_SE, "FR-2 degradación: no_se honesto");
   const r3 = L.orquestar(DATOS, { escalada: true, flujo: {} }, "hola", AHORA);
-  ok(r3.accion === "silencio", "FR-3 conversación pausada/escalada: silencio");
+  ok(r3.accion === "responder", "FR-3 v3: conversación con temas escalados saluda y responde (sin silencio)");
 }
 
 /* ================= CI — citas ================= */
@@ -913,6 +920,159 @@ ok(cobertura >= 0.8, "ARNÉS cobertura ≥ 80 %");
   ok(d5.accion === "no_se", "F2-5 un cliente jamás entra a enseñar");
   const kb = L.panelVista("dueno", DATOS_D, convD());
   ok((kb?.teclado?.inline_keyboard ?? []).flat().some((b) => b.callback_data === "v2:d:ensenar"), "F2-6 el panel del dueño trae el botón ❓ Enseñar");
+}
+
+/* ================= v3 — EXPL: la IA explica el catálogo ================= */
+{
+  // La frase EXACTA de Ernesto (2026-11-12 16:41 UTC, conv a54fbd55):
+  // antes → escalar/dinero y la conversación muerta; ahora → EXPLICA.
+  const r = O("Mándame comprar saldo que es y explícame para que es eso.");
+  ok(r.accion === "explicar" && !r.escalar, "EXPL-1 frase exacta de Ernesto: EXPLICA, no escala");
+  ok(/720/.test(r.respuesta) && /2\.2/.test(r.respuesta) && /2 CUP por cada 1/.test(r.respuesta),
+     "EXPL-1b la explicación trae los precios públicos vivos (2 · 2.2 · 720)");
+  ok(!/te lo confirma el dueño/.test(r.respuesta), "EXPL-1c nada de la frase de escalado de dinero");
+  for (const [txt, nombre] of [
+    ["¿qué es comprar saldo?", "qué es"],
+    ["explícame para qué sirve lo del saldo", "para qué sirve"],
+    ["¿cómo funciona la compra de saldo?", "cómo funciona"],
+    ["quiero vender mi saldo, ¿cómo es eso?", "oferta del cliente"],
+  ]) {
+    const rx = O(txt);
+    ok(rx.accion === "explicar" && !rx.escalar, "EXPL-2 " + nombre + ": explica el compro-saldo");
+  }
+  const rl = O("¿qué es la lavadora HYS?");
+  ok(rl.accion === "explicar" && /250/.test(rl.respuesta) && /garantía/.test(rl.respuesta),
+     "EXPL-3 la lavadora se explica con precio y garantía del catálogo");
+  const rb = O("¿para qué sirve la batería?");
+  ok(rb.accion === "explicar" && /LiFePO4/.test(rb.respuesta), "EXPL-4 la batería se explica");
+  const rt = O("¿qué es eso de comprar transferencia?");
+  ok(rt.accion === "explicar" && !/\d+\s?%/.test(rt.respuesta),
+     "EXPL-5 la transferencia se explica SIN inventar porciento");
+  const rp = O("¿cuánto cuesta el corte?");
+  ok(rp.accion !== "explicar" && /400/.test(rp.respuesta ?? ""),
+     "EXPL-6 el precio suelto NO va por explicación: sigue su vía de siempre");
+  const rq = O("¿a cómo está el QUSD hoy?");
+  ok(rq.accion === "escalar" && rq.escalar === "dinero",
+     "EXPL-7 lo interno de verdad (QUSD) SÍ sigue escalando");
+  const catApagado = new Map(catalogo);
+  catApagado.set("compro_saldo", { ...catalogo.get("compro_saldo"), activo: false });
+  const ra = L.orquestar({ ...DATOS, catalogo: catApagado }, conv(), "¿qué es comprar saldo?", AHORA);
+  ok(ra.accion !== "explicar", "EXPL-8 ítem apagado del catálogo: no se explica");
+}
+
+/* ============ v3 — TEMA: escalado por tema (replay a54fbd55) ============ */
+{
+  // Secuencia REAL de Ernesto en su paginita, 2026-11-12 16:40–16:44:
+  // capacidades → qué es comprar saldo → cita. La puerta se simula
+  // mutando la conversación como hace index.ts al aplicar dec.escalar.
+  let c = { escalada: false, flujo: {}, canal: "web", temas_escalados: [] };
+  let r = L.orquestar(DATOS, c, "Mándame comprar saldo que es y explícame para que es eso.", AHORA);
+  ok(r.accion === "explicar", "TEMA-1 paso 1 del replay: el saldo se EXPLICA (antes: escalar)");
+  r = L.orquestar(DATOS, c, "Quiero programar una cita", AHORA);
+  ok(r.accion === "cita_paso", "TEMA-2 paso 2 del replay: la cita ARRANCA");
+  // Y con un tema interno escalado de verdad, la conversación sigue:
+  let c2 = { escalada: false, flujo: {}, canal: "web", temas_escalados: [] };
+  r = L.orquestar(DATOS, c2, "¿a cómo está el QUSD hoy?", AHORA);
+  ok(r.accion === "escalar" && r.escalar === "dinero", "TEMA-3 el tema interno escala");
+  c2 = { ...c2, escalada: true, temas_escalados: [{ tema: "dinero", en: "2026-11-11T10:00:00Z" }] };
+  r = L.orquestar(DATOS, c2, "quiero una cita", AHORA);
+  ok(r.accion === "cita_paso", "TEMA-4 con «dinero» escalado, la cita se agenda igual");
+  r = L.orquestar(DATOS, c2, "¿y el dólar a cómo está?", AHORA);
+  ok(r.accion === "escalado_repetido" && !r.escalar,
+     "TEMA-5 repetir el tema escalado: aviso corto SIN re-escalar ni re-avisar");
+  r = L.orquestar(DATOS, c2, "¿cuánto cuesta el corte?", AHORA);
+  ok(r.accion !== "silencio" && /400/.test(r.respuesta ?? ""),
+     "TEMA-6 otro tema cualquiera se atiende con el tema escalado vivo");
+  ok(L.temaEscalado(c2, "dinero") === true && L.temaEscalado(c2, "humano") === false,
+     "TEMA-7 temaEscalado lee la lista por tema");
+}
+
+/* ============ v3 — NOM: la cosecha de nombre rechaza oraciones ============ */
+{
+  const f0 = { tipo: "cita", paso: "nombre", datos: {}, canal: "web" };
+  // La frase EXACTA que quedó guardada como nombre el 2026-11-12 16:08:
+  const r = L.flujoCitaPaso(f0, "perfecto, ¿queda confirmada mi cita de mañana a las 10?", AHORA, DATOS);
+  ok(!r.completa && !r.flujo?.datos?.nombre && /no me suena a un nombre/.test(r.respuesta),
+     "NOM-1 la oración de confirmación NO se guarda como nombre: se re-pregunta");
+  ok(r.flujo?.datos?.dia === "2026-11-12" && r.flujo?.datos?.hora === "10:00",
+     "NOM-1b el día y la hora de esa misma frase SÍ se cosechan");
+  const nombreDe = (txt) => L.flujoCitaPaso({ tipo: "cita", paso: "nombre", datos: {}, canal: "web" }, txt, AHORA, DATOS).flujo?.datos?.nombre;
+  ok(nombreDe("Ernesto prueba") === "Ernesto prueba", "NOM-2 nombre normal de dos palabras pasa");
+  ok(nombreDe("me llamo Luis") === "Luis", "NOM-3 «me llamo» se limpia y pasa");
+  ok(nombreDe("hola") === undefined, "NOM-4 un saludo no es un nombre");
+  ok(nombreDe("Juan Carlos Pérez") === "Juan Carlos Pérez", "NOM-5 tres palabras pasan");
+  ok(nombreDe("María de los Ángeles Pérez") === undefined, "NOM-6 cinco palabras no pasan");
+  ok(L.esNombrePlausible("Ana") === true && L.esNombrePlausible("¿ya quedó mi cita?") === false,
+     "NOM-7 esNombrePlausible en directo");
+  ok(nombreDe("PRUEBA V3") === "PRUEBA V3" && L.esNombrePlausible("PRUEBA V3") === true,
+     "NOM-8 nombre con un número suelto («PRUEBA V3») SÍ pasa — caza del humo real v18");
+  ok(L.esNombrePlausible("51231558") === false && L.esNombrePlausible("llámame al 51231558") === false,
+     "NOM-9 un teléfono NO es un nombre: se sigue rechazando");
+}
+
+/* ============ v3 — CAT: el dueño edita el catálogo con botones ============ */
+{
+  const DATOS_C = { ...DATOS, esDueno: true };
+  const convD = () => ({ escalada: false, flujo: {}, canal: "telegram" });
+  const kb = L.panelVista("dueno", DATOS_C, convD());
+  ok((kb?.teclado?.inline_keyboard ?? []).flat().some((b) => b.callback_data === "v2:d:catalogo"),
+     "CAT-1 Ajustes trae el botón 🧾 Catálogo");
+  let cd = convD();
+  let r = L.orquestar(DATOS_C, cd, "/dueno catalogo", AHORA);
+  ok(r.accion === "dueno" && r.flujo?.paso === "cat_num" &&
+     /Compra de saldo móvil/.test(r.respuesta) && /Recarga de juegos/.test(r.respuesta),
+     "CAT-2 la vista lista activos Y apagados (con compro-saldo y transferencia)");
+  cd = { ...cd, flujo: r.flujo };
+  r = L.orquestar(DATOS_C, cd, "1", AHORA);
+  ok(r.flujo?.paso === "cat_item" && r.flujo?.datos?.clave === "corte" &&
+     (r.panel?.teclado?.inline_keyboard ?? []).flat().some((b) => b.callback_data === "v2:d:catprecio"),
+     "CAT-3 elegir el número abre el detalle con sus botones");
+  cd = { ...cd, flujo: r.flujo };
+  r = L.orquestar(DATOS_C, cd, "/dueno catprecio", AHORA);
+  ok(r.flujo?.paso === "cat_precio", "CAT-4 el botón de precio abre su paso");
+  cd = { ...cd, flujo: r.flujo };
+  r = L.orquestar(DATOS_C, cd, "450", AHORA);
+  ok(r.flujo?.paso === "confirmar", "CAT-5 el precio nuevo pasa por confirmación");
+  cd = { ...cd, flujo: r.flujo };
+  r = L.orquestar(DATOS_C, cd, "/dueno ok", AHORA);
+  ok(r.accion === "dueno_catalogo" && r.catalogoGuardar?.accion === "editar" &&
+     r.catalogoGuardar?.clave === "corte" && r.catalogoGuardar?.precio === 450,
+     "CAT-6 al confirmar nace la orden pa la RPC (editar corte → 450)");
+  // Crear un ítem nuevo, guiado campo a campo:
+  cd = convD();
+  r = L.orquestar(DATOS_C, cd, "/dueno catnew", AHORA);
+  cd = { ...cd, flujo: r.flujo };
+  r = L.orquestar(DATOS_C, cd, "Recarga de diamantes", AHORA);
+  ok(r.flujo?.paso === "cat_tipo", "CAT-7 crear: nombre → tipo");
+  cd = { ...cd, flujo: r.flujo };
+  r = L.orquestar(DATOS_C, cd, "producto", AHORA);
+  cd = { ...cd, flujo: r.flujo };
+  r = L.orquestar(DATOS_C, cd, "300 CUP", AHORA);
+  ok(r.flujo?.paso === "cat_desc", "CAT-8 crear: precio → descripción");
+  cd = { ...cd, flujo: r.flujo };
+  r = L.orquestar(DATOS_C, cd, "Recarga de diamantes de juegos por ID: le dices tu ID al dueño, pagas y la recarga llega a tu cuenta.", AHORA);
+  ok(r.flujo?.paso === "confirmar", "CAT-9 crear: descripción → confirmación");
+  cd = { ...cd, flujo: r.flujo };
+  r = L.orquestar(DATOS_C, cd, "/dueno ok", AHORA);
+  ok(r.accion === "dueno_catalogo" && r.catalogoGuardar?.accion === "crear" &&
+     r.catalogoGuardar?.nombre === "Recarga de diamantes" && r.catalogoGuardar?.precio === 300 &&
+     /diamantes de juegos/.test(r.catalogoGuardar?.descripcion ?? ""),
+     "CAT-10 al confirmar nace la orden de CREAR con todos los campos");
+  // Activar un ítem apagado (el 7.º de la lista = juegos_recarga):
+  cd = convD();
+  r = L.orquestar(DATOS_C, cd, "/dueno catalogo", AHORA);
+  cd = { ...cd, flujo: r.flujo };
+  r = L.orquestar(DATOS_C, cd, "7", AHORA);
+  ok(r.flujo?.datos?.clave === "juegos_recarga", "CAT-11 el ítem apagado se puede elegir");
+  cd = { ...cd, flujo: r.flujo };
+  r = L.orquestar(DATOS_C, cd, "/dueno catactivo", AHORA);
+  ok(r.flujo?.paso === "confirmar", "CAT-12 activar pasa por confirmación");
+  cd = { ...cd, flujo: r.flujo };
+  r = L.orquestar(DATOS_C, cd, "/dueno ok", AHORA);
+  ok(r.accion === "dueno_catalogo" && r.catalogoGuardar?.accion === "activar" &&
+     r.catalogoGuardar?.clave === "juegos_recarga", "CAT-13 la orden es ACTIVAR juegos_recarga");
+  const rc = L.orquestar(DATOS, conv(), "/dueno catalogo", AHORA);
+  ok(rc.accion === "no_se", "CAT-14 un cliente jamás entra al catálogo del dueño");
 }
 
 console.log("\nprueba-agente-v1: " + pass + " PASS · " + fail + " FAIL");
