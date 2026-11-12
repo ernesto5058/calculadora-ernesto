@@ -6,3 +6,6 @@
 [13:52:21] AVD creado (t+94s)
 [13:52:56] Emulador arrancado (t+129s desde el inicio del script)
 [13:53:10] Tunel listo (t+143s)
+[13:53:12] Descargando la APK apk-v1.5.0...
+[13:53:16] APK instalada: Mi-Trabajo-v1.5.0.apk (t+149s)
+[13:53:27] App abierta en su puerta; foto publicada
