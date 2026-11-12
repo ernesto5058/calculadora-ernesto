@@ -1,0 +1,257 @@
+# =====================================================================
+# Reglas Semgrep del proyecto — capa 0 del INSPECTOR v2.
+# Nacen del catálogo de incidentes reales (DESARROLLO-PRO §9/§11,
+# REGRESSIONS.md y la auditoría del Inspector Ola 1, 2026-11-12).
+# Son WARNING y el workflow es NO bloqueante: su trabajo es que el
+# mismo fallo no pueda volver en silencio, no frenar entregas.
+# Solo entran reglas expresables de forma determinista; las que no,
+# quedan anotadas al final de este archivo con su chequeo sustituto.
+# =====================================================================
+rules:
+  # --- Incidente: inyección sin escapar (Inspector Ola 1, transversal 3;
+  #     Mi Negocio E-3 XSS en src del adjunto · Mi Trabajo E-17) --------
+  - id: proyecto-innerhtml-sin-escapar
+    languages: [javascript, typescript]
+    severity: WARNING
+    paths:
+      exclude:
+        - "**/bancos/**"
+        - "**/node_modules/**"
+    message: >-
+      innerHTML con contenido dinámico (variable, llamada o interpolación)
+      sin pasar por una función de escape: es la puerta del XSS almacenado
+      del Inspector Ola 1 (Mi Negocio E-3, Mi Trabajo E-17). Escapa el
+      texto del servidor (escHtml/escaparHtml/DOMPurify.sanitize) o pinta
+      con textContent. Si el HTML es 100% propio y estático, anota la
+      excepción en la revisión, no en el código.
+    metadata:
+      category: security
+      technology: [proyecto, inspector]
+    patterns:
+      - pattern-either:
+          - pattern: $EL.innerHTML = $VAL
+          - pattern: $EL.innerHTML += $VAL
+      - metavariable-regex:
+          metavariable: $VAL
+          regex: '(\$\{)|(\+\s*[A-Za-z_$])|(^\s*[A-Za-z_$])'
+      - pattern-not: $EL.innerHTML = escHtml(...)
+      - pattern-not: $EL.innerHTML += escHtml(...)
+      - pattern-not: $EL.innerHTML = escaparHtml(...)
+      - pattern-not: $EL.innerHTML += escaparHtml(...)
+      - pattern-not: $EL.innerHTML = DOMPurify.sanitize(...)
+      - pattern-not: $EL.innerHTML += DOMPurify.sanitize(...)
+      - pattern-not: $EL.innerHTML = sanitizeHtml(...)
+      - pattern-not: $EL.innerHTML += sanitizeHtml(...)
+
+  # --- Incidente: el SW de Mercado borraba las cachés de TODAS las apps
+  #     del origen (Inspector Ola 1, Mercado E-5 · DESARROLLO-PRO §9.2).
+  #     La forma buena filtra por prefijo propio ANTES de comparar. -----
+  - id: proyecto-sw-borra-caches-ajenas
+    languages: [javascript]
+    severity: WARNING
+    paths:
+      include:
+        - "**/sw.js"
+    message: >-
+      Este service worker borra toda caché cuyo nombre no sea la suya,
+      sin filtrar por su prefijo propio: al activarse destruye el
+      cascarón de las apps hermanas del mismo origen (Inspector Ola 1,
+      Mercado E-5; DESARROLLO-PRO §9 trampa 2). Filtra primero por tu
+      prefijo ("mitrabajo-", "minegocio-", "mercado-") y solo entonces
+      compara contra tu CACHE actual.
+    metadata:
+      category: security
+      technology: [proyecto, inspector, service-worker]
+    pattern-either:
+      - pattern: $KS.filter(($K) => $K !== $C)
+      - pattern: $KS.filter(($K) => $K != $C)
+      - pattern: $KS.filter(function ($K) { return $K !== $C; })
+      - pattern: $KS.filter(function ($K) { return $K != $C; })
+
+  # --- Incidente: el fantasma de la salida 950 / libro 1110 contra la
+  #     tarifa viva (Inspector Ola 1, transversal 2; Mi Negocio E-1/E-8,
+  #     Mi Trabajo E-7). La ÚNICA fuente es la fila viva que alimenta
+  #     CalculadoraPRO; ninguna pieza impone defaults de fábrica. ------
+  - id: proyecto-tarifa-default-fantasma
+    languages: [javascript, typescript]
+    severity: WARNING
+    paths:
+      exclude:
+        - "**/bancos/**"
+        - "**/node_modules/**"
+        - "**/CalculadoraPRO.js"
+    message: >-
+      Default de tarifa cableado (salida 950 / libro 1110 de fábrica):
+      es el fantasma que sobrescribía la fila viva de la tarifa
+      (Inspector Ola 1, Mi Negocio E-1/E-8, Mi Trabajo E-7). Toda pieza
+      lee la fila viva o se detiene y lo dice; si es un respaldo, va
+      etiquetado «respaldo» a la vista, nunca en silencio.
+    metadata:
+      category: correctness
+      technology: [proyecto, inspector, tarifa]
+    patterns:
+      - pattern-either:
+          - pattern: "{ ..., $K: 950, ... }"
+          - pattern: "{ ..., $K: 1110, ... }"
+          - pattern: $K = 950
+          - pattern: $K = 1110
+      - metavariable-regex:
+          metavariable: $K
+          regex: '(?i).*(salida|libro).*'
+
+  - id: proyecto-tarifa-fallback-fantasma
+    languages: [javascript, typescript]
+    severity: WARNING
+    paths:
+      exclude:
+        - "**/bancos/**"
+        - "**/node_modules/**"
+        - "**/CalculadoraPRO.js"
+    message: >-
+      Fallback numérico 950/1110 tras || o ??: si la tarifa viva no
+      llega, la pieza debe detenerse y decirlo, no seguir calculando
+      dinero con el fantasma de fábrica (Inspector Ola 1, Mi Negocio
+      E-8). Revisa si este literal es tarifa; si es otro dominio,
+      anótalo en la revisión.
+    metadata:
+      category: correctness
+      technology: [proyecto, inspector, tarifa]
+    patterns:
+      - pattern-regex: '(\|\||\?\?)\s*(950|1110)\b'
+
+  # --- Incidente: comparación de secretos con ==/=== (Inspector Ola 1,
+  #     Mercado F-4: el secreto del webhook se comparaba en claro). ----
+  - id: proyecto-secreto-comparacion-insegura
+    languages: [javascript, typescript]
+    severity: WARNING
+    paths:
+      exclude:
+        - "**/bancos/**"
+        - "**/node_modules/**"
+    message: >-
+      Un secreto/token se compara con ==/===/!=/!==: la comparación
+      ordinaria filtra tiempo y contenido (Inspector Ola 1, Mercado
+      F-4). Usa comparación de tiempo constante
+      (crypto.timingSafeEqual o el equivalente de la plataforma).
+    metadata:
+      category: security
+      technology: [proyecto, inspector]
+    # Términos deliberadamente SIN «clave»: en este código «clave» es
+    # también la llave de fecha de los reportes (clave(d)) y disparaba
+    # falsos positivos comprobados en el humo del 2026-11-12.
+    pattern-either:
+      - patterns:
+          - pattern-either:
+              - pattern: $A == $B
+              - pattern: $A === $B
+              - pattern: $A != $B
+              - pattern: $A !== $B
+          - metavariable-regex:
+              metavariable: $A
+              regex: '(?i).*(secreto|secret|token|api[_-]?key|password|contrasena).*'
+      - patterns:
+          - pattern-either:
+              - pattern: $A == $B
+              - pattern: $A === $B
+              - pattern: $A != $B
+              - pattern: $A !== $B
+          - metavariable-regex:
+              metavariable: $B
+              regex: '(?i).*(secreto|secret|token|api[_-]?key|password|contrasena).*'
+      - patterns:
+          - pattern-either:
+              - pattern: $O.$P == $B
+              - pattern: $O.$P === $B
+              - pattern: $O.$P != $B
+              - pattern: $O.$P !== $B
+          - metavariable-regex:
+              metavariable: $P
+              regex: '(?i).*(secreto|secret|token|api[_-]?key|password|contrasena).*'
+      - patterns:
+          - pattern-either:
+              - pattern: $A == $O.$P
+              - pattern: $A === $O.$P
+              - pattern: $A != $O.$P
+              - pattern: $A !== $O.$P
+          - metavariable-regex:
+              metavariable: $P
+              regex: '(?i).*(secreto|secret|token|api[_-]?key|password|contrasena).*'
+
+  # --- Incidente: secretos/códigos vigentes en archivos públicos
+  #     (Inspector Ola 1, transversal 1 y chequeo eterno (b)). ---------
+  - id: proyecto-secreto-en-claro
+    languages: [javascript, typescript]
+    severity: WARNING
+    paths:
+      exclude:
+        - "**/bancos/**"
+        - "**/node_modules/**"
+    message: >-
+      Literal largo asignado a una variable de secreto/token/clave en
+      el código: los secretos viven en el llavero seguro o en los
+      secretos de la plataforma, nunca escritos en el repo (Inspector
+      Ola 1, transversal 1). Si es un valor de prueba, que sea ficticio
+      y marcado como tal (DESARROLLO-PRO §9 trampa 10).
+    metadata:
+      category: security
+      technology: [proyecto, inspector]
+    patterns:
+      - pattern: $NAME = $VAL
+      - metavariable-regex:
+          metavariable: $NAME
+          regex: '(?i).*(secreto|secret|token|api[_-]?key|password|passwd|contrasena).*'
+      - metavariable-regex:
+          metavariable: $VAL
+          regex: '^["\x27`].{8,}["\x27`]$'
+
+  - id: proyecto-codigos-en-datos-publicos
+    languages: [generic]
+    severity: WARNING
+    paths:
+      include:
+        - "**/buscadores/datos.json"
+        - "**/datos/*.json"
+    message: >-
+      Clave con forma de código de acceso (XXXX-XXX) como llave de un
+      archivo de datos PÚBLICO: los códigos de los buscadores vivían
+      así en datos.json y cualquiera podía suplantarlos (Inspector
+      Ola 1, Mi Trabajo E-1, Mi Negocio E-4). Ningún archivo público
+      contiene códigos ni secretos vigentes (chequeo eterno (b)); la
+      validación vive en el servidor.
+    metadata:
+      category: security
+      technology: [proyecto, inspector]
+    patterns:
+      - pattern-regex: '"[A-Z]{2,}[A-Z0-9]*-[A-Z0-9]{2,}"\s*:'
+
+  - id: proyecto-secreto-en-datos-publicos
+    languages: [generic]
+    severity: WARNING
+    paths:
+      include:
+        - "**/buscadores/datos.json"
+        - "**/datos/*.json"
+    message: >-
+      Campo de secreto (codigo/clave/token/secreto/password/api_key)
+      con valor literal en un archivo de datos público. Los secretos
+      no viven en datos servidos por Pages (Inspector Ola 1,
+      transversal 1; chequeo eterno (b)).
+    metadata:
+      category: security
+      technology: [proyecto, inspector]
+    patterns:
+      - pattern-regex: '(?i)"(codigo|clave|secreto|secret|token|password|api[_-]?key)"\s*:\s*"[^"\s]{4,}"'
+
+# =====================================================================
+# NO expresables con fiabilidad en Semgrep CE (quedan fuera a
+# propósito; su chequeo sustituto ya existe o entra con su tanda):
+# - «caches.delete() de claves ajenas» en formas libres (forEach/for
+#   sin el filtro !==): exige seguir el flujo de datos; lo cubre el
+#   chequeo eterno (f) «cada SW solo toca su propia caché» del banco.
+# - «La tarifa usada difiere de la fila viva»: es una propiedad de
+#   datos en vivo, no de código; la cubre el chequeo eterno (a) de los
+#   bancos de invariantes.
+# - «details de pago en claro en la bitácora» (Mercado E-6): depende
+#   de la forma del payload en tiempo de ejecución; caza de la tanda
+#   Puerta de Mercado, no regla estática.
+# =====================================================================
