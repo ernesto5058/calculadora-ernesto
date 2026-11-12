@@ -8,6 +8,9 @@ name: Ojo Web
 # puerta y la carga ya cazan errores reales. Mercado, la paginita y
 # Mi Mercado son públicos y se fotografían por dentro.
 # v2 (bautizo, orden de Ernesto 2026-11-11 21:04 tras cazar ÉL un texto
+# v2.1 (misma noche): la paginita también se fotografía con el chat del
+# agente ABIERTO (?chat=1) — foto de bautizo del chat y sus defectos
+# visuales se reportan igual que los de Mercado.
 # cortado en Promos): Mercado se recorre ENTERO — sus 7 pantallas (Ahora,
 # Analista, Equilibrio, Demanda, Promos, Historial, Avisos), cada una
 # arriba y un toque más abajo — para cazar defectos visuales, no solo
@@ -60,6 +63,10 @@ jobs:
               marcador: 'Barbería', espera: 2500,
               fotos: [ { archivo: '04-negocio.png', bajar: 0,
                          pie: 'La paginita — la tarjeta pública del negocio (barbería, baterías, lavadoras y compra de saldo).' } ] },
+            { id: 'negocio-chat', url: 'https://ernesto5058.github.io/calculadora-ernesto/negocio/?chat=1',
+              marcador: 'Barbería', espera: 6000,
+              fotos: [ { archivo: '18-negocio-chat.png', bajar: 0,
+                         pie: 'La paginita con el chat del agente ABIERTO — la burbuja de atención a clientes recién montada, fotografiada en su bautizo.' } ] },
             { id: 'mi-mercado', url: 'https://mi-mercado-ernesto.lovable.app',
               marcador: 'ETECSA', espera: 6000,
               fotos: [ { archivo: '05-mi-mercado.png', bajar: 0,
@@ -137,6 +144,7 @@ jobs:
           }
           await browser.close();
           fs.writeFileSync('ojo-web/resultados.json', JSON.stringify(resultados, null, 2));
+          man.sort();
           fs.writeFileSync('ojo-web/capturas.txt', man.join('\n') + '\n');
           JSEOF
           node ojo-web/fotos.mjs
@@ -158,7 +166,7 @@ jobs:
               if "|" in linea:
                   f, c = linea.split("|", 1)
                   if os.path.exists(os.path.join(out, "capturas", f)): caps.append((f, c))
-          nombres = {"minegocio": "Mi Negocio", "mercado": "Mercado", "negocio": "La paginita", "mi-mercado": "Mi Mercado"}
+          nombres = {"minegocio": "Mi Negocio", "mercado": "Mercado", "negocio": "La paginita", "negocio-chat": "La paginita · chat del agente", "mi-mercado": "Mi Mercado"}
           estados = []
           for sid, nombre in nombres.items():
               r = res.get(sid)
