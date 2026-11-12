@@ -126,3 +126,9 @@ Cada entrada lleva: fecha · síntoma · causa raíz · chequeo eterno.
 - **Síntoma:** El texto guía decía «si vendes por encima de ella ganas; por debajo, pierdes» cuando G(R) decrece con R: creerlo era publicar perdiendo CUP por recarga convencido de que ganaba, y contradecía a la tarjeta inferior de la misma pantalla y al aviso del lector.
 - **Causa raíz:** Frase de dirección invertida en la fuente (y por tanto en el desplegado) sin ningún chequeo de texto contra la fórmula.
 - **Chequeo eterno:** [CHEQUEOS-ETERNOS.md](CHEQUEOS-ETERNOS.md) fila 34 · `bancos/prueba-mercado-paridad.mjs` (P-4: frase invertida prohibida, dirección correcta presente en fuente y desplegado).
+
+## El dueño quedaba mudo en su propio bot si su conversación se escalaba
+- **Fecha:** 2026-11-12
+- **Síntoma:** con su conversación de Telegram marcada `escalada` (su propia pregunta de cliente la escaló), el `/admin` de Ernesto caía en el silencio de `orquestar` — cazado en el humo real de la tanda Nº4+5: el mensaje quedó registrado y jamás llegó panel.
+- **Causa raíz:** el silencio por escalado (`logica.js`, inicio de `orquestar`) no distinguía dueño de cliente; las exenciones de dueño vivían en la puerta (pausa/topes) pero no en esta capa.
+- **Chequeo eterno:** [CHEQUEOS-ETERNOS.md](CHEQUEOS-ETERNOS.md) fila 28 · `bancos/prueba-agente-v1.mjs` (E6-D1/E6-D2: dueño escalado → su /admin responde; cliente escalado → silencio).
