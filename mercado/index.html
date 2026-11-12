@@ -70,6 +70,40 @@
   .sello.neutro { background: var(--bg-2); color: var(--txt-2); }
   .barra { height: 8px; border-radius: 999px; background: var(--bg-2); overflow: hidden; border: 1px solid var(--borde); }
   .barra > i { display: block; height: 100%; background: var(--dorado-grad); border-radius: 999px; }
+  /* Analista (v2): señal, peldaños, chips de ganancia y control */
+  .senal-palabra { font: var(--t-display); letter-spacing: -0.01em; }
+  .senal-palabra.verde { color: var(--verde); }
+  .senal-palabra.dorada {
+    background: var(--dorado-grad); -webkit-background-clip: text;
+    background-clip: text; color: transparent;
+  }
+  .senal-linea { width: 100%; text-align: left; cursor: pointer; color: var(--txt-1); font: var(--t-cuerpo); }
+  .senal-linea:active { transform: scale(0.99); }
+  .peldano { padding: var(--e-3) 0; border-bottom: 1px solid var(--borde); }
+  .peldano:first-of-type { padding-top: var(--e-2); }
+  .peldano:last-child { border-bottom: 0; padding-bottom: 0; }
+  .peldano.bloqueado { opacity: 0.55; }
+  .peldano-cab { display: flex; align-items: baseline; gap: var(--e-2); flex-wrap: wrap; }
+  .peldano-nombre { font: var(--t-cuerpo-f); }
+  .peldano-tasa { font: 600 20px/1.2 var(--fuente-num); font-variant-numeric: tabular-nums; margin-left: auto; }
+  .peldano-tasa .unidad { font: var(--t-nota); color: var(--txt-2); font-family: var(--fuente); font-weight: 400; }
+  .chip-g {
+    display: inline-flex; align-items: center; padding: var(--e-1) var(--e-2);
+    border-radius: var(--r-pildora); font: var(--t-micro); letter-spacing: 0.03em;
+  }
+  .chip-g.buena { background: var(--verde-suave); color: var(--verde); }
+  .chip-g.fina { background: var(--ambar-suave); color: var(--ambar); }
+  .chip-g.mala { background: var(--rojo-suave); color: var(--rojo); }
+  .chip-g.neutra { background: var(--bg-2); color: var(--txt-2); }
+  .campo-codigo {
+    width: 100%; min-height: 48px; padding: 0 var(--e-3); margin: var(--e-2) 0;
+    background: var(--bg-1); border: 1px solid var(--borde-fuerte);
+    border-radius: var(--r-md); color: var(--txt-1); font: var(--t-cuerpo);
+  }
+  .anti-humo {
+    margin-top: var(--e-4); padding: var(--e-3); border: 1px dashed var(--borde-fuerte);
+    border-radius: var(--r-md); color: var(--txt-2); font: var(--t-sub);
+  }
   .semaforo { display: flex; gap: var(--e-3); align-items: flex-start; }
   .semaforo .luz {
     width: 56px; height: 56px; border-radius: 999px; flex: none;
@@ -103,6 +137,9 @@
   <section class="pantalla activa" id="pgAhora">
     <div id="ctAhora"></div>
   </section>
+  <section class="pantalla" id="pgAnalista">
+    <div id="ctAnalista"></div>
+  </section>
   <section class="pantalla" id="pgEquilibrio">
     <div id="ctEquilibrio"></div>
   </section>
@@ -124,6 +161,10 @@
   <button class="tab activa" data-pg="pgAhora">
     <svg viewBox="0 0 24 24"><path d="M4 20V10"/><path d="M10 20V4"/><path d="M16 20v-8"/><path d="M22 20H2"/></svg>
     Ahora
+  </button>
+  <button class="tab" data-pg="pgAnalista">
+    <svg viewBox="0 0 24 24"><path d="M4 4v15h16"/><path d="M7 15l3.5-4.5 3 2.5L18 7"/><path d="M18 7h-3"/><path d="M18 7v3"/></svg>
+    Analista
   </button>
   <button class="tab" data-pg="pgEquilibrio">
     <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="1" fill="currentColor"/></svg>
@@ -153,22 +194,26 @@
    «Mercado» — la vigilancia del mercado QvaPay de Ernesto como app
    suya: un lector en SU Supabase guarda una foto cada 15 minutos y
    esta app la lee por puertas de SOLO LECTURA (mercado_ultima_foto,
-   mercado_historial, mercado_promos, mercado_avisos). La app no puede
-   tocar nada más de su base.
+   mercado_historial, mercado_promos, mercado_avisos). Su única
+   escritura es el interruptor del Analista (mercado_acciones_control:
+   DETENER / Reanudar), con su código de administrador.
+   v2 (2026-11-11): el ANALISTA — todo su cálculo vive en el lector
+   (detalle.analisis de cada foto); esta pantalla solo pinta.
    Honestidad de frescura siempre visible: dos relojes (origen del
    dato y recepción de la foto), sello FRESCA / VIEJA / RESPALDO y,
    sin conexión, la última foto guardada con «dato de hace X».
    El equilibrio sale de la TARIFA VIVA y del costo cargado en su
    base: sin costo, el número NO se inventa (se explica qué falta).
    ===================================================================== */
-const MERCADO_VERSION = "v1";
-const SELLO = "Mercado · versión 2026-11-11 14:29 · caché v1";
+const MERCADO_VERSION = "v2";
+const SELLO = "Mercado · versión 2026-11-11 18:52 · caché v2";
 const SB_URL = "https://otsudfgwpapkluusrlnj.supabase.co";
 const SB_KEY = "sb_publishable_Uchl5QnojJkZbXR5ar8vDg_5CXnqi_d"; // pública: solo lee por las puertas de mercado
 const LS_CLAVE = "mercado_cache_v1";
+const LS_CODIGO = "mercado_codigo_admin";
 const RESPALDO_URL = "https://ernesto5058.github.io/calculadora-ernesto/datos/ultimo.json";
 
-const S = { datos: null, errorRed: false, cargando: false, ultimoIntento: 0 };
+const S = { datos: null, errorRed: false, cargando: false, ultimoIntento: 0, confirmandoControl: null, controlError: null };
 
 /* ---------------- utilidades ---------------- */
 const $ = (id) => document.getElementById(id);
@@ -289,6 +334,22 @@ function esqueleto() {
          '<div class="esqueleto" style="height:84px;border-radius:var(--r-lg)"></div>';
 }
 function fotoActual() { return S.datos && S.datos.ultima ? S.datos.ultima.foto : null; }
+function analisisActual() {
+  const f = fotoActual();
+  return f && f.detalle && f.detalle.analisis ? f.detalle.analisis : null;
+}
+function accionesActual() {
+  const u = S.datos && S.datos.ultima ? S.datos.ultima : {};
+  return u.acciones || { detenidas: false, pausadas: false, pausa_motivo: null, monto_qusd: 40 };
+}
+function fmtPct(x, dec) {
+  const n = num(x); if (n === null) return "—";
+  return fmt(n * 100, dec === undefined ? 1 : dec) + " %";
+}
+function fmtSigno(x) {
+  const n = num(x); if (n === null) return "—";
+  return (n > 0 ? "+" : "") + fmt(n, 2);
+}
 
 /* ---------------- pantalla: Ahora ---------------- */
 function renderAhora() {
@@ -319,6 +380,7 @@ function renderAhora() {
     '<div class="dato"><div class="etiqueta">' + et + '</div><div class="valor">' + val +
     (unidad ? ' <span class="unidad">' + unidad + '</span>' : '') + '</div>' +
     (nota ? '<div class="nota">' + nota + '</div>' : '') + '</div>';
+  h += lineaSenal(f);
   h += '<div class="rejilla2" style="margin-top:var(--e-3)">' +
     dato("TOP COMPRA", fmtTasa(f.etecsa_top_compra), "saldo/QUSD", "La tasa más alta que pagan por saldo") +
     dato("TOP VENTA", fmtTasa(f.etecsa_top_venta), "saldo/QUSD", "La tasa más baja a la que venden saldo") +
@@ -522,21 +584,245 @@ function renderAvisos() {
   el.innerHTML = h;
 }
 
+/* ---------------- pantalla: Analista ----------------
+   Todo el cálculo vive en el lector (detalle.analisis de la foto):
+   esta pantalla SOLO pinta. Estados diseñados: sin análisis todavía,
+   sin libro, foto vieja (la señal va marcada), promo activa
+   (acciones congeladas), peldaño bloqueado con su porqué, DETENER
+   activado y pausa por freno. */
+function lineaSenal(f) {
+  const an = f && f.detalle ? f.detalle.analisis : null;
+  if (!an || !an.senal) {
+    return '<button type="button" class="card senal-linea js-ir-analista" style="margin-top:var(--e-3)">' +
+      '<span class="etiqueta">ANALISTA</span>' +
+      '<div class="t-sub" style="color:var(--txt-2);margin-top:var(--e-1)">Se estrena con la próxima foto de tu lector: menú de tasas, señal y ofertas duras.</div></button>';
+  }
+  const s = an.senal;
+  const vieja = estadoDato(f).clase === "vieja";
+  const clase = s.palabra === "VENDER" ? "verde" : (s.palabra === "APROVECHAR" ? "dorada" : "");
+  const palabra = s.palabra || "SIN CONCLUSIÓN";
+  return '<button type="button" class="card senal-linea js-ir-analista" style="margin-top:var(--e-3)">' +
+    '<span class="etiqueta">SEÑAL DEL ANALISTA' + (vieja ? " · FOTO VIEJA" : "") + '</span>' +
+    '<div style="display:flex;align-items:baseline;gap:var(--e-2);margin-top:var(--e-1)">' +
+    '<span class="t-seccion ' + clase + '">' + esc(palabra) + '</span>' +
+    '<span class="t-nota" style="color:var(--txt-3)">' + esc(s.motivo || "") + '</span></div>' +
+    '<div class="t-nota" style="color:var(--txt-3);margin-top:var(--e-1)">Foto ' + hora(f.recibida_en) + ' · vale hasta la próxima foto · toca para ver el Analista</div></button>';
+}
+
+function tarjetaControl() {
+  const ac = accionesActual();
+  let interior = "";
+  if (ac.detenidas) {
+    interior = '<div class="etiqueta" style="color:var(--rojo)">ACCIONES DETENIDAS</div>' +
+      '<p class="t-sub" style="color:var(--txt-2);margin:var(--e-2) 0">El Analista sigue leyendo y avisando, pero ningún botón de Telegram publicará ofertas hasta que reanudes. Lo ya publicado no se toca.</p>' +
+      '<button type="button" class="btn dorado bloque" id="btnReanudar">Reanudar acciones</button>';
+  } else if (ac.pausadas) {
+    interior = '<div class="etiqueta" style="color:var(--ambar)">ACCIONES EN PAUSA · FRENO DE SEGURIDAD</div>' +
+      '<p class="t-sub" style="color:var(--txt-2);margin:var(--e-2) 0">' + esc(ac.pausa_motivo || "El freno pausó las acciones.") + '</p>' +
+      '<button type="button" class="btn dorado bloque" id="btnReanudar">Reanudar acciones</button>';
+  } else {
+    interior = '<div class="etiqueta">BOTÓN BLINDADO · ACTIVO</div>' +
+      '<p class="t-sub" style="color:var(--txt-2);margin:var(--e-2) 0">Cuando el Analista vea una oferta dura o un cruce bueno, su aviso de Telegram traerá el botón «Publicar $' +
+      fmt(ac.monto_qusd, 0) + ' a …». Nada se publica sin tu toque, y la puerta re-verifica todas las barandas antes de crear la oferta.</p>' +
+      '<button type="button" class="btn peligro bloque" id="btnDetener">Detener acciones</button>';
+  }
+  let confirm = "";
+  if (S.confirmandoControl) {
+    const modo = S.confirmandoControl;
+    const hayCodigo = !!codigoGuardado();
+    confirm = '<div style="margin-top:var(--e-3)">' +
+      '<p class="t-sub" style="color:var(--txt-2);margin:0">' +
+      (modo === "detener"
+        ? "¿Seguro? Ningún botón publicará hasta que reanudes. Lo ya publicado no se cancela."
+        : "Reanudar limpia también la pausa por freno y sus contadores.") + '</p>' +
+      (hayCodigo ? "" : '<input class="campo-codigo" id="inputCodigo" type="password" inputmode="text" autocomplete="off" placeholder="Tu código de administrador">') +
+      (S.controlError ? '<p class="t-nota" style="color:var(--rojo);margin:var(--e-1) 0 0">' + esc(S.controlError) + '</p>' : "") +
+      '<div style="display:flex;gap:var(--e-2);margin-top:var(--e-2)">' +
+      '<button type="button" class="btn dorado" id="btnConfirmarControl" style="flex:1">' + (modo === "detener" ? "Sí, detener" : "Sí, reanudar") + '</button>' +
+      '<button type="button" class="btn suave" id="btnCancelarControl" style="flex:1">Cancelar</button></div></div>';
+  }
+  return '<div class="card">' + interior + confirm +
+    '<p class="pie-nota">También puedes detener o reanudar desde tu bot con /detener y /reanudar.</p></div>';
+}
+function codigoGuardado() {
+  try { return localStorage.getItem(LS_CODIGO) || ""; } catch (e) { return ""; }
+}
+async function ejecutarControl(modo) {
+  const inp = $("inputCodigo");
+  const codigo = (inp && inp.value.trim()) || codigoGuardado();
+  if (!codigo) { S.controlError = "Escribe tu código de administrador."; renderAnalista(); return; }
+  try {
+    const r = await rpc("mercado_acciones_control", { p_codigo: codigo, p_modo: modo });
+    if (r && r.ok) {
+      try { localStorage.setItem(LS_CODIGO, codigo); } catch (e) {}
+      if (S.datos && S.datos.ultima) {
+        S.datos.ultima.acciones = Object.assign({}, accionesActual(), {
+          detenidas: r.detenidas === true, pausadas: r.pausadas === true,
+          pausa_motivo: modo === "reanudar" ? null : accionesActual().pausa_motivo,
+        });
+        guardarCache();
+      }
+      S.confirmandoControl = null; S.controlError = null;
+    } else {
+      S.controlError = "Código no válido: revísalo e inténtalo otra vez.";
+      try { localStorage.removeItem(LS_CODIGO); } catch (e) {}
+    }
+  } catch (e) {
+    S.controlError = "Sin conexión: el cambio no se guardó. Inténtalo cuando vuelva la red.";
+  }
+  renderAnalista();
+}
+function enlazarControl() {
+  const bd = $("btnDetener"), br = $("btnReanudar");
+  const bc = $("btnConfirmarControl"), bx = $("btnCancelarControl");
+  if (bd) bd.addEventListener("click", () => { S.confirmandoControl = "detener"; S.controlError = null; renderAnalista(); });
+  if (br) br.addEventListener("click", () => {
+    if (codigoGuardado()) { ejecutarControl("reanudar"); }
+    else { S.confirmandoControl = "reanudar"; S.controlError = null; renderAnalista(); }
+  });
+  if (bc) bc.addEventListener("click", () => ejecutarControl(S.confirmandoControl));
+  if (bx) bx.addEventListener("click", () => { S.confirmandoControl = null; S.controlError = null; renderAnalista(); });
+}
+
+function renderAnalista() {
+  const el = $("ctAnalista"); if (!el) return;
+  if (!S.datos) { el.innerHTML = sinDatos(); return; }
+  const u = S.datos.ultima || {}, f = u.foto;
+  let h = bandaRed() + '<p class="explica">Tu analista lee el libro de ahora y aplica TUS reglas con TU tarifa: menú de tasas, precio ejecutable, transferencia y ofertas duras.</p>';
+  h += tarjetaControl();
+  if (!f) {
+    el.innerHTML = h + '<div class="estado" style="margin-top:var(--e-3)"><div class="estado-tit">Todavía no hay fotos del mercado</div>' +
+      '<p>El Analista se calcula con la primera foto de tu lector.</p></div>';
+    enlazarControl(); return;
+  }
+  const an = f.detalle && f.detalle.analisis ? f.detalle.analisis : null;
+  if (!an) {
+    el.innerHTML = h + '<div class="estado" style="margin-top:var(--e-3)"><div class="estado-tit">El Analista se estrena con la próxima foto</div>' +
+      '<p>Esta foto la guardó tu lector antes del Analista. La próxima (en ~15 min) ya trae el menú, la señal y las duras.</p></div>' +
+      '<p class="anti-humo">Esto no predice el mercado: lee el libro de ahora y aplica TUS reglas con TU tarifa. Cada número lleva su hora. La oferta la pones tú.</p>';
+    enlazarControl(); return;
+  }
+  const ed = estadoDato(f);
+  const vieja = ed.clase === "vieja";
+  if (vieja) {
+    h += '<div class="aviso error aviso-banda" style="margin-top:var(--e-3)">Foto vieja: recibida ' + haceTxt(f.recibida_en) +
+      '. La señal y el menú de abajo son de esa foto y pueden no valer ya.</div>';
+  } else if (!f.libro_ok) {
+    h += '<div class="aviso info aviso-banda" style="margin-top:var(--e-3)">Esta foto no trae el libro (modo respaldo): el Analista no concluye sin libro.</div>';
+  }
+  if (an.promoActiva) {
+    h += '<div class="aviso info aviso-banda" style="margin-top:var(--e-3)">Promo de ETECSA activa: «' + esc(an.promoActiva.titulo) + '»' +
+      (an.promoActiva.hasta ? " (hasta el " + esc(an.promoActiva.hasta) + ")" : "") +
+      '. Las acciones están congeladas por tu regla; el análisis sigue.</div>';
+  }
+  /* --- Señal --- */
+  const s = an.senal || {};
+  const palabra = s.palabra || "SIN CONCLUSIÓN";
+  const clasePalabra = s.palabra === "VENDER" ? "verde" : (s.palabra === "APROVECHAR" ? "dorada" : "");
+  const n = s.numeros || {};
+  h += '<div class="card heroe" style="margin-top:var(--e-3)">' +
+    '<div class="etiqueta">SEÑAL · VALE HASTA LA PRÓXIMA FOTO</div>' +
+    '<div class="senal-palabra ' + clasePalabra + '">' + esc(palabra) + '</div>' +
+    '<div class="rejilla2" style="margin-top:var(--e-3);grid-template-columns:1fr 1fr 1fr;gap:var(--e-2)">' +
+      '<div><div class="etiqueta">TASA</div><div class="num" style="font:600 17px/1.25 var(--fuente-num)">' + fmtTasa(n.tasa) + '</div></div>' +
+      '<div><div class="etiqueta">GANANCIA /360</div><div class="num" style="font:600 17px/1.25 var(--fuente-num)">' + (num(n.ganancia360) === null ? "—" : fmtSigno(n.ganancia360)) + '</div></div>' +
+      '<div><div class="etiqueta">EQUILIBRIO</div><div class="num" style="font:600 17px/1.25 var(--fuente-num)">' + fmtTasa(n.equilibrio) + '</div></div>' +
+    '</div>' +
+    '<p class="pie-nota">' + esc(s.motivo || "") + '</p>' +
+    '<p class="pie-nota">Foto ' + hora(f.recibida_en) + ' · dato de origen ' + hora(f.origen_en) + ' (' + haceTxt(f.origen_en || f.recibida_en) + ') · sello: ' + ed.texto + '.</p>' +
+  '</div>';
+  /* --- Menú maker --- */
+  const menu = an.menu || { peldanos: [] };
+  h += '<div class="card" style="margin-top:var(--e-3)"><div class="card-titulo">Publicar tu venta · los 3 peldaños</div>';
+  for (const p of menu.peldanos) {
+    let chip = "";
+    if (p.bloqueado) chip = '<span class="chip-g mala">BLOQUEADO</span>';
+    else if (p.zona === "fina") chip = '<span class="chip-g fina">' + fmtSigno(p.g) + ' CUP · FINA, SOLO CON TU TOQUE</span>';
+    else chip = '<span class="chip-g buena">' + fmtSigno(p.g) + ' CUP / 360</span>';
+    h += '<div class="peldano' + (p.bloqueado ? " bloqueado" : "") + '">' +
+      '<div class="peldano-cab"><span class="peldano-nombre">' + esc(p.nombre) + '</span>' + chip +
+      '<span class="peldano-tasa">' + (num(p.tasa) === null ? "—" : fmtTasa(p.tasa)) + ' <span class="unidad">saldo/QUSD</span></span></div>' +
+      (p.bloqueado
+        ? '<div class="t-sub" style="color:var(--rojo);margin-top:var(--e-1)">' + esc(p.motivo || "") + '</div>'
+        : '<div class="t-nota" style="color:var(--txt-3);margin-top:var(--e-1)">Por delante en el libro de venta: $' + fmt(p.delanteUsd, 0) + ' USD · ' + esc(p.explica || "") + '</div>') +
+    '</div>';
+  }
+  h += '<p class="pie-nota">«Por delante» = los USD del libro de venta en tasas mayores que la del peldaño: lo que se vendería antes que tu oferta. A más por delante, más espera.</p></div>';
+  /* --- Precio ejecutable --- */
+  const ej = an.ejecutable || {};
+  h += '<div class="card" style="margin-top:var(--e-3)"><div class="card-titulo">Si vendes ahora (precio ejecutable)</div>';
+  if (ej.usd20) {
+    h += '<p style="margin:0">A $20: tasa ejecutable <b class="num">' + fmtTasa(ej.usd20.tasa) + ' saldo por QUSD</b> — por cada 360 de saldo recibes <b class="num">' +
+      fmt(360 / ej.usd20.tasa, 2) + ' QUSD</b>.</p>' +
+      '<p class="pie-nota">Es recorrer el libro de compra de verdad, nivel a nivel: no es un promedio.</p>';
+  } else if (ej.parcial20) {
+    h += '<p style="margin:0">El libro de compra no junta $20: solo hay <b class="num">$' + fmt(ej.parcial20.usd, 0) +
+      ' USD</b>, ejecutables a <b class="num">' + fmtTasa(ej.parcial20.tasa) + ' saldo por QUSD</b>.</p>' +
+      '<p class="pie-nota">Sin profundidad no hay tasa ejecutable: el Analista lo dice en vez de inventarla.</p>';
+  } else {
+    h += '<p style="margin:0">El libro de compra está vacío en esta foto.</p>';
+  }
+  if (ej.usdAccion) {
+    h += '<p class="t-sub" style="color:var(--txt-2);margin:var(--e-2) 0 0">A $' + fmt(ej.montoAccion, 0) + ' (tu monto de acción): tasa ejecutable <b class="num">' + fmtTasa(ej.usdAccion.tasa) + '</b>.</p>';
+  }
+  h += '</div>';
+  /* --- Transferencia --- */
+  const tr = an.transferencia;
+  h += '<div class="card" style="margin-top:var(--e-3)"><div class="card-titulo">Transferencia · comprar QUSD</div>';
+  if (tr) {
+    h += '<p style="margin:0">Comprar QUSD por transferencia cuesta <b class="num">' + fmtTasa(tr.bEj) + ' CUP por QUSD</b>' +
+      (tr.esPromedio ? ' <span class="chip-g neutra">PROMEDIO 24 H</span>' : ' <span class="chip-g neutra">DEL LIBRO</span>') + '</p>' +
+      '<p class="t-sub" style="color:var(--txt-2);margin:var(--e-2) 0 0">Para empatar necesitas un descuento de <b>' + fmtPct(tr.dMin) + '</b> — en la calle se dice <b>«al ' + fmtPct(tr.primaMin, 1).replace(" %", "") + ' %»</b>.</p>' +
+      '<p class="t-sub" style="color:var(--txt-2);margin:var(--e-2) 0 0">Si te hacen el 20 % de descuento («al 25 %»): puedes pagar hasta <b class="num">' + fmtTasa(tr.bMax20) + ' CUP por QUSD</b> y ganas <b class="num">' + fmtTasa(tr.gananciaQusd20) + ' CUP por QUSD</b>.</p>' +
+      '<p class="pie-nota">El descuento y la prima «al %» son el mismo número en dos idiomas: pagar 7 000 por transferencia por 5 000 en efectivo es «al 40 %» y equivale a un descuento del 28,6 %.</p>';
+  } else {
+    h += '<p style="margin:0">Sin precio de BANK_CUP en esta foto: el bloque se calcula cuando haya libro o promedio.</p>';
+  }
+  h += '</div>';
+  /* --- Ofertas duras vigentes --- */
+  const duras = an.duras || [];
+  h += '<div class="card" style="margin-top:var(--e-3)"><div class="card-titulo">Ofertas duras en esta foto</div>';
+  if (!duras.length) {
+    h += '<p class="t-sub" style="color:var(--txt-2);margin:0">Ninguna ahora. Cuando una aparezca, te llega por Telegram al momento, con su foto y su hora.</p>';
+  } else {
+    for (const d of duras) {
+      const esCompra = d.lado === "compra";
+      h += '<div class="peldano"><div class="peldano-cab">' +
+        '<span class="chip-g ' + (esCompra ? "buena" : "fina") + '">' + (esCompra ? "COMPRA DURA" : "VENTA ANÓMALA") + '</span>' +
+        '<span class="peldano-tasa">' + fmtTasa(d.tasa) + ' <span class="unidad">saldo/QUSD</span></span></div>' +
+        '<div class="t-nota" style="color:var(--txt-3);margin-top:var(--e-1)">$' + fmt(d.usd, 0) + ' USD · ' +
+        (esCompra ? ("venderle = " + fmtSigno(d.g360) + " CUP por recarga de 360") : ("vuelta interna bruta +" + fmt(d.vueltaPct, 1) + " %")) +
+        ' · contraparte: ' + esc(d.marca || "—") + '</div></div>';
+    }
+  }
+  if (an.durasDescartadas && an.durasDescartadas.length) {
+    h += '<p class="pie-nota">' + an.durasDescartadas.length + ' oferta(s) dura(s) se descartaron por contraparte floja: no se avisan como duras.</p>';
+  }
+  h += '</div>';
+  h += '<p class="anti-humo">' + esc(an.textoAntiHumo || "") + '</p>';
+  el.innerHTML = h;
+  enlazarControl();
+}
+
 /* ---------------- navegación y arranque ---------------- */
+function activarPantalla(pgId) {
+  document.querySelectorAll("#tabbar .tab").forEach((x) => x.classList.toggle("activa", x.dataset.pg === pgId));
+  document.querySelectorAll(".pantalla").forEach((p) => p.classList.toggle("activa", p.id === pgId));
+  window.scrollTo(0, 0);
+}
 function renderTodo() {
   const selloEl = $("selloVersion");
   if (selloEl) selloEl.textContent = SELLO;
-  renderAhora(); renderEquilibrio(); renderDemanda(); renderPromos(); renderHistorial(); renderAvisos();
+  renderAhora(); renderAnalista(); renderEquilibrio(); renderDemanda(); renderPromos(); renderHistorial(); renderAvisos();
+  document.querySelectorAll(".js-ir-analista").forEach((b) => {
+    b.addEventListener("click", () => activarPantalla("pgAnalista"));
+  });
   const cab = $("cabSub");
   const f = fotoActual();
   if (cab) cab.textContent = f ? ("Foto " + haceTxt(f.recibida_en) + " · " + estadoDato(f).texto.toLowerCase()) : "Tu vigía del mercado QvaPay";
 }
 document.querySelectorAll("#tabbar .tab").forEach((b) => {
-  b.addEventListener("click", () => {
-    document.querySelectorAll("#tabbar .tab").forEach((x) => x.classList.toggle("activa", x === b));
-    document.querySelectorAll(".pantalla").forEach((p) => p.classList.toggle("activa", p.id === b.dataset.pg));
-    window.scrollTo(0, 0);
-  });
+  b.addEventListener("click", () => activarPantalla(b.dataset.pg));
 });
 $("btnRefrescar").addEventListener("click", cargar);
 document.addEventListener("visibilitychange", () => {
