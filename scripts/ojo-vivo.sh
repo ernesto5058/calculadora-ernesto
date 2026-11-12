@@ -55,7 +55,7 @@ fallo(){ linea "FALLO: $1"; publicar "fallo: $1"; exit 1; }
 # ---------- piezas del sistema ----------
 linea "Instalando piezas (Xvfb, x11vnc, noVNC, cloudflared)..."
 sudo apt-get update -qq >/dev/null 2>&1
-sudo apt-get install -y -qq xvfb x11vnc novnc python3-websockify curl >/dev/null 2>&1 || sudo apt-get install -y -qq xvfb x11vnc curl >/dev/null 2>&1
+sudo apt-get install -y -qq xvfb x11vnc novnc python3-websockify curl libpulse0 >/dev/null 2>&1 || sudo apt-get install -y -qq xvfb x11vnc curl libpulse0 >/dev/null 2>&1
 NOVNC_DIR=/usr/share/novnc
 [ -d "$NOVNC_DIR" ] || { sudo git clone --depth 1 https://github.com/novnc/noVNC "$NOVNC_DIR" >/dev/null 2>&1; }
 command -v websockify >/dev/null 2>&1 || pip3 install --quiet websockify >/dev/null 2>&1
