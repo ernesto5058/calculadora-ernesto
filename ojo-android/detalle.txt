@@ -1,1 +1,1 @@
-La app no mostró la puerta de acceso en el teléfono virtual (¿no arrancó o tardó demasiado?). 
+La app instaló, abrió y respondió en el teléfono virtual, sin caídas.  El código de prueba quedó escrito en el campo antes de tocar Entrar. El diálogo de permiso de notificaciones apareció y se descartó antes de juzgar. El recorrido interior con la cuenta de prueba se completó.

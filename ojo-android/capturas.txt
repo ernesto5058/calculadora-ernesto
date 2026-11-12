@@ -1,1 +1,8 @@
-01-sin-puerta.png|La app no llegó a mostrar la puerta de acceso
+01-puerta.png|La puerta de acceso: la app pide el código personal
+02-codigo-invalido.png|Código inválido: la app lo rechaza con su aviso, sin dejar entrar
+03-entrada.png|Dentro: la primera pantalla tras entrar con la cuenta de prueba
+04-reportar.png|Pestaña Reportar: reportar un trato de saldo o transferencia
+05-mi-panel.png|Pestaña Mi panel: sus tratos, su comisión y su bono
+06-chat.png|Pestaña Chat: la conversación con Ernesto
+07-textos.png|Pestaña Textos: sus textos listos para copiar o mandar
+08-mi-perfil.png|Pestaña Mi perfil: su cuenta y su enlace personal
