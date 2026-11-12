@@ -13,90 +13,167 @@
 <meta name="apple-mobile-web-app-title" content="Mercado">
 <link rel="stylesheet" href="tema-pro.css">
 <style>
-  /* «Mercado» — estilos propios SOLO con tokens de tema-pro.css
-     (cero hex sueltos: regla §9.1 del DISENO-PRO). */
+  /* ============================================================
+     «Mercado» — TERMINAL DE TRADING (identidad propia, Ola 3)
+     Fondo más oscuro de la casa, hairlines como estructura de
+     tabla, filas densas, números tabulares/mono alineados a la
+     derecha y semánticos de mercado (TradingView desaturado)
+     como acentos dominantes. Dorado: solo la acción primaria.
+     Reviste las clases que el JS ya emite; no cambia estructura.
+     ============================================================ */
+  :root {
+    --bg-0: #07090D; --bg-1: #0A0E14; --bg-2: #0E141E; --bg-3: #151D2A;
+    --bg-chat: #07090D;
+    --glass: rgba(7, 9, 13, 0.94); --glass-borde: rgba(148, 163, 184, 0.16);
+    --borde: rgba(148, 163, 184, 0.14); --borde-fuerte: rgba(148, 163, 184, 0.26);
+    --linea: rgba(148, 163, 184, 0.12);
+    --txt-1: #E6EBF2; --txt-2: rgba(214, 224, 238, 0.64); --txt-3: rgba(190, 203, 222, 0.42);
+    --verde: #26A69A; --verde-suave: rgba(38, 166, 154, 0.13);
+    --rojo: #EF5350; --rojo-suave: rgba(239, 83, 80, 0.12);
+    --ambar: #C79A4B; --ambar-suave: rgba(199, 154, 75, 0.12);
+    --azul: #5B8DBF; --en-linea: #26A69A;
+    --dorado: #C7A44A; --dorado-claro: #D8BC6A; --dorado-oscuro: #9A7E33;
+    --dorado-grad: linear-gradient(135deg, #D8BC6A 0%, #C7A44A 55%, #A8893A 100%);
+    --dorado-suave: rgba(199, 164, 74, 0.12); --dorado-borde: rgba(199, 164, 74, 0.38);
+    --sombra-1: none; --sombra-2: 0 8px 24px rgba(0, 0, 0, 0.45); --sombra-dorada: none;
+    --r-sm: 6px; --r-md: 8px; --r-lg: 10px; --r-xl: 10px;
+    --t-display: 700 34px/1.1 var(--fuente-num);
+  }
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; }
   body {
     background: var(--bg-0); color: var(--txt-1); font: var(--t-cuerpo);
     -webkit-font-smoothing: antialiased; min-height: 100dvh;
+    background-image: linear-gradient(rgba(148, 163, 184, 0.025) 1px, transparent 1px);
+    background-size: 100% 32px;
   }
+  ::selection { background: var(--verde-suave); }
+  :focus-visible { outline: 2px solid var(--verde); outline-offset: 2px; }
   .envoltura { max-width: 560px; margin: 0 auto; padding: 0 var(--e-4); }
+
+  /* --- Cabecera = cinta / ticker sobrio --- */
   .cab-app {
     position: sticky; top: 0; z-index: 20;
-    background: var(--glass); -webkit-backdrop-filter: blur(20px) saturate(1.5);
-    backdrop-filter: blur(20px) saturate(1.5);
+    background: var(--glass); -webkit-backdrop-filter: blur(14px) saturate(1.2);
+    backdrop-filter: blur(14px) saturate(1.2);
     border-bottom: 1px solid var(--glass-borde);
   }
   .cab-fila {
     display: flex; align-items: center; gap: var(--e-3);
-    padding: var(--e-3) var(--e-4); max-width: 560px; margin: 0 auto;
+    padding: var(--e-2) var(--e-4); max-width: 560px; margin: 0 auto; min-height: 56px;
   }
-  .cab-titulo { font: var(--t-seccion); letter-spacing: -0.01em; }
-  .cab-sello { margin-left: auto; text-align: right; font: var(--t-nota); color: var(--txt-3); }
+  .cab-fila > div:first-child { min-width: 0; }
+  .cab-titulo {
+    font: 700 13px/1.2 var(--fuente-num); letter-spacing: 0.18em; text-transform: uppercase;
+  }
+  .cab-titulo::before { content: ""; display: inline-block; width: 8px; height: 8px; margin-right: var(--e-2); background: var(--verde); vertical-align: 1px; }
+  #cabSub { font-family: var(--fuente-num); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .cab-sello {
+    margin-left: auto; text-align: right; min-width: 0;
+    font: 400 11px/1.35 var(--fuente-num); font-variant-numeric: tabular-nums; color: var(--txt-3);
+    letter-spacing: 0.04em; text-transform: uppercase;
+  }
   .btn-refrescar {
-    width: 44px; height: 44px; border-radius: 999px; flex: none;
+    width: 44px; height: 44px; border-radius: var(--r-md); flex: none;
     display: flex; align-items: center; justify-content: center;
     background: var(--bg-2); border: 1px solid var(--borde-fuerte);
-    color: var(--dorado); cursor: pointer;
+    color: var(--txt-2); cursor: pointer;
   }
-  .btn-refrescar:active { transform: scale(0.97); }
-  .btn-refrescar svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+  .btn-refrescar:active { transform: scale(0.97); background: var(--bg-3); }
+  .btn-refrescar svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
   .btn-refrescar.girando svg { animation: gira 0.9s linear infinite; }
   @keyframes gira { to { transform: rotate(360deg); } }
-  main { padding: var(--e-4) 0 calc(96px + env(safe-area-inset-bottom)); }
+
+  main { padding: var(--e-3) 0 calc(96px + env(safe-area-inset-bottom)); }
   .pantalla { display: none; }
   .pantalla.activa { display: block; animation: entra var(--anim) both; }
-  @keyframes entra { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+  @keyframes entra { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+
+  /* --- Tipografía de datos --- */
   .explica { font: var(--t-sub); color: var(--txt-2); margin: 0 0 var(--e-3); }
-  .heroe-num { font: var(--t-display); font-family: var(--fuente-num); font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
-  .heroe-num .unidad { font: var(--t-sub); color: var(--txt-2); font-family: var(--fuente); }
-  .rejilla2 { display: grid; grid-template-columns: 1fr 1fr; gap: var(--e-3); }
-  .dato { background: var(--bg-2); border: 1px solid var(--borde); border-radius: var(--r-md); padding: var(--e-3); }
-  .dato .etiqueta { margin-bottom: var(--e-1); }
-  .dato .valor { font: 600 20px/1.2 var(--fuente-num); font-variant-numeric: tabular-nums; }
+  .etiqueta {
+    display: inline-flex; align-items: center; gap: var(--e-1); padding: 0; border-radius: 0;
+    background: none; font: 600 11px/1.3 var(--fuente); letter-spacing: 0.12em;
+    text-transform: uppercase; color: var(--txt-3);
+  }
+  .num, .fila-tit.num { font-family: var(--fuente-num); font-variant-numeric: tabular-nums; }
+  .verde { color: var(--verde); } .rojo { color: var(--rojo); } .dorada { color: var(--ambar); }
+  .heroe-num {
+    font: 700 42px/1.05 var(--fuente-num); font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em; text-align: right; margin-top: var(--e-2);
+  }
+  .heroe-num .unidad { font: var(--t-nota); color: var(--txt-2); font-family: var(--fuente); letter-spacing: 0.04em; }
+  .pie-nota { font: 400 12px/1.45 var(--fuente-num); font-variant-numeric: tabular-nums; color: var(--txt-3); margin-top: var(--e-3); }
+  .seccion-tit {
+    font: 600 12px/1.3 var(--fuente); letter-spacing: 0.14em; text-transform: uppercase; color: var(--txt-2);
+    margin: var(--e-5) 0 var(--e-2); padding-bottom: var(--e-2); border-bottom: 1px solid var(--linea);
+  }
+
+  /* --- Tarjetas = bloques de tabla, radios 8-10, sin sombra blanda --- */
+  .card {
+    background: var(--bg-1); border: 1px solid var(--borde); border-radius: var(--r-lg);
+    padding: var(--e-4); box-shadow: none;
+  }
+  .card + .card { margin-top: var(--e-3); }
+  .card.heroe {
+    background: linear-gradient(180deg, #0D131C 0%, var(--bg-1) 100%);
+    border-color: var(--borde-fuerte); border-top: 2px solid var(--verde); border-radius: var(--r-xl);
+  }
+  .card .card-titulo {
+    font: 600 12px/1.3 var(--fuente); letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--txt-2); margin: 0 0 var(--e-3); padding-bottom: var(--e-2); border-bottom: 1px solid var(--linea);
+  }
+  .card.lista { border-radius: var(--r-lg); }
+
+  /* --- Datos: celdas densas, valor a la derecha --- */
+  .rejilla2 { display: grid; grid-template-columns: 1fr 1fr; gap: var(--e-2); }
+  .dato {
+    background: var(--bg-1); border: 1px solid var(--borde); border-radius: var(--r-md);
+    padding: var(--e-3); text-align: right;
+  }
+  .dato .etiqueta { margin-bottom: var(--e-1); display: block; text-align: left; }
+  .dato .valor { font: 600 22px/1.15 var(--fuente-num); font-variant-numeric: tabular-nums; }
   .dato .valor .unidad { font: var(--t-nota); color: var(--txt-2); font-family: var(--fuente); }
-  .dato .nota { font: var(--t-nota); color: var(--txt-3); margin-top: var(--e-1); }
-  .seccion-tit { font: var(--t-seccion); margin: var(--e-5) 0 var(--e-3); }
+  .dato .nota { font: var(--t-nota); color: var(--txt-3); margin-top: var(--e-1); text-align: left; }
+
+  /* --- Sellos de frescura: pastilla rectangular de terminal --- */
   .sello {
     display: inline-flex; align-items: center; gap: var(--e-2);
-    padding: var(--e-1) var(--e-3); border-radius: 999px;
-    font: var(--t-micro); letter-spacing: 0.04em; text-transform: uppercase;
+    padding: var(--e-1) var(--e-2); border-radius: var(--r-sm);
+    border: 1px solid currentColor; font: 600 11px/1.3 var(--fuente-num);
+    letter-spacing: 0.1em; text-transform: uppercase;
   }
-  .sello .punto { width: 8px; height: 8px; border-radius: 999px; background: currentColor; flex: none; }
+  .sello .punto { width: 7px; height: 7px; border-radius: 1px; background: currentColor; flex: none; }
   .sello.fresca { background: var(--verde-suave); color: var(--verde); }
   .sello.vieja { background: var(--rojo-suave); color: var(--rojo); }
   .sello.respaldo { background: var(--ambar-suave); color: var(--ambar); }
   .sello.neutro { background: var(--bg-2); color: var(--txt-2); }
-  .barra { height: 8px; border-radius: 999px; background: var(--bg-2); overflow: hidden; border: 1px solid var(--borde); }
-  .barra > i { display: block; height: 100%; background: var(--dorado-grad); border-radius: 999px; }
-  /* Analista (v2): señal, peldaños, chips de ganancia y control */
-  .senal-palabra { font: var(--t-display); letter-spacing: -0.01em; }
+
+  /* --- Barra de progreso (Demanda) --- */
+  .barra { height: 6px; border-radius: 2px; background: var(--bg-2); overflow: hidden; border: 1px solid var(--borde); }
+  .barra > i { display: block; height: 100%; background: var(--verde); border-radius: 0; }
+
+  /* --- Analista: señal, escalera de peldaños, chips --- */
+  .senal-palabra { font: 700 36px/1.1 var(--fuente-num); letter-spacing: 0.02em; text-transform: uppercase; margin-top: var(--e-1); }
   .senal-palabra.verde { color: var(--verde); }
-  .senal-palabra.dorada {
-    background: var(--dorado-grad); -webkit-background-clip: text;
-    background-clip: text; color: transparent;
-  }
+  .senal-palabra.dorada { background: none; -webkit-background-clip: initial; background-clip: initial; color: var(--ambar); }
   .senal-linea { width: 100%; text-align: left; cursor: pointer; color: var(--txt-1); font: var(--t-cuerpo); }
   .senal-linea:active { transform: scale(0.99); }
-  .peldano { padding: var(--e-3) 0; border-bottom: 1px solid var(--borde); }
+  .senal-linea .t-nota { min-width: 0; overflow-wrap: break-word; }
+  .peldano { padding: var(--e-3) 0; border-bottom: 1px solid var(--linea); }
   .peldano:first-of-type { padding-top: var(--e-2); }
   .peldano:last-child { border-bottom: 0; padding-bottom: 0; }
   .peldano.bloqueado { opacity: 0.55; }
   .peldano-cab { display: flex; align-items: baseline; gap: var(--e-2); flex-wrap: wrap; }
   .peldano-nombre { font: var(--t-cuerpo-f); }
-  .peldano-tasa { font: 600 20px/1.2 var(--fuente-num); font-variant-numeric: tabular-nums; margin-left: auto; }
+  .peldano-tasa { font: 600 22px/1.15 var(--fuente-num); font-variant-numeric: tabular-nums; margin-left: auto; text-align: right; }
   .peldano-tasa .unidad { font: var(--t-nota); color: var(--txt-2); font-family: var(--fuente); font-weight: 400; }
-  /* Botón por peldaño (v3) + barrido anti-desbordamiento: ningún hijo
-     flex puede empujar la tarjeta fuera del ancho del teléfono. */
   .peldano-accion { margin-top: var(--e-3); }
-  .cab-sello { min-width: 0; }
-  .cab-fila > div:first-child { min-width: 0; }
-  .senal-linea .t-nota { min-width: 0; overflow-wrap: break-word; }
   .chip-g {
-    display: inline-flex; align-items: center; padding: var(--e-1) var(--e-2);
-    border-radius: var(--r-pildora); font: var(--t-micro); letter-spacing: 0.03em;
-    max-width: 100%;
+    display: inline-flex; align-items: center; padding: 3px var(--e-2);
+    border-radius: var(--r-sm); border: 1px solid currentColor;
+    font: 600 11px/1.3 var(--fuente-num); font-variant-numeric: tabular-nums;
+    letter-spacing: 0.06em; text-transform: uppercase; max-width: 100%;
   }
   .chip-g.buena { background: var(--verde-suave); color: var(--verde); }
   .chip-g.fina { background: var(--ambar-suave); color: var(--ambar); }
@@ -104,28 +181,72 @@
   .chip-g.neutra { background: var(--bg-2); color: var(--txt-2); }
   .campo-codigo {
     width: 100%; min-height: 48px; padding: 0 var(--e-3); margin: var(--e-2) 0;
-    background: var(--bg-1); border: 1px solid var(--borde-fuerte);
-    border-radius: var(--r-md); color: var(--txt-1); font: var(--t-cuerpo);
+    background: var(--bg-0); border: 1px solid var(--borde-fuerte);
+    border-radius: var(--r-md); color: var(--txt-1); font: 400 16px var(--fuente-num);
   }
+  .campo-codigo:focus { border-color: var(--verde); outline: none; box-shadow: 0 0 0 3px var(--verde-suave); }
   .anti-humo {
     margin-top: var(--e-4); padding: var(--e-3); border: 1px dashed var(--borde-fuerte);
-    border-radius: var(--r-md); color: var(--txt-2); font: var(--t-sub);
+    border-radius: var(--r-md); color: var(--txt-2); font: var(--t-sub); background: var(--bg-1);
   }
+
+  /* --- Semáforo de Demanda: bloque rectangular, no foco redondo --- */
   .semaforo { display: flex; gap: var(--e-3); align-items: flex-start; }
   .semaforo .luz {
-    width: 56px; height: 56px; border-radius: 999px; flex: none;
+    width: 52px; height: 52px; border-radius: var(--r-md); flex: none;
     display: flex; align-items: center; justify-content: center;
     border: 1px solid var(--borde-fuerte); background: var(--bg-2); color: var(--txt-3);
   }
-  .semaforo .luz svg { width: 28px; height: 28px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+  .semaforo .luz svg { width: 26px; height: 26px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
   .semaforo.verde .luz { background: var(--verde-suave); color: var(--verde); border-color: var(--verde); }
   .semaforo.ambar .luz { background: var(--ambar-suave); color: var(--ambar); border-color: var(--ambar); }
+
+  /* --- Listas / historial: filas-tabla densas --- */
+  .fila {
+    display: flex; align-items: center; gap: var(--e-3);
+    padding: var(--e-2) 0; min-height: 52px; border-bottom: 1px solid var(--linea); cursor: pointer;
+  }
+  .fila:last-child { border-bottom: 0; }
+  .fila .fila-tit { font: 600 15px/1.35 var(--fuente-num); font-variant-numeric: tabular-nums; }
+  .fila-hora { font: 400 12px/1.35 var(--fuente-num); font-variant-numeric: tabular-nums; color: var(--txt-3); white-space: nowrap; }
   .mini-grafica { width: 100%; height: 72px; display: block; }
-  .fila-hora { font: var(--t-nota); color: var(--txt-3); white-space: nowrap; }
-  .pie-nota { font: var(--t-nota); color: var(--txt-3); margin-top: var(--e-3); }
+  .mini-grafica polyline { stroke: var(--verde); }
+
+  /* --- Botones: rectangulares; dorado SOLO en la primaria (.dorado) --- */
+  .btn { border-radius: var(--r-md); min-height: 48px; letter-spacing: 0.02em; }
+  .btn.dorado { box-shadow: none; }
+  .btn.suave { background: var(--bg-2); border-color: var(--borde-fuerte); }
+  .btn.peligro { background: var(--rojo-suave); color: var(--rojo); border: 1px solid rgba(239, 83, 80, 0.4); }
+
+  /* --- Avisos y estados vestidos de terminal --- */
+  .aviso { border-radius: var(--r-md); background: var(--bg-2); border: 1px solid var(--borde); border-left: 3px solid var(--azul); }
+  .aviso.info { background: var(--verde-suave); border-color: var(--borde); border-left-color: var(--verde); color: var(--txt-1); }
+  .aviso.error { background: var(--rojo-suave); border-color: var(--borde); border-left-color: var(--rojo); color: #F3C1C0; }
   .aviso-banda { margin-bottom: var(--e-3); }
+  .estado {
+    text-align: left; padding: var(--e-4); color: var(--txt-2);
+    border: 1px dashed var(--borde-fuerte); border-radius: var(--r-lg); background: var(--bg-1);
+  }
+  .estado .estado-tit, .estado .estado-titulo {
+    font: 600 12px/1.3 var(--fuente); letter-spacing: 0.12em; text-transform: uppercase; color: var(--txt-1); margin-bottom: var(--e-1);
+  }
+  .esqueleto { border-radius: var(--r-md); background: linear-gradient(100deg, var(--bg-1) 40%, var(--bg-2) 50%, var(--bg-1) 60%); background-size: 200% 100%; }
+  .badge { border-radius: var(--r-sm); background: var(--rojo); font-family: var(--fuente-num); }
+  .punto-linea { border-radius: 1px; }
+
+  /* --- Tabbar: cinta inferior, activa en verde de mercado --- */
+  .tabbar {
+    background: rgba(7, 9, 13, 0.96); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
+    border-top: 1px solid var(--glass-borde); padding-top: var(--e-1);
+  }
+  .tab {
+    min-height: 52px; border-radius: 0; font: 600 10px var(--fuente);
+    letter-spacing: 0.08em; text-transform: uppercase; color: var(--txt-3); gap: var(--e-1);
+  }
+  .tab svg { width: 22px; height: 22px; }
+  .tab.activa { color: var(--verde); box-shadow: inset 0 2px 0 var(--verde); }
 </style>
-<script>window.SENTRY_CASA={app:"mercado",version:"v3",dsn:"https://be3fffd86ef4af47f8d6a09497019a00@o4512419765354496.ingest.us.sentry.io/4512419775381504"};</script>
+<script>window.SENTRY_CASA={app:"mercado",version:"v4",dsn:"https://be3fffd86ef4af47f8d6a09497019a00@o4512419765354496.ingest.us.sentry.io/4512419775381504"};</script>
 <script defer crossorigin="anonymous" integrity="sha384-48iagrZwMa6wkDoJKNyCk4jgMHcOcsBK/DzZAJInl1ZhtunellJDCRNZuomfHefF" src="https://browser.sentry-cdn.com/8.38.0/bundle.min.js"></script>
 </head>
 <body>
@@ -219,7 +340,7 @@
    base: sin costo, el número NO se inventa (se explica qué falta).
    ===================================================================== */
 const MERCADO_VERSION = "v2";
-const SELLO = "Mercado · versión 2026-11-12 11:43 · caché v3";
+const SELLO = "Mercado · versión 2026-11-12 12:15 · caché v4";
 const SB_URL = "https://otsudfgwpapkluusrlnj.supabase.co";
 const SB_KEY = "sb_publishable_Uchl5QnojJkZbXR5ar8vDg_5CXnqi_d"; // pública: solo lee por las puertas de mercado
 const LS_CLAVE = "mercado_cache_v1";
