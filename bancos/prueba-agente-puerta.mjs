@@ -91,5 +91,20 @@ ok(src.includes("!webKey") && src.includes("web_no_configurada"), "F-8 E5: sin A
 ok(!src.includes("if (webKey &&"), "F-9 E5: fuera el patrón fail-open de la clave web");
 ok(src.includes("escaladoCaducado") && src.includes("escalado_caducado") && src.includes("escalada: false"), "F-10 E6: reapertura del escalado caducado registrada en agente_acciones");
 
+
+/* ============ TANDA Nº6 — F1 no-texto + fuentes E9/F2/F3 ============ */
+ok(P.respuestaNoTextoTelegram({ voice: { duration: 3 } })?.tipo === "audio", "F1-1 nota de voz -> tipo audio con guía");
+ok(/no puedo escucharlo/.test(P.respuestaNoTextoTelegram({ voice: {} })?.texto ?? ""), "F1-2 el texto de voz pide escribir, no silencio");
+ok(P.respuestaNoTextoTelegram({ photo: [{ file_id: "x" }] })?.tipo === "foto", "F1-3 foto -> tipo foto");
+ok(P.respuestaNoTextoTelegram({ location: { latitude: 20, longitude: -75 } })?.tipo === "ubicacion", "F1-4 ubicación -> tipo ubicacion");
+ok(P.respuestaNoTextoTelegram({ sticker: {} })?.tipo === "sticker", "F1-5 sticker -> tipo sticker");
+ok(P.respuestaNoTextoTelegram({ text: "hola" }) === null, "F1-6 un mensaje CON texto no entra en la guía no-texto");
+ok(P.respuestaNoTextoTelegram({})?.tipo === "otro", "F1-7 mensaje sin texto ni tipo conocido -> guía genérica, jamás silencio");
+ok(src.includes("respuestaNoTextoTelegram") && src.includes("telegram_no_texto"), "F1-8 index.ts usa la guía no-texto y la registra sin crear conversación");
+ok(src.includes("pregunta: enmascarar(e.texto)") && src.includes("texto: enmascarar(m.texto)"), "E9-F1 index.ts enmascara pregunta e historial ANTES del cerebro");
+ok(src.includes("agente_ensenar_responder") && src.includes("dueno_ensenar"), "F2-F1 index.ts ejecuta la creación por la RPC agente_ensenar_responder");
+ok(src.includes("agente_pendientes") && src.includes("pendientesSinRespuesta"), "F2-F2 index.ts carga la cola de sin-respuesta pa el panel");
+ok(src.includes("contacto: dec.cita.contacto"), "F3-F1 index.ts guarda el contacto de la cita en su columna");
+
 console.log(`\nprueba-agente-puerta: ${pass} PASS · ${fail} FAIL`);
 if (fail) { console.log("Fallos:", fails.join(" | ")); process.exit(1); }
