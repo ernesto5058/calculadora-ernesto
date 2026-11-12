@@ -43,6 +43,7 @@ export const VETO_FOTO_MIN = 20;
 export const BANDA_DOBLE_LECTURA = 5; // saldo por QUSD
 export const FALLOS_PARA_PAUSA = 3;
 export const COLCHON_SALDO = 5;
+export const RECLAMO_EXPIRA_MIN = 3;
 
 export function numA(x) {
   if (x === null || x === undefined || x === "") return null;
@@ -84,6 +85,35 @@ export function equilibradoDe(ventas, eq) {
   return Math.round(Math.min(top, e - COLCHON_SALDO) * 100) / 100;
 }
 
+// Forma estructural de un valor: SOLO su tipo y los NOMBRES de sus
+// claves, jamás un valor. Cuando una baranda niega por la forma de
+// los datos de pago, la negación registra esta foto de la forma pa
+// discriminar la causa (objeto / ausente / otra cosa) sin filtrar ni
+// un solo dato de pago a la bitácora.
+export function formaDe(x) {
+  if (x === null || x === undefined) return { tipo: "ausente" };
+  if (Array.isArray(x)) {
+    const f = { tipo: "array", longitud: x.length };
+    const p = x[0];
+    if (p && typeof p === "object" && !Array.isArray(p)) f.claves = Object.keys(p).sort();
+    else if (x.length) f.primer_tipo = Array.isArray(p) ? "array" : typeof p;
+    return f;
+  }
+  if (typeof x === "object") return { tipo: "objeto", claves: Object.keys(x).sort() };
+  return { tipo: "otro", clase: typeof x };
+}
+
+// Copia del payload SOLO pa la bitácora: jamás lleva «details»
+// (los datos de pago de Ernesto) en claro — en su lugar va la
+// forma estructural (formaDe), igual que en la negación por
+// detalles_desconocidos. El payload que va a QvaPay NO pasa por
+// aquí: sigue llevando sus details intactos.
+export function payloadBitacora(payload) {
+  if (!payload || typeof payload !== "object") return payload;
+  const { details, ...resto } = payload;
+  return { ...resto, forma_details: formaDe(details) };
+}
+
 export async function ejecutarAccion(deps, accionId) {
   const base = { ok: false, accion_id: accionId };
   const negar = async (codigo, motivo, extra = {}) => {
@@ -100,9 +130,28 @@ export async function ejecutarAccion(deps, accionId) {
   if (accion.estado === "ejecutada") {
     return { ...base, codigo: "ya_ejecutada", motivo: "Esa oferta ya se publicó: no se duplica.", oferta_uuid: accion.oferta_uuid ?? null };
   }
-  if (accion.estado !== "pendiente") {
+  if (accion.estado !== "pendiente" && accion.estado !== "ejecutando") {
     return { ...base, codigo: "no_pendiente", motivo: `Esa acción ya se resolvió (${accion.estado}).` };
   }
+  /* 1b) RECLAMO ATÓMICO (compare-and-swap en la dep): solo UN
+     ejecutor gana la acción — pendiente, o ejecutando con el
+     reclamo ya vencido (RECLAMO_EXPIRA_MIN). Dos toques a la vez
+     ya no pueden crear dos ofertas: el perdedor NO escribe nada
+     y responde el motivo honesto según el estado fresco. */
+  const reclamada = await deps.reclamarAccion(accionId);
+  if (!reclamada) {
+    const fresca = await deps.leerAccion(accionId);
+    if (!fresca) return { ...base, codigo: "no_existe", motivo: "Esa acción no existe en la bitácora." };
+    if (fresca.estado === "ejecutada") {
+      return { ...base, codigo: "ya_ejecutada", motivo: "Esa oferta ya se publicó: no se duplica.", oferta_uuid: fresca.oferta_uuid ?? null };
+    }
+    if (fresca.estado === "ejecutando") {
+      return { ...base, codigo: "en_ejecucion", motivo: "Esa acción ya se está ejecutando: no se duplica. Espera a que termine esa ejecución." };
+    }
+    return { ...base, codigo: "no_pendiente", motivo: `Esa acción ya se resolvió (${fresca.estado}).` };
+  }
+  /* La expiración se comprueba DESPUÉS del reclamo: solo el dueño
+     del reclamo puede escribir «expirada». */
   if (deps.ahoraMs() > Date.parse(accion.expira_en)) {
     await deps.guardarAccion(accionId, {
       estado: "expirada", resuelta_en: deps.ahoraIso(),
@@ -143,8 +192,11 @@ export async function ejecutarAccion(deps, accionId) {
       { ganancia360: g });
   }
 
-  /* 6) Topes y enfriamiento */
-  const conteo = await deps.conteo();
+  /* 6) Topes y enfriamiento — el conteo cuenta también los
+     reclamos vivos de OTRAS acciones (la dep excluye la propia:
+     su reclamo acaba de nacer y no puede enfriarse a sí misma),
+     así dos acciones distintas en paralelo también se serializan. */
+  const conteo = await deps.conteo(accionId);
   if (conteo.ultimaEjecutadaEn && deps.ahoraMs() - Date.parse(conteo.ultimaEjecutadaEn) < ENFRIAMIENTO_MIN * 60000) {
     return negar("enfriamiento", `Enfriamiento: ${ENFRIAMIENTO_MIN} minutos entre una acción y otra.`);
   }
@@ -186,7 +238,8 @@ export async function ejecutarAccion(deps, accionId) {
     return negar("sin_oferta_base", "No encuentro una oferta tuya de VENTA abierta para copiar tus datos de pago. La puerta solo vende: deja una oferta de venta abierta y el Analista aprende de ella.");
   }
   if (!Array.isArray(baseOferta.details)) {
-    return negar("detalles_desconocidos", "Tus datos de pago tienen una forma que no reconozco: no se publica a ciegas.");
+    return negar("detalles_desconocidos", "Tus datos de pago tienen una forma que no reconozco: no se publica a ciegas.",
+      { forma_details: formaDe(baseOferta.details) });
   }
 
   /* 9) Crear (idempotency_key = id de la acción) */
@@ -203,7 +256,7 @@ export async function ejecutarAccion(deps, accionId) {
   if (!incierto && resp && resp.ok) {
     await deps.guardarAccion(accionId, {
       estado: "ejecutada", resuelta_en: deps.ahoraIso(), oferta_uuid: resp.uuid ?? null,
-      detalle: { ganancia360: g, payload, respuesta: resp.crudo ?? null },
+      detalle: { ganancia360: g, payload: payloadBitacora(payload), respuesta: resp.crudo ?? null },
     });
     await deps.reiniciarFallos();
     return { ok: true, accion_id: accionId, oferta_uuid: resp.uuid ?? null, tasa, monto_qusd: monto, ganancia360: g };
@@ -228,14 +281,14 @@ export async function ejecutarAccion(deps, accionId) {
     if (hallada) {
       await deps.guardarAccion(accionId, {
         estado: "ejecutada", resuelta_en: deps.ahoraIso(), oferta_uuid: hallada.uuid ?? null,
-        detalle: { ganancia360: g, payload, reconciliada: true },
+        detalle: { ganancia360: g, payload: payloadBitacora(payload), reconciliada: true },
       });
       await deps.reiniciarFallos();
       return { ok: true, accion_id: accionId, oferta_uuid: hallada.uuid ?? null, tasa, monto_qusd: monto, ganancia360: g, reconciliada: true };
     }
     await deps.guardarAccion(accionId, {
       estado: "error", resuelta_en: deps.ahoraIso(),
-      detalle: { error_api: "resultado_desconocido", payload },
+      detalle: { error_api: "resultado_desconocido", payload: payloadBitacora(payload) },
     });
     const n = await deps.sumarFallo();
     if (n >= FALLOS_PARA_PAUSA) await deps.fijarPausa("Tres fallos seguidos en la puerta de acción.");
@@ -247,7 +300,7 @@ export async function ejecutarAccion(deps, accionId) {
   /* Error de API con código: queda en bitácora y suma al freno. */
   await deps.guardarAccion(accionId, {
     estado: "error", resuelta_en: deps.ahoraIso(),
-    detalle: { error_api: codigoApi, mensaje: resp?.mensaje ?? null, payload },
+    detalle: { error_api: codigoApi, mensaje: resp?.mensaje ?? null, payload: payloadBitacora(payload) },
   });
   const n = await deps.sumarFallo();
   let pausa = false;
