@@ -12,9 +12,12 @@ self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(CASCARA)).then(() => self.skipWaiting()));
 });
 self.addEventListener("activate", (e) => {
+  /* Origen GitHub Pages COMPARTIDO: la Cache Storage es de TODO el origen,
+     no de esta carpeta. Solo se borran las cachés PROPIAS (prefijo
+     «mercado-»); las de Mi Negocio, Mi Trabajo u otra app jamás se tocan. */
   e.waitUntil(
     caches.keys()
-      .then((ks) => Promise.all(ks.filter((k) => k !== CACHE).map((k) => caches.delete(k))))
+      .then((ks) => Promise.all(ks.filter((k) => k.startsWith("mercado-") && k !== CACHE).map((k) => caches.delete(k))))
       .then(() => self.clients.claim())
   );
 });
