@@ -617,5 +617,93 @@ ok(cobertura >= 0.8, "ARNÉS cobertura ≥ 80 %");
      JSON.stringify(["v2:c:ok:cita-1", "v2:c:no:cita-1"]), "CIT-9 el teclado del aviso: [✅ Confirmar] [✖️ Rechazar] con su id");
 }
 
+/* ============ v2.4 — DIN: cierre de citas y dinero del dueño ============ */
+{
+  const CONF1 = { id: "conf-1", nombre: "Ana Pérez", servicio: "corte", dia: "2026-11-12", hora: "10:00:00", estado: "confirmada", canal: "telegram", conversacion_id: "conv-x" };
+  const CONF2 = { id: "conf-2", nombre: "Luis", servicio: "corte", dia: "2026-11-12", hora: "16:30:00", estado: "confirmada", canal: "web", conversacion_id: "conv-y" };
+  const DG = { ...DATOS, esDueno: true, citasPendientes: [], citasConfirmadas: [CONF1, CONF2] };
+  const cbsG = (pv) => (pv.teclado.inline_keyboard.flat()).map((b) => b.callback_data);
+  const txtsG = (pv) => (pv.teclado.inline_keyboard.flat()).map((b) => b.text);
+  // DIN-1: la vista de gestión trae las confirmadas con [✅ Vino]/[🚫 No vino]
+  const rG = L.orquestar(DG, conv(), "/dueno citas", AHORA);
+  ok(rG.panel?.texto.includes("CONFIRMADAS") && rG.panel.texto.includes("Ana Pérez") && rG.panel.texto.includes("Luis"),
+     "DIN-1 la vista «📋 Citas» lista las confirmadas por cerrar");
+  ok(cbsG(rG.panel).includes("v2:k:vino:conf-1") && cbsG(rG.panel).includes("v2:k:no:conf-2") && cbsG(rG.panel).includes("v2:d:dinero"),
+     "DIN-1 cada confirmada trae [✅ Vino]/[🚫 No vino] y la vista enlaza a 💰 Dinero");
+  // DIN-2: [✅ Vino] pide el pago con los montos de SU tarifa en los botones
+  const rVino = L.orquestar(DG, conv(), "/citacierre vino conf-1", AHORA);
+  ok(rVino.accion === "dueno" && cbsG(rVino.panel).includes("v2:k:pago:conf-1:ef") && cbsG(rVino.panel).includes("v2:k:pago:conf-1:tr") &&
+     cbsG(rVino.panel).includes("v2:k:otro:conf-1"), "DIN-2 vino: teclado de pago completo");
+  ok(txtsG(rVino.panel).some((t) => t.includes("400 CUP")) && txtsG(rVino.panel).some((t) => t.includes("700 CUP")),
+     "DIN-2 los botones precargan 400 (efectivo) y 700 (transferencia) del catálogo");
+  // DIN-3: la precarga sale del CATÁLOGO, no de un número escrito en el código
+  const catAlt = new Map(catalogo);
+  catAlt.set("corte", filaCat("corte", "Corte de cabello", 450, "CUP"));
+  ok(L.precioCita({ ...DATOS, catalogo: catAlt }, "corte", "efectivo") === 450 &&
+     L.precioCita(DATOS, "corte", "efectivo") === 400 && L.precioCita(DATOS, "corte", "transferencia") === 700,
+     "DIN-3 precioCita lee la tarifa viva (450 si el catálogo dice 450)");
+  // DIN-4: el pago precargado compone el cierre con monto, método y unidad
+  const rPago = L.orquestar(DG, conv(), "/citapago conf-1 tr", AHORA);
+  ok(rPago.accion === "cita_cierre" && rPago.citaCierre?.monto === 700 && rPago.citaCierre?.metodo === "transferencia",
+     "DIN-4 /citapago tr: cierre con los 700 de la tarifa por transferencia");
+  const kEf = L.cierreCita(DG, "conf-1", { vino: true, metodo: "efectivo", monto: 400 });
+  ok(kEf.ok && kEf.textoDueno.includes("400 CUP") && kEf.textoDueno.includes("efectivo") && kEf.textoDueno.includes("Ana Pérez"),
+     "DIN-4 cierreCita vino+efectivo: texto con monto, unidad y método");
+  // DIN-5: [🚫 No vino] cierra sin pago
+  const rNo = L.orquestar(DG, conv(), "/citacierre novino conf-2", AHORA);
+  ok(rNo.accion === "cita_cierre" && rNo.citaCierre?.vino === false && !rNo.citaCierre?.monto,
+     "DIN-5 no vino: cierre sin monto ni método");
+  ok(L.cierreCita(DG, "conf-2", { vino: false }).textoDueno.includes("no vino"), "DIN-5 el texto del dueño dice «no vino»");
+  // DIN-6: otro monto — flujo corto con validación numérica dura
+  const rOtro = L.orquestar(DG, conv(), "/citaotro conf-1", AHORA);
+  ok(rOtro.flujo?.paso === "cierre_monto" && rOtro.flujo?.datos?.citaId === "conf-1", "DIN-6 /citaotro abre el flujo del monto");
+  const convM = { escalada: false, flujo: rOtro.flujo };
+  const rMal = L.orquestar(DG, convM, "abc", AHORA);
+  ok(rMal.flujo?.paso === "cierre_monto" && rMal.accion === "dueno", "DIN-6 monto «abc»: se queda en el paso, no cierra nada");
+  const rCero = L.orquestar(DG, convM, "0", AHORA);
+  ok(rCero.flujo?.paso === "cierre_monto", "DIN-6 monto «0»: inválido, no cierra nada");
+  const rBien = L.orquestar(DG, convM, "500", AHORA);
+  ok(rBien.flujo?.paso === "cierre_metodo" && rBien.flujo?.datos?.monto === 500, "DIN-6 monto «500»: avanza a elegir la vía");
+  const convMet = { escalada: false, flujo: rBien.flujo };
+  const rMet = L.orquestar(DG, convMet, "/citamet ef", AHORA);
+  ok(rMet.accion === "cita_cierre" && rMet.citaCierre?.monto === 500 && rMet.citaCierre?.metodo === "efectivo" && rMet.citaCierre?.id === "conf-1",
+     "DIN-6 /citamet ef: cierre con el monto escrito y su vía");
+  // DIN-7: el resumen se calcula de las filas, con cada vía por separado
+  const SEM = [
+    { id: "s1", dia: "2026-11-09", asistencia: "vino", pago_monto: 400, pago_metodo: "efectivo" },   // lunes, fuera de «hoy»
+    { id: "s2", dia: "2026-11-12", asistencia: "vino", pago_monto: 400, pago_metodo: "efectivo" },   // hoy
+    { id: "s3", dia: "2026-11-12", asistencia: "vino", pago_monto: 700, pago_metodo: "transferencia" }, // hoy
+    { id: "s4", dia: "2026-11-12", asistencia: "no_vino", pago_monto: null, pago_metodo: null },     // hoy
+    { id: "s5", dia: "2026-11-12", asistencia: null, pago_monto: null, pago_metodo: null },          // sin cerrar: no cuenta
+  ];
+  const res = L.resumenDineroCitas(SEM, "2026-11-12"); // jueves 12-nov-2026
+  ok(res.hoy.realizadas === 2 && res.hoy.noVino === 1 && res.hoy.efectivo === 400 && res.hoy.transferencia === 700 &&
+     res.hoy.total === 1100 && res.hoy.tasa === 67, "DIN-7 hoy: 2 vinieron, 1 no, 400 ef + 700 tr = 1 100, 67 %");
+  ok(res.semana.realizadas === 3 && res.semana.efectivo === 800 && res.semana.transferencia === 700 && res.semana.total === 1500,
+     "DIN-7 semana (desde el lunes 9): suma también la del lunes");
+  const txtDin = L.textoResumenDinero(res, "2026-11-12");
+  ok(txtDin.includes("💵 Efectivo: 400 CUP") && txtDin.includes("📲 Transferencia: 700 CUP") && txtDin.includes("🧮 Total: 1 100 CUP") &&
+     txtDin.includes("📊 Asistencia: 67 %") && txtDin.includes("1 500 CUP"),
+     "DIN-7 el texto trae cada vía ETIQUETADA con su unidad y la asistencia");
+  // DIN-8: Ajustes trae «💰 Dinero de citas» y la vista responde el resumen
+  const pvG = L.panelVista("dueno", { ...DG, citasCerradas: SEM }, conv());
+  ok(cbsG(pvG).includes("v2:d:dinero") && txtsG(pvG).some((t) => t.includes("Dinero de citas")), "DIN-8 Ajustes: botón «💰 Dinero de citas»");
+  const rDin = L.orquestar({ ...DG, citasCerradas: SEM }, conv(), "/dueno dinero", "2026-11-12");
+  ok(rDin.accion === "dueno" && rDin.panel?.texto.includes("Total: 1 100 CUP"), "DIN-8 /dueno dinero: el resumen de hoy y semana");
+  // DIN-9: un cliente NO ve ni toca esta capa (denegar determinista, sin cerebro)
+  for (const cmd of ["/citacierre vino conf-1", "/citapago conf-1 ef", "/citaotro conf-1", "/citamet ef"]) {
+    const rX = L.orquestar(DATOS, conv(), cmd, AHORA);
+    ok(rX.accion === "denegar" && !rX.citaCierre, "DIN-9 cliente: " + cmd.split(" ")[0] + " denegado, jamás improvisado");
+  }
+  const rCli = L.orquestar(DATOS, conv(), "/dueno dinero", AHORA);
+  ok(rCli.accion === "no_se" && !rCli.panel, "DIN-9 cliente: /dueno dinero no existe pa él");
+  // DIN-10: lo que no está confirmado no se cierra; monto/método se validan
+  ok(L.cierreCita(DG, "no-existe", { vino: true, metodo: "efectivo", monto: 400 }).ok === false,
+     "DIN-10 cita no confirmada: no se cierra");
+  ok(L.cierreCita(DG, "conf-1", { vino: true, metodo: "efectivo", monto: 0 }).motivo === "monto_invalido" &&
+     L.cierreCita(DG, "conf-1", { vino: true, metodo: "tarjeta", monto: 400 }).motivo === "metodo_invalido",
+     "DIN-10 monto 0 y método raro: rechazados por la validación");
+}
+
 console.log("\nprueba-agente-v1: " + pass + " PASS · " + fail + " FAIL");
 if (fail) { console.log("Fallos:", fails.join(" | ")); process.exit(1); }
