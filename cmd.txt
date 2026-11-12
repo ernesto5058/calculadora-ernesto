@@ -1,0 +1,2 @@
+adb shell input tap 500 1358
+sleep 3
