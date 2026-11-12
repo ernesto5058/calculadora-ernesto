@@ -167,10 +167,16 @@ let mtListo = false;
 for (let i = 0; i < 30 && !mtListo; i++) {
   const est = await page2.evaluate(() => {
     const t = document.querySelector('.tabbar [data-view="ayuda"]');
-    return { visible: !!t && t.offsetParent !== null, sesion: (typeof window.SESION !== "undefined" ? window.SESION : null) };
+    /* la .tabbar es position:fixed → su offsetParent es null aunque
+       esté visible (falso negativo que mató la 2.ª corrida: la
+       sesión PEUEBA ya estaba abierta desde la 1.ª muestra). La
+       visibilidad se mide por rect + estilo computado. */
+    let visible = false;
+    if (t) { const r = t.getBoundingClientRect(); const cs = getComputedStyle(t); visible = r.height > 0 && cs.display !== "none" && cs.visibility !== "hidden"; }
+    return { visible, sesion: (typeof window.SESION !== "undefined" ? window.SESION : null) };
   }).catch(() => ({ visible: false, sesion: null }));
   log("MT desbloqueo " + (i + 1) + "/30 · tabVisible=" + est.visible + " · SESION=" + est.sesion);
-  if (est.visible) mtListo = true; else await sleep(3000);
+  if (est.visible) mtListo = true; else await sleep(2000);
 }
 ok(mtListo, "MT-1b la app se desbloqueó con PEUEBA y la barra inferior quedó visible");
 try { if (verMT === "1.5.0" && mtListo) {
