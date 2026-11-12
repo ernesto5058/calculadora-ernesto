@@ -207,6 +207,33 @@ interface Salida {
   opciones?: { faq_id: string; etiqueta: string }[];
   silencio?: boolean;
   accion: string;
+  botones?: boolean;
+}
+
+/* Botones inline bajo las respuestas clave (v1.1): el callback trae
+   el comando equivalente y corre por la MISMA capa determinista. */
+const TECLADO = { inline_keyboard: [[
+  { text: "📋 Pedir cita", callback_data: "v1:cita" },
+  { text: "💈 Ver precios", callback_data: "v1:precios" },
+  { text: "🕘 Horario", callback_data: "v1:horario" },
+]]};
+const CALLBACK_A_COMANDO: Record<string, string> = {
+  "v1:cita": "/cita", "v1:precios": "/precios", "v1:horario": "/horario",
+};
+
+async function tgLlamar(token: string, metodo: string, cuerpo: Record<string, unknown>): Promise<void> {
+  try {
+    await fetch("https://api.telegram.org/bot" + token + "/" + metodo, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(cuerpo), signal: AbortSignal.timeout(6000),
+    });
+  } catch { /* Telegram nunca rompe la atención al cliente */ }
+}
+async function enviarTg(token: string, chatId: number, salida: Salida): Promise<void> {
+  if (!salida.respuesta) return;
+  const cuerpo: Record<string, unknown> = { chat_id: chatId, text: salida.respuesta };
+  if (salida.botones) cuerpo.reply_markup = TECLADO;
+  await tgLlamar(token, "sendMessage", cuerpo);
 }
 async function procesar(env: Env, e: Entrada): Promise<Salida> {
   const datos = await cargarDatos(env);
@@ -253,7 +280,11 @@ async function procesar(env: Env, e: Entrada): Promise<Salida> {
     return { respuesta: cierre, accion: "cierre_gracias" };
   }
 
-  const dec = orquestar(datos as never, conv as never, e.texto, hoy);
+  // Reconocimiento del dueño (v1.1, F3): SOLO por su cuenta de
+  // Telegram registrada en agente_config; jamás por el nombre.
+  const esDueno = e.canal === "telegram" && cfg.dueno_tg_id != null &&
+    String(cfg.dueno_tg_id) === e.externo_id;
+  const dec = orquestar({ ...datos, esDueno } as never, conv as never, e.texto, hoy);
 
   if (dec.accion === "silencio") return { respuesta: null, silencio: true, accion: "silencio" };
 
@@ -323,7 +354,8 @@ async function procesar(env: Env, e: Entrada): Promise<Salida> {
   if (dec.accion === "bloqueada") {
     await accion(env, "verificador_bloqueo", { detalle: dec.auditoria ?? {} });
   }
-  return { respuesta: dec.respuesta ?? null, opciones: dec.opciones, accion: dec.accion };
+  return { respuesta: dec.respuesta ?? null, opciones: dec.opciones, accion: dec.accion,
+           botones: dec.botones === true };
 }
 
 /* --- Barrido horario: agrupar + aviso de umbral (máx 1/día) ------------ */
@@ -376,26 +408,45 @@ export async function manejar(req: Request, env: Env = (k) => Deno.env.get(k)): 
   const tgSecret = env("AGENTE_TG_SECRET") || "";
   const upd = body as {
     message?: { chat?: { id?: number; type?: string }; from?: { first_name?: string }; text?: string };
-    callback_query?: { data?: string; message?: { chat?: { id?: number } } };
+    callback_query?: { id?: string; data?: string; from?: { first_name?: string };
+                       message?: { chat?: { id?: number } } };
   };
-  if (upd.message?.chat?.id && tgSecret &&
-      req.headers.get("x-telegram-bot-api-secret-token") === tgSecret) {
+  const tgOk = tgSecret && req.headers.get("x-telegram-bot-api-secret-token") === tgSecret;
+
+  // telegram: toque en un botón inline -> comando equivalente (v1.1)
+  if (upd.callback_query?.message?.chat?.id && tgOk) {
+    const cq = upd.callback_query;
+    const chatId = cq.message.chat.id;
+    const token = env("AGENTE_TG_BOT_TOKEN") || "";
+    if (token && cq.id) {
+      await tgLlamar(token, "answerCallbackQuery", { callback_query_id: cq.id });
+    }
+    const texto = CALLBACK_A_COMANDO[String(cq.data ?? "")];
+    if (texto) {
+      if (token) await tgLlamar(token, "sendChatAction", { chat_id: chatId, action: "typing" });
+      const salida = await procesar(env, {
+        canal: "telegram", externo_id: String(chatId),
+        texto, nombre: cq.from?.first_name,
+      });
+      if (token) await enviarTg(token, chatId, salida);
+      else await accion(env, "telegram_sin_token", { chat: chatId });
+    }
+    return json({ ok: true });
+  }
+
+  if (upd.message?.chat?.id && tgOk) {
     const chatId = upd.message.chat.id;
     const texto = String(upd.message.text ?? "").trim();
     if (texto) {
+      const token = env("AGENTE_TG_BOT_TOKEN") || "";
+      // «escribiendo…» antes de responder (v1.1): cosmético, con tope.
+      if (token) await tgLlamar(token, "sendChatAction", { chat_id: chatId, action: "typing" });
       const salida = await procesar(env, {
         canal: "telegram", externo_id: String(chatId),
         texto, nombre: upd.message.from?.first_name,
       });
-      const token = env("AGENTE_TG_BOT_TOKEN") || "";
-      if (token && salida.respuesta) {
-        await fetch("https://api.telegram.org/bot" + token + "/sendMessage", {
-          method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ chat_id: chatId, text: salida.respuesta }),
-        }).catch(() => {});
-      } else if (!token) {
-        await accion(env, "telegram_sin_token", { chat: chatId });
-      }
+      if (token) await enviarTg(token, chatId, salida);
+      else await accion(env, "telegram_sin_token", { chat: chatId });
     }
     return json({ ok: true });
   }
@@ -415,6 +466,7 @@ export async function manejar(req: Request, env: Env = (k) => Deno.env.get(k)): 
   return json({
     ok: true, respuesta: salida.respuesta, opciones: salida.opciones ?? [],
     silencio: salida.silencio === true, accion: salida.accion,
+    botones: salida.botones === true,
   });
 }
 
