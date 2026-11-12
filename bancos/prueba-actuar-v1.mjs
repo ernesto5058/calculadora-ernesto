@@ -179,7 +179,24 @@ function depsMock(sobre = {}) {
 {
   const { deps } = depsMock({ fresco: { equilibrado: 319, misOfertas: [] } });
   const r = await T.ejecutarAccion(deps, ACCION.id);
-  ok(r.codigo === "sin_oferta_base" && /oferta tuya abierta/.test(r.motivo), "sin oferta base: se niega en claro (no se inventan datos de pago)");
+  ok(r.codigo === "sin_oferta_base" && /oferta tuya de VENTA abierta/.test(r.motivo), "sin oferta base: se niega en claro (no se inventan datos de pago)");
+}
+/* BLINDAJE (sonda viva 2026-11-12): su oferta abierta era de COMPRA y
+   su tipo se había aprendido — la puerta jamás crea una compra */
+{
+  const compraSuya = { uuid: "su-compra", type: "buy", details: [{ telefono: "51231558" }], amount: "12", receive: "3595" };
+  const { deps, llamadas } = depsMock({
+    config: { detenidas: false, pausadas: false, pausa_motivo: null, accion_monto_qusd: 40, congelar_en_promo: true, crear_tipo: "buy" },
+    fresco: { equilibrado: 319, misOfertas: [compraSuya] },
+  });
+  const r = await T.ejecutarAccion(deps, ACCION.id);
+  ok(r.codigo === "sin_oferta_base" && llamadas.crear.length === 0, "blindaje: con solo una compra suya abierta NO se crea nada");
+  const { deps: d2, llamadas: l2 } = depsMock({
+    config: { detenidas: false, pausadas: false, pausa_motivo: null, accion_monto_qusd: 40, congelar_en_promo: true, crear_tipo: "buy" },
+    fresco: { equilibrado: 319, misOfertas: [compraSuya, { ...OFERTA_BASE }] },
+  });
+  const r2 = await T.ejecutarAccion(d2, ACCION.id);
+  ok(r2.ok === true && l2.crear.length === 1 && l2.crear[0].type === "sell", "blindaje: el payload es «sell» SIEMPRE, aunque la config diga «buy»");
 }
 /* Botón vencido */
 {
