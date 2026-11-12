@@ -20,10 +20,25 @@ on:
       - '.github/workflows/bancos.yml'
   workflow_dispatch:
 
+# Plataforma (Dominio Total, 2026-11-12): permisos mínimos — los bancos
+# solo leen el repo; no empujan ni publican nada.
+permissions:
+  contents: read
+
+# Concurrencia (Dominio Total, 2026-11-12): es CI de validación — si llega
+# un push nuevo a la misma ref, la corrida vieja ya no aporta nada y se
+# cancela; manda siempre la más reciente.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   bancos:
     name: Bancos de las apps
     runs-on: ubuntu-latest
+    # Duración real medida por API (2026-11-12): ~2 min por corrida.
+    # Techo de 10 min contra el default de 360: una corrida colgada muere sola.
+    timeout-minutes: 10
     steps:
       - name: Descargar el repo
         uses: actions/checkout@v4
@@ -32,10 +47,16 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '24'
+          # Caché npm de la plataforma: la llave sale del lockfile de bancos/
+          # (publicado el 2026-11-12; sin él setup-node no puede cachear).
+          cache: 'npm'
+          cache-dependency-path: bancos/package-lock.json
 
       - name: Instalar jsdom (única dependencia de los bancos)
         working-directory: bancos
-        run: npm install --no-audit --no-fund
+        # npm ci: instalación exacta y reproducible desde el lockfile
+        # (antes npm install resolvía versiones en cada corrida).
+        run: npm ci --no-audit --no-fund
 
       - name: Banco Mi Negocio (223 chequeos)
         run: node bancos/test-minegocio-banco.mjs
