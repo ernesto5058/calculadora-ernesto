@@ -1,0 +1,38 @@
+# FUSIONADA (Dominio casa-js-secreto-literal + Inspector
+# proyecto-secreto-en-claro, que desaparece como regla propia):
+# secreto literal en código. Conserva la precisión de Dominio
+# (nombre de secreto + literal ≥20 caracteres + no-marcador, ERROR)
+# y suma los términos en español del Inspector (secreto/contrasena).
+# Un solo patrón `$NAME = "$VAL"`: verificado el 2026-11-12 que caza
+# const/let/var y asignación pelada sin duplicar hallazgos (el trío
+# const/let/var + pelada duplicaba cada hallazgo de declaración).
+# SIN «clave»: es la llave de fecha de los reportes (falso positivo
+# cazado en el humo del 2026-11-12).
+rules:
+  - id: casa-js-secreto-literal
+    languages: [javascript, typescript]
+    severity: ERROR
+    paths:
+      exclude:
+        - "**/bancos/**"
+        - "**/node_modules/**"
+        - "**/.semgrep/casos/**"
+    message: >-
+      Secreto literal en código JS/TS (DESARROLLO-PRO §1.6 y §8):
+      ningún token, llave secret ni contraseña vive escrito en un
+      archivo. Muévelo al llavero seguro o a los secrets de la
+      plataforma; en el cliente solo va la llave pública (publishable).
+    metadata:
+      category: security
+      technology: [proyecto, inspector, dominio]
+    patterns:
+      - pattern: $NAME = "$VAL"
+      - metavariable-regex:
+          metavariable: $NAME
+          regex: "(?i).*(secreto|secret|service[-_]?role|api[-_]?key|apikey|token|password|passwd|contrasena|llave[-_]?secreta).*"
+      - metavariable-regex:
+          metavariable: $VAL
+          regex: ".{20,}"
+      - metavariable-regex:
+          metavariable: $VAL
+          regex: "(?i)^(?!.*(ejemplo|example|placeholder|reemplaza|pon[-_ ]?aqui|xxxx)).*$"
