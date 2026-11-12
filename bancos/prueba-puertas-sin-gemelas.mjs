@@ -40,7 +40,7 @@ const genMT = fs.readFileSync(REPO + "buscadores/index.html", "utf8");
   ok(!genMN.includes("(último error:"), "E3 Mi Negocio ya NO pinta el error crudo de la puerta en la hoja del mensaje fallido");
   ok(genMN.includes('<details class="opDet">'), "E4 el detalle técnico del fallo vive plegado tras «ver detalle» (patrón de Actividad)");
   ok(genMN.includes("abrirEditorFotoMN") && genMT.includes("abrirEditorFotoMT"), "E5 el editor de foto a pantalla completa existe en AMBAS apps (paso WhatsApp parejo)");
-  ok(genMT.includes('APP_VERSION = "1.5.1"') && genMN.includes('MN_VERSION = "v12"'), "E6 versiones de la tanda: Mi Trabajo 1.5.1 · Mi Negocio v12");
+  ok(genMT.includes('APP_VERSION = "1.5.2"') && genMN.includes('MN_VERSION = "v13"'), "E6 versiones de la tanda: Mi Trabajo 1.5.2 · Mi Negocio v13");
   /* Ningún SQL del repo puede definir dos veces la misma función-puerta. */
   const sqls = [];
   (function walk(d){ if (!fs.existsSync(d)) return; for (const n of fs.readdirSync(d)) { const p = path.join(d, n); const st = fs.statSync(p); if (st.isDirectory()) walk(p); else if (n.endsWith(".sql")) sqls.push(p); } })(REPO + "supabase");
@@ -58,7 +58,7 @@ const genMT = fs.readFileSync(REPO + "buscadores/index.html", "utf8");
 /* ===== MN: jsdom contra el HTML generado de Mi Negocio ===== */
 const adminValido = "CODIGO-PRUEBA";
 let ultimosCuerpos = {};
-const datosPublicadosMN = { version: 4, versionApp: "1.3.1", apkUrl: "https://example.invalid/apk", tarifa: { version: 4, ingresoRef360: 1098.68, libroRef: 1069.38, salidaRef: 950, pctSaldo: 25, pctTransf: 20, pisoTransf: 25, bonoSaldoRecargas: 150, bonoSaldoCUP: 300, bonoTransfTratos: 10, bonoTransfCUP: 300 }, buscadores: [ { codigo: "BUSC-1", nombre: "Busc Uno", tratos: [] } ] };
+const datosPublicadosMN = { version: 4, versionApp: "1.3.1", apkUrl: "https://example.invalid/apk", tarifa: { version: 4, ingresoRef360: 1098.68, libroRef: 1069.38, salidaRef: 950, pctSaldo: 25, pctTransf: 20, pisoTransf: 25, bonoSaldoRecargas: 150, bonoSaldoCUP: 300, bonoTransfTratos: 10, bonoTransfCUP: 300 } };
 function crearMN(){
   ultimosCuerpos = {};
   const preState = { codigo: adminValido, foto: { reportes: [], ayudas: [], usuarios: [ { codigo: "BUSC-1", nombre: "Busc Uno", activo: true } ], datos: datosPublicadosMN, cuando: "", publicar: [], borrados: [], tarifaPanel: null, mercado: null }, cola: [], sellos: {}, tarifaViva: null, tarifaVivaEn: "", publicarPendiente: null };
@@ -142,7 +142,7 @@ function datosFixtureMT(){
   return { version: 4, versionApp: "1.4.8", apkUrl: "https://example.invalid/apk",
     tarifa: { version: 4, ingresoRef360: 1098.68, libroRef: 1069.38, salidaRef: 950, pctSaldo: 25, pctTransf: 20, pisoTransf: 25, bonoSaldoMeta: 150, bonoSaldoMonto: 300, bonoTransfMeta: 10, bonoTransfMonto: 300 },
     publico: { telefono: "51231558", zona: "Micro 10, distrito José Martí, Santiago de Cuba", domicilio: "Domicilio gratis en Santiago de Cuba", saldo: { tasa: 2, tasaAlta: 2.2, desdeAlta: 5000, recarga: 720 } },
-    buscadores: { "BUSC-1": { nombre: "Busc Uno", tratos: [] } }, actualizado: "2026-11-11" };
+    actualizado: "2026-11-11" };
 }
 function crearMT(extra){
   cuerposMT = {};
