@@ -72,15 +72,26 @@ jobs:
               x1,y1,x2,y2 = map(int, m.groups())
               return ((x1+x2)//2, (y1+y2)//2)
           def buscar(xml, txt):
+              # Arnés v1.7: el WebView expone nodos FANTASMA de las vistas
+              # ocultas con bounds [0,0][0,0] — tocarlos es tocar la esquina
+              # (0,0): no pasa nada y el toque «cuenta» como bueno. Se
+              # ignoran los nodos sin área o fuera de pantalla y, entre los
+              # reales, gana el más bajo (la barra de pestañas vive abajo).
               exacto, parcial = None, None
               for tag in re.findall(r"<node [^>]*>", xml):
                   attrs = dict(re.findall(r'([\w-]+)="([^"]*)"', tag))
                   t = attrs.get("text","") or attrs.get("content-desc","")
                   if not t: continue
-                  c = centro(attrs.get("bounds",""))
-                  if not c: continue
-                  if t == txt: exacto = exacto or c
-                  elif txt in t: parcial = parcial or c
+                  m = re.match(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]", attrs.get("bounds","") or "")
+                  if not m: continue
+                  x1,y1,x2,y2 = map(int, m.groups())
+                  if x2-x1 <= 0 or y2-y1 <= 0: continue
+                  c = ((x1+x2)//2, (y1+y2)//2)
+                  if c[0] < 10 or c[1] < 10: continue
+                  if t == txt:
+                      if exacto is None or c[1] > exacto[1]: exacto = c
+                  elif txt in t:
+                      if parcial is None or c[1] > parcial[1]: parcial = c
               return exacto or parcial
           objetivo = sys.argv[1]
           for _ in range(4):
@@ -139,6 +150,10 @@ jobs:
           }
           tap_tab(){ # $1 texto, $2 índice de pestaña (0..5) para el plan B
             if python3 ojo/tap.py "$1"; then return 0; fi
+            adb shell input swipe 250 2270 950 2270 250 >/dev/null 2>&1; sleep 1
+            if python3 ojo/tap.py "$1"; then return 0; fi
+            adb shell input swipe 950 2270 250 2270 250 >/dev/null 2>&1; sleep 1
+            if python3 ojo/tap.py "$1"; then return 0; fi
             adb shell input keyevent 4 >/dev/null 2>&1; sleep 1
             if python3 ojo/tap.py "$1"; then return 0; fi
             local FRAC=$(python3 -c "print(($2+0.5)/6)")
@@ -147,12 +162,8 @@ jobs:
           ir_pantalla(){ # Arnés v1.6: $1 pestaña, $2 índice, $3 marcador propio de la pantalla, $4 foto, $5 pie. Toca y VERIFICA que la pantalla cambió (marcador visible); reintenta con toque por fracción y deslizando la barra. Si no responde, la foto sale con pie honesto y cuenta el fallo.
             tap_tab "$1" "$2"; sleep 3
             if ! wait_text "$3" 6; then
-              tap_tabla "$(python3 -c "print(($2+0.5)/6)")" 0.955; sleep 3
-              if ! wait_text "$3" 6; then
-                adb shell input swipe 850 2290 300 2290 300 >/dev/null 2>&1; sleep 1
-                python3 ojo/tap.py "$1" || true; sleep 3
-                wait_text "$3" 6 || true
-              fi
+              tap_tab "$1" "$2"; sleep 3
+              wait_text "$3" 6 || true
             fi
             dumpw
             if grep -q "$3" /tmp/w.xml 2>/dev/null; then
