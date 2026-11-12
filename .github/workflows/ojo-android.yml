@@ -106,6 +106,10 @@ jobs:
           VERED="VERDE"
           DET="La app instaló, abrió y respondió en el teléfono virtual, sin caídas."
           EXTRA=""
+          rm -f "$CAP"/*.png
+          adb shell settings put global stay_on_while_plugged_in 7 >/dev/null 2>&1
+          adb shell settings put system screen_off_timeout 1800000 >/dev/null 2>&1
+          adb shell wm dismiss-keyguard >/dev/null 2>&1
           echo "${VERSION_APK}" > "$OUT/version.txt"
           shot(){ adb exec-out screencap -p > "$CAP/$1" 2>/dev/null; echo "$1|$2" >> "$MAN"; sleep 1; }
           dumpw(){ adb shell uiautomator dump /sdcard/w.xml >/dev/null 2>&1; adb pull /sdcard/w.xml /tmp/w.xml >/dev/null 2>&1; }
@@ -149,7 +153,9 @@ jobs:
               if [ -n "${CODIGO_PRUEBA:-}" ]; then
                 adb shell am force-stop "$PKG" >/dev/null 2>&1
                 adb shell pm clear "$PKG" >/dev/null 2>&1; sleep 1
-                adb shell monkey -p "$PKG" -c android.intent.category.LAUNCHER 1 >/dev/null 2>&1; sleep 8
+                adb shell am start -n "$PKG/.MainActivity" >/dev/null 2>&1; sleep 10
+                adb shell wm dismiss-keyguard >/dev/null 2>&1; adb shell input keyevent 82 >/dev/null 2>&1; sleep 1
+                if [ -z "$(adb shell pidof "$PKG" 2>/dev/null)" ]; then adb shell am start -n "$PKG/.MainActivity" >/dev/null 2>&1; sleep 10; fi
                 if wait_text "código personal" 20; then
                   python3 ojo/tap.py "Ej: NOMBRE-123" || python3 ojo/tap.py "Tu código personal" || tap_tabla 0.5 0.565
                   sleep 1
