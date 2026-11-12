@@ -1,3 +1,3 @@
 01-puerta.png|La puerta de acceso: la app pide el código personal
 02-codigo-invalido.png|Código inválido: la app lo rechaza con su aviso, sin dejar entrar
-03-sin-puerta.png|Al reabrir la app, la puerta no apareció
+03-sin-entrar.png|Con la app recién reabierta, la cuenta de prueba tampoco entró: se quedó en la puerta

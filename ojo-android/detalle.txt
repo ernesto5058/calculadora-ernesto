@@ -1,1 +1,1 @@
-Al reabrir la app para el recorrido interior, la puerta no apareció en el teléfono virtual. La puerta y el rechazo del código inválido sí quedaron probados en la primera parte. El aviso de código inválido se vio en pantalla.
+Con la app recién reabierta, el código de prueba tampoco entró: se quedó en la puerta. La puerta y el rechazo del código inválido sí quedaron probados. El aviso de código inválido se vio en pantalla. El código de prueba quedó escrito en el campo antes de tocar Entrar.
