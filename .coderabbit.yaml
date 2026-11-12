@@ -1,0 +1,36 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+# Configuración de CodeRabbit para este repo (la casa de Ernesto).
+language: "es-ES"
+early_access: false
+reviews:
+  high_level_summary: true
+  poem: false
+  review_status: true
+  auto_review:
+    enabled: true
+    drafts: false
+  path_filters:
+    - "!datos/**"
+    - "!backups/**"
+    - "!**/*.jsonl"
+    - "!node_modules/**"
+    - "!claves/**"
+  path_instructions:
+    - path: "supabase/functions/**"
+      instructions: "Revisa con lupa la lógica de DINERO: toda cifra lleva su dimensión (saldo ≠ CUP ≠ QUSD; por-100 ≠ por-1), comisión nunca mayor que la ganancia, idempotencia en toda puerta que mueva dinero o estados, una sola firma por función RPC (nada de sobrecargas gemelas), validación SIEMPRE en el servidor"
+    - path: "**/*.sql"
+      instructions: "Revisa con lupa la lógica de DINERO: toda cifra lleva su dimensión (saldo ≠ CUP ≠ QUSD; por-100 ≠ por-1), comisión nunca mayor que la ganancia, idempotencia en toda puerta que mueva dinero o estados, una sola firma por función RPC (nada de sobrecargas gemelas), validación SIEMPRE en el servidor"
+    - path: "minegocio/**"
+      instructions: "Diseño según DISENO-PRO: tokens por variable CSS, dorado SOLO en degradado o tinte (nunca amarillo plano), iconos de trazo fino, cero emojis como estructura, textos que nunca se cortan (nada de nowrap/ellipsis en descripciones); el refresco de un chat JAMÁS repinta el nodo del compositor enfocado"
+    - path: "buscadores/**"
+      instructions: "Diseño según DISENO-PRO: tokens por variable CSS, dorado SOLO en degradado o tinte (nunca amarillo plano), iconos de trazo fino, cero emojis como estructura, textos que nunca se cortan (nada de nowrap/ellipsis en descripciones); el refresco de un chat JAMÁS repinta el nodo del compositor enfocado"
+    - path: "buscadores-app/**"
+      instructions: "Diseño según DISENO-PRO: tokens por variable CSS, dorado SOLO en degradado o tinte (nunca amarillo plano), iconos de trazo fino, cero emojis como estructura, textos que nunca se cortan (nada de nowrap/ellipsis en descripciones); el refresco de un chat JAMÁS repinta el nodo del compositor enfocado"
+    - path: "mercado/**"
+      instructions: "Diseño según DISENO-PRO: tokens por variable CSS, dorado SOLO en degradado o tinte (nunca amarillo plano), iconos de trazo fino, cero emojis como estructura, textos que nunca se cortan (nada de nowrap/ellipsis en descripciones); el refresco de un chat JAMÁS repinta el nodo del compositor enfocado"
+    - path: "negocio/**"
+      instructions: "Diseño según DISENO-PRO: tokens por variable CSS, dorado SOLO en degradado o tinte (nunca amarillo plano), iconos de trazo fino, cero emojis como estructura, textos que nunca se cortan (nada de nowrap/ellipsis en descripciones); el refresco de un chat JAMÁS repinta el nodo del compositor enfocado"
+    - path: "bancos/**"
+      instructions: "Los bancos son el contrato: no propongas relajar, borrar ni saltar aserciones; un chequeo que falla se arregla en el código, no en el banco"
+chat:
+  art: false
