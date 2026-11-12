@@ -9,3 +9,6 @@
 [13:53:12] Descargando la APK apk-v1.5.0...
 [13:53:16] APK instalada: Mi-Trabajo-v1.5.0.apk (t+149s)
 [13:53:27] App abierta en su puerta; foto publicada
+[13:53:29] SESION VIVA: esperando ordenes por cmd.txt durante 20 min
+[13:54:06] Orden recibida (adbe624c)
+[13:54:11] Orden ejecutada; foto 'ahora' publicada
