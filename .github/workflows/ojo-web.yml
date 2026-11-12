@@ -1,0 +1,175 @@
+name: Ojo Web
+
+# OJO WEB (aprobado por Ernesto 2026-11-11): fotografía las webs de Ernesto
+# a tamaño de teléfono (Chrome móvil, perfil Pixel 7 vía Playwright) y deja
+# el álbum publicado en Pages bajo ojo-web/ + artifact de la corrida.
+# Alcance honesto v1: «Mi Negocio» se fotografía SOLO hasta su puerta — el
+# código del dueño NO es desechable: no viaja como input ni se usa. La
+# puerta y la carga ya cazan errores reales. Mercado, la paginita y
+# Mi Mercado son públicos y se fotografían por dentro.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ojo-web
+  cancel-in-progress: false
+
+jobs:
+  ojo-web:
+    name: Fotos de las webs a tamaño de teléfono
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Descargar el repo
+        uses: actions/checkout@v4
+
+      - name: Instalar Playwright y Chromium
+        run: |
+          npm init -y >/dev/null 2>&1
+          npm i playwright@1.49.1 --no-audit --no-fund
+          npx playwright install --with-deps chromium
+
+      - name: Fotografiar las webs
+        run: |
+          mkdir -p ojo-web/capturas
+          cat > ojo-web/fotos.mjs <<'JSEOF'
+          import { chromium, devices } from 'playwright';
+          import fs from 'node:fs';
+
+          const sitios = [
+            { id: 'minegocio', url: 'https://ernesto5058.github.io/calculadora-ernesto/minegocio/',
+              marcador: 'MI NEGOCIO', espera: 4000,
+              fotos: [ { archivo: '01-minegocio-puerta.png', bajar: 0,
+                         pie: 'Mi Negocio — SOLO la puerta: el código del dueño no viaja a ningún robot. La carga y la puerta ya cazan errores reales.' } ] },
+            { id: 'mercado', url: 'https://ernesto5058.github.io/calculadora-ernesto/mercado/',
+              marcador: 'ETECSA', espera: 5000,
+              fotos: [ { archivo: '02-mercado.png', bajar: 0,
+                         pie: 'Mercado — el panel del mercado QvaPay con sus datos en vivo.' },
+                       { archivo: '03-mercado-abajo.png', bajar: 1,
+                         pie: 'Mercado — la misma pantalla, un poco más abajo.' } ] },
+            { id: 'negocio', url: 'https://ernesto5058.github.io/calculadora-ernesto/negocio/',
+              marcador: 'Barbería', espera: 2500,
+              fotos: [ { archivo: '04-negocio.png', bajar: 0,
+                         pie: 'La paginita — la tarjeta pública del negocio (barbería, baterías, lavadoras y compra de saldo).' } ] },
+            { id: 'mi-mercado', url: 'https://mi-mercado-ernesto.lovable.app',
+              marcador: 'ETECSA', espera: 6000,
+              fotos: [ { archivo: '05-mi-mercado.png', bajar: 0,
+                         pie: 'Mi Mercado (Lovable) — el conversor alimentado por los datos del vigía.' } ] },
+          ];
+
+          const resultados = [];
+          const browser = await chromium.launch();
+          const ctx = await browser.newContext({ ...devices['Pixel 7'] });
+          const page = await ctx.newPage();
+          for (const s of sitios) {
+            const r = { id: s.id, url: s.url, ok: false, error: '' };
+            try {
+              await page.goto(s.url, { waitUntil: 'domcontentloaded', timeout: 60000 });
+              try {
+                await page.waitForFunction(
+                  (m) => document.body && document.body.innerText.includes(m),
+                  s.marcador, { timeout: 30000 });
+                r.ok = true;
+              } catch (e) { r.error = 'sin marcador: ' + s.marcador; }
+              await page.waitForTimeout(s.espera);
+              for (const f of s.fotos) {
+                if (f.bajar) { await page.evaluate(() => window.scrollBy(0, window.innerHeight)); await page.waitForTimeout(900); }
+                await page.screenshot({ path: 'ojo-web/capturas/' + f.archivo });
+              }
+            } catch (e) { r.error = String(e).slice(0, 200); }
+            resultados.push(r);
+            console.log(s.id, r.ok ? 'OK' : 'FALLO', r.error);
+          }
+          await browser.close();
+          fs.writeFileSync('ojo-web/resultados.json', JSON.stringify(resultados, null, 2));
+          const man = [];
+          for (const s of sitios) for (const f of s.fotos) man.push(f.archivo + '|' + f.pie);
+          fs.writeFileSync('ojo-web/capturas.txt', man.join('\n') + '\n');
+          JSEOF
+          node ojo-web/fotos.mjs
+
+      - name: Generar el índice (Pages)
+        if: always()
+        run: |
+          python3 - <<'PYEOF'
+          import os, json, datetime
+          out = "ojo-web"
+          os.makedirs(out + "/capturas", exist_ok=True)
+          def leer(p, defecto=""):
+              try: return open(os.path.join(out, p), encoding="utf-8").read().strip()
+              except Exception: return defecto
+          try: res = {r["id"]: r for r in json.loads(leer("resultados.json", "[]"))}
+          except Exception: res = {}
+          caps = []
+          for linea in leer("capturas.txt").splitlines():
+              if "|" in linea:
+                  f, c = linea.split("|", 1)
+                  if os.path.exists(os.path.join(out, "capturas", f)): caps.append((f, c))
+          nombres = {"minegocio": "Mi Negocio", "mercado": "Mercado", "negocio": "La paginita", "mi-mercado": "Mi Mercado"}
+          estados = []
+          for sid, nombre in nombres.items():
+              r = res.get(sid)
+              if r is None: estados.append(f"{nombre}: sin resultado")
+              elif r["ok"]: estados.append(f"{nombre}: cargó y mostró su contenido")
+              else: estados.append(f"{nombre}: NO se confirmó su contenido ({r.get('error','')})")
+          total_ok = sum(1 for r in res.values() if r.get("ok"))
+          veredicto = "VERDE" if total_ok == len(nombres) else ("PARCIAL" if total_ok > 0 else "ROJO")
+          detalle = " · ".join(estados) + "."
+          try:
+              from zoneinfo import ZoneInfo
+              ahora = datetime.datetime.now(ZoneInfo("America/Havana")).strftime("%d-%m-%Y · %I:%M %p")
+          except Exception:
+              ahora = datetime.datetime.utcnow().strftime("%d-%m-%Y · %H:%M UTC")
+          color = {"VERDE": "#3FB96B", "PARCIAL": "#E8B84B", "ROJO": "#E5534B"}.get(veredicto, "#9AA4B2")
+          figs = "\n".join('<figure><img src="capturas/%s" alt="%s" loading="lazy"><figcaption>%s</figcaption></figure>' % (f, c, c) for f, c in caps)
+          html = """<!DOCTYPE html>
+          <html lang="es"><head><meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1">
+          <title>Ojo Web — las webs de Ernesto a tamaño de teléfono</title>
+          <style>
+            :root{--bg:#0B0E13;--card:#12161F;--borde:#232B3A;--txt:#EDF1F7;--mut:#9AA4B2;--oro1:#F5D67B;--oro2:#E8B84B;--oro3:#C9962E}
+            *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--txt);font-family:-apple-system,'Segoe UI',Roboto,sans-serif}
+            .envoltura{max-width:560px;margin:0 auto;padding:20px 16px 48px}
+            h1{font-size:24px;margin:0 0 4px} h1 .oro{background:linear-gradient(120deg,var(--oro1),var(--oro2),var(--oro3));-webkit-background-clip:text;background-clip:text;color:transparent}
+            .mut{color:var(--mut);font-size:14px;line-height:1.45}
+            .sello{display:inline-block;margin:14px 0 6px;padding:6px 14px;border-radius:999px;font-weight:700;letter-spacing:.04em;border:1px solid %s;color:%s}
+            figure{margin:22px 0;background:var(--card);border:1px solid var(--borde);border-radius:16px;overflow:hidden}
+            figure img{width:100%%;display:block}
+            figcaption{padding:12px 14px;font-size:14px;color:var(--mut);line-height:1.45}
+            .pie{margin-top:28px;font-size:13px;color:var(--mut);line-height:1.5}
+          </style></head><body><div class="envoltura">
+          <h1>Ojo Web · <span class="oro">las webs de Ernesto</span></h1>
+          <div class="mut">Fotos automáticas a tamaño de teléfono (Chrome móvil) de cada web pública. %s (hora de Cuba).</div>
+          <div class="sello">%s</div>
+          <div class="mut">%s</div>
+          %s
+          <div class="pie">Alcance honesto: «Mi Negocio» se fotografía solo hasta su puerta — el código del dueño no viaja a ningún robot; la carga y la puerta ya cazan errores reales. Esto es un navegador de mentira en un servidor: caza errores de carga y de diseño antes de que los vea un cliente; la prueba final sigue siendo el teléfono de verdad.</div>
+          </div></body></html>""" % (ahora, color, color, veredicto, detalle, figs)
+          open(os.path.join(out, "index.html"), "w", encoding="utf-8").write(html)
+          open(os.path.join(out, "veredicto.txt"), "w", encoding="utf-8").write(veredicto + "\n")
+          open(os.path.join(out, "detalle.txt"), "w", encoding="utf-8").write(detalle + "\n")
+          print("índice generado:", len(caps), "capturas · veredicto", veredicto)
+          PYEOF
+
+      - name: Publicar las fotos en Pages (carpeta ojo-web/)
+        if: always()
+        run: |
+          git config user.name "Ojo Web (Actions)"
+          git config user.email "actions@users.noreply.github.com"
+          git add ojo-web
+          git commit -m "Ojo Web: fotos de las webs a tamaño de teléfono" || echo "sin cambios que publicar"
+          for i in 1 2 3; do
+            git pull --rebase origin main && git push origin HEAD:main && break || sleep 6
+          done
+
+      - name: Subir las fotos como artifact de la corrida
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ojo-web
+          path: ojo-web
+          if-no-files-found: ignore
