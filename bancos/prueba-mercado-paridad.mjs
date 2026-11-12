@@ -3,7 +3,7 @@
 // DESPLEGADO (github-calculadora/mercado/) son la misma app:
 //  P-1 el script inline del desplegado == app.js fuente, normalizando el sello;
 //  P-2 la carcasa del desplegado == index-sin-script.html con la marca <!--SCRIPT-->;
-//  P-3 ensamblar.py declara v3 / mercado-v3 y el sw.js desplegado usa mercado-v3;
+//  P-3 ensamblar.py declara v4 / mercado-v4 y el sw.js desplegado usa mercado-v4;
 //  P-4 dirección del dinero: la frase de empate invertida NO existe en fuente
 //      ni desplegado, y la correcta asocia «por debajo» con ganar y
 //      «por encima» con perder (tasa en saldo por QUSD: G decrece con R,
@@ -49,7 +49,7 @@ ok(!!bloqApp, "P-1 existe el bloque de la app (contiene mercado_accion_app)");
 ok(!!bloqSentry, "P-1 existe el bloque de sentry-casa (TOP 2)");
 const sentryCasa = leer(path.join(REPO, "shared", "sentry-casa.js"));
 ok(sentryCasa !== null && !!bloqSentry && bloqSentry[1] === sentryCasa, "P-1 el bloque sentry del desplegado == shared/sentry-casa.js íntegro");
-ok(depHtml.includes('window.SENTRY_CASA={app:"mercado",version:"v3"'), "P-1 el desplegado trae la config SENTRY_CASA de mercado@v3");
+ok(depHtml.includes('window.SENTRY_CASA={app:"mercado",version:"v4"'), "P-1 el desplegado trae la config SENTRY_CASA de mercado@v3");
 const scriptDep = bloqApp ? bloqApp[1] : "";
 ok(scriptDep.split("mercado_accion_app").length - 1 === 3, "P-1 el script desplegado contiene 3× mercado_accion_app (botones por peldaño v3)");
 
@@ -67,12 +67,12 @@ const carcasa = bloqApp ? depHtml.replace(bloqApp[0], "<!--SCRIPT-->") : "";
 ok(carcasa === plantilla, "P-2 carcasa del desplegado == index-sin-script.html con <!--SCRIPT-->");
 ok((plantilla.match(/<!--SCRIPT-->/g) || []).length === 1, "P-2 la plantilla tiene exactamente UNA marca <!--SCRIPT-->");
 
-// P-3: versiones y caché coherentes en v3.
-ok(/VERSION\s*=\s*"v3"/.test(ensamblar), "P-3 ensamblar.py declara VERSION = \"v3\"");
-ok(/CACHE\s*=\s*"mercado-v3"/.test(ensamblar), "P-3 ensamblar.py declara CACHE = \"mercado-v3\"");
-ok(depSw.includes('const CACHE = "mercado-v3";'), "P-3 el sw.js desplegado usa const CACHE = \"mercado-v3\"");
+// P-3: versiones y caché coherentes en v4 (bump de la Ola 3 de diseño, 2026-11-12).
+ok(/VERSION\s*=\s*"v4"/.test(ensamblar), "P-3 ensamblar.py declara VERSION = \"v4\"");
+ok(/CACHE\s*=\s*"mercado-v4"/.test(ensamblar), "P-3 ensamblar.py declara CACHE = \"mercado-v4\"");
+ok(depSw.includes('const CACHE = "mercado-v4";'), "P-3 el sw.js desplegado usa const CACHE = \"mercado-v4\"");
 ok(!depSw.includes("§"), "P-3 el sw.js desplegado no conserva ningún marcador § sin estampar");
-ok(/Mercado · versión \d{4}-\d{2}-\d{2} \d{2}:\d{2} · caché v3/.test(depHtml), "P-3 el sello estampado en el desplegado es caché v3");
+ok(/Mercado · versión \d{4}-\d{2}-\d{2} \d{2}:\d{2} · caché v4/.test(depHtml), "P-3 el sello estampado en el desplegado es caché v4");
 
 // P-4: dirección del dinero en la frase de empate.
 const MALA = "Tu tasa de empate del día: si vendes por encima de ella ganas; por debajo, pierdes.";
@@ -95,7 +95,7 @@ for (const [nombre, texto] of [["fuente", fuenteJs], ["desplegado", depHtml]]) {
    cachés de las demás apps. Prueba CONDUCTUAL: se ejecuta el activate
    real de cada SW contra una Cache Storage simulada con cachés propias
    viejas, la viva y varias AJENAS, y se anota qué borra de verdad. */
-const CACHES_ORIGEN = ["mercado-v2", "mercado-v3", "minegocio-v12", "minegocio-v13", "minegocio-v14", "mitrabajo-v18", "mitrabajo-v19", "ajena-v1"];
+const CACHES_ORIGEN = ["mercado-v2", "mercado-v3", "mercado-v4", "minegocio-v12", "minegocio-v13", "minegocio-v14", "mitrabajo-v18", "mitrabajo-v19", "mitrabajo-v20", "mitrabajo-v21", "mitrabajo-v22", "ajena-v1"];
 async function barridoSW(nombre, texto, cacheViva, esperado) {
   ok(typeof texto === "string" && texto.length > 0, `F-SW ${nombre}: existe su sw.js`);
   if (!texto) return;
@@ -129,10 +129,10 @@ async function barridoSW(nombre, texto, cacheViva, esperado) {
 }
 {
   const fuenteSw = leer(path.join(SRC, "sw.js"));
-  await barridoSW("Mercado desplegado", depSw, "mercado-v3", ["mercado-v2"]);
-  await barridoSW("Mercado fuente", fuenteSw && fuenteSw.replaceAll("§CACHE§", "mercado-v3"), "mercado-v3", ["mercado-v2"]);
+  await barridoSW("Mercado desplegado", depSw, "mercado-v4", ["mercado-v2", "mercado-v3"]);
+  await barridoSW("Mercado fuente", fuenteSw && fuenteSw.replaceAll("§CACHE§", "mercado-v4"), "mercado-v4", ["mercado-v2", "mercado-v3"]);
   await barridoSW("Mi Negocio", leer(path.join(REPO, "minegocio", "sw.js")), "minegocio-v15", ["minegocio-v12", "minegocio-v13", "minegocio-v14"]);
-  await barridoSW("Mi Trabajo", leer(path.join(REPO, "buscadores", "sw.js")), "mitrabajo-v21", ["mitrabajo-v18", "mitrabajo-v19", "mitrabajo-v20"]);
+  await barridoSW("Mi Trabajo", leer(path.join(REPO, "buscadores", "sw.js")), "mitrabajo-v22", ["mitrabajo-v18", "mitrabajo-v19", "mitrabajo-v20", "mitrabajo-v21"]);
 }
 
 console.log(`\nPARIDAD MERCADO: ${pass} PASS · ${fail} FAIL`);
