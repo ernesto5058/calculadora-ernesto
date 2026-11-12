@@ -63,7 +63,10 @@ jobs:
         run: |
           git config user.name "ojo-visual"
           git config user.email "actions@github.com"
-          git add ojo-visual
+          # Solo baselines y la huella de dependencias: test-results es
+          # evidencia de corrida (va como artefacto), NO al repo — en el
+          # estreno se coló por un «git add ojo-visual» demasiado ancho.
+          git add ojo-visual/visual.spec.mjs-snapshots ojo-visual/package-lock.json ojo-visual/package.json
           if git diff --cached --quiet; then echo "baselines sin cambios"; exit 0; fi
           git commit -m "Ojo Visual: baselines re-aprobadas por Máximo (modo actualizar)"
           for i in 1 2 3 4; do
