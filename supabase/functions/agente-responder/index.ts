@@ -28,9 +28,13 @@
 
 import {
   clasificarSiguiente,
+  decisionUbicacionPin,
   enmascarar,
+  esAfirmacionCorta,
   formaGrupo,
+  hayPinPendienteEnHistorial,
   normalizar,
+  normalizarLigero,
   orquestar,
   panelVista,
   proyeccionPublica,
@@ -239,6 +243,22 @@ async function tgLlamar(token: string, metodo: string, cuerpo: Record<string, un
     return await r.json() as Record<string, unknown>;
   } catch { /* Telegram nunca rompe la atención al cliente */ return null; }
 }
+/* v2.2 — El PIN va PRIMERO y con constancia: sendLocation antes que
+   el texto, y su resultado queda en la bitácora («pin_enviado» con el
+   message_id de Telegram, o «pin_error» si Telegram no confirma).
+   Antes el resultado se ignoraba: un fallo era invisible y el texto
+   parecía prometer una entrega que nadie verificó. */
+async function enviarPinTg(env: Env, token: string, chatId: number,
+                           pin: { lat: number; lng: number }): Promise<void> {
+  const r = await tgLlamar(token, "sendLocation",
+    { chat_id: chatId, latitude: pin.lat, longitude: pin.lng });
+  const mid = (r?.result as Record<string, unknown> | undefined)?.message_id;
+  if (r?.ok === true) {
+    await accion(env, "pin_enviado", { message_id: typeof mid === "number" ? mid : null });
+  } else {
+    await accion(env, "pin_error", { motivo: "telegram_no_confirmo" });
+  }
+}
 /* Entrega a Telegram (v2): si la salida trae PANEL, se EDITA el mismo
    mensaje de la conversación (cero mensajes nuevos por navegación);
    solo nace uno cuando aún no existe o la edición ya no es posible.
@@ -267,22 +287,17 @@ async function entregarTg(env: Env, token: string, chatId: number, salida: Salid
       await accion(env, "panel", { vista: salida.panel.vista, editado: false, msg_id: typeof mid === "number" ? mid : null });
     }
     if (!salida.panelConRespuesta) {
-      if (salida.pin) {
-        await tgLlamar(token, "sendLocation",
-          { chat_id: chatId, latitude: salida.pin.lat, longitude: salida.pin.lng });
-      }
+      if (salida.pin) await enviarPinTg(env, token, chatId, salida.pin);
       return;
     }
   }
+  // v2.2: el PIN se ejecuta ANTES del texto — jamás al revés, jamás
+  // un «te lo mando» sin haberlo mandado.
+  if (salida.pin) await enviarPinTg(env, token, chatId, salida.pin);
   if (!salida.respuesta) return;
   const cuerpo: Record<string, unknown> = { chat_id: chatId, text: salida.respuesta };
   if (salida.botones) cuerpo.reply_markup = TECLADO;
   await tgLlamar(token, "sendMessage", cuerpo);
-  // v2.1: el PIN viaja ADEMÁS del texto (sendLocation de Telegram).
-  if (salida.pin) {
-    await tgLlamar(token, "sendLocation",
-      { chat_id: chatId, latitude: salida.pin.lat, longitude: salida.pin.lng });
-  }
 }
 /* Aplica un CAMBIO del modo dueño (v2): parches validados por la
    lógica contra fuente/catálogo/config/faq. Al aplicar, guarda el
@@ -379,14 +394,27 @@ async function procesar(env: Env, e: Entrada): Promise<Salida> {
   // cerebro ve SOLO la proyección pública y su texto pasa por el
   // verificador antes de salir; si no pasa, manda el «no sé» de siempre.
   if (dec.accion === "no_se") {
+    // v2.2 — Seguimiento del PIN: una afirmación corta («Si», «?»)
+    // con un pedido o una promesa de localización pendiente en el
+    // historial EJECUTA la intención determinista. Sin esto, el
+    // seguimiento caía al cerebro, que prometía «te la mando ahora»
+    // sin que nadie mandara nada (fallo en vivo, 2026-11-12 14:53).
+    const histFilas = await leerTabla(env, "agente_mensajes",
+      "conversacion_id=eq." + conv.id + "&order=creado_en.desc&limit=6&select=rol,texto");
+    const histCron = histFilas.reverse().map((m) => ({ rol: String(m.rol), texto: String(m.texto) }));
+    const histPrevio = (histCron.length && histCron[histCron.length - 1].rol === "cliente")
+      ? histCron.slice(0, -1) : histCron;
+    let pinListo = false;
+    if (esAfirmacionCorta(e.texto) && hayPinPendienteEnHistorial(histPrevio)) {
+      const pd = decisionUbicacionPin(datos as never, conv as never, dec.norm as string);
+      if (pd) { dec = pd as typeof dec; pinListo = true; }
+    }
     const cerebro = crearCerebro(env);
-    if (cerebro.nombre !== "ninguno-faq-exacta") {
+    if (!pinListo && cerebro.nombre !== "ninguno-faq-exacta") {
       const proy = proyeccionPublica(datos as never);
-      const hist = await leerTabla(env, "agente_mensajes",
-        "conversacion_id=eq." + conv.id + "&order=creado_en.desc&limit=4&select=rol,texto");
       const r = await cerebro.responder({
         pregunta: e.texto, candidata: null,
-        historial: hist.reverse().map((m) => ({ rol: String(m.rol), texto: String(m.texto) })),
+        historial: histCron.slice(-4),
         proyeccion: proy.texto,
       });
       if (r?.texto) {
@@ -397,6 +425,14 @@ async function procesar(env: Env, e: Entrada): Promise<Salida> {
                   auditoria: { ...(dec.auditoria ?? {}), cerebro: cerebro.nombre } };
         } else {
           await accion(env, "cerebro_rechazado", { motivo: val.motivo, cerebro: cerebro.nombre });
+          // v2.2: si el borrador vetado PROMETÍA mandar la
+          // localización, la ruta correcta no es el «no sé»: es
+          // ejecutar el pin de verdad.
+          if (val.motivo === "promete_accion" &&
+              /\b(localizacion|ubicacion|pin|mapa)\b/.test(normalizarLigero(r.texto))) {
+            const pd = decisionUbicacionPin(datos as never, conv as never, dec.norm as string);
+            if (pd) dec = pd as typeof dec;
+          }
         }
       }
     }
