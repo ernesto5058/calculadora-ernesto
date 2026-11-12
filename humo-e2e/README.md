@@ -38,6 +38,19 @@ La cuenta PEUEBA es de prueba por diseño: ningún dato de Briku ni de
 Abraham se toca, y el reporte de humo jamás lleva adjunto ni teléfono
 real (usa 51000000).
 
+## Hallazgo del estreno (2026-11-12) 🔴
+
+La primera corrida salió **3/4**: el flujo de reportar cazó un fallo REAL
+de producción, no de la suite — la puerta `registrar_reporte` de
+Supabase devuelve **HTTP 400, error 42703: la columna `telefono` de la
+tabla `reportes` no existe** (la columna se llama `telefono_vendedor`).
+Reproducido fuera del navegador con la petición exacta que manda la app:
+toda entrega de reporte contra esa puerta rebota y la app lo deja
+«guardado en el teléfono» en su cola. El arreglo es de la puerta en el
+servidor (territorio de la tanda que tenga Mi Trabajo en vuelo) — esta
+suite lo deja cazado y su flujo 2 seguirá en rojo hasta que la puerta
+sane: es exactamente su trabajo.
+
 ## Límites honestos
 
 - 4 flujos, no 40: la disciplina del humo es «pocos y los que duelen»
