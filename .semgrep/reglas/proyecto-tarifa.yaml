@@ -1,0 +1,53 @@
+# El fantasma de la salida 950 / libro 1110 contra la tarifa viva
+# (Inspector Ola 1, transversal 2; Mi Negocio E-1/E-8, Mi Trabajo E-7).
+# La ÚNICA fuente es la fila viva que alimenta CalculadoraPRO; ninguna
+# pieza impone defaults de fábrica ni sigue con un fallback fantasma.
+rules:
+  - id: proyecto-tarifa-default-fantasma
+    languages: [javascript, typescript]
+    severity: WARNING
+    paths:
+      exclude:
+        - "**/bancos/**"
+        - "**/node_modules/**"
+        - "**/CalculadoraPRO.js"
+        - "**/.semgrep/casos/**"
+    message: >-
+      Default de tarifa cableado (salida 950 / libro 1110 de fábrica):
+      es el fantasma que sobrescribía la fila viva de la tarifa
+      (Inspector Ola 1, Mi Negocio E-1/E-8, Mi Trabajo E-7). Toda pieza
+      lee la fila viva o se detiene y lo dice; si es un respaldo, va
+      etiquetado «respaldo» a la vista, nunca en silencio.
+    metadata:
+      category: correctness
+      technology: [proyecto, inspector, tarifa]
+    patterns:
+      - pattern-either:
+          - pattern: "{ ..., $K: 950, ... }"
+          - pattern: "{ ..., $K: 1110, ... }"
+          - pattern: $K = 950
+          - pattern: $K = 1110
+      - metavariable-regex:
+          metavariable: $K
+          regex: '(?i).*(salida|libro).*'
+
+  - id: proyecto-tarifa-fallback-fantasma
+    languages: [javascript, typescript]
+    severity: WARNING
+    paths:
+      exclude:
+        - "**/bancos/**"
+        - "**/node_modules/**"
+        - "**/CalculadoraPRO.js"
+        - "**/.semgrep/casos/**"
+    message: >-
+      Fallback numérico 950/1110 tras || o ??: si la tarifa viva no
+      llega, la pieza debe detenerse y decirlo, no seguir calculando
+      dinero con el fantasma de fábrica (Inspector Ola 1, Mi Negocio
+      E-8). Revisa si este literal es tarifa; si es otro dominio,
+      anótalo en la revisión.
+    metadata:
+      category: correctness
+      technology: [proyecto, inspector, tarifa]
+    patterns:
+      - pattern-regex: '(\|\||\?\?)\s*(950|1110)\b'
