@@ -1,6 +1,7 @@
-// FIXTURE para CI: copia exacta de la lógica de la puerta de acción
-// (mercado-src/supabase/functions/mercado-actuar/logica-actuar.js), que
-// vive fuera del repo. Si la lógica cambia, se refresca en el mismo cambio.
+// Fixture vendorizado para CI: copia EXACTA de
+// mercado-src/supabase/functions/mercado-actuar/logica-actuar.js
+// (solo cambia esta cabecera). Se refresca cuando la fuente cambia;
+// el banco vivo de research_notes importa la fuente directamente.
 // logica-actuar.js — la puerta de acción del Analista (Nivel 1: el
 // botón blindado) como orquestador PURO con dependencias inyectadas.
 // La Edge Function «mercado-actuar» (index.ts) enchufa las dependencias
@@ -168,9 +169,14 @@ export async function ejecutarAccion(deps, accionId) {
   if (mis.some((o) => uuidsPrevias.has(o.uuid))) {
     return negar("ya_hay_oferta", "Ya hay una oferta automática abierta: primero que se cierre esa.");
   }
-  const baseOferta = mis.find((o) => cfg.crear_tipo && o.type === cfg.crear_tipo) || mis[0] || null;
+  // BLINDAJE (sonda en vivo, 2026-11-12): la oferta propia viva de
+  // Ernesto era de COMPRA («buy») y su tipo se había aprendido tal
+  // cual — clonar de ahí habría creado una oferta de COMPRA. La
+  // puerta SOLO vende: la base se busca entre sus ofertas de VENTA
+  // y el tipo del payload es «sell» siempre, jamás clonado de otra.
+  const baseOferta = mis.find((o) => o && o.type === "sell") || null;
   if (!baseOferta) {
-    return negar("sin_oferta_base", "No encuentro una oferta tuya abierta para copiar tu tipo y tus datos de pago. Deja una oferta abierta y el Analista aprende de ella.");
+    return negar("sin_oferta_base", "No encuentro una oferta tuya de VENTA abierta para copiar tus datos de pago. La puerta solo vende: deja una oferta de venta abierta y el Analista aprende de ella.");
   }
   if (!Array.isArray(baseOferta.details)) {
     return negar("detalles_desconocidos", "Tus datos de pago tienen una forma que no reconozco: no se publica a ciegas.");
@@ -180,7 +186,7 @@ export async function ejecutarAccion(deps, accionId) {
   const tasa = numA(accion.tasa);
   const receive = Math.round(monto * tasa * 100) / 100;
   const payload = {
-    type: baseOferta.type, coin: "ETECSA",
+    type: "sell", coin: "ETECSA",
     amount: monto, receive, details: baseOferta.details,
     requirements: { ...REQUISITOS },
     idempotency_key: String(accion.id),
