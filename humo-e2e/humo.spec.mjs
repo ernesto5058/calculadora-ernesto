@@ -42,10 +42,17 @@ test('2 · Mi Trabajo — reportar un trato de prueba y verlo en la lista', asyn
   await page.fill('#r_nota', MARCA);
   await page.click('#r_btn');
   // Éxito = el aviso de enviado (#r_res) y el reporte pintado en su lista
-  // con la nota-marca. Si la puerta RPC falla, la app lo deja «guardado»
-  // con aviso de error y esta prueba sale en rojo: es lo que busca.
+  // («Tus reportes enviados») como Pendiente. Si la puerta RPC falla, la
+  // app lo deja «guardado» con aviso de error y esta prueba sale en rojo:
+  // es lo que busca. La nota-marca NO se busca como texto visible: la
+  // lista pinta resumen + estado, no la nota (la nota es la llave de
+  // limpieza en el servidor, ver README) — la aserción original la
+  // exigía visible y era insatisfacible aunque la puerta estuviera sana
+  // (adjudicado el 2026-11-12 contra la foto del fallo de la corrida
+  // 43265568379: «REPORTE ENVIADO» en verde y la lista en Pendiente).
   await expect(page.locator('#r_res')).toBeVisible({ timeout: 45_000 });
-  await expect(page.getByText(MARCA)).toBeVisible({ timeout: 20_000 });
+  await expect(page.locator('#r_lista')).toContainText('950', { timeout: 20_000 });
+  await expect(page.locator('#r_lista')).toContainText(/Pendiente/, { timeout: 20_000 });
   console.log('REPORTE_CREADO nota=' + MARCA);
 });
 
