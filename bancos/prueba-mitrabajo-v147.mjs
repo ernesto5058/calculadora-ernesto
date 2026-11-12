@@ -26,8 +26,8 @@ let pass = 0, fail = 0;
 function ok(c, n){ if (c) pass++; else { fail++; console.log("FAIL:", n); } }
 
 /* ---- Versión y caché ---- */
-ok(/var APP_VERSION = "1\.5\.0"/.test(html), "P1 APP_VERSION 1.5.0 en el build ensamblado");
-ok(sw.includes('CACHE = "mitrabajo-v17"'), "P2 el SW sube a mitrabajo-v17 (sin esto, el arreglo no aterriza)");
+ok(/var APP_VERSION = "1\.5\.1"/.test(html), "P1 APP_VERSION 1.5.1 en el build ensamblado");
+ok(sw.includes('CACHE = "mitrabajo-v18"'), "P2 el SW sube a mitrabajo-v18 (sin esto, el arreglo no aterriza)");
 ok(datos.versionApp === "1.5.0" && /apk-v1\.5\.0\/Mi-Trabajo-v1\.5\.0\.apk$/.test(datos.apkUrl),
    "P3 datos.json: versionApp 1.5.0 y apkUrl de la v1.5.0");
 

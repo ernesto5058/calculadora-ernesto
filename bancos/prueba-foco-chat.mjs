@@ -232,6 +232,16 @@ function crearMT(){
   click(d.getElementById("c_clip")); await sleep(80);
   click(d.getElementById("c_adj_arch")); await sleep(40);
   ok(clicsEnMT.includes("c_file_arch"), "MT-4d la fila «Documento» dispara el selector de documentos");
+  /* D4 (v1.5.1): la navegación por pointerup de rescate abre el
+     chat AUNQUE el click se lo trague la capa de toque, y las
+     pestañas/botones llevan touch-action:manipulation. */
+  const cssMT = genMT;
+  ok(/\.tabbar \.tab \{[^}]*touch-action: manipulation/.test(cssMT) && /button, \.btnUpd \{ touch-action: manipulation; \}/.test(cssMT), "MT-5a pestañas y botones con touch-action:manipulation (fuera la desambiguación de doble toque)");
+  ok(typeof w.irTab === "function" && cssMT.includes("pointerup"), "MT-5b la vía de rescate pointerup delegada (irTab) vive en el build");
+  w.showView("Calc"); await sleep(120);
+  d.getElementById("tabAyuda").dispatchEvent(new w.Event("pointerup", { bubbles: true, cancelable: true }));
+  await sleep(150);
+  ok(!d.getElementById("viewAyuda").classList.contains("hide") && d.querySelector(".tab.on").id === "tabAyuda", "MT-5c SIN click: solo con pointerup la pestaña Chat abre (la vía de rescate funciona)");
   w.close();
 }
 

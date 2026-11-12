@@ -166,7 +166,7 @@ ok(verMT === "1.5.0", "MT-1 la versión publicada ya es la 1.5.0");
 let mtListo = false;
 for (let i = 0; i < 30 && !mtListo; i++) {
   const est = await page2.evaluate(() => {
-    const t = document.querySelector('.tabbar [data-view="ayuda"]');
+    const t = document.getElementById('tabAyuda');
     /* la .tabbar es position:fixed → su offsetParent es null aunque
        esté visible (falso negativo que mató la 2.ª corrida: la
        sesión PEUEBA ya estaba abierta desde la 1.ª muestra). La
@@ -180,7 +180,7 @@ for (let i = 0; i < 30 && !mtListo; i++) {
 }
 ok(mtListo, "MT-1b la app se desbloqueó con PEUEBA y la barra inferior quedó visible");
 try { if (verMT === "1.5.0" && mtListo) {
-  await page2.click('.tabbar [data-view="ayuda"]');
+  await page2.click('#tabAyuda');
   await page2.waitForSelector("#c_txt", { timeout: 20000 });
   await sleep(2500);
   await page2.click("#c_txt");

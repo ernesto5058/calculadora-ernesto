@@ -49,7 +49,7 @@ button.off, .off { opacity:.45; pointer-events:none; }
 /* Navegación: rejilla compacta de accesos (icono de trazo + nombre),
    las 10 secciones visibles de un vistazo, sin óvalos gigantes. */
 .tabs { display:grid; grid-template-columns:repeat(4, 1fr); gap:var(--e-2); margin-bottom:var(--e-4); }
-.tab { width:auto; margin:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:var(--e-1); min-height:60px; padding:var(--e-2) 2px; border-radius:var(--r-md); background:var(--bg-1); border:1px solid var(--borde); font:500 11px var(--fuente); color:var(--txt-2); cursor:pointer; position:relative; }
+.tab { width:auto; margin:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:var(--e-1); min-height:60px; padding:var(--e-2) 2px; border-radius:var(--r-md); background:var(--bg-1); border:1px solid var(--borde); font:500 11px var(--fuente); color:var(--txt-2); cursor:pointer; position:relative; touch-action:manipulation; }
 .tab svg { width:24px; height:24px; fill:none; stroke:currentColor; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; }
 .tab span { white-space:nowrap; letter-spacing:-.01em; }
 .tab.activa { background:var(--dorado-suave); border-color:var(--dorado-borde); color:var(--dorado-claro); }

@@ -1,5 +1,5 @@
 "use strict";
-var APP_VERSION = "1.5.0";
+var APP_VERSION = "1.5.1";
 /* Tarifa de respaldo: se usa sin conexión si nunca se ha descargado datos.json.
    La tarifa viva viene de datos.json (la actualiza Ernesto/Máximo). */
 var DEFAULT_TARIFA = { ingresoRef360: 1092.65, libroRef: 1110, salidaRef: 950,
@@ -1910,6 +1910,41 @@ function textoTransferenciaPRO(){
 function txRapidoSaldo(){ txPintar(textoComproSaldoPRO(), "Compro saldo"); }
 function txRapidoRecarga(){ txPintar(textoRecargaCambioPRO(), "Recarga y cambio"); }
 function txRapidoTransf(){ txPintar(textoTransferenciaPRO(), "Transferencia"); }
+
+/* ===== D4 (v1.5.1) — navegación de pestañas A PRUEBA DE TRAGOS =====
+   El piloto Appetize cazó en la APK v1.4.9 que la pestaña Chat no
+   abría con toques reales (las otras 5 sí), mientras el MISMO
+   índice (idéntico byte a byte al de la web) abría en Chromium y
+   en jsdom, con y sin puente Capacitor: el manejador está sano y
+   el fallo vive en la capa de toque del WebView/emulador, que se
+   puede tragar el «click» sintético tras el toque. Defensa en dos
+   capas, sin tocar el diseño: (1) CSS `touch-action: manipulation`
+   en pestañas y botones (fuera la desambiguación de doble toque
+   que retiene el primer toque — la misma firma del «Entrar» que
+   pidió dos toques en una sesión); (2) esta vía de rescate: un
+   `pointerup` DELEGADO en la barra que navega igual que el click,
+   con deduplicación de 400 ms para que, cuando el click sí llega,
+   la vista no se monte dos veces. Si cualquiera de los dos eventos
+   sobrevive, la pestaña abre. */
+var irTabUltima = { v: null, t: 0 };
+function irTab(v){
+  var ahora = Date.now();
+  if (irTabUltima.v === v && ahora - irTabUltima.t < 400) return;
+  irTabUltima = { v: v, t: ahora };
+  showView(v);
+  if (v === "Ayuda") { try { rtSuscribirMT(); } catch(e){} }
+}
+(function(){
+  var barra = document.querySelector(".tabbar");
+  if (!barra) return;
+  barra.addEventListener("pointerup", function(e){
+    var t = e.target;
+    var tabEl = (t && t.closest) ? t.closest(".tab") : null;
+    if (!tabEl || !tabEl.id) return;
+    var v = tabEl.id.replace("tab", "");
+    if (["Calc", "Rep", "Panel", "Ayuda", "Textos", "Perfil"].indexOf(v) >= 0) irTab(v);
+  });
+})();
 
 /* ===== Vistas nuevas + cableado v1.4.0 ===== */
 function showView(v){
