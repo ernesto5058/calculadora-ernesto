@@ -140,19 +140,28 @@ jobs:
               sleep 7
               shot "02-codigo-invalido.png" "Código inválido: la app lo rechaza con su aviso, sin dejar entrar"
               dumpw
-              if grep -qiE "no es válido|no válido|incorrect|no existe|no autorizado|revisa" /tmp/w.xml; then
+              if grep -qiE "no aparece|no es válido|incorrect|no existe|no autorizado|revísalo|revisa" /tmp/w.xml; then
                 EXTRA="El aviso de código inválido se vio en pantalla."
               fi
               # --- Recorrido interior con la cuenta de prueba ---
               if [ -n "${CODIGO_PRUEBA:-}" ]; then
-                python3 ojo/tap.py "Ej: NOMBRE-123" || python3 ojo/tap.py "Tu código personal" || tap_tabla 0.5 0.57
+                adb shell input keyevent 4; sleep 2
+                if ! adb shell dumpsys window windows 2>/dev/null | grep -E "mCurrentFocus|mFocusedApp" | grep -q "$PKG"; then
+                  adb shell monkey -p "$PKG" -c android.intent.category.LAUNCHER 1 >/dev/null 2>&1; sleep 6
+                fi
+                wait_text "código personal" 15 || true
+                python3 ojo/tap.py "Ej: NOMBRE-123" || python3 ojo/tap.py "Tu código personal" || tap_tabla 0.5 0.55
                 sleep 1
                 for i in $(seq 1 24); do adb shell input keyevent 67 >/dev/null 2>&1; done
                 adb shell input text "${CODIGO_PRUEBA}"
-                sleep 1
-                python3 ojo/tap.py "Entrar" || tap_tabla 0.5 0.68
+                sleep 2
+                dumpw
+                if grep -q "${CODIGO_PRUEBA}" /tmp/w.xml 2>/dev/null; then EXTRA="$EXTRA El código de prueba quedó escrito en el campo antes de tocar Entrar."; fi
+                adb shell input keyevent 4; sleep 1
+                python3 ojo/tap.py "Entrar" || tap_tabla 0.5 0.63
                 if gone_text "Tu código personal" 25 && wait_text "Reportar" 10; then
                   sleep 5
+                  adb shell input keyevent 4 >/dev/null 2>&1; sleep 1
                   shot "03-entrada.png" "Dentro: la primera pantalla tras entrar con la cuenta de prueba"
                   tap_tab "Reportar" 1; sleep 6; shot "04-reportar.png" "Pestaña Reportar: reportar un trato de saldo o transferencia"
                   tap_tab "Mi panel" 2; sleep 6; shot "05-mi-panel.png" "Pestaña Mi panel: sus tratos, su comisión y su bono"
