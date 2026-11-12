@@ -95,7 +95,7 @@ for (const [nombre, texto] of [["fuente", fuenteJs], ["desplegado", depHtml]]) {
    cachés de las demás apps. Prueba CONDUCTUAL: se ejecuta el activate
    real de cada SW contra una Cache Storage simulada con cachés propias
    viejas, la viva y varias AJENAS, y se anota qué borra de verdad. */
-const CACHES_ORIGEN = ["mercado-v2", "mercado-v3", "minegocio-v12", "minegocio-v13", "mitrabajo-v18", "mitrabajo-v19", "ajena-v1"];
+const CACHES_ORIGEN = ["mercado-v2", "mercado-v3", "minegocio-v12", "minegocio-v13", "minegocio-v14", "mitrabajo-v18", "mitrabajo-v19", "ajena-v1"];
 async function barridoSW(nombre, texto, cacheViva, esperado) {
   ok(typeof texto === "string" && texto.length > 0, `F-SW ${nombre}: existe su sw.js`);
   if (!texto) return;
@@ -131,7 +131,7 @@ async function barridoSW(nombre, texto, cacheViva, esperado) {
   const fuenteSw = leer(path.join(SRC, "sw.js"));
   await barridoSW("Mercado desplegado", depSw, "mercado-v3", ["mercado-v2"]);
   await barridoSW("Mercado fuente", fuenteSw && fuenteSw.replaceAll("§CACHE§", "mercado-v3"), "mercado-v3", ["mercado-v2"]);
-  await barridoSW("Mi Negocio", leer(path.join(REPO, "minegocio", "sw.js")), "minegocio-v14", ["minegocio-v12", "minegocio-v13"]);
+  await barridoSW("Mi Negocio", leer(path.join(REPO, "minegocio", "sw.js")), "minegocio-v15", ["minegocio-v12", "minegocio-v13", "minegocio-v14"]);
   await barridoSW("Mi Trabajo", leer(path.join(REPO, "buscadores", "sw.js")), "mitrabajo-v20", ["mitrabajo-v18", "mitrabajo-v19"]);
 }
 
