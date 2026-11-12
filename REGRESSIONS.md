@@ -132,3 +132,24 @@ Cada entrada lleva: fecha · síntoma · causa raíz · chequeo eterno.
 - **Síntoma:** con su conversación de Telegram marcada `escalada` (su propia pregunta de cliente la escaló), el `/admin` de Ernesto caía en el silencio de `orquestar` — cazado en el humo real de la tanda Nº4+5: el mensaje quedó registrado y jamás llegó panel.
 - **Causa raíz:** el silencio por escalado (`logica.js`, inicio de `orquestar`) no distinguía dueño de cliente; las exenciones de dueño vivían en la puerta (pausa/topes) pero no en esta capa.
 - **Chequeo eterno:** [CHEQUEOS-ETERNOS.md](CHEQUEOS-ETERNOS.md) fila 28 · `bancos/prueba-agente-v1.mjs` (E6-D1/E6-D2: dueño escalado → su /admin responde; cliente escalado → silencio).
+
+### 16. Mi Negocio cobraba con una tarifa que no era la viva (E-1 + E-8)
+
+- **Fecha:** 2026-11-12
+- **Síntoma:** `tarifa()` pisaba la fila viva (salida 925 CUP/QUSD) con la derivada de la calculadora interna sembrada de fábrica (salida 950) y la tarjeta la etiquetaba «Tarifa viva»; sin viva, TARIFA_DEF (950) entraba en silencio.
+- **Causa raíz:** `derivadaCalc()` nunca devolvía null con los defaults de CALC_DEF, así que la derivada mandaba siempre sobre `leer_tarifa`.
+- **Chequeo eterno:** [CHEQUEOS-ETERNOS.md](CHEQUEOS-ETERNOS.md) fila 35 · `bancos/test-minegocio-banco.mjs` (T2-1…T2-5, T2-11…T2-13).
+
+### 17. «Publicar ahora» reventaba contra la forma viva de datos.json (E-2)
+
+- **Fecha:** 2026-11-12
+- **Síntoma:** `construirBase()` esperaba `buscadores` como array y lanzaba TypeError con el archivo vivo (objeto por clave); además escribía las claves de bono viejas y el banco validaba una fixture muerta.
+- **Causa raíz:** la forma del archivo cambió (objeto + claves bonoSaldoMeta/Monto) y ni el código ni la fixture del banco se actualizaron con ella.
+- **Chequeo eterno:** [CHEQUEOS-ETERNOS.md](CHEQUEOS-ETERNOS.md) fila 36 · `bancos/test-minegocio-banco.mjs` (T2-6…T2-10, caza C-1).
+
+### 18. XSS almacenado por adjuntos en la app del dueño (E-3)
+
+- **Fecha:** 2026-11-12
+- **Síntoma:** el comprobante de un reporte y la foto de un mensaje se interpolaban crudos en `src="..."` (Bandeja y chat): un `adj_datos` con comilla y `onerror` ejecutaba script en el WebView donde vive el código admin.
+- **Causa raíz:** dato de usuario a un atributo sin escapar ni validar; `esc()` ni siquiera escapaba comillas.
+- **Chequeo eterno:** [CHEQUEOS-ETERNOS.md](CHEQUEOS-ETERNOS.md) fila 37 · `bancos/test-minegocio-banco.mjs` (T2-14…T2-17, caza C-3).
