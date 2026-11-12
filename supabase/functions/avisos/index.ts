@@ -392,6 +392,11 @@ export async function manejar(req: Request, env: (k: string) => string | undefin
           { text: "✅ Aprobar", callback_data: "d:" + String(ev.reporte_id) + ":a" },
           { text: "❌ Rechazar", callback_data: "d:" + String(ev.reporte_id) + ":r" },
         ]] };
+      } else if (ev.cita_id != null) {
+        botonesTg = { inline_keyboard: [[
+          { text: "✅ Confirmar cita", callback_data: "c:" + String(ev.cita_id) + ":a" },
+          { text: "❌ No puedo", callback_data: "c:" + String(ev.cita_id) + ":r" },
+        ]] };
       } else if (ev.accion_id != null || ev.mostrar_control_acciones === true) {
         const filas: { text: string; callback_data: string }[][] = [];
         if (ev.accion_id != null) {

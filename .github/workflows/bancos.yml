@@ -51,14 +51,20 @@ jobs:
       - name: Banco Mi Trabajo v1.4.7 — chat duro (tanda 3 errores)
         run: node bancos/prueba-mitrabajo-v147.mjs
 
+      - name: Banco puertas sin gemelas — foto+texto en ambas apps (fila 17)
+        run: node bancos/prueba-puertas-sin-gemelas.mjs
+
       - name: Banco Mercado v2 — lector, Analista INV-A y render (139 chequeos)
         run: node bancos/prueba-mercado-v2.mjs
 
       - name: Banco puerta de acción — barandas del Nivel 1 (43 chequeos)
         run: node bancos/prueba-actuar-v1.mjs
 
-      - name: Banco Bot PRO — Telegram (30 chequeos)
+      - name: Banco Bot PRO — Telegram (46 chequeos)
         run: node bancos/test-telegram-pro-banco.mjs
 
       - name: Banco Invariantes de dinero INV-1…INV-9 (46 chequeos + H-4 vigilado)
         run: node bancos/test-invariantes-dinero.mjs
+
+      - name: Banco Agente Propio v1 — matcher, grounding, citas y aprendizaje (66 chequeos)
+        run: node bancos/prueba-agente-v1.mjs
