@@ -434,7 +434,7 @@ function pestaña(w, nombre){ [...w.document.querySelectorAll(".tab")].forEach(t
 /* ===== 10. SERVICE WORKER: scope y caché propios ===== */
 {
   const sw = fs.readFileSync(REPO + "minegocio/sw.js", "utf8");
-  ok(sw.includes('CACHE = "minegocio-v10"'), "MN-50 SW con caché propio minegocio-v10 (v10 tanda 3 errores: textos único, actividad en claro, chat duro; v9 botón «Enviar su enlace» en Equipo; v8 rediseño PRO de toda la app; v7 rediseño Contabilidad, v6 Fase 1, v5 local-first, v4 ronda 2, v3 ronda 1)");
+  ok(sw.includes('CACHE = "minegocio-v11"'), "MN-50 SW con caché propio minegocio-v11 (v11 tanda foto+texto: puerta única sin gemelas y editor WhatsApp; v10 tanda 3 errores: textos único, actividad en claro, chat duro; v9 botón «Enviar su enlace» en Equipo; v8 rediseño PRO de toda la app; v7 rediseño Contabilidad, v6 Fase 1, v5 local-first, v4 ronda 2, v3 ronda 1)");
   ok(sw.includes("SKIP_WAITING") && sw.includes('addEventListener("message"'), "MN-50b el SW acepta SKIP_WAITING por mensaje (forzar activación desde la app)");
   ok(!sw.includes("mitrabajo"), "MN-51 el SW de Mi Negocio no toca el de Mi Trabajo");
   const mf = JSON.parse(fs.readFileSync(REPO + "minegocio/manifest.webmanifest", "utf8"));
@@ -509,7 +509,7 @@ function pestaña(w, nombre){ [...w.document.querySelectorAll(".tab")].forEach(t
   ok(d.getElementById("bannerVer").style.display === "block" && d.getElementById("bannerVer").textContent.includes("Nueva versión lista"), "R2-2 SW nuevo instalado con controlador → aviso «Nueva versión lista» visible");
   w.__swReg.__controllerchange();
   await sleep(60);
-  ok(("" + w.sessionStorage.getItem("mnRecarga_v10")) === "1", "R2-3 controllerchange marca la recarga única de la v10 (sin bucles)");
+  ok(("" + w.sessionStorage.getItem("mnRecarga_v11")) === "1", "R2-3 controllerchange marca la recarga única de la v11 (sin bucles)");
   const antes = w.__fakeReg.actualizaciones;
   click(d.getElementById("btnAct"));
   await sleep(120);
@@ -606,11 +606,11 @@ function pestaña(w, nombre){ [...w.document.querySelectorAll(".tab")].forEach(t
   ok(chat.querySelectorAll("[data-vplay]").length === 3 && chat.querySelectorAll(".vozOnda i").length === 72, "R2-25 cada reproductor trae su ▶ circular y su onda de 24 picos");
   ok(typeof w.mejorMimeVoz === "function" && typeof w.hashParChat === "function" && typeof w.rtTimbre === "function", "R2-26 existen mejorMimeVoz, hashParChat y rtTimbre");
   ok(w.hashParChat("ADMIN", "BUSC-1") === w.hashParChat("BUSC-1", "ADMIN") && w.hashParChat("ADMIN", "BUSC-1") !== w.hashParChat("ADMIN", "BUSC-2"), "R2-27 el canal del timbre es el mismo para la pareja en ambos sentidos y distinto por pareja");
-  ok(w.selloVersion() === "Mi Negocio · versión 2026-11-11 20:02 · caché v10", "R2-28 sello de versión exacto: «" + w.selloVersion() + "»");
+  ok(w.selloVersion() === "Mi Negocio · versión 2026-11-11 20:46 · caché v11", "R2-28 sello de versión exacto: «" + w.selloVersion() + "»");
   ok(chat.textContent.includes("cada 3 s"), "R2-29 la ayuda del chat dice el refresco nuevo de 3 s (ya no 15 s)");
   pestaña(w, "Inicio");
   await sleep(120);
-  ok(d.getElementById("pgInicio").textContent.includes("Mi Negocio · versión 2026-11-11 20:02 · caché v10"), "R2-30 el sello de versión se ve en Inicio");
+  ok(d.getElementById("pgInicio").textContent.includes("Mi Negocio · versión 2026-11-11 20:46 · caché v11"), "R2-30 el sello de versión se ve en Inicio");
   w.close();
   R.chatMsgs = [];
 }
@@ -787,7 +787,7 @@ function pestaña(w, nombre){ [...w.document.querySelectorAll(".tab")].forEach(t
   await sleep(350);
   const d = w.document;
   ok(w.PUERTAS.marcarPrueba === "admin_marcar_prueba", "F1-1 la puerta nueva está registrada: PUERTAS.marcarPrueba = admin_marcar_prueba");
-  ok(w.MN_VERSION === "v10", "F1-2 MN_VERSION subió a v10");
+  ok(w.MN_VERSION === "v11", "F1-2 MN_VERSION subió a v11");
   /* Funciones puras con las fórmulas del servidor (tarifa del banco: 1098.68 / 1069.38 / 950) */
   ok(cerca(w.contaGananciaBruta({ tipo: "saldo", precio: 1000, cantidad: 100 }), 9868) && cerca(w.contaNeta({ tipo: "saldo", precio: 1000, cantidad: 100, comision: 2467 }), 7401), "F1-3 saldo r1: bruta 9868 · neta 7401 (comisión GUARDADA, no recalculada)");
   /* NOTA (desviación de la espec, verificada con la fórmula): la
