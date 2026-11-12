@@ -160,3 +160,37 @@ Cada entrada lleva: fecha · síntoma · causa raíz · chequeo eterno.
 - **Síntoma:** la batería promptfoo (corrida real, 24 PASS · 1 FAIL) cazó que un borrador del cerebro «Tu cita está confirmada para mañana a las 10.» pasaba `validarRespuestaCerebro` y saldría al cliente como una cita confirmada que nadie confirmó. La v2.5 (Tanda Nº4+5) cubrió esa frase exacta, pero las formas hermanas seguían vivas: «te agendo», «quedó reservado tu turno», «nos vemos mañana a las 10».
 - **Causa raíz:** el veto `confirma_cita` original solo cazaba «confirmad*» y dos frases hechas; el invariante «el agente jamás confirma: confirma el dueño» no cubría ejecutar la reserva en primera persona, el participio cumplido ni dar la cita por hecha con día/hora. (Trampa hija: `normalizarLigero` borra los signos, así que distinguir la OFERTA en pregunta «¿Te anoto una cita?» de la afirmación exige juzgar los signos sobre una normalización que los conserva.)
 - **Chequeo eterno:** [CHEQUEOS-ETERNOS.md](CHEQUEOS-ETERNOS.md) fila 39 · `bancos/prueba-agente-v1.mjs` (E5-1…9, E5-B1…8) · batería promptfoo PF-25 (25/25).
+
+### 20. Los códigos viejos de los buscadores seguían vivos en el historial público
+
+- **Fecha:** 2026-11-12
+- **Síntoma:** la Tanda Nº1 sacó los códigos del archivo vivo, pero 20 commits del historial público del repo (desde 2026-11-10) conservaban los códigos viejos, que seguían siendo la llave de entrada a Mi Trabajo.
+- **Causa raíz:** un secreto publicado una vez en un repo público no se des-publica quitándolo de la vista: queda en el historial; la única mitigación real es rotar el secreto.
+- **Resolución:** rotación ejecutada el 2026-11-12 (aprobada por Ernesto) con el mecanismo de la casa `cambiar_codigo` — códigos nuevos solo en el llavero seguro y en la tabla `usuarios`; los viejos devuelven vacío en `validar_usuario` y el historial ya no abre nada. Sin valores en este registro.
+- **Chequeo eterno:** [CHEQUEOS-ETERNOS.md](CHEQUEOS-ETERNOS.md) fila 38 · `bancos/prueba-sin-codigos-publicos.mjs` (16/16 contra los códigos VIVOS de la base: ninguno puede aparecer en público).
+
+### 21. El Agente aceptaba citas imposibles contra un horario muerto, filtraba datos crudos al cerebro y dejaba escapar el hierro (Tanda Nº6)
+- **Fecha:** 2026-11-12 · **Frente:** Agente de clientes (agente-responder v2.6 → v2.7)
+- **Síntoma:** el flujo de citas completaba «10/10» en el pasado y convertía «31/02» en 3 de marzo (Date.UTC rueda sin validar), forzaba servicio «corte» contra un «no, no quiero corte», no tenía salida «cancelar» por texto y validaba las horas contra el 9–18 quemado en el código aunque el dueño hubiera movido su horario vivo; la pregunta cruda del cliente (con teléfonos y «mi pin es 4321» intactos, porque enmascarar exigía 12+ dígitos y el pin pegado) salía al proveedor externo del cerebro — E9 figuraba en el alcance prometido de la Tanda Nº5 pero nunca se implementó en v2.5/v2.6 —; un audio o foto en Telegram recibía silencio total; desde el bot de clientes el dueño no podía crear una respuesta nueva desde la cola de sin-respuesta (solo editar); la cita web no pedía contacto pese a existir la columna agente_citas.contacto; y «dame el número de Briku» o «quiero que me atienda alguien real» caían a no_se (al cerebro) en vez de denegar/escalar en el hierro.
+- **Causa:** validación de fechas y horario nunca conectada a la fuente viva, enmascarado escrito solo pa tarjetas largas, la rama de Telegram sin caso no-texto, la escuela (RPC agente_ensenar_responder) sin puerta en este bot, y patrones de hierro que exigían artículo y palabras exactas.
+- **Chequeo eterno:** [CHEQUEOS-ETERNOS.md](CHEQUEOS-ETERNOS.md) fila 42 · bancos/prueba-agente-v1.mjs (E7/E8/E9/M1/F2/F3) · bancos/prueba-agente-puerta.mjs (F1) · batería promptfoo PF-26…PF-32 (32/32).
+
+### 22. El service worker de Mercado borraba las cachés de todas las apps del origen
+- **Fecha:** 2026-11-12
+- **Síntoma:** Al activarse el SW de Mercado, desaparecían las cachés de Mi Negocio y Mi Trabajo (mismo origen GitHub Pages): sus apps perdían el funcionamiento sin conexión hasta re-cachear.
+- **Causa raíz:** El activate filtraba «toda caché que no sea la mía» (k !== CACHE) sin prefijo propio, y la Cache Storage se comparte por origen completo, no por carpeta.
+- **Chequeo eterno:** CHEQUEOS-ETERNOS.md fila 41 · bancos/prueba-mercado-paridad.mjs (F-SW conductual, con prueba negativa: el SW viejo borraba minegocio-v13 y mitrabajo-v19).
+
+### 23. Mi Trabajo pintaba texto del servidor sin escapar, su cola podía perder reportes y la tarifa de respaldo mandaba en silencio (Tanda Nº6)
+- **Fecha:** 2026-11-12 · **Frente:** Mi Trabajo v1.5.2 → v1.5.3 (web)
+- **Síntoma:** ~20 sitios de innerHTML sin escapar (una nota de trato o una reacción con HTML se inyectaba en el teléfono del buscador); la outbox de reportes podía sobrescribir un pendiente con una foto vieja y el evento online no la despachaba; el candado EN_PAUSA nunca se liberaba dentro de la sesión (buscadores mudos hasta reinstalar); la sesión guardada entraba sin validar contra el servidor; el sondeo del chat bajaba hasta 200 mensajes con adj_datos base64 cada 3 s; y el DEFAULT_TARIFA 950 actuaba como respaldo silencioso contra la tarifa viva.
+- **Causa raíz:** plantillas innerHTML sin capa de escape compartida, guardados de la cola desde fotos locales viejas sin fusión por opId, pausa sin camino de liberación, y sondeo sin puerta ligera ni etiqueta de fuente pa el respaldo.
+- **Resolución:** esc()/srcSeguroAdjMT en todos los constructores; sesión validada al arrancar/refrescar (revocado expulsa, sinred nunca); outbox fusionada por opId sobre la copia fresca y despachada en online+focus; pausa que se pone y se libera con validar_usuario.bloqueado; puertas nuevas leer_chat_ligero (≤50, sin adj_datos) + leer_adjunto bajo demanda; tarifa con su fuente a la vista («en vivo»/«publicada»/«⚠ RESPALDO»).
+- **Chequeo eterno:** CHEQUEOS-ETERNOS.md filas 43, 44 y 45 · bancos/prueba-mitrabajo-v153.mjs (A1–A12 · E3/E4/E5/E6 · E7/E9/E18). Pendiente de build de APK: la copia congelada de la tarifa y el SW viejo de los assets («mitrabajo-v2», activate sin prefijo) se curan al re-ensamblar la APK 1.5.3.
+
+### 24. El XSS de adjuntos de Mi Negocio estaba curado solo del lado cliente (Tanda Nº6)
+- **Fecha:** 2026-11-12 · **Frente:** Mi Negocio — puertas enviar_mensaje y registrar_reporte
+- **Síntoma:** la v13 escapó los adjuntos en la app del dueño, pero el servidor seguía guardando adj_datos crudo tal como llegaba (solo validaba tipo y un tamaño estimado que le pasaba el cliente): la defensa dependía de que ningún cliente mintiera.
+- **Causa raíz:** validación de adjuntos pensada solo como presentación (cliente) y nunca como puerta (servidor); la definición de registrar_reporte ni siquiera estaba versionada en el repo.
+- **Resolución:** helper public.adj_normalizar() aplicado en ambas puertas — base64 estricto, mime de lista blanca por tipo, firma mágica en imagen/PDF, ≤5 MB decodificado calculado en servidor y guardado solo en forma canónica; caza en vivo: 11 casos (legítimos pasan; XSS/data:text/html/mime mentido/firma falsa rechazados).
+- **Chequeo eterno:** CHEQUEOS-ETERNOS.md fila 46 · supabase/sql/adjuntos-validacion-tanda6-2026-11-12.sql.
