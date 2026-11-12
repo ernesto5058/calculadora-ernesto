@@ -577,13 +577,13 @@
 
 <script>
 "use strict";
-var APP_VERSION = "1.5.1";
+var APP_VERSION = "1.5.2";
 /* Tarifa de respaldo: se usa sin conexión si nunca se ha descargado datos.json.
    La tarifa viva viene de datos.json (la actualiza Ernesto/Máximo). */
 var DEFAULT_TARIFA = { ingresoRef360: 1092.65, libroRef: 1110, salidaRef: 950,
   pctSaldo: 25, pctTransf: 20, pisoTransf: 25,
   bonoSaldoMeta: 150, bonoSaldoMonto: 300, bonoTransfMeta: 10, bonoTransfMonto: 300 };
-var DATA = { tarifa: DEFAULT_TARIFA, actualizado: "", buscadores: {} };
+var DATA = { tarifa: DEFAULT_TARIFA, actualizado: "" };
 var T = DEFAULT_TARIFA;
 var DATA_VERSION = 0;   /* mayor version de datos.json aplicada: la guarda no deja bajar */
 var SESION = "";        /* código personal de la sesión activa ("" = sin entrar) */
@@ -677,7 +677,18 @@ function normCod(s){ return String(s || "").trim().toUpperCase(); }
 function sesionGet(){ try { return normCod(localStorage.getItem("busc_codigo")); } catch(e){ return ""; } }
 function sesionSet(c){ try { localStorage.setItem("busc_codigo", c); } catch(e){} }
 function sesionClear(){ try { localStorage.removeItem("busc_codigo"); } catch(e){} }
-function codigoEnDatos(code){ return !!(code && DATA.buscadores && DATA.buscadores[code]); }
+/* v1.5.2 (Inspector E-1): el panel ya NO lee ningún JSON público.
+   Su respaldo es la última foto buena de leer_panel, cacheada por
+   código en este teléfono; el nombre sale del perfil local. */
+function panelCacheGet(){
+  try { var p = JSON.parse(localStorage.getItem("busc_panel_cache") || "null");
+    return (p && p.codigo === SESION && Array.isArray(p.tratos)) ? p : null; } catch(e){ return null; }
+}
+function panelCacheSet(p){
+  try { localStorage.setItem("busc_panel_cache", JSON.stringify({ codigo: SESION, nombre: p.nombre || "", tratos: p.tratos || [] })); } catch(e){}
+}
+function panelCacheClear(){ try { localStorage.removeItem("busc_panel_cache"); } catch(e){} }
+function nombreLocal(){ try { var pf = perfilLocalGet(); if (pf && pf.nombre) return pf.nombre; } catch(e){} return ""; }
 
 /* Comprueba el código contra Supabase (RPC validar_usuario).
    Resuelve {estado:"ok", codigo, nombre} | {estado:"no"} | {estado:"sinred"}. */
@@ -719,7 +730,7 @@ function entrar(code){
   try { avisosAutoTrasLogin(); } catch(e){}   /* v1.4.5: la app instalada pide su permiso de notificaciones como cualquier app normal */
 }
 function salir(msg){
-  SESION = ""; sesionClear();
+  SESION = ""; sesionClear(); panelCacheClear();
   PANEL_VIVO = null;
   ADMIN_VISTO = null; CHAT_MSGS = [];
   try { $("l_cod").value = ""; } catch(e){}
@@ -727,8 +738,10 @@ function salir(msg){
   var body = $("p_body"); if (body) body.classList.add("hide");
   mostrarGate(msg || "");
 }
-/* Intento de entrada: valida contra Supabase y exige que el código exista en
-   datos.json (para el panel). Solo si pasa las dos cosas se guarda la sesión.
+/* Intento de entrada (v1.5.2): SOLO manda validar_usuario en el
+   servidor — ningún JSON público guarda códigos ya. Sin red y sin
+   sesión guardada NO se entra: no hay forma honesta de verificar.
+   La sesión guardada sigue entrando directo con su foto local.
    desdeEnlace=true (vino por ?codigo=): si falla, cae al cartel normal sin
    mensajes y SIN guardar el código malo. */
 function intentarLogin(codeCrudo, desdeEnlace){
@@ -740,11 +753,9 @@ function intentarLogin(codeCrudo, desdeEnlace){
   }
   btn.disabled = true; var txt0 = btn.textContent; btn.textContent = "Comprobando…";
   if (!desdeEnlace) gateMsg("");
-  var espera = Promise.race([ loadData(), new Promise(function(res){ setTimeout(res, 9000); }) ]);
-  return espera.then(function(){ return rpcValidar(code); }).then(function(v){
+  return rpcValidar(code).then(function(v){
     btn.disabled = false; btn.textContent = txt0;
-    if (v.estado === "ok" && codigoEnDatos(v.codigo)) { entrar(v.codigo); return true; }
-    if (v.estado === "sinred" && codigoEnDatos(code)) { entrar(code); return true; }  // sin red: mandan los datos guardados
+    if (v.estado === "ok") { entrar(v.codigo); return true; }
     if (desdeEnlace) { gateMsg(""); return false; }
     if (v.estado === "sinred")
       gateMsg("Sin conexión para comprobar tu código. Conéctate a internet y toca Entrar otra vez.");
@@ -758,8 +769,8 @@ function intentarLogin(codeCrudo, desdeEnlace){
 function renderPanel(){
   var warn = $("p_warn"), body = $("p_body");
   if (!SESION) { body.classList.add("hide"); warn.style.display = "none"; return; }
-  var bDatos = DATA.buscadores ? DATA.buscadores[SESION] : null;
-  var b = PANEL_VIVO ? { nombre: PANEL_VIVO.nombre || (bDatos ? bDatos.nombre : ""), tratos: PANEL_VIVO.tratos || [] } : bDatos;
+  var bCache = panelCacheGet();
+  var b = PANEL_VIVO ? { nombre: PANEL_VIVO.nombre || (bCache ? bCache.nombre : "") || nombreLocal(), tratos: PANEL_VIVO.tratos || [] } : bCache;
   if (!b) {
     warn.style.display = "block";
     warn.textContent = "Tus datos todavía no cargan en este teléfono. Toca «Actualizar» con conexión.";
@@ -833,13 +844,7 @@ function applyData(d, fresca){
   $("tarifaTxt").innerHTML = tarifaText();
   pintaFrescura();
   calcSaldo(); calcTransf();
-  if (SESION) {
-    if (fresca && !codigoEnDatos(SESION)) {       // Ernesto lo sacó: al sincronizar, sale
-      salir("Tu acceso ya no está activo en los datos nuevos. Habla con Ernesto.");
-      return;
-    }
-    renderPanel();
-  }
+  if (SESION) renderPanel();   /* v1.5.2: el JSON ya no expulsa a nadie; la revocación vive SOLO en refrescarTodo (respuesta definitiva del servidor) */
   if (TARIFA_VIVA) aplicarTarifaViva();   // v1.3.0: un datos.json tardío nunca pisa la tarifa viva
 }
 function fetchDatos(url, fresca){
@@ -1328,7 +1333,7 @@ function leerPanelVivo(){
   panelCargando = true;
   rpcChat("leer_panel", { p_codigo: SESION }).then(function(r){
     panelCargando = false;
-    if (r && r.ok) { PANEL_VIVO = { nombre: r.nombre || "", tratos: r.tratos || [] }; renderPanel(); }
+    if (r && r.ok) { PANEL_VIVO = { nombre: r.nombre || "", tratos: r.tratos || [] }; panelCacheSet(PANEL_VIVO); renderPanel(); }
   });
 }
 function cargarVivo(){ leerTarifaViva(); leerPanelVivo(); }
@@ -1801,8 +1806,8 @@ function fechaTratoMs(f){
 function renderPanel(){
   var warn = $("p_warn"), body = $("p_body");
   if (!SESION) { body.classList.add("hide"); warn.style.display = "none"; return; }
-  var bDatos = DATA.buscadores ? DATA.buscadores[SESION] : null;
-  var b = PANEL_VIVO ? { nombre: PANEL_VIVO.nombre || (bDatos ? bDatos.nombre : ""), tratos: PANEL_VIVO.tratos || [] } : bDatos;
+  var bCache = panelCacheGet();
+  var b = PANEL_VIVO ? { nombre: PANEL_VIVO.nombre || (bCache ? bCache.nombre : "") || nombreLocal(), tratos: PANEL_VIVO.tratos || [] } : bCache;
   if (!b) {
     warn.style.display = "block";
     warn.textContent = "Tus datos todavía no cargan en este teléfono. Toca «Actualizar» con conexión.";
@@ -2316,7 +2321,7 @@ function cambiarCodigo(){
   if (nuevo === actual) return fallo("El código nuevo es igual al actual: elige otro.");
   rpcMsg("cambiar_codigo", { p_codigo_actual: actual, p_codigo_nuevo: nuevo }).then(function(r){
     if (!r.ok || !r.data || r.data.ok !== true) return fallo("No se pudo cambiar: " + (r.error || "ese código ya existe o no es válido") + ". Prueba con otro.");
-    if (DATA.buscadores && DATA.buscadores[actual]) { DATA.buscadores[nuevo] = DATA.buscadores[actual]; delete DATA.buscadores[actual]; }
+    panelCacheClear();   /* v1.5.2: ningún JSON que remapear; la foto del panel se repone sola con leer_panel */
     SESION = nuevo; sesionSet(nuevo);
     okEl.style.display = "block";
     okEl.textContent = "Código cambiado. Tu enlace personal nuevo está abajo: guárdalo.";
