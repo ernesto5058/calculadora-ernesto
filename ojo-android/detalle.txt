@@ -1,1 +1,1 @@
-Con la app recién reabierta, el código de prueba tampoco entró: se quedó en la puerta. La puerta y el rechazo del código inválido sí quedaron probados. El aviso de código inválido se vio en pantalla. El código de prueba quedó escrito en el campo antes de tocar Entrar.
+La app no mostró la puerta de acceso en el teléfono virtual (¿no arrancó o tardó demasiado?). 
