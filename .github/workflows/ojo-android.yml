@@ -104,6 +104,7 @@ jobs:
           mkdir -p "$CAP"
           MAN="$OUT/capturas.txt"; : > "$MAN"
           VERED="VERDE"
+          FALLOS=0
           DET="La app instaló, abrió y respondió en el teléfono virtual, sin caídas."
           EXTRA=""
           rm -f "$CAP"/*.png
@@ -142,6 +143,24 @@ jobs:
             if python3 ojo/tap.py "$1"; then return 0; fi
             local FRAC=$(python3 -c "print(($2+0.5)/6)")
             tap_tabla "$FRAC" 0.955
+          }
+          ir_pantalla(){ # Arnés v1.6: $1 pestaña, $2 índice, $3 marcador propio de la pantalla, $4 foto, $5 pie. Toca y VERIFICA que la pantalla cambió (marcador visible); reintenta con toque por fracción y deslizando la barra. Si no responde, la foto sale con pie honesto y cuenta el fallo.
+            tap_tab "$1" "$2"; sleep 3
+            if ! wait_text "$3" 6; then
+              tap_tabla "$(python3 -c "print(($2+0.5)/6)")" 0.955; sleep 3
+              if ! wait_text "$3" 6; then
+                adb shell input swipe 850 2290 300 2290 300 >/dev/null 2>&1; sleep 1
+                python3 ojo/tap.py "$1" || true; sleep 3
+                wait_text "$3" 6 || true
+              fi
+            fi
+            dumpw
+            if grep -q "$3" /tmp/w.xml 2>/dev/null; then
+              shot "$4" "$5"
+            else
+              FALLOS=$((FALLOS+1))
+              shot "$4" "$5 (la pestaña no respondió al toque en el teléfono virtual: la foto muestra la pantalla donde quedó el recorrido)"
+            fi
           }
           echo "== Instalando $VERSION_APK =="
           if ! adb install -r "$GITHUB_WORKSPACE/app.apk" 2>&1 | tail -2; then
@@ -187,12 +206,18 @@ jobs:
                   sin_dialogos
                   if gone_text "Tu código personal" 25 && wait_text "Reportar" 10; then
                     shot "03-entrada.png" "Dentro: la primera pantalla tras entrar con la cuenta de prueba"
-                    tap_tab "Reportar" 1; sleep 6; shot "04-reportar.png" "Pestaña Reportar: reportar un trato de saldo o transferencia"
-                    tap_tab "Mi panel" 2; sleep 6; shot "05-mi-panel.png" "Pestaña Mi panel: sus tratos, su comisión y su bono"
-                    tap_tab "Chat" 3; sleep 6; shot "06-chat.png" "Pestaña Chat: la conversación con Ernesto"
-                    tap_tab "Textos" 4; sleep 6; shot "07-textos.png" "Pestaña Textos: sus textos listos para copiar o mandar"
-                    tap_tab "Mi perfil" 5; sleep 6; shot "08-mi-perfil.png" "Pestaña Mi perfil: su cuenta y su enlace personal"
-                    EXTRA="$EXTRA El recorrido interior con la cuenta de prueba se completó."
+                    ir_pantalla "Reportar" 1 "Reportar una búsqueda" "04-reportar.png" "Pestaña Reportar: reportar un trato de saldo o transferencia"
+                    ir_pantalla "Mi panel" 2 "TOTAL GANADO" "05-mi-panel.png" "Pestaña Mi panel: sus tratos, su comisión y su bono"
+                    ir_pantalla "Chat" 3 "¿Para qué es esta app?" "06-chat.png" "Pestaña Chat: la conversación con Ernesto"
+                    ir_pantalla "Textos" 4 "Textos de ofertas" "07-textos.png" "Pestaña Textos: sus textos listos para copiar o mandar"
+                    ir_pantalla "Mi perfil" 5 "Esto es lo que Ernesto ve de ti" "08-mi-perfil.png" "Pestaña Mi perfil: su cuenta y su enlace personal"
+                    if [ "$FALLOS" -eq 0 ]; then
+                      EXTRA="$EXTRA El recorrido interior con la cuenta de prueba se completó, pantalla por pantalla verificada."
+                    else
+                      VERED="PARCIAL"
+                      DET="La app entró con la cuenta de prueba y no se cayó, pero $FALLOS pestaña(s) no respondieron al toque en el teléfono virtual; sus fotos muestran la pantalla donde quedó el recorrido."
+                      EXTRA="$EXTRA Recorrido interior hecho con $FALLOS pestaña(s) sin responder."
+                    fi
                   else
                     VERED="PARCIAL"
                     DET="Con la app recién reabierta, el código de prueba tampoco entró: se quedó en la puerta. La puerta y el rechazo del código inválido sí quedaron probados."
