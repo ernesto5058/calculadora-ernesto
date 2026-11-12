@@ -13,6 +13,7 @@
 // la fuente se busca en <workspace>/mercado-src (o MERCADO_SRC).
 import fs from "fs";
 import path from "path";
+import vm from "vm";
 import { fileURLToPath } from "url";
 
 const aqui = path.dirname(fileURLToPath(import.meta.url));
@@ -75,6 +76,53 @@ for (const [nombre, texto] of [["fuente", fuenteJs], ["desplegado", depHtml]]) {
   ok(/por encima de ella,?\s*pierdes/i.test(frase), `P-4 ${nombre}: «por encima» se asocia con perder`);
   ok(!/por encima[^.;]*ganas/i.test(frase), `P-4 ${nombre}: «por encima» NO se asocia con ganar`);
   ok(!/por debajo[^.;]*pierdes/i.test(frase), `P-4 ${nombre}: «por debajo» NO se asocia con perder`);
+}
+
+/* ================= F) SERVICE WORKERS DEL ORIGEN COMPARTIDO =================
+   Chequeo eterno (f): cada service worker solo toca SU propia caché.
+   La Cache Storage es de TODO el origen GitHub Pages, no de la carpeta:
+   un activate que borra «todo lo que no sea mi caché» destruye las
+   cachés de las demás apps. Prueba CONDUCTUAL: se ejecuta el activate
+   real de cada SW contra una Cache Storage simulada con cachés propias
+   viejas, la viva y varias AJENAS, y se anota qué borra de verdad. */
+const CACHES_ORIGEN = ["mercado-v2", "mercado-v3", "minegocio-v12", "minegocio-v13", "mitrabajo-v18", "mitrabajo-v19", "ajena-v1"];
+async function barridoSW(nombre, texto, cacheViva, esperado) {
+  ok(typeof texto === "string" && texto.length > 0, `F-SW ${nombre}: existe su sw.js`);
+  if (!texto) return;
+  const handlers = {}; const borradas = [];
+  const sandbox = {
+    console, URL,
+    caches: {
+      keys: async () => [...CACHES_ORIGEN],
+      delete: async (k) => { borradas.push(k); return true; },
+      open: async () => ({ addAll: async () => {}, put: async () => {} }),
+      match: async () => undefined,
+    },
+    fetch: async () => { throw new Error("sin red en el banco"); },
+    clients: { claim: async () => {}, matchAll: async () => [], openWindow: async () => {} },
+    registration: { scope: "https://ernesto5058.github.io/calculadora-ernesto/x/", showNotification: async () => {} },
+    location: { origin: "https://ernesto5058.github.io" },
+    skipWaiting: async () => {},
+    addEventListener: (t, f) => { handlers[t] = f; },
+  };
+  sandbox.self = sandbox;
+  vm.createContext(sandbox);
+  try { vm.runInContext(texto, sandbox); } catch (e) { ok(false, `F-SW ${nombre}: su sw.js carga sin error (${e.message})`); return; }
+  ok(typeof handlers.activate === "function", `F-SW ${nombre}: registra su activate`);
+  if (typeof handlers.activate !== "function") return;
+  let prom; handlers.activate({ waitUntil: (p) => { prom = p; } });
+  await prom;
+  ok(borradas.slice().sort().join(",") === esperado.slice().sort().join(","),
+    `F-SW ${nombre}: activate borra SOLO sus cachés viejas [${esperado.join(", ")}] (borró: ${borradas.join(", ") || "ninguna"})`);
+  ok(!borradas.includes(cacheViva), `F-SW ${nombre}: jamás borra su caché viva (${cacheViva})`);
+  ok(!borradas.some((k) => !k.startsWith(esperado[0].split("-v")[0] + "-")), `F-SW ${nombre}: ninguna caché ajena tocada`);
+}
+{
+  const fuenteSw = leer(path.join(SRC, "sw.js"));
+  await barridoSW("Mercado desplegado", depSw, "mercado-v3", ["mercado-v2"]);
+  await barridoSW("Mercado fuente", fuenteSw && fuenteSw.replaceAll("§CACHE§", "mercado-v3"), "mercado-v3", ["mercado-v2"]);
+  await barridoSW("Mi Negocio", leer(path.join(REPO, "minegocio", "sw.js")), "minegocio-v13", ["minegocio-v12"]);
+  await barridoSW("Mi Trabajo", leer(path.join(REPO, "buscadores", "sw.js")), "mitrabajo-v19", ["mitrabajo-v18"]);
 }
 
 console.log(`\nPARIDAD MERCADO: ${pass} PASS · ${fail} FAIL`);
