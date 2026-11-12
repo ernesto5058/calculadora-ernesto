@@ -1,0 +1,43 @@
+name: Semgrep (Inspector capa 0)
+
+# Capa 0 del INSPECTOR v2: escaneo con las reglas del proyecto
+# (.semgrep/reglas-proyecto.yml), nacidas de los incidentes reales.
+# NO bloqueante a propósito en esta etapa: informa y deja el informe
+# como artefacto; endurecer a bloqueante es decisión posterior con
+# los falsos positivos ya medidos.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  semgrep:
+    name: Semgrep · reglas del proyecto
+    runs-on: ubuntu-latest
+    container:
+      image: semgrep/semgrep
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Escanear con las reglas del proyecto
+        continue-on-error: true
+        run: >-
+          semgrep scan
+          --config .semgrep/reglas-proyecto.yml
+          --metrics=off
+          --exclude node_modules
+          --json --output semgrep-resultados.json
+          . || true
+
+      - name: Subir informe
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: semgrep-resultados
+          path: semgrep-resultados.json
+          if-no-files-found: warn
