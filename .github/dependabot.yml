@@ -1,0 +1,22 @@
+# Dependabot — Inspector v2 · Capa 0a
+# Mantiene al día las acciones de GitHub y las dependencias npm del repo
+# y de los bancos, con una revisión semanal los lunes.
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+
+  - package-ecosystem: "npm"
+    directory: "/bancos"
+    schedule:
+      interval: "weekly"
+      day: "monday"
