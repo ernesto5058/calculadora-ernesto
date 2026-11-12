@@ -1,14 +1,7 @@
-adb shell input tap 540 1242
+adb shell input tap 540 1462
 sleep 2
-adb shell input keyevent 44
-adb shell input keyevent 33
-adb shell input keyevent 49
-adb shell input keyevent 33
-adb shell input keyevent 30
-adb shell input keyevent 29
-sleep 1
-adb exec-out screencap -p > $RUNNER_TEMP/vivo-out/shots/texto.png
-adb shell input keyevent 4
-sleep 1
-adb shell input tap 540 1400
-sleep 9
+adb shell input tap 628 2258
+sleep 4
+adb exec-out screencap -p > $RUNNER_TEMP/vivo-out/shots/chat.png
+adb shell input tap 803 2258
+sleep 4
