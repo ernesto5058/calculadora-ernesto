@@ -22,3 +22,4 @@
 [13:59:25] Orden ejecutada; foto 'ahora' publicada
 [14:00:28] Orden recibida (d268340c)
 [14:00:40] Orden ejecutada; foto 'ahora' publicada
+[14:13:32] Fin de la sesion viva (tiempo cumplido)
