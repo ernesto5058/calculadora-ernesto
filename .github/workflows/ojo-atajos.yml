@@ -63,6 +63,7 @@ jobs:
           ls -la ~/Library/Shortcuts/
 
       - name: Importar la referencia v4.1 (clic en «Add Shortcut»)
+        continue-on-error: true
         run: |
           set +e
           exec > >(tee -a lab-atajos/02-importacion.log) 2>&1
@@ -104,13 +105,13 @@ jobs:
           if ! shortcuts list 2>/dev/null | grep -qi "maximo"; then
             echo "== la lista aun no lo trae: clic por coordenadas sobre el boton de la foto"
             cat > /tmp/clic-xy.scpt <<'EOF'
-            tell application "System Events"
-              tell process "Shortcuts" to set frontmost to true
-              delay 1
-              click at {547, 218}
-              return "CLIC-XY en {547, 218}"
-            end tell
-            EOF
+          tell application "System Events"
+            tell process "Shortcuts" to set frontmost to true
+            delay 1
+            click at {547, 218}
+            return "CLIC-XY en {547, 218}"
+          end tell
+          EOF
             osascript /tmp/clic-xy.scpt >> lab-atajos/02-clic.txt 2>&1 & P=$!; vigia 30 $P
             cat lab-atajos/02-clic.txt
             sleep 5
@@ -123,6 +124,7 @@ jobs:
           echo "-- nombre detectado:"; cat lab-atajos/nombre-atajo.txt
 
       - name: Abrir en el editor y fotografiar (caza de la pancarta)
+        if: always()
         run: |
           set +e
           exec > >(tee -a lab-atajos/03-editor.log) 2>&1
@@ -153,6 +155,7 @@ jobs:
           ls -la lab-atajos/*.png
 
       - name: Barrido de parámetros (caza de blobs en la base de Atajos)
+        if: always()
         run: |
           set +e
           exec > >(tee -a lab-atajos/04-barrido.log) 2>&1
@@ -244,6 +247,7 @@ jobs:
           python3 lab-atajos/barrido.py lab-atajos/blobs/*.bplist 2>&1 | tee lab-atajos/04-barrido.txt
 
       - name: Correr la espina contra el cerebro real
+        if: always()
         run: |
           set +e
           exec > >(tee -a lab-atajos/05-corrida.log) 2>&1
@@ -267,6 +271,7 @@ jobs:
           screencapture -x lab-atajos/05-tras-correr.png 2>&1
 
       - name: Simulador iPhone — Atajos por dentro
+        if: always()
         run: |
           set +e
           exec > >(tee -a lab-atajos/06-simulador.log) 2>&1
