@@ -87,9 +87,16 @@
   .peldano-nombre { font: var(--t-cuerpo-f); }
   .peldano-tasa { font: 600 20px/1.2 var(--fuente-num); font-variant-numeric: tabular-nums; margin-left: auto; }
   .peldano-tasa .unidad { font: var(--t-nota); color: var(--txt-2); font-family: var(--fuente); font-weight: 400; }
+  /* Botón por peldaño (v3) + barrido anti-desbordamiento: ningún hijo
+     flex puede empujar la tarjeta fuera del ancho del teléfono. */
+  .peldano-accion { margin-top: var(--e-3); }
+  .cab-sello { min-width: 0; }
+  .cab-fila > div:first-child { min-width: 0; }
+  .senal-linea .t-nota { min-width: 0; overflow-wrap: break-word; }
   .chip-g {
     display: inline-flex; align-items: center; padding: var(--e-1) var(--e-2);
     border-radius: var(--r-pildora); font: var(--t-micro); letter-spacing: 0.03em;
+    max-width: 100%;
   }
   .chip-g.buena { background: var(--verde-suave); color: var(--verde); }
   .chip-g.fina { background: var(--ambar-suave); color: var(--ambar); }
@@ -196,7 +203,11 @@
    esta app la lee por puertas de SOLO LECTURA (mercado_ultima_foto,
    mercado_historial, mercado_promos, mercado_avisos). Su única
    escritura es el interruptor del Analista (mercado_acciones_control:
-   DETENER / Reanudar), con su código de administrador.
+   DETENER / Reanudar) y, desde la caché v3, el botón «Crear oferta a
+   esta tasa» de cada peldaño: mercado_accion_app crea la acción con
+   la tasa que vive en el servidor y la puerta mercado-actuar decide
+   (su lógica no se toca); el desenlace se sigue por
+   mercado_accion_estado. Siempre con su código de administrador.
    v2 (2026-11-11): el ANALISTA — todo su cálculo vive en el lector
    (detalle.analisis de cada foto); esta pantalla solo pinta.
    Honestidad de frescura siempre visible: dos relojes (origen del
@@ -206,14 +217,15 @@
    base: sin costo, el número NO se inventa (se explica qué falta).
    ===================================================================== */
 const MERCADO_VERSION = "v2";
-const SELLO = "Mercado · versión 2026-11-11 18:52 · caché v2";
+const SELLO = "Mercado · versión 2026-11-11 21:20 · caché v3";
 const SB_URL = "https://otsudfgwpapkluusrlnj.supabase.co";
 const SB_KEY = "sb_publishable_Uchl5QnojJkZbXR5ar8vDg_5CXnqi_d"; // pública: solo lee por las puertas de mercado
 const LS_CLAVE = "mercado_cache_v1";
 const LS_CODIGO = "mercado_codigo_admin";
 const RESPALDO_URL = "https://ernesto5058.github.io/calculadora-ernesto/datos/ultimo.json";
 
-const S = { datos: null, errorRed: false, cargando: false, ultimoIntento: 0, confirmandoControl: null, controlError: null };
+const S = { datos: null, errorRed: false, cargando: false, ultimoIntento: 0, confirmandoControl: null, controlError: null,
+  confirmandoAccion: null, accionError: null, accionEnCurso: null, accionResultado: null };
 
 /* ---------------- utilidades ---------------- */
 const $ = (id) => document.getElementById(id);
@@ -340,7 +352,7 @@ function analisisActual() {
 }
 function accionesActual() {
   const u = S.datos && S.datos.ultima ? S.datos.ultima : {};
-  return u.acciones || { detenidas: false, pausadas: false, pausa_motivo: null, monto_qusd: 40 };
+  return u.acciones || { detenidas: false, pausadas: false, pausa_motivo: null, monto_qusd: 40, respeta_promo: true };
 }
 function fmtPct(x, dec) {
   const n = num(x); if (n === null) return "—";
@@ -623,7 +635,7 @@ function tarjetaControl() {
   } else {
     interior = '<div class="etiqueta">BOTÓN BLINDADO · ACTIVO</div>' +
       '<p class="t-sub" style="color:var(--txt-2);margin:var(--e-2) 0">Cuando el Analista vea una oferta dura o un cruce bueno, su aviso de Telegram traerá el botón «Publicar $' +
-      fmt(ac.monto_qusd, 0) + ' a …». Nada se publica sin tu toque, y la puerta re-verifica todas las barandas antes de crear la oferta.</p>' +
+      fmt(ac.monto_qusd, 0) + ' a …». Nada se publica sin tu toque, y la puerta re-verifica todas las barandas antes de crear la oferta. Cada peldaño del menú de abajo trae también el suyo: tu toque en esta app manda siempre.</p>' +
       '<button type="button" class="btn peligro bloque" id="btnDetener">Detener acciones</button>';
   }
   let confirm = "";
@@ -684,6 +696,130 @@ function enlazarControl() {
   if (bx) bx.addEventListener("click", () => { S.confirmandoControl = null; S.controlError = null; renderAnalista(); });
 }
 
+/* ---------------- botón por peldaño: «Crear oferta a esta tasa» ----------------
+   La app nunca inventa la tasa: la orden va por mercado_accion_app,
+   que lee el menú de la última foto EN EL SERVIDOR, crea la acción
+   (origen 'app') y dispara la puerta mercado-actuar, que re-verifica
+   todas sus barandas al instante. Aquí solo se decide, con los datos
+   de la foto, si el botón se pinta y en qué estado — los estados
+   honestos: sin botón si el peldaño está bloqueado o su G es
+   negativa, si DETENER/pausa están activos, si no hay libro o si la
+   foto pasó de 20 minutos (la misma regla que veta la puerta);
+   botón visible pero dormido «Congelado por la promo» SOLO si la
+   promo está activa Y su flag accion_app_respeta_promo dice que la
+   app la respeta — con el flag en false (su decisión: «mi toque
+   manda siempre») el botón queda vivo también en promo. */
+function estadoBotonAccion(p) {
+  const f = fotoActual();
+  const ac = accionesActual();
+  if (!p || p.bloqueado || num(p.tasa) === null) return "sin";
+  if (num(p.g) !== null && num(p.g) < 0) return "sin";
+  if (ac.detenidas || ac.pausadas) return "sin";
+  if (!f || !f.libro_ok) return "sin";
+  if (edadMin(f.recibida_en) > 20) return "sin";
+  const an = analisisActual();
+  if (an && an.promoActiva && ac.respeta_promo !== false) return "congelado";
+  return "ok";
+}
+function bloqueAccionPeldano(p, an) {
+  const est = estadoBotonAccion(p);
+  if (est === "sin") return "";
+  const ac = accionesActual();
+  const f = fotoActual() || {};
+  let h = '<div class="peldano-accion">';
+  if (est === "congelado") {
+    h += '<button type="button" class="btn suave bloque" disabled>Congelado por la promo</button>' +
+      '<div class="t-nota" style="color:var(--txt-3);margin-top:var(--e-1)">Hay una promo de ETECSA activa y tu regla pa la app es respetarla: este botón despierta cuando la promo pase.</div>';
+    return h + '</div>';
+  }
+  const res = S.accionResultado && S.accionResultado.peldano === p.nombre ? S.accionResultado : null;
+  if (res) {
+    h += (res.ok
+      ? '<div class="aviso info" style="margin:0">Oferta publicada: vendes $' + fmt(res.monto_qusd, 0) + ' QUSD a ' + fmtTasa(res.tasa) +
+        ' saldo por QUSD (ganancia ' + fmtSigno(res.ganancia360) + ' CUP por recarga de 360). Queda abierta en tu QvaPay.</div>'
+      : '<div class="aviso error" style="margin:0">No se publicó: ' + esc(res.motivo || "la puerta de acción la negó.") + '</div>') +
+      '<button type="button" class="btn suave bloque js-limpiar-resultado" style="margin-top:var(--e-2)">Entendido</button>';
+    return h + '</div>';
+  }
+  if (S.accionEnCurso && S.accionEnCurso.peldano === p.nombre) {
+    h += '<div class="aviso info" style="margin:0">Publicando… la puerta está re-verificando todas las barandas con el libro de ahora mismo.</div>';
+    return h + '</div>';
+  }
+  h += '<button type="button" class="btn dorado bloque js-crear-oferta" data-peldano="' + esc(p.nombre) + '">Crear oferta a esta tasa</button>';
+  if (an && an.promoActiva) {
+    h += '<div class="t-nota" style="color:var(--txt-3);margin-top:var(--e-1)">Promo de ETECSA activa: tu toque manda — y la puerta re-verifica todo al instante.</div>';
+  }
+  if (S.confirmandoAccion === p.nombre) {
+    const hayCodigo = !!codigoGuardado();
+    h += '<div style="margin-top:var(--e-3)">' +
+      '<p class="t-sub" style="color:var(--txt-2);margin:0">Vas a publicar tu venta: <b>$' + fmt(ac.monto_qusd, 0) +
+      ' QUSD a ' + fmtTasa(p.tasa) + ' saldo por QUSD</b> — ganancia ' + fmtSigno(p.g) +
+      ' CUP por recarga de 360 si se vende entera.</p>' +
+      '<p class="t-nota" style="color:var(--txt-3);margin:var(--e-1) 0 0">Foto de las ' + hora(f.recibida_en) +
+      ' (' + haceTxt(f.recibida_en) + ') · dato de origen ' + hora(f.origen_en) +
+      '. Al confirmar, la puerta re-lee el libro y tu tarifa: si algo se movió, no publica y te dice por qué.</p>' +
+      (hayCodigo ? "" : '<input class="campo-codigo" id="inputCodigoAccion" type="password" inputmode="text" autocomplete="off" placeholder="Tu código de administrador">') +
+      (S.accionError ? '<p class="t-nota" style="color:var(--rojo);margin:var(--e-1) 0 0">' + esc(S.accionError) + '</p>' : "") +
+      '<div style="display:flex;gap:var(--e-2);margin-top:var(--e-2)">' +
+      '<button type="button" class="btn dorado js-confirmar-oferta" data-peldano="' + esc(p.nombre) + '" style="flex:1">Sí, publicar</button>' +
+      '<button type="button" class="btn suave js-cancelar-oferta" style="flex:1">Cancelar</button></div></div>';
+  }
+  return h + '</div>';
+}
+async function ejecutarAccionApp(nombre) {
+  const inp = $("inputCodigoAccion");
+  const codigo = (inp && inp.value.trim()) || codigoGuardado();
+  if (!codigo) { S.accionError = "Escribe tu código de administrador."; renderAnalista(); return; }
+  let r = null;
+  try { r = await rpc("mercado_accion_app", { p_codigo: codigo, p_peldano: nombre }); }
+  catch (e) { S.accionError = "Sin conexión: la orden no salió. Inténtalo cuando vuelva la red."; renderAnalista(); return; }
+  if (!r || r.ok !== true) {
+    if (r && r.codigo === "codigo_no_valido") { try { localStorage.removeItem(LS_CODIGO); } catch (e) {} }
+    S.accionError = (r && r.motivo) || "La puerta no aceptó la orden.";
+    renderAnalista(); return;
+  }
+  try { localStorage.setItem(LS_CODIGO, codigo); } catch (e) {}
+  S.confirmandoAccion = null; S.accionError = null; S.accionResultado = null;
+  S.accionEnCurso = { id: r.accion_id, peldano: nombre };
+  renderAnalista();
+  seguirAccion(nombre, r.accion_id, codigo, 0);
+}
+function seguirAccion(nombre, id, codigo, intentos) {
+  setTimeout(async () => {
+    let est = null;
+    try { est = await rpc("mercado_accion_estado", { p_codigo: codigo, p_accion_id: id }); } catch (e) {}
+    if (est && est.ok && est.estado && est.estado !== "pendiente") {
+      S.accionEnCurso = null;
+      S.accionResultado = est.estado === "ejecutada"
+        ? { peldano: nombre, ok: true, tasa: est.tasa, monto_qusd: est.monto_qusd,
+            ganancia360: num(est.ganancia_real) !== null ? est.ganancia_real : est.ganancia360 }
+        : { peldano: nombre, ok: false, motivo: est.motivo || "la puerta de acción la negó." };
+      renderAnalista();
+      cargar();
+      return;
+    }
+    if (intentos >= 17) {
+      S.accionEnCurso = null;
+      S.accionResultado = { peldano: nombre, ok: false, motivo: "La puerta está tardando en responder: la orden quedó registrada — revisa tu QvaPay antes de reintentar." };
+      renderAnalista();
+      return;
+    }
+    seguirAccion(nombre, id, codigo, intentos + 1);
+  }, intentos === 0 ? 1500 : 2500);
+}
+function enlazarAcciones() {
+  document.querySelectorAll(".js-crear-oferta").forEach((b) => b.addEventListener("click", () => {
+    S.confirmandoAccion = b.dataset.peldano; S.accionError = null; S.accionResultado = null; renderAnalista();
+  }));
+  document.querySelectorAll(".js-confirmar-oferta").forEach((b) => b.addEventListener("click", () => ejecutarAccionApp(b.dataset.peldano)));
+  document.querySelectorAll(".js-cancelar-oferta").forEach((b) => b.addEventListener("click", () => {
+    S.confirmandoAccion = null; S.accionError = null; renderAnalista();
+  }));
+  document.querySelectorAll(".js-limpiar-resultado").forEach((b) => b.addEventListener("click", () => {
+    S.accionResultado = null; renderAnalista();
+  }));
+}
+
 function renderAnalista() {
   const el = $("ctAnalista"); if (!el) return;
   if (!S.datos) { el.innerHTML = sinDatos(); return; }
@@ -693,14 +829,14 @@ function renderAnalista() {
   if (!f) {
     el.innerHTML = h + '<div class="estado" style="margin-top:var(--e-3)"><div class="estado-tit">Todavía no hay fotos del mercado</div>' +
       '<p>El Analista se calcula con la primera foto de tu lector.</p></div>';
-    enlazarControl(); return;
+    enlazarControl(); enlazarAcciones(); return;
   }
   const an = f.detalle && f.detalle.analisis ? f.detalle.analisis : null;
   if (!an) {
     el.innerHTML = h + '<div class="estado" style="margin-top:var(--e-3)"><div class="estado-tit">El Analista se estrena con la próxima foto</div>' +
       '<p>Esta foto la guardó tu lector antes del Analista. La próxima (en ~15 min) ya trae el menú, la señal y las duras.</p></div>' +
       '<p class="anti-humo">Esto no predice el mercado: lee el libro de ahora y aplica TUS reglas con TU tarifa. Cada número lleva su hora. La oferta la pones tú.</p>';
-    enlazarControl(); return;
+    enlazarControl(); enlazarAcciones(); return;
   }
   const ed = estadoDato(f);
   const vieja = ed.clase === "vieja";
@@ -713,7 +849,9 @@ function renderAnalista() {
   if (an.promoActiva) {
     h += '<div class="aviso info aviso-banda" style="margin-top:var(--e-3)">Promo de ETECSA activa: «' + esc(an.promoActiva.titulo) + '»' +
       (an.promoActiva.hasta ? " (hasta el " + esc(an.promoActiva.hasta) + ")" : "") +
-      '. Las acciones están congeladas por tu regla; el análisis sigue.</div>';
+      (accionesActual().respeta_promo === false
+        ? '. La vía automática sigue congelada por tu regla; tu toque en esta app manda siempre. El análisis sigue.</div>'
+        : '. Las acciones están congeladas por tu regla; el análisis sigue.</div>');
   }
   /* --- Señal --- */
   const s = an.senal || {};
@@ -745,7 +883,11 @@ function renderAnalista() {
       (p.bloqueado
         ? '<div class="t-sub" style="color:var(--rojo);margin-top:var(--e-1)">' + esc(p.motivo || "") + '</div>'
         : '<div class="t-nota" style="color:var(--txt-3);margin-top:var(--e-1)">Por delante en el libro de venta: $' + fmt(p.delanteUsd, 0) + ' USD · ' + esc(p.explica || "") + '</div>') +
+      bloqueAccionPeldano(p, an) +
     '</div>';
+  }
+  if (edadMin(f.recibida_en) > 20) {
+    h += '<p class="t-nota" style="color:var(--ambar);margin-top:var(--e-2)">Sin botones de crear en esta foto: tiene más de 20 minutos y la puerta no actúa con fotos viejas. La próxima foto llega en ~15 min.</p>';
   }
   h += '<p class="pie-nota">«Por delante» = los USD del libro de venta en tasas mayores que la del peldaño: lo que se vendería antes que tu oferta. A más por delante, más espera.</p></div>';
   /* --- Precio ejecutable --- */
@@ -802,6 +944,7 @@ function renderAnalista() {
   h += '<p class="anti-humo">' + esc(an.textoAntiHumo || "") + '</p>';
   el.innerHTML = h;
   enlazarControl();
+  enlazarAcciones();
 }
 
 /* ---------------- navegación y arranque ---------------- */
