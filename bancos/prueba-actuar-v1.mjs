@@ -126,6 +126,22 @@ function depsMock(sobre = {}) {
   const r = await T.ejecutarAccion(deps, ACCION.id);
   ok(r.codigo === "promo" && llamadas.crear.length === 0, "promo: la automatización se congela");
 }
+/* EXENCIÓN de la app (decisión de Ernesto, 2026-11-11 21:04: «mi toque
+   manda siempre»): con promo activa, una acción de origen 'app' PASA la
+   baranda 3 y ejecuta; las de la vía automática (las que se ejecutan
+   desde el botón de Telegram: 'dura_compra'/'cruce_eq') siguen negadas */
+{
+  const { deps, llamadas, estado } = depsMock({ promo: true });
+  estado.accion = { ...ACCION, origen: "app" };
+  const r = await T.ejecutarAccion(deps, ACCION.id);
+  ok(r.ok === true && llamadas.crear.length === 1, "exención: origen 'app' con promo activa PASA la baranda 3 y crea la oferta");
+  for (const org of ["dura_compra", "cruce_eq"]) {
+    const m = depsMock({ promo: true });
+    m.estado.accion = { ...ACCION, origen: org };
+    const rr = await T.ejecutarAccion(m.deps, ACCION.id);
+    ok(rr.codigo === "promo" && m.llamadas.crear.length === 0, `exención: origen '${org}' (vía Telegram) sigue NEGADO en promo`);
+  }
+}
 /* Veto por foto vieja (reloj de recepción, 20 min) */
 {
   const { deps, llamadas } = depsMock({ foto: { recibida_en: iso(AHORA - 21 * 60000), libro_ok: true } });
