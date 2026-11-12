@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ojo web · Mercado v3 (2026-11-11)</title>
+<style>
+  body { background:#0B0E13; color:#E8EAF0; font-family: system-ui, sans-serif; margin:0; padding:24px; }
+  main { max-width: 880px; margin: 0 auto; }
+  h1 { font-size: 22px; } p { color:#A7AEC2; line-height:1.55; }
+  .fila { display:flex; gap:20px; flex-wrap:wrap; }
+  figure { margin:0 0 24px; } img { width: 414px; max-width: 100%; border-radius: 16px; border:1px solid #262C3A; display:block; }
+  figcaption { color:#A7AEC2; font-size: 14px; margin-top: 8px; max-width: 414px; line-height:1.5; }
+  b { color:#E8EAF0; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Ojo web · Mercado v3 — tanda de los 2 defectos (2026-11-11, ~21:35 hora de Ernesto)</h1>
+  <p>Capturas de la app <b>ya publicada</b> (caché v3) a ancho iPhone XR (414×896), con datos vivos del lector.
+  Auditoría automática de desbordamiento en las <b>7 pantallas</b>: ancho del documento = 414 = ventana y
+  <b>cero elementos fuera de ancho</b> en todas. Lectura de defectos: sin textos cortados; las descripciones
+  de Promos envuelven completas (3 líneas); los 3 peldaños del Analista traen su botón dorado
+  «Crear oferta a esta tasa» con la nota de promo «tu toque manda».</p>
+  <div class="fila">
+    <figure>
+      <img src="analista.png" alt="Analista: control, aviso de promo y señal">
+      <figcaption><b>Analista (arriba).</b> Tarjeta de control con la frase nueva del botón por peldaño; aviso de promo con el texto del flag en false («tu toque en esta app manda siempre»); señal APROVECHAR por la dura a 225, con sus dos relojes y sello FRESCA.</figcaption>
+    </figure>
+    <figure>
+      <img src="analista-menu.png" alt="Analista: menú de peldaños con botones">
+      <figcaption><b>Analista (menú).</b> Los 3 peldaños (Inmediato 316 · Equilibrado 315,00/+57,14 · Paciente 305,08/+91,50) con su botón «Crear oferta a esta tasa» y la nota de promo bajo cada uno. (El borde superior caza la cabecera fija a mitad de scroll: es el gesto de la captura, no un defecto.)</figcaption>
+    </figure>
+    <figure>
+      <img src="promos.png" alt="Promos: descripciones completas">
+      <figcaption><b>Promos.</b> La descripción que Ernesto vio cortada («Promoción ETECSA ×5 del 9 al 14 de no…») ahora se lee entera: «Promoción ETECSA ×5 del 9 al 14 de noviembre de 2026. · 9 nov → 14 nov», y lo mismo en las demás promos.</figcaption>
+    </figure>
+  </div>
+</main>
+</body>
+</html>
