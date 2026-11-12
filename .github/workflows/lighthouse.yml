@@ -50,6 +50,10 @@ jobs:
         continue-on-error: true
         run: lhci assert
 
+      - name: Guardar informes en .lighthouseci (upload filesystem)
+        if: always()
+        run: lhci upload
+
       - name: Subir informes como artefacto
         if: always()
         uses: actions/upload-artifact@v4
