@@ -1,7 +1,8 @@
-// FIXTURE para CI: copia exacta de la lógica del Analista
-// (mercado-src/supabase/functions/mercado-lector/analista.js), que vive
-// fuera del repo; solo cambia la ruta de su import (mercado-logica.js).
-// Si la lógica cambia, se refresca esta copia en el mismo cambio.
+// Fixture vendorizado para CI: copia EXACTA de
+// mercado-src/supabase/functions/mercado-lector/analista.js
+// (solo cambia esta cabecera y la ruta de logica.js -> fixture).
+// Se refresca cuando la fuente cambia; el banco vivo de
+// research_notes importa la fuente de verdad directamente.
 // analista.js — matemática pura del ANALISTA DE MERCADO (Fase 1).
 // La comparten la Edge Function «mercado-lector» (Deno, la importa tal
 // cual) y el banco de pruebas (Node), para que lo probado sea
@@ -72,8 +73,13 @@ export function escalera(ofertas, lado) {
     if (!ofertaValida(o)) continue;
     const r = ratioDe(o);
     if (r === null) continue;
+    // Sin USD disponible (available_amount = 0: oferta reservada o
+    // agotada que la API sigue listando) no hay profundidad tomable:
+    // no crea nivel (la foto viva del 2026-11-12 lo confirmó).
+    const usd = usdDeOferta(o);
+    if (!(usd > 0)) continue;
     const tasa = Math.round(r * 100) / 100;
-    porTasa.set(tasa, (porTasa.get(tasa) || 0) + usdDeOferta(o));
+    porTasa.set(tasa, (porTasa.get(tasa) || 0) + usd);
   }
   const tasas = [...porTasa.keys()].sort((a, b) => (lado === "compra" ? b - a : a - b));
   let acumulado = 0;
@@ -176,15 +182,17 @@ export function menuMaker({ topVenta, nivel20, equilibrio: eq, salida, costo, es
 
 // ---------------------------------------------------------------------
 // Marcas de contraparte (§4.4): SOLO sobre campos del objeto User del
-// payload (la sonda del lector verifica qué campos existen de verdad;
-// si el payload no trae reputación, la marca es null y la alerta lo
-// dice tal cual: no se inventa).
+// payload. La sonda lo verificó en vivo (foto del 2026-11-12): los
+// campos REALES son «rating_avg» y «rating_count» (operaciones
+// valoradas); los demás nombres quedan como respaldo por si la API
+// cambia. Si ninguno viene, la marca es null y la alerta lo dice tal
+// cual: no se inventa.
 //   🔴 floja  = rating < 4,3 o completadas < 25
 //   🟡 nueva  = < 5 operaciones o sin rating
 //   🟢 el resto (con su rating y sus operaciones)
 // ---------------------------------------------------------------------
-const CAMPOS_RATING = ["p2p_average_rating", "average_rating", "rating"];
-const CAMPOS_OPS = ["p2p_completed_count", "completed_count", "p2p_trades", "trades", "completed"];
+const CAMPOS_RATING = ["rating_avg", "p2p_average_rating", "average_rating", "rating"];
+const CAMPOS_OPS = ["rating_count", "p2p_completed_count", "completed_count", "p2p_trades", "trades", "completed"];
 
 export function reputacionDe(user) {
   if (!user || typeof user !== "object") return { rating: null, ops: null };
@@ -247,6 +255,7 @@ export function detectarDuras({ compras, ventas, eq, salida, costo, escCompra })
     for (const o of ventas || []) {
       if (!ofertaValida(o)) continue;
       const r = ratioDe(o); if (r === null) continue;
+      if (!(usdDeOferta(o) > 0)) continue; // sin disponible no hay oferta que rodear
       if (r >= rEj.tasa * (1 + MARGEN_VUELTA)) {
         const user = o.User || o.owner || null;
         const marca = marcaDe(user);
@@ -410,6 +419,14 @@ export function sondaPayload({ compras, ventas, propias }) {
     reputacion_ejemplo: reputacionDe(user),
     hay_user: Boolean(user),
   };
+  // «_count» de User (conteos de relaciones, estilo Prisma): solo su
+  // FORMA (claves si es objeto) — puede esconder el conteo real de
+  // operaciones y la sonda tiene que poder verlo sin traer valores.
+  if (user && user._count !== undefined && user._count !== null) {
+    sonda.user_count_forma = typeof user._count === "object"
+      ? { tipo: "objeto", claves: Object.keys(user._count).sort() }
+      : { tipo: typeof user._count };
+  }
   if (propias && propias.length) {
     const p = propias[0];
     sonda.propia = {
