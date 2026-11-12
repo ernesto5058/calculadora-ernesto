@@ -1,0 +1,36 @@
+# FUSIONADA (Inspector E-3/E-17 + Dominio casa-js-innerhtml): la
+# detección es la de Dominio (probada 3/3 en casos y 22 hallazgos
+# reales): la regex positiva del Inspector quedaba muda ante
+# concatenaciones y template literals (la metavariable-regex ancla al
+# inicio del valor), verificado el 2026-11-12. La fusión suma el `+=`
+# del Inspector y escaparHtml a la lista de escapes visibles.
+rules:
+  - id: proyecto-innerhtml-sin-escapar
+    languages: [javascript, typescript]
+    severity: WARNING
+    paths:
+      exclude:
+        - "**/bancos/**"
+        - "**/node_modules/**"
+        - "**/.semgrep/casos/**"
+    message: >-
+      innerHTML con datos sin escape visible (Inspector Ola 1, Mi
+      Negocio E-3 XSS en src del adjunto · Mi Trabajo E-17;
+      DESARROLLO-PRO §8): si el contenido trae texto de usuarios o del
+      servidor, escápalo en la propia expresión (escChat/escHtml/
+      escaparHtml/DOMPurify) o usa textContent. Si el escape vive
+      dentro de la función que construyó el HTML, verifica esa función:
+      la regla obliga a que quede a la vista o revisado. Es regla de
+      revisión, no de bloqueo.
+    metadata:
+      category: security
+      technology: [proyecto, inspector, dominio]
+    patterns:
+      - pattern-either:
+          - pattern: $EL.innerHTML = $EXPR
+          - pattern: $EL.innerHTML += $EXPR
+      - pattern-not: $EL.innerHTML = "..."
+      - pattern-not: $EL.innerHTML += "..."
+      - metavariable-regex:
+          metavariable: $EXPR
+          regex: "(?s)^(?!.*(escChat|escHtml|escaparHtml|escapeHtml|sanitize|DOMPurify)).*$"
