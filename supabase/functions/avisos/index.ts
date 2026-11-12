@@ -380,13 +380,32 @@ export async function manejar(req: Request, env: (k: string) => string | undefin
   }
   if (chatTelegram) {
     try {
-      const rTg = await enviarTelegram(chatTelegram, evento.html, env,
-        (evento.tipo === "reporte" && ev.reporte_id != null)
-          ? { inline_keyboard: [[
-              { text: "✅ Aprobar", callback_data: "d:" + String(ev.reporte_id) + ":a" },
-              { text: "❌ Rechazar", callback_data: "d:" + String(ev.reporte_id) + ":r" },
-            ]] }
-          : undefined);
+      /* Botones según el evento: decidir reportes (v1) o el botón
+         blindado del Analista (Nivel 1, 2026-11-11): «Publicar $40 a
+         319,00» ejecuta SOLO la acción pendiente con ese id (la tasa
+         y el monto viven en el servidor; la puerta mercado-actuar
+         re-verifica TODAS las barandas al toque). La segunda fila es
+         el control global DETENER/Reanudar de las acciones. */
+      let botonesTg: { inline_keyboard: { text: string; callback_data: string }[][] } | undefined;
+      if (evento.tipo === "reporte" && ev.reporte_id != null) {
+        botonesTg = { inline_keyboard: [[
+          { text: "✅ Aprobar", callback_data: "d:" + String(ev.reporte_id) + ":a" },
+          { text: "❌ Rechazar", callback_data: "d:" + String(ev.reporte_id) + ":r" },
+        ]] };
+      } else if (ev.accion_id != null || ev.mostrar_control_acciones === true) {
+        const filas: { text: string; callback_data: string }[][] = [];
+        if (ev.accion_id != null) {
+          filas.push([{
+            text: String(ev.boton_texto || "Publicar oferta"),
+            callback_data: "a:" + String(ev.accion_id),
+          }]);
+        }
+        filas.push([ev.acciones_detenidas === true
+          ? { text: "▶️ Reanudar acciones", callback_data: "x:reanudar" }
+          : { text: "⛔ Detener acciones", callback_data: "x:detener" }]);
+        botonesTg = { inline_keyboard: filas };
+      }
+      const rTg = await enviarTelegram(chatTelegram, evento.html, env, botonesTg);
       resultados.push({ canal: "telegram", ...rTg });
       if (rTg.bloqueado) {
         /* 403: bloqueó el bot -> vínculo roto. Queda registrado en
