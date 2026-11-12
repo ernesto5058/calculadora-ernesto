@@ -32,10 +32,13 @@ import {
   formaGrupo,
   normalizar,
   orquestar,
+  panelVista,
+  proyeccionPublica,
   resolverAclaracion,
   similitudTrgm,
+  validarRespuestaCerebro,
 } from "./logica.js";
-import { cerebroActual } from "./cerebro.ts";
+import { crearCerebro } from "./cerebro.ts";
 
 type Env = (k: string) => string | undefined;
 
@@ -201,13 +204,17 @@ async function retroalimentar(env: Env, conv: Record<string, unknown>, textoCrud
 }
 
 /* --- Núcleo: procesa UN mensaje de cliente ------------------------------ */
-interface Entrada { canal: string; externo_id: string; texto: string; nombre?: string }
+interface Entrada { canal: string; externo_id: string; texto: string; nombre?: string; deCallback?: boolean }
 interface Salida {
   respuesta: string | null;
   opciones?: { faq_id: string; etiqueta: string }[];
   silencio?: boolean;
   accion: string;
   botones?: boolean;
+  panel?: { texto: string; teclado: unknown; vista: string };
+  panelConRespuesta?: boolean;
+  convId?: string;
+  panelMsgId?: number | null;
 }
 
 /* Botones inline bajo las respuestas clave (v1.1): el callback trae
@@ -221,20 +228,80 @@ const CALLBACK_A_COMANDO: Record<string, string> = {
   "v1:cita": "/cita", "v1:precios": "/precios", "v1:horario": "/horario",
 };
 
-async function tgLlamar(token: string, metodo: string, cuerpo: Record<string, unknown>): Promise<void> {
+async function tgLlamar(token: string, metodo: string, cuerpo: Record<string, unknown>): Promise<Record<string, unknown> | null> {
   try {
-    await fetch("https://api.telegram.org/bot" + token + "/" + metodo, {
+    const r = await fetch("https://api.telegram.org/bot" + token + "/" + metodo, {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify(cuerpo), signal: AbortSignal.timeout(6000),
     });
-  } catch { /* Telegram nunca rompe la atención al cliente */ }
+    if (!r.ok) return null;
+    return await r.json() as Record<string, unknown>;
+  } catch { /* Telegram nunca rompe la atención al cliente */ return null; }
 }
-async function enviarTg(token: string, chatId: number, salida: Salida): Promise<void> {
+/* Entrega a Telegram (v2): si la salida trae PANEL, se EDITA el mismo
+   mensaje de la conversación (cero mensajes nuevos por navegación);
+   solo nace uno cuando aún no existe o la edición ya no es posible.
+   La respuesta suelta (si la hay) se manda como mensaje normal. */
+async function entregarTg(env: Env, token: string, chatId: number, salida: Salida): Promise<void> {
+  if (salida.panel) {
+    let editado = false;
+    if (salida.panelMsgId) {
+      const r = await tgLlamar(token, "editMessageText", {
+        chat_id: chatId, message_id: salida.panelMsgId,
+        text: salida.panel.texto, reply_markup: salida.panel.teclado,
+      });
+      editado = r?.ok === true;
+      if (editado) {
+        await accion(env, "panel", { vista: salida.panel.vista, editado: true, msg_id: salida.panelMsgId });
+      }
+    }
+    if (!editado) {
+      const r = await tgLlamar(token, "sendMessage", {
+        chat_id: chatId, text: salida.panel.texto, reply_markup: salida.panel.teclado,
+      });
+      const mid = (r?.result as Record<string, unknown>)?.message_id;
+      if (typeof mid === "number" && salida.convId) {
+        await parche(env, "agente_conversaciones", "id=eq." + salida.convId, { panel_msg_id: mid });
+      }
+      await accion(env, "panel", { vista: salida.panel.vista, editado: false, msg_id: typeof mid === "number" ? mid : null });
+    }
+    if (!salida.panelConRespuesta) return;
+  }
   if (!salida.respuesta) return;
   const cuerpo: Record<string, unknown> = { chat_id: chatId, text: salida.respuesta };
   if (salida.botones) cuerpo.reply_markup = TECLADO;
   await tgLlamar(token, "sendMessage", cuerpo);
 }
+/* Aplica un CAMBIO del modo dueño (v2): parches validados por la
+   lógica contra fuente/catálogo/config/faq. Al aplicar, guarda el
+   inverso en la conversación (botón «Deshacer») y deja la acción en
+   la bitácora. Si un parche falla, NO se guarda el inverso. */
+async function aplicarCambio(env: Env, conv: Record<string, unknown>,
+                             cambio: Record<string, unknown>): Promise<boolean> {
+  const ahora = new Date().toISOString();
+  for (const p of (cambio.parches ?? []) as Record<string, unknown>[]) {
+    const obj: Record<string, unknown> = { ...(p.parche as Record<string, unknown>) };
+    if (p.tabla === "agente_fuente" || p.tabla === "agente_catalogo") obj.actualizado_en = ahora;
+    if (p.tabla === "agente_catalogo") obj.actualizado_por = "dueno_bot";
+    if (p.tabla === "agente_config") obj.actualizado = ahora;
+    const ok = await parche(env, String(p.tabla), String(p.filtro), obj);
+    if (!ok) return false;
+  }
+  if (cambio.esDeshacer === true) {
+    await parche(env, "agente_conversaciones", "id=eq." + conv.id, { dueno_ultimo: null });
+    await accion(env, "dueno_deshacer", { etiqueta: cambio.etiqueta, resumen: cambio.resumen });
+  } else {
+    const ultimo = {
+      etiqueta: cambio.etiqueta, resumen: cambio.resumen,
+      parches: ((cambio.parches ?? []) as Record<string, unknown>[]).map((p) =>
+        ({ tabla: p.tabla, filtro: p.filtro, parche: p.deshacer })),
+    };
+    await parche(env, "agente_conversaciones", "id=eq." + conv.id, { dueno_ultimo: ultimo });
+    await accion(env, "dueno_cambio", { etiqueta: cambio.etiqueta, resumen: cambio.resumen });
+  }
+  return true;
+}
+
 async function procesar(env: Env, e: Entrada): Promise<Salida> {
   const datos = await cargarDatos(env);
   const cfg = datos.config;
@@ -244,10 +311,15 @@ async function procesar(env: Env, e: Entrada): Promise<Salida> {
   if (!conv) return { respuesta: null, silencio: true, accion: "error_conv" };
   await parche(env, "agente_conversaciones", "id=eq." + conv.id, { ultimo_en: new Date().toISOString() });
 
-  // DETENER / pausas: comprobado antes de cada respuesta (RG-3)
-  if (cfg.detenido === true ||
-      (e.canal === "web" && cfg.pausa_web === true) ||
-      (e.canal === "telegram" && cfg.pausa_telegram === true)) {
+  // DETENER / pausas: comprobado antes de cada respuesta (RG-3).
+  // v2: el DUEÑO (su cuenta de Telegram registrada) sí pasa cuando el
+  // agente está pausado — si no, no podría reanudarlo desde su chat.
+  const esDuenoTg = e.canal === "telegram" && cfg.dueno_tg_id != null &&
+    String(cfg.dueno_tg_id) === e.externo_id;
+  const pausado = cfg.detenido === true ||
+    (e.canal === "web" && cfg.pausa_web === true) ||
+    (e.canal === "telegram" && cfg.pausa_telegram === true);
+  if (pausado && !esDuenoTg) {
     await accion(env, "detenido", { canal: e.canal });
     return { respuesta: null, silencio: true, accion: "detenido" };
   }
@@ -258,8 +330,12 @@ async function procesar(env: Env, e: Entrada): Promise<Salida> {
     return { respuesta: "Ya te atendí bastante por hoy 🙏 Si necesitas algo más, escríbele directo a Ernesto.", accion: "tope" };
   }
 
-  await retroalimentar(env, conv, e.texto);
-  await guardarMsg(env, String(conv.id), "cliente", e.texto);
+  // Los toques de botón (callbacks) no son mensajes del cliente: no
+  // ensucian el registro ni la señal de retroalimentación (v2).
+  if (!e.deCallback) {
+    await retroalimentar(env, conv, e.texto);
+    await guardarMsg(env, String(conv.id), "cliente", e.texto);
+  }
 
   const flujoPrevio = (conv.flujo ?? {}) as Record<string, unknown>;
   // aclaración pendiente: intenta resolverla antes del matcher
@@ -282,9 +358,37 @@ async function procesar(env: Env, e: Entrada): Promise<Salida> {
 
   // Reconocimiento del dueño (v1.1, F3): SOLO por su cuenta de
   // Telegram registrada en agente_config; jamás por el nombre.
-  const esDueno = e.canal === "telegram" && cfg.dueno_tg_id != null &&
-    String(cfg.dueno_tg_id) === e.externo_id;
-  const dec = orquestar({ ...datos, esDueno } as never, conv as never, e.texto, hoy);
+  let dec = orquestar({ ...datos, esDueno: esDuenoTg, pausado } as never,
+                      conv as never, e.texto, hoy);
+
+  // CAPA CONVERSACIONAL (v2): solo si hay un cerebro configurado y el
+  // determinista no supo (el hierro ya interceptó dentro de
+  // orquestar: dinero/promesas/quejas jamás llegan hasta aquí). El
+  // cerebro ve SOLO la proyección pública y su texto pasa por el
+  // verificador antes de salir; si no pasa, manda el «no sé» de siempre.
+  if (dec.accion === "no_se") {
+    const cerebro = crearCerebro(env);
+    if (cerebro.nombre !== "ninguno-faq-exacta") {
+      const proy = proyeccionPublica(datos as never);
+      const hist = await leerTabla(env, "agente_mensajes",
+        "conversacion_id=eq." + conv.id + "&order=creado_en.desc&limit=4&select=rol,texto");
+      const r = await cerebro.responder({
+        pregunta: e.texto, candidata: null,
+        historial: hist.reverse().map((m) => ({ rol: String(m.rol), texto: String(m.texto) })),
+        proyeccion: proy.texto,
+      });
+      if (r?.texto) {
+        const val = validarRespuestaCerebro(r.texto, proy.valores, datos.prohibidas);
+        if (val.ok) {
+          dec = { ...dec, accion: "cerebro", respuesta: r.texto,
+                  registrar_sin_respuesta: false,
+                  auditoria: { ...(dec.auditoria ?? {}), cerebro: cerebro.nombre } };
+        } else {
+          await accion(env, "cerebro_rechazado", { motivo: val.motivo, cerebro: cerebro.nombre });
+        }
+      }
+    }
+  }
 
   if (dec.accion === "silencio") return { respuesta: null, silencio: true, accion: "silencio" };
 
@@ -292,6 +396,18 @@ async function procesar(env: Env, e: Entrada): Promise<Salida> {
     await parche(env, "agente_conversaciones", "id=eq." + conv.id, { flujo: dec.flujo ?? {} });
   } else if (dec.accion !== "cita_paso") {
     await parche(env, "agente_conversaciones", "id=eq." + conv.id, { flujo: {} });
+  }
+
+  // CAMBIO del modo dueño (v2): la lógica lo validó y trae los
+  // parches; aquí se aplica. Si el guardado falla, la respuesta lo
+  // dice en claro y no queda inverso guardado.
+  if (dec.cambio && esDuenoTg) {
+    const ok = await aplicarCambio(env, conv, dec.cambio as Record<string, unknown>);
+    if (!ok) {
+      dec = { ...dec, cambio: undefined,
+              respuesta: "⚠️ No pude guardar el cambio (falló el servidor). NO quedó aplicado; inténtalo otra vez." };
+      await accion(env, "dueno_cambio_error", { etiqueta: (dec.auditoria as Record<string, unknown>)?.etiqueta ?? "?" });
+    }
   }
 
   if (dec.registrar_sin_respuesta) {
@@ -343,19 +459,58 @@ async function procesar(env: Env, e: Entrada): Promise<Salida> {
     }
   }
 
-  // el cerebro (hoy: ninguno) solo podría redactar sobre la decisión;
-  // devuelve null y la respuesta determinista es la que sale (C7).
-  await cerebroActual.responder({ pregunta: e.texto, candidata: null, historial: [] });
-
-  if (dec.respuesta) {
+  if (dec.respuesta && !e.deCallback) {
     await guardarMsg(env, String(conv.id), "agente", dec.respuesta,
       { ...(dec.auditoria ?? {}), faq: dec.faq_id ?? null, accion: dec.accion });
   }
   if (dec.accion === "bloqueada") {
     await accion(env, "verificador_bloqueo", { detalle: dec.auditoria ?? {} });
   }
+
+  // PANEL ÚNICO (v2): la decisión trae {vista} o {texto, teclado}; se
+  // resuelve aquí, con los datos vivos, y la entrega la EDITA sobre
+  // el mismo mensaje de la conversación.
+  let panel: Salida["panel"] = undefined;
+  const pDec = (dec as Record<string, unknown>).panel as Record<string, unknown> | undefined;
+  const datosPanel = { ...datos, esDueno: esDuenoTg } as never;
+  if (pDec) {
+    if (typeof pDec.texto === "string") {
+      panel = { texto: pDec.texto, teclado: pDec.teclado, vista: String(pDec.vista ?? "flujo") };
+    } else if (typeof pDec.vista === "string") {
+      const pv = panelVista(pDec.vista, datosPanel, conv as never,
+                            { conSaludo: pDec.conSaludo === true });
+      if (pv) panel = { texto: pv.texto, teclado: pv.teclado, vista: pv.vista };
+    }
+  }
+  // los pasos de la cita viven DENTRO del panel si ya hay uno abierto
+  if (!panel && dec.accion === "cita_paso" && dec.respuesta && conv.panel_msg_id) {
+    panel = { texto: "📋 Tu cita — te voy preguntando paso a paso.\n" + dec.respuesta,
+              teclado: { inline_keyboard: [[{ text: "✖️ Cancelar la cita", callback_data: "v2:p:inicio" }]] },
+              vista: "cita" };
+  }
+  let panelConRespuesta = false;
+  if (dec.accion === "cita_completa" && conv.panel_msg_id) {
+    const pv = panelVista("inicio", datosPanel, conv as never);
+    if (pv) {
+      panel = { texto: "✅ Tu solicitud de cita quedó anotada (Ernesto la confirma en persona).\n\n" + pv.texto,
+                teclado: pv.teclado, vista: "inicio" };
+      panelConRespuesta = true; // el recibo también va como mensaje
+    }
+  }
+  // v2: los botones sueltos de la v1.1 se repliegan al panel — una
+  // respuesta «clave» (precio, horario…) abre o enlaza el panel en
+  // vez de colgar el teclado viejo bajo el mensaje.
+  if (!panel && dec.botones === true && e.canal === "telegram") {
+    const pv = panelVista("inicio", datosPanel, conv as never);
+    if (pv) {
+      panel = { texto: pv.texto, teclado: pv.teclado, vista: pv.vista };
+      panelConRespuesta = true; // la respuesta en sí va como mensaje
+    }
+  }
   return { respuesta: dec.respuesta ?? null, opciones: dec.opciones, accion: dec.accion,
-           botones: dec.botones === true };
+           botones: dec.botones === true && !panel, panel, panelConRespuesta,
+           convId: String(conv.id),
+           panelMsgId: typeof conv.panel_msg_id === "number" ? conv.panel_msg_id : null };
 }
 
 /* --- Barrido horario: agrupar + aviso de umbral (máx 1/día) ------------ */
@@ -421,14 +576,20 @@ export async function manejar(req: Request, env: Env = (k) => Deno.env.get(k)): 
     if (token && cq.id) {
       await tgLlamar(token, "answerCallbackQuery", { callback_query_id: cq.id });
     }
-    const texto = CALLBACK_A_COMANDO[String(cq.data ?? "")];
+    const data = String(cq.data ?? "");
+    let texto = CALLBACK_A_COMANDO[data];
+    if (!texto && data.startsWith("v2:p:")) {
+      const v = data.slice(5);
+      texto = v === "citaflow" ? "/cita" : "/panel " + v;
+    }
+    if (!texto && data.startsWith("v2:d:")) texto = "/dueno " + data.slice(5);
     if (texto) {
       if (token) await tgLlamar(token, "sendChatAction", { chat_id: chatId, action: "typing" });
       const salida = await procesar(env, {
         canal: "telegram", externo_id: String(chatId),
-        texto, nombre: cq.from?.first_name,
+        texto, nombre: cq.from?.first_name, deCallback: true,
       });
-      if (token) await enviarTg(token, chatId, salida);
+      if (token) await entregarTg(env, token, chatId, salida);
       else await accion(env, "telegram_sin_token", { chat: chatId });
     }
     return json({ ok: true });
@@ -445,7 +606,7 @@ export async function manejar(req: Request, env: Env = (k) => Deno.env.get(k)): 
         canal: "telegram", externo_id: String(chatId),
         texto, nombre: upd.message.from?.first_name,
       });
-      if (token) await enviarTg(token, chatId, salida);
+      if (token) await entregarTg(env, token, chatId, salida);
       else await accion(env, "telegram_sin_token", { chat: chatId });
     }
     return json({ ok: true });
