@@ -163,7 +163,69 @@ var TextosMotor = (function(){
     });
   }
 
+  /* ===== TEXTO DE PRODUCTO — la plantilla REAL de su Facebook =====
+     Nace de sus publicaciones verificadas (2026-10-21): gancho en
+     mayúsculas con emojis, líneas ✅ de ventajas, 💰 precio con la
+     moneda (baterías: por privado), 📲 su teléfono, 📍 Micro 10,
+     domicilio y cierre. pub = { producto, precio (null = por
+     privado), moneda, garantia, cantidad, detalles, domicilio
+     (bool), telefono, zona }. Sin motor genérico: esta plantilla
+     es SUYA, palabra por palabra, en 3 tamaños como los demás. */
+  function textoRapidoProducto(pub, estilo, quien){
+    var est = estilo || {};
+    var em = est.emojis || "pocos";
+    var E = function(x){ return em === "ninguno" ? "" : x; };
+    var producto = String(pub.producto || "").trim();
+    var avisos = [];
+    if (!producto) avisos.push("Falta el nombre del producto: sin eso no hay anuncio.");
+    if (!pub.telefono) avisos.push("Falta tu teléfono: el texto sale SIN teléfono.");
+    if (!pub.zona) avisos.push("Falta la zona: el texto sale sin zona.");
+    var tienePrecio = pub.precio !== null && pub.precio !== undefined && pub.precio !== "" && isFinite(Number(pub.precio));
+    var precioTxt = tienePrecio ? miles(pub.precio) + " " + (pub.moneda || "CUP") : "";
+    var titulo = "SE VENDE " + producto.toUpperCase();
+    var tituloFmt = est.whatsapp ? "*" + titulo + "*" : titulo;
+    var lineasOk = [];
+    if (pub.garantia) lineasOk.push("Garantía: " + pub.garantia);
+    if (pub.cantidad) lineasOk.push("Disponible: " + pub.cantidad);
+    if (pub.detalles) lineasOk.push(String(pub.detalles));
+    if (pub.domicilio) lineasOk.push("Domicilio incluido en Santiago");
+    var completa = [];
+    completa.push(E("🚨 ") + tituloFmt + E(" 🚨"));
+    completa.push("");
+    lineasOk.forEach(function(l){ completa.push(E("✅ ") + l); });
+    if (tienePrecio) completa.push(E("💰 ") + "Precio: " + (est.whatsapp ? "*" + precioTxt + "*" : precioTxt));
+    else completa.push(E("💬 ") + "Precio por privado: escríbeme y te digo al momento.");
+    if (est.urgencia) completa.push(E("⏰ ") + "¡Corre, que vuelan!");
+    completa.push("");
+    if (pub.telefono) completa.push(E("📲 ") + "Interesados, llamar o escribir al " + pub.telefono);
+    if (pub.zona) completa.push(E("📍 ") + pub.zona);
+    completa.push("¡Aproveche, que se acaban!");
+    var corta = [];
+    var c1 = "En venta " + producto;
+    if (tienePrecio) c1 += ". Precio: " + precioTxt + ".";
+    else c1 += ". Precio por privado.";
+    corta.push(c1);
+    if (lineasOk.length) corta.push(lineasOk.join(". ") + ".");
+    var c3 = "";
+    if (pub.telefono) c3 += "Interesados llamar al " + pub.telefono + ".";
+    if (pub.zona) c3 += (c3 ? " " : "") + pub.zona + ".";
+    if (c3) corta.push(c3);
+    var muy = (em === "ninguno" ? "" : "🔥 ") + tituloFmt + " — "
+      + (tienePrecio ? precioTxt : "precio por privado")
+      + (pub.telefono ? " · " + E("📲 ") + pub.telefono : "")
+      + (pub.zona ? " · " + E("📍 ") + pub.zona : "");
+    var versiones = [
+      { enfoque: "completa", texto: completa.join("\n") },
+      { enfoque: "corta", texto: corta.join("\n") },
+      { enfoque: "muycorta", texto: muy }
+    ];
+    if (est.tamano === "corto") versiones = [versiones[1], versiones[0], versiones[2]];
+    if (est.tamano === "muycorto") versiones = [versiones[2], versiones[1], versiones[0]];
+    return { versiones: versiones, avisos: avisos };
+  }
+
   return { generar: generar, miles: miles, semillaDe: semillaDe,
            historialPush: historialPush,
-           textoRapidoSaldo: textoRapidoSaldo, textoRapidoTransf: textoRapidoTransf };
+           textoRapidoSaldo: textoRapidoSaldo, textoRapidoTransf: textoRapidoTransf,
+           textoRapidoProducto: textoRapidoProducto };
 })();
