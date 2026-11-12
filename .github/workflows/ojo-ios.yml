@@ -48,6 +48,7 @@ jobs:
           if mejor is None:
               raise SystemExit("Sin iPhone simulado disponible en esta imagen")
           ver, runtime, d = mejor
+          open("ojo-ios/udid.txt", "w").write(d["udid"])
           with open("ojo-ios/dispositivo.txt", "w", encoding="utf-8") as f:
               f.write(f"Dispositivo simulado: {d['name']}\n")
               f.write(f"iOS del simulador: {ver[0]}.{ver[1]}\n")
@@ -58,8 +59,9 @@ jobs:
               f.write(f"ios={ver[0]}.{ver[1]}\n")
           print("Elegido:", d["name"], "· iOS", f"{ver[0]}.{ver[1]}")
           PYEOF
-          xcrun simctl boot "${{ steps.sim.outputs.udid }}" || true
-          xcrun simctl bootstatus "${{ steps.sim.outputs.udid }}" -b
+          UDID=$(cat ojo-ios/udid.txt)
+          xcrun simctl boot "$UDID" || true
+          xcrun simctl bootstatus "$UDID" -b
           sw_vers
 
       - name: Abrir cada web en Safari y capturar
