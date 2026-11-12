@@ -20,37 +20,21 @@ OK   MN-6 Textos: «Texto de producto» abre su formulario
 OK   MN-7 Textos: producto → saldo CIERRA el formulario y genera el texto (1165 caracteres) — D1 cazado en vivo
 OK   MN-8 Textos: producto → transferencia también vuelve (formulario cerrado, texto generado)
 === MI TRABAJO v1.5.0 (sitio publicado, red real, cuenta PEUEBA) ===
-APP_VERSION publicado: 1.5.0
-OK   MT-1 la versión publicada ya es la 1.5.0
-MT desbloqueo 1/30 · tabVisible=false · SESION=PEUEBA
-MT desbloqueo 2/30 · tabVisible=false · SESION=PEUEBA
-MT desbloqueo 3/30 · tabVisible=false · SESION=PEUEBA
-MT desbloqueo 4/30 · tabVisible=false · SESION=PEUEBA
-MT desbloqueo 5/30 · tabVisible=false · SESION=PEUEBA
-MT desbloqueo 6/30 · tabVisible=false · SESION=PEUEBA
-MT desbloqueo 7/30 · tabVisible=false · SESION=PEUEBA
-MT desbloqueo 8/30 · tabVisible=false · SESION=PEUEBA
-MT desbloqueo 9/30 · tabVisible=false · SESION=PEUEBA
-MT desbloqueo 10/30 · tabVisible=false · SESION=PEUEBA
-MT desbloqueo 11/30 · tabVisible=false · SESION=PEUEBA
-MT desbloqueo 12/30 · tabVisible=false · SESION=PEUEBA
-MT desbloqueo 13/30 · tabVisible=false · SESION=PEUEBA
-MT desbloqueo 14/30 · tabVisible=false · SESION=PEUEBA
-MT desbloqueo 15/30 · tabVisible=false · SESION=PEUEBA
-MT desbloqueo 16/30 · tabVisible=false · SESION=PEUEBA
-MT desbloqueo 17/30 · tabVisible=false · SESION=PEUEBA
-MT desbloqueo 18/30 · tabVisible=false · SESION=PEUEBA
-MT desbloqueo 19/30 · tabVisible=false · SESION=PEUEBA
-MT desbloqueo 20/30 · tabVisible=false · SESION=PEUEBA
-MT desbloqueo 21/30 · tabVisible=false · SESION=PEUEBA
-MT desbloqueo 22/30 · tabVisible=false · SESION=PEUEBA
-MT desbloqueo 23/30 · tabVisible=false · SESION=PEUEBA
-MT desbloqueo 24/30 · tabVisible=false · SESION=PEUEBA
-MT desbloqueo 25/30 · tabVisible=false · SESION=PEUEBA
-MT desbloqueo 26/30 · tabVisible=false · SESION=PEUEBA
-MT desbloqueo 27/30 · tabVisible=false · SESION=PEUEBA
-MT desbloqueo 28/30 · tabVisible=false · SESION=PEUEBA
-MT desbloqueo 29/30 · tabVisible=false · SESION=PEUEBA
-MT desbloqueo 30/30 · tabVisible=false · SESION=PEUEBA
-FALLO MT-1b la app se desbloqueó con PEUEBA y la barra inferior quedó visible
-VEREDICTO OJO CHAT PRO: PARCIAL — fallos: MT-1b la app se desbloqueó con PEUEBA y la barra inferior quedó visible
+APP_VERSION publicado: 1.5.1
+OK   MT-1 la versión publicada ya es la 1.5.1
+MT desbloqueo 1/30 · tabVisible=true · SESION=PEUEBA
+OK   MT-1b la app se desbloqueó con PEUEBA y la barra inferior quedó visible
+MT t+1s · activeElement=c_txt · valor="escribiendo en vivo" · sel=19 · nodoConectado=true
+MT t+2s · activeElement=c_txt · valor="escribiendo en vivo" · sel=19 · nodoConectado=true
+MT t+3s · activeElement=c_txt · valor="escribiendo en vivo" · sel=19 · nodoConectado=true
+MT t+4s · activeElement=c_txt · valor="escribiendo en vivo" · sel=19 · nodoConectado=true
+MT t+5s · activeElement=c_txt · valor="escribiendo en vivo" · sel=19 · nodoConectado=true
+MT t+6s · activeElement=c_txt · valor="escribiendo en vivo" · sel=19 · nodoConectado=true
+MT t+7s · activeElement=c_txt · valor="escribiendo en vivo" · sel=19 · nodoConectado=true
+MT t+8s · activeElement=c_txt · valor="escribiendo en vivo" · sel=19 · nodoConectado=true
+MT t+9s · activeElement=c_txt · valor="escribiendo en vivo" · sel=19 · nodoConectado=true
+MT t+10s · activeElement=c_txt · valor="escribiendo en vivo" · sel=19 · nodoConectado=true
+OK   MT-2 FOCO VIVO contra el backend real: 10 muestras (10 s, 3+ ciclos) con foco y texto íntegros
+OK   MT-3 la hoja de adjuntos abrió con un toque
+OK   MT-4 la foto elegida abrió el editor a pantalla completa
+VEREDICTO OJO CHAT PRO: VERDE
