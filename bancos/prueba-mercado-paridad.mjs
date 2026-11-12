@@ -38,10 +38,19 @@ ok(plantilla !== null, "existe la plantilla mercado-src/index-sin-script.html");
 ok(ensamblar !== null, "existe mercado-src/ensamblar.py");
 if (fail) { console.log(`\nPARIDAD MERCADO: ${pass} PASS · ${fail} FAIL`); process.exit(1); }
 
-// Extracción del script: un solo bloque <script>…</script> con el cuerpo de la app.
+// Extracción de scripts: desde el TOP 2 (Sentry de la casa) el desplegado
+// lleva DOS bloques: el de la app y el de sentry-casa (íntegro, antes del
+// </body>, desde la plantilla). La paridad los distingue y verifica AMBOS.
 const bloques = [...depHtml.matchAll(/<script>\n([\s\S]*?)\n<\/script>/g)];
-ok(bloques.length === 1, `P-1 el desplegado tiene UN solo bloque de script de la app (dio ${bloques.length})`);
-const scriptDep = bloques.length === 1 ? bloques[0][1] : "";
+ok(bloques.length === 2, `P-1 el desplegado tiene DOS bloques de script (app + sentry-casa) (dio ${bloques.length})`);
+const bloqApp = bloques.find((b) => b[1].includes("mercado_accion_app"));
+const bloqSentry = bloques.find((b) => b[1].includes("SENTRY DE LA CASA"));
+ok(!!bloqApp, "P-1 existe el bloque de la app (contiene mercado_accion_app)");
+ok(!!bloqSentry, "P-1 existe el bloque de sentry-casa (TOP 2)");
+const sentryCasa = leer(path.join(REPO, "shared", "sentry-casa.js"));
+ok(sentryCasa !== null && !!bloqSentry && bloqSentry[1] === sentryCasa, "P-1 el bloque sentry del desplegado == shared/sentry-casa.js íntegro");
+ok(depHtml.includes('window.SENTRY_CASA={app:"mercado",version:"v3"'), "P-1 el desplegado trae la config SENTRY_CASA de mercado@v3");
+const scriptDep = bloqApp ? bloqApp[1] : "";
 ok(scriptDep.split("mercado_accion_app").length - 1 === 3, "P-1 el script desplegado contiene 3× mercado_accion_app (botones por peldaño v3)");
 
 // P-1: paridad script desplegado == fuente, normalizando el sello en ambos.
@@ -52,8 +61,9 @@ ok(normDep === normFuente, "P-1 script desplegado == fuente app.js (sello normal
 ok((fuenteJs.match(/§SELLO§/g) || []).length === 1, "P-1 la fuente tiene exactamente UNA aparición de §SELLO§");
 ok(!/<script/i.test(fuenteJs), "P-1 la fuente app.js no contiene ningún <script");
 
-// P-2: carcasa desplegada == plantilla con la marca donde iba el script.
-const carcasa = bloques.length === 1 ? depHtml.replace(bloques[0][0], "<!--SCRIPT-->") : "";
+// P-2: carcasa desplegada == plantilla con la marca donde iba el script
+// (el bloque sentry vive literal en la plantilla: no se sustituye).
+const carcasa = bloqApp ? depHtml.replace(bloqApp[0], "<!--SCRIPT-->") : "";
 ok(carcasa === plantilla, "P-2 carcasa del desplegado == index-sin-script.html con <!--SCRIPT-->");
 ok((plantilla.match(/<!--SCRIPT-->/g) || []).length === 1, "P-2 la plantilla tiene exactamente UNA marca <!--SCRIPT-->");
 
