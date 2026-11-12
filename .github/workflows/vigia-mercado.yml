@@ -35,5 +35,11 @@ jobs:
             echo "Sin cambios."
           else
             git commit -m "Foto del mercado $(date -u +%Y-%m-%dT%H:%MZ)"
-            git push
+            ok=0
+            for i in 1 2 3 4; do
+              if git pull --rebase origin main && git push origin HEAD:main; then ok=1; break; fi
+              echo "Reintento $i: otro push gano la carrera; rebaseando de nuevo."
+              sleep 6
+            done
+            if [ "$ok" != "1" ]; then echo "No se pudo guardar la foto tras 4 intentos."; exit 1; fi
           fi
