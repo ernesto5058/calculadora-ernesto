@@ -286,6 +286,14 @@ function hora12(hhmm) {
   const h12 = hh % 12 === 0 ? 12 : hh % 12;
   return h12 + ":" + String(mm || 0).padStart(2, "0") + " " + suf;
 }
+/* v2.1: capa de presentación — 1 emoji medido al inicio de cada
+   bloque de dato (solo se antepone; cifras y textos exactos). */
+export const EMOJI_DATO = {
+  precio_corte: "💈", precio_lavadora: "🧺", precio_bateria: "🔋",
+  tarifa_saldo: "📱", horario: "🕘", ubicacion: "📍", domicilio: "🏠",
+  formas_pago: "💵", garantia_lavadora: "✅", contacto: "📲",
+  stock_lavadora: "🧺", stock_bateria: "🔋", identidad: "🤖",
+};
 export function renderDato(datoClave, datos) {
   const cat = datos.catalogo;
   const fue = datos.fuente;
@@ -300,7 +308,7 @@ export function renderDato(datoClave, datos) {
       const a = C("corte"), b = C("corte_transferencia");
       if (!a) return null;
       const fuentes = [a, b].filter(Boolean);
-      let texto = "El corte cuesta " + fmtNum(a.precio) + " " + a.moneda + " en efectivo";
+      let texto = "💈 El corte cuesta " + fmtNum(a.precio) + " " + a.moneda + " en efectivo";
       if (b) texto += " y " + fmtNum(b.precio) + " " + b.moneda + " por transferencia";
       texto += ".";
       return { texto, fuentes };
@@ -309,7 +317,7 @@ export function renderDato(datoClave, datos) {
       const a = C("lavadora_hys");
       if (!a) return null;
       return {
-        texto: "La lavadora HYS de 7 kg cuesta " + fmtNum(a.precio) + " " + a.moneda +
+        texto: "🧺 La lavadora HYS de 7 kg cuesta " + fmtNum(a.precio) + " " + a.moneda +
                ". " + (a.nota ?? ""),
         fuentes: [a],
       };
@@ -317,9 +325,13 @@ export function renderDato(datoClave, datos) {
     case "precio_bateria": {
       const a = C("bateria_lifepo4");
       if (!a) return null;
+      // v2.1: al dueño no se le remite «al dueño» (es él): variante propia.
       return {
-        texto: "La batería LiFePO4 12.8V 100Ah es a precio al privado: eso te lo " +
-               "confirma el dueño del negocio directamente, sin intermediarios.",
+        texto: datos?.esDueno
+          ? "🔋 La batería LiFePO4 12.8V 100Ah es a precio al privado: no sale en " +
+            "la ficha pública; a los clientes les remito contigo."
+          : "🔋 La batería LiFePO4 12.8V 100Ah es a precio al privado: eso te lo " +
+            "confirma el dueño del negocio directamente, sin intermediarios.",
         fuentes: [a],
       };
     }
@@ -328,7 +340,7 @@ export function renderDato(datoClave, datos) {
       if (!t) return null;
       const v = t.valor;
       return {
-        texto: "Sí, Ernesto compra saldo móvil en efectivo: paga al " + fmtNum(v.pago) +
+        texto: "📱 Sí, Ernesto compra saldo móvil en efectivo: paga al " + fmtNum(v.pago) +
                " (1 000 de saldo = " + fmtNum(v.tabla["1000"]) + " CUP; 5 000 = " +
                fmtNum(v.tabla["5000"]) + " CUP) y más de " + fmtNum(v.a_partir_de) +
                " los paga al " + fmtNum(v.pago_mayor) + ". Las recargas las paga a " +
@@ -341,7 +353,7 @@ export function renderDato(datoClave, datos) {
       if (!h) return null;
       const a12 = hora12(h.valor.abre), c12 = hora12(h.valor.cierra);
       return {
-        texto: "La barbería abre " + h.valor.dias + ", de " + a12 +
+        texto: "🕘 La barbería abre " + h.valor.dias + ", de " + a12 +
                " a " + c12 + ".",
         fuentes: [h],
         // las horas en formato 12 h se derivan del dato: son legítimas
@@ -351,12 +363,12 @@ export function renderDato(datoClave, datos) {
     case "ubicacion": {
       const z = F("zona");
       if (!z) return null;
-      return { texto: "Ernesto está en " + z.valor + ".", fuentes: [z] };
+      return { texto: "📍 Ernesto está en " + z.valor + ".", fuentes: [z] };
     }
     case "domicilio": {
       const lav = C("lavadora_hys"), tar = F("tarifa_publica_saldo"), zon = F("zona");
       return {
-        texto: "Sí: la lavadora lleva el domicilio incluido en Santiago y la " +
+        texto: "🏠 Sí: la lavadora lleva el domicilio incluido en Santiago y la " +
                "compra de saldo tiene domicilio gratis. Para la barbería, el " +
                "corte es en el local de Micro 10.",
         fuentes: [lav, tar, zon].filter(Boolean),
@@ -366,7 +378,7 @@ export function renderDato(datoClave, datos) {
       const a = C("corte"), b = C("corte_transferencia");
       if (!a) return null;
       return {
-        texto: "El corte se paga en efectivo (" + fmtNum(a.precio) + " " + a.moneda +
+        texto: "💵 El corte se paga en efectivo (" + fmtNum(a.precio) + " " + a.moneda +
                ") o por transferencia (" + fmtNum(b?.precio) + " " + (b?.moneda ?? "CUP") +
                "). La compra de saldo es solo en efectivo.",
         fuentes: [a, b].filter(Boolean),
@@ -375,20 +387,20 @@ export function renderDato(datoClave, datos) {
     case "garantia_lavadora": {
       const a = C("lavadora_hys");
       if (!a) return null;
-      return { texto: "Sí: " + (a.nota ?? "tiene garantía de 1 año."), fuentes: [a] };
+      return { texto: "✅ Sí: " + (a.nota ?? "tiene garantía de 1 año."), fuentes: [a] };
     }
     case "contacto": {
       const t = F("telefono_publico");
       if (!t) return null;
       return {
-        texto: "Puedes llamar a Ernesto al " + t.valor +
+        texto: "📲 Puedes llamar a Ernesto al " + t.valor +
                " o escribirle por WhatsApp a ese mismo número.",
         fuentes: [t],
       };
     }
     case "identidad": {
       return {
-        texto: "Soy el asistente virtual de Ernesto 🤖 — no soy él. Respondo " +
+        texto: "🤖 Soy el asistente virtual de Ernesto — no soy él. Respondo " +
                "precios, horarios y cómo comprar con los datos de su ficha, y " +
                "lo que no sepa te lo paso a él directamente.",
         fuentes: [],
@@ -398,11 +410,11 @@ export function renderDato(datoClave, datos) {
       const a = C(datoClave === "stock_lavadora" ? "lavadora_hys" : "bateria_lifepo4");
       if (!a) return null;
       const nombre = datoClave === "stock_lavadora" ? "la lavadora HYS 7 kg" : "la batería LiFePO4";
-      const texto = a.estado === "hay"
+      const texto = EMOJI_DATO[datoClave] + " " + (a.estado === "hay"
         ? "Sí, ahora mismo hay " + nombre + " disponible."
         : a.estado === "pocas"
           ? "Quedan pocas unidades de " + nombre + ": confírmalo con Ernesto antes de ir."
-          : "Ahora mismo no hay " + nombre + " en existencia. Cuando reponga, se anuncia por aquí.";
+          : "Ahora mismo no hay " + nombre + " en existencia. Cuando reponga, se anuncia por aquí.");
       return { texto, fuentes: [a] };
     }
     default:
@@ -613,6 +625,11 @@ export function diaLegible(iso) {
 export const FRASE_NO_SE = "Eso no lo sé todavía 🙏 Queda anotado y se lo paso al dueño " +
   "del negocio. Mientras tanto, puedo ayudarte con precios, horario, ubicación o una cita.";
 export const FRASE_ESCALADO = "Eso te lo confirma el dueño del negocio 🙏 Ya le paso tu mensaje.";
+/* v2.1: el no-sé EN LA VISTA DEL DUEÑO — sin «paso al dueño» ni tercera
+   persona sobre sí mismo, y jamás ensucia la cola de clientes. */
+export const FRASE_NO_SE_DUENO = "Eso todavía no lo sé responder, ni siquiera en tu " +
+  "vista de dueño 🙏 Si quieres que lo aprenda, escríbemelo como instrucción o " +
+  "enséñamelo desde ⚙️ Ajustes.";
 
 /* Saludos de la capa de comandos (v1.1): deterministas y sin cifras. */
 export const SALUDO_CLIENTE = "¡Hola! 👋 Soy el asistente virtual del negocio de Ernesto.\n" +
@@ -649,6 +666,38 @@ export function esPreguntaIdentidad(ligero) {
          t.includes(" no un cliente cualquiera ") || t.includes(" sabes quien soy ") ||
          t.includes(" como me reconoces ") || t.includes(" como sabes que soy yo ");
 }
+/* v2.1 — Instrucción del DUEÑO en texto libre: un pedido SOBRE el
+   propio bot o el negocio (cómo responde, formato, emojis, clientes),
+   no una pregunta de cliente. CONSERVADORA: exige arranque de pedido
+   («puedes empezar a…», «quiero que…», «a partir de ahora») más una
+   referencia meta, o autodeclaración de admin/dueño más pedido. Una
+   pregunta normal de FAQ del dueño («¿cuál es el horario?») NO casa. */
+export function esInstruccionDueno(ligero, crudo) {
+  const t = " " + String(ligero ?? "") + " ";
+  const meta = /(emojis?|formato|respuestas?|clientes?|tono|estilo|al responder|tus respuestas|como respondes)/.test(t);
+  const arranque = /(puedes empezar a|puedes comenzar a|empieza a|comienza a|quiero que|necesito que|te pido que|a partir de ahora|desde ahora)/.test(t);
+  if (arranque && meta) return true;
+  const autodecl = /(soy el admin|soy el administrador|soy el dueno|soy tu dueno|soy ernesto)/.test(t);
+  if (autodecl && (arranque || /(puedes|quiero|empieza|comienza|compruebalo)/.test(t))) return true;
+  if (/(^| )(usa|utiliza|agrega|anade|ponle|responde)( |$)/.test(t) && meta &&
+      /(clientes|respuestas|responder)/.test(t)) return true;
+  return false;
+}
+
+/* v2.1 — Pedido de PIN/mapa: verbo de envío + (localización |
+   ubicación | pin | mapa), o pedido explícito de pin/mapa. NO casa
+   la FAQ normal de ubicación («¿dónde estás ubicado?»: sin verbo de
+   envío, sin «pin»/«mapa» y con «ubicado», no «ubicación»). */
+export function esPedidoPin(ligero) {
+  const t = String(ligero ?? "");
+  const envio = /\b(manda|mandame|envia|enviame|pasa|pasame|comparte|comparteme|mandar|enviar|pasar|compartir)\b[^]*\b(localizacion|ubicacion|pin|mapa)\b/.test(t);
+  if (envio) return true;
+  const explicito = /\b(quiero|necesito|dame|pasame|mandame|enviame|muestrame|ensename|ver)\b[^]*\b(pin|mapa)\b/.test(t) ||
+                    /\b(el|tu|su|un) pin\b/.test(t) ||
+                    /\bpin de (la |el )?(ubicacion|local|negocio|barberia)\b/.test(t);
+  return explicito;
+}
+
 export function orquestar(datos, conv, textoCrudo, hoyISO) {
   const crudo = String(textoCrudo ?? "");
   const norm = normalizar(crudo);
@@ -795,6 +844,49 @@ export function orquestar(datos, conv, textoCrudo, hoyISO) {
              respuesta: r?.texto ?? FRASE_NO_SE, auditoria: { identidad: true } };
   }
 
+  // v2.1 — DUEÑO en texto libre (SOLO su cuenta; gated por esDueno,
+  // no afecta a clientes): una instrucción SOBRE el bot no es una
+  // pregunta de cliente — se acusa como instrucción suya y NO entra
+  // en la cola de aprendizaje de clientes.
+  if (datos.esDueno && esInstruccionDueno(ligero, crudo)) {
+    const cita = crudo.trim().replace(/\s+/g, " ").slice(0, 120);
+    return {
+      ...base, accion: "instruccion_dueno", registrar_sin_respuesta: false,
+      escalar: null,
+      respuesta: "Anotado, Ernesto ✅ Lo tomo como instrucción tuya, no como " +
+        "pregunta de cliente: «" + cita + "». Queda registrada como " +
+        "instrucción tuya para revisarla y aplicarla.",
+      auditoria: { instruccion_dueno: true },
+    };
+  }
+
+  // v2.1 — PIN de ubicación: ANTES del matcher y del cerebro. La
+  // respuesta es el render de ubicación de siempre; las coords salen
+  // de la config (negocio_lat/negocio_lng): en Telegram viaja el pin,
+  // en web el enlace al mapa. Sin coords: ubicación normal, sin más.
+  if (esPedidoPin(ligero)) {
+    const r = renderDato("ubicacion", datos);
+    if (r) {
+      const ver = verificarCifras(r.texto, r.fuentes, datos.prohibidas, r.extra ?? []);
+      if (ver.ok) {
+        const lat = Number(datos.config?.negocio_lat), lng = Number(datos.config?.negocio_lng);
+        const hayCoords = datos.config?.negocio_lat != null && datos.config?.negocio_lng != null &&
+                          Number.isFinite(lat) && Number.isFinite(lng);
+        const dec = { ...base, accion: "ubicacion_pin", respuesta: r.texto,
+                      auditoria: { pin: hayCoords } };
+        if (hayCoords) {
+          if (conv?.canal === "web") {
+            dec.respuesta = r.texto + "\n📍 Ver en el mapa: https://www.google.com/maps?q=" +
+                            lat + "," + lng;
+          } else {
+            dec.pin = { lat, lng };
+          }
+        }
+        return dec;
+      }
+    }
+  }
+
   // reglas de hierro (sobre la forma ligera)
   const hierro = detectarHierro(ligero, crudo);
   if (hierro) {
@@ -860,7 +952,9 @@ export function orquestar(datos, conv, textoCrudo, hoyISO) {
     let texto, fuentes = [], extra = [];
     if (f.respuesta_tipo === "dato") {
       const r = renderDato(f.dato_clave, datos);
-      if (!r) return { ...base, accion: "no_se", respuesta: FRASE_NO_SE, registrar_sin_respuesta: true };
+      if (!r) return datos.esDueno
+        ? { ...base, accion: "no_se", respuesta: FRASE_NO_SE_DUENO, registrar_sin_respuesta: false, auditoria: { no_se_dueno: true } }
+        : { ...base, accion: "no_se", respuesta: FRASE_NO_SE, registrar_sin_respuesta: true };
       texto = r.texto; fuentes = r.fuentes; extra = r.extra ?? [];
     } else {
       texto = f.respuesta_texto ?? FRASE_NO_SE;
@@ -904,6 +998,14 @@ export function orquestar(datos, conv, textoCrudo, hoyISO) {
     };
   }
 
+  // v2.1: el no-sé del DUEÑO usa su frase propia y NO se registra
+  // como pregunta de cliente (la acción sigue «no_se»: la puerta
+  // puede componer con el cerebro; la frase de cliente jamás sale).
+  if (datos.esDueno) {
+    return { ...base, accion: "no_se", respuesta: FRASE_NO_SE_DUENO,
+             registrar_sin_respuesta: false,
+             auditoria: { puntaje: nivel.top?.total ?? 0, no_se_dueno: true } };
+  }
   return { ...base, accion: "no_se", respuesta: FRASE_NO_SE, registrar_sin_respuesta: true,
            auditoria: { puntaje: nivel.top?.total ?? 0 } };
 }
@@ -1335,9 +1437,21 @@ export function proyeccionPublica(datos) {
 /* La respuesta del cerebro SOLO sale si: sin hierro, sin promesas y
    cada cifra presente en la proyección pública (o derivada de ella);
    una cifra interna la bloquea siempre. */
+/* v2.1 — Regla anti-falsa-incapacidad: el bot SÍ puede mandar el pin
+   de ubicación, mostrar el panel, tomar citas, responder lo público
+   y pasar notas al dueño. Un texto que NIEGUE una capacidad de esa
+   lista se veta (motivo «niega_capacidad»). «No puedo hacer
+   descuentos» NO casa: su dominio no es una capacidad (eso lo sigue
+   cazando el hierro, como siempre). */
+const RE_NIEGA_CAPACIDAD = /(no tengo acceso|no puedo (enviar|mandar|mostrar)|no cuento con|no me es posible|no tengo la (capacidad|funcion))/;
+const RE_DOMINIO_CAPACIDAD = /\b(ubicacion|localizacion|pin|mapa|cita|panel)\w*/;
 export function validarRespuestaCerebro(texto, fuentesValores, prohibidas) {
   const t = String(texto ?? "").trim();
   if (!t || t.length > 700) return { ok: false, motivo: "largo_o_vacio" };
+  const ligVeto = normalizarLigero(t);
+  if (RE_NIEGA_CAPACIDAD.test(ligVeto) && RE_DOMINIO_CAPACIDAD.test(ligVeto)) {
+    return { ok: false, motivo: "niega_capacidad" };
+  }
   const hierro = detectarHierro(normalizarLigero(t), t);
   if (hierro) return { ok: false, motivo: "hierro_" + hierro.tipo };
   const ver = verificarCifras(t, fuentesValores, prohibidas);
