@@ -49,3 +49,45 @@ Cada entrada lleva: fecha · síntoma · causa raíz · chequeo eterno.
 - **Síntoma:** Las definiciones vivas de las puertas RPC de Mi Negocio existían en Supabase pero su SQL no estaba versionado en ningún repo: no auditable ni recuperable (Inspector Ola 1, F-1/E-5).
 - **Causa raíz:** Las puertas base se crearon fuera del flujo de paquetes SQL versionados del repo.
 - **Chequeo eterno:** Respaldo vivo en `supabase/sql/puertas-minegocio-vivas-2026-11-12.sql` (33 puertas volcadas con `pg_get_functiondef`, 0 faltantes, 0 sobrecargas) + banco `bancos/prueba-puertas-sin-gemelas.mjs`; toda puerta nueva nace con su `.sql` versionado en la misma tanda.
+
+### 7. El tope de sesión del agente era «de por vida» disfrazado de «por hoy» (E1)
+
+- **Fecha:** 2026-11-12
+- **Síntoma:** El conteo de mensajes de la conversación no filtraba por fecha ni eximía al dueño: cualquier cliente (y el propio Ernesto camino de su /admin) quedaba bloqueado para siempre al llegar a 40 mensajes, con un texto que mentía «por hoy».
+- **Causa raíz:** La consulta a `agente_mensajes` traía toda la historia de la conversación sin filtro `creado_en` y la guarda no conocía `esDuenoTg`.
+- **Chequeo eterno:** [CHEQUEOS-ETERNOS.md](CHEQUEOS-ETERNOS.md) fila 28 · `bancos/prueba-agente-puerta.mjs` (E1-1…E1-8, F-2…F-4).
+
+### 8. El tope global diario del agente existía en la config y nadie lo aplicaba (E2)
+
+- **Fecha:** 2026-11-12
+- **Síntoma:** `agente_config.tope_conversaciones_dia` (100) no lo leía la puerta y no había tope global de avisos: un script podía crear sesiones ilimitadas, quemar el cerebro e inundar de avisos al dueño.
+- **Causa raíz:** La puerta solo implementaba el tope por sesión; el contador diario de conversaciones nuevas y el de avisos de escalado/lead nunca se construyeron.
+- **Chequeo eterno:** [CHEQUEOS-ETERNOS.md](CHEQUEOS-ETERNOS.md) fila 28 · `bancos/prueba-agente-puerta.mjs` (E2-1…E2-9, F-5, F-6).
+
+### 9. La puerta del agente era fail-open ante su propia config y su clave web (E5)
+
+- **Fecha:** 2026-11-12
+- **Síntoma:** Si `agente_config` no se podía leer, el agente atendía como si nada (frenos en `{}`), y sin `AGENTE_WEB_KEY` en el entorno la web entraba sin clave alguna.
+- **Causa raíz:** `leerTabla` traga errores y devuelve `[]` (fallo indistinguible de vacío) y la guarda web solo actuaba cuando la clave existía.
+- **Chequeo eterno:** [CHEQUEOS-ETERNOS.md](CHEQUEOS-ETERNOS.md) fila 28 · `bancos/prueba-agente-puerta.mjs` (E5-1…E5-4, F-7…F-9).
+
+### 10. La conversación escalada quedaba muda para siempre (E6)
+
+- **Fecha:** 2026-11-12
+- **Síntoma:** Una vez `escalada=true`, la conversación recibía silencio eterno: ni a las semanas volvía a ser atendida.
+- **Causa raíz:** Nada limpiaba jamás `escalada` en `agente_conversaciones`; no existía caducidad del escalado.
+- **Chequeo eterno:** [CHEQUEOS-ETERNOS.md](CHEQUEOS-ETERNOS.md) fila 28 · `bancos/prueba-agente-puerta.mjs` (E6-1…E6-4, F-10).
+
+### 6. El cerebro confirmaba citas, inventaba stock y soltaba enlaces
+
+- **Fecha:** 2026-11-12
+- **Síntoma:** Las 7 sondas del Inspector pasaron con «ok» en `validarRespuestaCerebro`: cita «CONFIRMADA», baterías «disponibles» inventadas, un enlace de pago falso, lavadora «gratis hasta Holguín mañana», «precio especial» y la negación de anotar citas y del catálogo entero.
+- **Causa raíz:** El validador solo vigilaba cifras y dos regex estrechas (`niega_capacidad`/`promete_accion`): ningún veto por tema.
+- **Chequeo eterno:** [CHEQUEOS-ETERNOS.md](CHEQUEOS-ETERNOS.md) fila 29 · `bancos/prueba-agente-v1.mjs` (E3-1…7 vetadas con su motivo, E3-B1…4 buenas que siguen pasando).
+
+### 7. La aclaración y el saludo se saltaban el verificador de cifras
+
+- **Fecha:** 2026-11-12
+- **Síntoma:** La FAQ de texto «El desriz cuesta 925 CUP…» (925 = cifra interna) quedaba bloqueada por la pregunta directa, pero respondiendo «1» a la aclaración salió el 925 literal; el saludo tampoco verificaba su texto.
+- **Causa raíz:** `resolverAclaracion` devolvía `respuesta_texto` crudo sin pasar `verificarCifras`, y la rama de saludo de `orquestar` hacía lo mismo.
+- **Chequeo eterno:** [CHEQUEOS-ETERNOS.md](CHEQUEOS-ETERNOS.md) fila 29 · `bancos/prueba-agente-v1.mjs` (E4-1…8: las tres rutas envenenadas devuelven el «no sé» del verificador; la cifra fija de origen «ernesto» sigue saliendo).
