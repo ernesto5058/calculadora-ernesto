@@ -1,10 +1,2 @@
-[13:42:43] Instalando piezas (Xvfb, x11vnc, noVNC, cloudflared)...
-[13:43:18] Piezas listas (t+38s)
-[13:43:19] /dev/kvm presente: crw-rw-rw- root kvm
-[13:44:07] AVD creado (t+87s)
-INFO         | Android emulator version 37.2.13.0 (build_id 16740729) (CL:N/A)
-INFO         | Graphics backend: gfxstream
-ERROR        | Unknown AVD name [vivo], use -list-avds to see valid list.
-ERROR        | HOME is defined but there is no file vivo.ini in $HOME/.android/avd
-ERROR        | (Note: Directories are searched in the order $ANDROID_AVD_HOME, $ANDROID_SDK_HOME/avd and $HOME/.android/avd)
-[13:44:17] FALLO: el proceso del emulador murio al nacer
+[13:45:01] Instalando piezas (Xvfb, x11vnc, noVNC, cloudflared)...
+[13:45:19] Piezas listas (t+22s)
