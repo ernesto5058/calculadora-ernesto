@@ -1,11 +1,2 @@
-[13:45:01] Instalando piezas (Xvfb, x11vnc, noVNC, cloudflared)...
-[13:45:19] Piezas listas (t+22s)
-[13:45:21] /dev/kvm presente: crw-rw-rw- root kvm
-[13:47:22] vivo.ini en: /home/runner/.android/avd/vivo.ini
-[13:47:22] ANDROID_AVD_HOME=/home/runner/.android/avd · AVDs segun el emulador: vivo 
-[13:47:22] AVD creado (t+145s)
-INFO         | Android emulator version 37.2.13.0 (build_id 16740729) (CL:N/A)
-INFO         | Graphics backend: gfxstream
-INFO         | Found systemPath /usr/local/lib/android/sdk/system-images/android-34/google_apis/x86_64/
-/usr/local/lib/android/sdk/emulator/qemu/linux-x86_64/qemu-system-x86_64: error while loading shared libraries: libpulse.so.0: cannot open shared object file: No such file or directory
-[13:47:31] FALLO: el proceso del emulador murio al nacer
+[13:48:20] Instalando piezas (Xvfb, x11vnc, noVNC, cloudflared)...
+[13:48:39] Piezas listas (t+21s)
