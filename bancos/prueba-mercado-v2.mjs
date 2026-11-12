@@ -118,9 +118,11 @@ const libroCompraCrudo = [
   { amount: "100", receive: "30015" },                       // 300.15
   { amount: "5", receive: "13000" },                         // trampa 2600: fuera
   { amount: "9", receive: "2745.72", mine: true },           // propia: fuera
+  { amount: "500", receive: "157500", available_amount: "0" }, // tasa 315 pero SIN disponible: no es nivel
 ];
 const escC = A.escalera(libroCompraCrudo, "compra");
-ok(escC.length === 3, "escalera compra: 3 niveles (trampa y propia fuera)");
+ok(escC.length === 3, "escalera compra: 3 niveles (trampa, propia y sin-disponible fuera)");
+ok(!escC.some((n) => n.tasa === 315), "escalera: la oferta con available_amount 0 no crea nivel fantasma (foto viva 2026-11-12)");
 eqNum(escC[0].tasa, 305.08, "escalera compra: primer nivel 305.08 (orden desc)");
 cerca(escC[0].usd, 30.15, 1e-9, "escalera compra: el nivel suma los USD de su tasa");
 cerca(escC[0].acumulado, 30.15, 1e-9, "escalera compra: acumulado del nivel 1");
@@ -168,6 +170,10 @@ ok(!pInm.bloqueado && !pEq.bloqueado && !pPac.bloqueado, "A1 con la foto del est
 }
 
 // Marcas de contraparte: solo campos probados; sin datos -> sin marca
+// (campos REALES verificados por la sonda en vivo: rating_avg / rating_count)
+const mReal = A.marcaDe({ rating_avg: 4.8, rating_count: 132, _count: { p2p_offers: 12 } });
+ok(mReal && mReal.nivel === "verde" && mReal.texto.includes("4,8★") && mReal.texto.includes("132 ops"), "marca verde con los campos reales del payload (rating_avg/rating_count)");
+ok(A.marcaDe({ rating_avg: 4.0, rating_count: 40 }).nivel === "roja", "marca roja con los campos reales (rating_avg 4,0)");
 const mVerde = A.marcaDe({ p2p_average_rating: 4.8, p2p_completed_count: 132 });
 ok(mVerde && mVerde.nivel === "verde" && mVerde.texto.includes("4,8★") && mVerde.texto.includes("132 ops"), "marca verde: 🟢 4,8★ · 132 ops");
 ok(A.marcaDe({ p2p_average_rating: 4.0, p2p_completed_count: 40 }).nivel === "roja", "marca roja: rating 4,0 < 4,3");
@@ -187,7 +193,10 @@ const durasRes = A.detectarDuras({
     { uuid: "d-propia", amount: "40", receive: "12000", mine: true, User: userBueno }, // propia: no
     { uuid: "d-cara", amount: "40", receive: "13600", User: userBueno },       // R=340 > eq−5: no
   ],
-  ventas: [{ uuid: "v-anomala", amount: "10", receive: "4000", User: userBueno }], // R=400 vs ej 305,08
+  ventas: [
+    { uuid: "v-anomala", amount: "10", receive: "4000", User: userBueno }, // R=400 vs ej 305,08
+    { uuid: "v-agotada", amount: "10", receive: "4000", available_amount: "0", User: userBueno }, // sin disponible: no cuenta
+  ],
   eq: EQ, salida: SAL, costo: COS, escCompra: escC,
 });
 ok(durasRes.duras.length === 2, "A4 duras: la buena + la venta anómala (2)");
@@ -227,11 +236,12 @@ ok(A.ladoCruce(305.08, 333) === "bajo" && A.ladoCruce(320, 333) === "sobre" && A
 
 // Sonda: solo NOMBRES de campo y la reputación numérica; jamás valores personales
 const sonda = A.sondaPayload({
-  compras: [{ uuid: "x", amount: "1", receive: "300", details: [], User: { username: "alguien", p2p_average_rating: 4.8, p2p_completed_count: 132 } }],
+  compras: [{ uuid: "x", amount: "1", receive: "300", details: [], User: { username: "alguien", rating_avg: 4.8, rating_count: 132, _count: { p2p_offers: 12 } } }],
   ventas: [],
   propias: [{ _lado: "sell", uuid: "m", amount: "5", receive: "1600", details: [{ telefono: "51231558" }] }],
 });
-ok(sonda.claves_user.includes("p2p_average_rating") && sonda.reputacion_ejemplo.ops === 132, "sonda: claves de User y reputación numérica");
+ok(sonda.claves_user.includes("rating_avg") && sonda.reputacion_ejemplo.ops === 132 && sonda.reputacion_ejemplo.rating === 4.8, "sonda: claves de User y reputación numérica (campos reales)");
+ok(sonda.user_count_forma && sonda.user_count_forma.claves.includes("p2p_offers"), "sonda: la FORMA de _count viaja (claves, jamás valores)");
 ok(sonda.propia.lado === "sell" && sonda.propia.detalles_forma.elemento.claves.includes("telefono"), "sonda: la propia dice su lado y la FORMA de details");
 ok(!JSON.stringify(sonda).includes("51231558") && !JSON.stringify(sonda).includes("alguien"), "sonda: NINGÚN valor personal viaja (ni teléfono ni username)");
 
