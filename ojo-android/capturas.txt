@@ -6,3 +6,4 @@
 06-chat.png|Pestaña Chat: la conversación con Ernesto
 07-textos.png|Pestaña Textos: sus textos listos para copiar o mandar
 08-mi-perfil.png|Pestaña Mi perfil: su cuenta y su enlace personal
+10-chat-adjuntar.png|Extras v1.4.8: el Chat tras intentar adjuntar (el editor de foto no se alcanzó en el emulador)
