@@ -1,2 +1,6 @@
-adb shell input tap 500 1358
-sleep 3
+adb shell input tap 541 1351
+sleep 1
+adb shell input text PEUEBA
+sleep 1
+adb shell input tap 541 1507
+sleep 9
