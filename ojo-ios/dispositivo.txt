@@ -1,0 +1,3 @@
+Dispositivo simulado: iPhone 17 Pro
+iOS del simulador: 26.5
+UDID: FCC5F673-7BEC-4A7D-8F2A-4DC35E2668EC
