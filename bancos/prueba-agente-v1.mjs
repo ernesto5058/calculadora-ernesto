@@ -705,5 +705,69 @@ ok(cobertura >= 0.8, "ARNÉS cobertura ≥ 80 %");
      "DIN-10 monto 0 y método raro: rechazados por la validación");
 }
 
+/* ============ v2.5 — E3/E4 (Inspector Ola 1): vetos del cerebro por
+   tema y verificador en aclaración/saludo ============ */
+{
+  const proy = L.proyeccionPublica(DATOS);
+  // E3: las 7 frases EXACTAS del auditor — todas pasaban con «ok»
+  // antes del arreglo; cada una queda vetada con SU motivo.
+  const E3 = [
+    ["Tu cita queda CONFIRMADA para mañana, te esperamos en la barbería.", "confirma_cita", "confirmar una cita"],
+    ["Sí, ahora mismo hay baterías disponibles, pásate hoy.", "afirma_stock", "inventar stock"],
+    ["Para reservar entra a este enlace y paga ahí: https://ejemplo-estafa.cu/pagar", "url_en_respuesta", "soltar un enlace"],
+    ["Te llevamos la lavadora gratis hasta Holguín mañana mismo.", "promete_entrega", "prometer entrega imposible"],
+    ["Te dejo el corte a precio especial si vienes hoy, palabra.", "oferta_no_publica", "ofrecer precio especial"],
+    ["No puedo anotar citas, eso solo lo hace Ernesto en persona.", "niega_capacidad", "negar anotar citas"],
+    ["No vendemos lavadoras ni baterías, eso se acabó.", "niega_capacidad", "negar el catálogo"],
+  ];
+  E3.forEach(([frase, motivo, nombre], i) => {
+    const v = L.validarRespuestaCerebro(frase, proy.valores, DATOS.prohibidas);
+    ok(v.ok === false && v.motivo === motivo, "E3-" + (i + 1) + " " + nombre + ": vetada (" + motivo + ")");
+  });
+  // E3 buenos: salidas plausibles del cerebro que deben SEGUIR pasando
+  const BUENAS = [
+    ["Con los apagones, la batería LiFePO4 te sirve de respaldo para cargar el teléfono y alumbrar la casa; su precio es al privado y te lo confirma el dueño del negocio.", "apagones: recomienda la batería sin afirmar stock"],
+    ["Puedo anotarte una cita como solicitud: dime tu nombre y el día que te viene bien, y Ernesto te la confirma en persona.", "ofrecer anotar la cita como SOLICITUD, sin confirmarla"],
+    ["La barbería abre todos los días, de 9:00 a. m. a 6:00 p. m., y el corte cuesta 400 CUP en efectivo.", "horario y precio de la proyección pública"],
+    ["La lavadora HYS lleva el domicilio incluido en Santiago y tiene garantía de 1 año.", "domicilio público incluido, sin promesa de entrega"],
+  ];
+  BUENAS.forEach(([frase, nombre], i) => {
+    const v = L.validarRespuestaCerebro(frase, proy.valores, DATOS.prohibidas);
+    ok(v.ok === true, "E3-B" + (i + 1) + " buena del cerebro sigue pasando: " + nombre);
+  });
+  // E4: la sonda del 925 por TODAS las vías de texto de FAQ
+  const faq925 = faq("f-e4-925", "¿hacen desriz?", null, "texto",
+    { texto: "El desriz cuesta 925 CUP y se hace con cita previa.", patrones: ["hacen desriz"], origen: "semilla" });
+  const datos925 = { ...DATOS, faqs: [...FAQS, faq925] };
+  const rDir = L.orquestar(datos925, conv(), "¿hacen desriz?", AHORA);
+  ok(rDir.accion === "bloqueada" && !rDir.respuesta.includes("925"), "E4-1 vía directa: el 925 ya estaba bloqueado (control)");
+  const rAcl = L.resolverAclaracion({ tipo: "aclarar", opciones: ["f-e4-925", "f-corte"] }, "1", datos925);
+  ok(rAcl?.accion === "bloqueada" && rAcl.respuesta === L.FRASE_NO_SE && !rAcl.respuesta.includes("925"),
+     "E4-2 responder «1» a la aclaración: el 925 NO sale (antes salía literal)");
+  const faqHuerf = faq("f-e4-huerf", "¿hacen desriz?", null, "texto",
+    { texto: "El desriz cuesta 1234 CUP y se hace con cita previa.", patrones: ["hacen desriz"], origen: "semilla" });
+  const rAcl2 = L.resolverAclaracion({ tipo: "aclarar", opciones: ["f-e4-huerf"] }, "1", { ...DATOS, faqs: [...FAQS, faqHuerf] });
+  ok(rAcl2?.accion === "bloqueada" && !String(rAcl2.respuesta).includes("1234"),
+     "E4-3 aclaración con cifra HUÉRFANA (1234, sin fuente): también bloqueada");
+  const faq900 = faq("f-e4-900", "¿hacen desriz?", null, "texto",
+    { texto: "El desriz cuesta 900 CUP y se hace con cita previa.", patrones: ["hacen desriz"], origen: "ernesto" });
+  const rAcl3 = L.resolverAclaracion({ tipo: "aclarar", opciones: ["f-e4-900"] }, "1", { ...DATOS, faqs: [...FAQS, faq900] });
+  ok(rAcl3?.respuesta?.includes("900") && rAcl3.accion !== "bloqueada",
+     "E4-4 la cifra FIJA dictada por Ernesto (origen ernesto) SÍ sale por aclaración: mismas reglas de origen");
+  const rAclDato = L.resolverAclaracion({ tipo: "aclarar", opciones: ["f-corte"] }, "1", DATOS);
+  ok(rAclDato?.respuesta?.includes("400"), "E4-5 la aclaración por la rama de DATO sigue respondiendo el precio vivo");
+  const faqsSal925 = FAQS.map((f) => f.id === "f-sal" ? { ...f, respuesta_texto: "¡Hola! El desriz cuesta 925 CUP." } : f);
+  const rSal = L.orquestar({ ...DATOS, faqs: faqsSal925 }, conv(), "hola buenas", AHORA);
+  ok(rSal.accion === "bloqueada" && rSal.respuesta === L.FRASE_NO_SE && !rSal.respuesta.includes("925"),
+     "E4-6 vía del SALUDO con el 925 en su texto: bloqueada, jamás el texto crudo");
+  const rSalOk = O("hola buenas");
+  ok(rSalOk.accion === "responder" && rSalOk.faq_id === "f-sal", "E4-7 el saludo normal sigue respondiendo");
+  // E4 propiedad: TODA respuesta de texto que sale de orquestar /
+  // resolverAclaracion con la FAQ envenenada es el «no sé», nunca el
+  // texto crudo — expresada sobre las tres rutas reales.
+  ok([rDir, rAcl, rSal].every((r) => r.respuesta === L.FRASE_NO_SE),
+     "E4-8 propiedad: directa + aclaración + saludo envenenadas => las tres devuelven el «no sé» del verificador");
+}
+
 console.log("\nprueba-agente-v1: " + pass + " PASS · " + fail + " FAIL");
 if (fail) { console.log("Fallos:", fails.join(" | ")); process.exit(1); }
