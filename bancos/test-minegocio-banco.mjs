@@ -18,7 +18,13 @@ let R = {
 };
 let llamadas = [];
 let ultimosCuerpos = {};
-const datosPublicados = { version: 4, versionApp: "1.3.1", apkUrl: "https://example.invalid/apk", tarifa: { version: 4, ingresoRef360: 1098.68, libroRef: 1069.38, salidaRef: 950, pctSaldo: 25, pctTransf: 20, pisoTransf: 25, bonoSaldoRecargas: 150, bonoSaldoCUP: 300, bonoTransfTratos: 10, bonoTransfCUP: 300 }, buscadores: [ { codigo: "BUSC-1", nombre: "Busc Uno", tratos: [] } ] };
+/* FIXTURE EN FORMA VIVA (Tanda Inspector Nº2 · E-2): réplica de la
+   forma REAL del datos.json publicado el 2026-11-12 — buscadores como
+   OBJETO por clave opaca, claves de bono bonoSaldoMeta/bonoSaldoMonto
+   y bonoTransfMeta/bonoTransfMonto, versionApp 1.5.1. La forma muerta
+   (sin buscadores / claves viejas / 1.3.1) dejó pasar E-2 con el
+   banco en verde: no vuelve. */
+const datosPublicados = { version: 5, versionApp: "1.5.1", apkUrl: "https://example.invalid/apk", actualizado: "2026-11-12", tarifa: { ingresoRef360: 1098.68, libroRef: 1069.38, salidaRef: 950, pctSaldo: 25, pctTransf: 20, pisoTransf: 25, bonoSaldoMeta: 150, bonoSaldoMonto: 300, bonoTransfMeta: 10, bonoTransfMonto: 300 }, buscadores: { "BUSC-1": { nombre: "Busc Uno", tratos: [] }, "BUSC-2": { nombre: "Busc Dos", tratos: [] } }, publico: { telefono: "51231558", zona: "Micro 10, distrito José Martí, Santiago de Cuba", domicilio: "Domicilio gratis en Santiago de Cuba", saldo: { tasa: 2, tasaAlta: 2.2, recarga: 720, desdeAlta: 5000 } } };
 const mercadoJson = { ts: "2026-11-11T02:00:00Z", ETECSA: { average: 304.86, average_buy: 290, average_sell: 320, count: 55 }, BANK_CUP: { average: 1068.44, average_buy: 1050, average_sell: 1090, count: 40 } };
 let hace2min = "", hace1h = "";
 function setupISOs(){
@@ -133,7 +139,9 @@ function crear(extra){
           return R.costoOk ? json({ ok: true }) : rechaza("404");
         case "admin_publicar_tratos": return json({ ok: true });
         case "leer_tarifa":
-          return R.tarifaVivaOk ? json({ ok: true, ingreso_ref360: 1098.68, libro_ref: 1069.38, salida_ref: 950, comision_saldo: 25, comision_transf: 20, piso_transf: 25, actualizado: "2026-11-10 22:00" }) : rechaza("404");
+          if (!R.tarifaVivaOk) return rechaza("404");
+          if (R.tarifaVivaFila) return json(Object.assign({ ok: true }, R.tarifaVivaFila));
+          return json({ ok: true, ingreso_ref360: 1098.68, libro_ref: 1069.38, salida_ref: 950, comision_saldo: 25, comision_transf: 20, piso_transf: 25, actualizado: "2026-11-10 22:00" });
       }
       return rechaza("desconocida " + fn);
     }
@@ -434,7 +442,7 @@ function pestaña(w, nombre){ [...w.document.querySelectorAll(".tab")].forEach(t
 /* ===== 10. SERVICE WORKER: scope y caché propios ===== */
 {
   const sw = fs.readFileSync(REPO + "minegocio/sw.js", "utf8");
-  ok(sw.includes('CACHE = "minegocio-v12"'), "MN-50 SW con caché propio minegocio-v12 (v12 Chat PRO: compositor fuera del repintado, hilo incremental, hoja de adjuntos nueva y Textos con modo real; v11 tanda foto+texto: puerta única sin gemelas y editor WhatsApp; v10 tanda 3 errores; v9 botón «Enviar su enlace» en Equipo; v8 rediseño PRO de toda la app; v7 rediseño Contabilidad, v6 Fase 1, v5 local-first, v4 ronda 2, v3 ronda 1)");
+  ok(sw.includes('CACHE = "minegocio-v13"'), "MN-50 SW con caché propio minegocio-v13 (v13 Tanda Inspector Nº2: tarifa única viva, publicar contra la forma viva, adjuntos sin XSS; v12 Chat PRO: compositor fuera del repintado, hilo incremental, hoja de adjuntos nueva y Textos con modo real; v11 tanda foto+texto: puerta única sin gemelas y editor WhatsApp; v10 tanda 3 errores; v9 botón «Enviar su enlace» en Equipo; v8 rediseño PRO de toda la app; v7 rediseño Contabilidad, v6 Fase 1, v5 local-first, v4 ronda 2, v3 ronda 1)");
   ok(sw.includes("SKIP_WAITING") && sw.includes('addEventListener("message"'), "MN-50b el SW acepta SKIP_WAITING por mensaje (forzar activación desde la app)");
   ok(!sw.includes("mitrabajo"), "MN-51 el SW de Mi Negocio no toca el de Mi Trabajo");
   const mf = JSON.parse(fs.readFileSync(REPO + "minegocio/manifest.webmanifest", "utf8"));
@@ -509,7 +517,7 @@ function pestaña(w, nombre){ [...w.document.querySelectorAll(".tab")].forEach(t
   ok(d.getElementById("bannerVer").style.display === "block" && d.getElementById("bannerVer").textContent.includes("Nueva versión lista"), "R2-2 SW nuevo instalado con controlador → aviso «Nueva versión lista» visible");
   w.__swReg.__controllerchange();
   await sleep(60);
-  ok(("" + w.sessionStorage.getItem("mnRecarga_v12")) === "1", "R2-3 controllerchange marca la recarga única de la v12 (sin bucles)");
+  ok(("" + w.sessionStorage.getItem("mnRecarga_v13")) === "1", "R2-3 controllerchange marca la recarga única de la v13 (sin bucles)");
   const antes = w.__fakeReg.actualizaciones;
   click(d.getElementById("btnAct"));
   await sleep(120);
@@ -606,11 +614,11 @@ function pestaña(w, nombre){ [...w.document.querySelectorAll(".tab")].forEach(t
   ok(chat.querySelectorAll("[data-vplay]").length === 3 && chat.querySelectorAll(".vozOnda i").length === 72, "R2-25 cada reproductor trae su ▶ circular y su onda de 24 picos");
   ok(typeof w.mejorMimeVoz === "function" && typeof w.hashParChat === "function" && typeof w.rtTimbre === "function", "R2-26 existen mejorMimeVoz, hashParChat y rtTimbre");
   ok(w.hashParChat("ADMIN", "BUSC-1") === w.hashParChat("BUSC-1", "ADMIN") && w.hashParChat("ADMIN", "BUSC-1") !== w.hashParChat("ADMIN", "BUSC-2"), "R2-27 el canal del timbre es el mismo para la pareja en ambos sentidos y distinto por pareja");
-  ok(w.selloVersion() === "Mi Negocio · versión 2026-11-12 12:56 · caché v12", "R2-28 sello de versión exacto: «" + w.selloVersion() + "»");
+  ok(w.selloVersion() === "Mi Negocio · versión 2026-11-12 10:55 · caché v13", "R2-28 sello de versión exacto: «" + w.selloVersion() + "»");
   ok(chat.textContent.includes("cada 3 s"), "R2-29 la ayuda del chat dice el refresco nuevo de 3 s (ya no 15 s)");
   pestaña(w, "Inicio");
   await sleep(120);
-  ok(d.getElementById("pgInicio").textContent.includes("Mi Negocio · versión 2026-11-12 12:56 · caché v12"), "R2-30 el sello de versión se ve en Inicio");
+  ok(d.getElementById("pgInicio").textContent.includes("Mi Negocio · versión 2026-11-12 10:55 · caché v13"), "R2-30 el sello de versión se ve en Inicio");
   w.close();
   R.chatMsgs = [];
 }
@@ -772,22 +780,22 @@ function pestaña(w, nombre){ [...w.document.querySelectorAll(".tab")].forEach(t
   const cerca = (a, b) => Math.abs(Number(a) - Number(b)) <= 0.01;
   const hoyISO = new Date().toISOString();
   R.chat = true; R.tarifaVivaOk = true;
-  R.usuarios = [ { codigo: "BRIKU-SEF", nombre: "BRIKU-SEF", activo: true }, { codigo: "ABRAHAM-5ZU", nombre: "ABRAHAM-5ZU", activo: true } ];
+  R.usuarios = [ { codigo: "BUSCA-001", nombre: "BUSCA-001", activo: true }, { codigo: "BUSCA-002", nombre: "BUSCA-002", activo: true } ];
   R.reportes = [
-    { id: "r1", codigo: "BRIKU-SEF", nombre: "BRIKU-SEF", tipo: "saldo", cantidad: 100, precio: 1000, porc: null, telefono: "5", nota: "", estado: "aprobado", comision: 2467, comision_pagada_en: "2026-11-06T10:00:00.000Z", creado: "2026-11-05T10:00:00.000Z" },
-    { id: "r2", codigo: "BRIKU-SEF", nombre: "BRIKU-SEF", tipo: "transferencia", cantidad: 5000, precio: null, porc: 30, telefono: "5", nota: "", estado: "aprobado", comision: 154.88, comision_pagada_en: null, creado: "2026-11-10T10:00:00.000Z" },
-    { id: "r3", codigo: "ABRAHAM-5ZU", nombre: "ABRAHAM-5ZU", tipo: "saldo", cantidad: 50, precio: 900, porc: null, telefono: "5", nota: "", estado: "aprobado", comision: 2483.50, comision_pagada_en: null, creado: "2026-11-10T11:00:00.000Z" },
-    { id: "r4", codigo: "BRIKU-SEF", nombre: "BRIKU-SEF", tipo: "saldo", cantidad: 100, precio: 1000, porc: null, telefono: "5", nota: "", estado: "aprobado", comision: 2467, comision_pagada_en: null, prueba: true, creado: "2026-11-10T12:00:00.000Z" },
-    { id: "r5", codigo: "BRIKU-SEF", nombre: "BRIKU-SEF", tipo: "saldo", cantidad: 10, precio: 1000, porc: null, telefono: "5", nota: "", estado: "pendiente", comision: null, comision_pagada_en: null, creado: "2026-11-10T13:00:00.000Z" },
-    { id: "r6", codigo: "ABRAHAM-5ZU", nombre: "ABRAHAM-5ZU", tipo: "saldo", cantidad: 10, precio: 1000, porc: null, telefono: "5", nota: "", estado: "rechazado", comision: null, comision_pagada_en: null, creado: "2026-11-10T14:00:00.000Z" },
-    { id: "r7", codigo: "BRIKU-SEF", nombre: "BRIKU-SEF", tipo: "saldo", cantidad: 10, precio: 1000, porc: null, telefono: "5", nota: "", estado: "aprobado", comision: 246.70, comision_pagada_en: null, creado: hoyISO }
+    { id: "r1", codigo: "BUSCA-001", nombre: "BUSCA-001", tipo: "saldo", cantidad: 100, precio: 1000, porc: null, telefono: "5", nota: "", estado: "aprobado", comision: 2467, comision_pagada_en: "2026-11-06T10:00:00.000Z", creado: "2026-11-05T10:00:00.000Z" },
+    { id: "r2", codigo: "BUSCA-001", nombre: "BUSCA-001", tipo: "transferencia", cantidad: 5000, precio: null, porc: 30, telefono: "5", nota: "", estado: "aprobado", comision: 154.88, comision_pagada_en: null, creado: "2026-11-10T10:00:00.000Z" },
+    { id: "r3", codigo: "BUSCA-002", nombre: "BUSCA-002", tipo: "saldo", cantidad: 50, precio: 900, porc: null, telefono: "5", nota: "", estado: "aprobado", comision: 2483.50, comision_pagada_en: null, creado: "2026-11-10T11:00:00.000Z" },
+    { id: "r4", codigo: "BUSCA-001", nombre: "BUSCA-001", tipo: "saldo", cantidad: 100, precio: 1000, porc: null, telefono: "5", nota: "", estado: "aprobado", comision: 2467, comision_pagada_en: null, prueba: true, creado: "2026-11-10T12:00:00.000Z" },
+    { id: "r5", codigo: "BUSCA-001", nombre: "BUSCA-001", tipo: "saldo", cantidad: 10, precio: 1000, porc: null, telefono: "5", nota: "", estado: "pendiente", comision: null, comision_pagada_en: null, creado: "2026-11-10T13:00:00.000Z" },
+    { id: "r6", codigo: "BUSCA-002", nombre: "BUSCA-002", tipo: "saldo", cantidad: 10, precio: 1000, porc: null, telefono: "5", nota: "", estado: "rechazado", comision: null, comision_pagada_en: null, creado: "2026-11-10T14:00:00.000Z" },
+    { id: "r7", codigo: "BUSCA-001", nombre: "BUSCA-001", tipo: "saldo", cantidad: 10, precio: 1000, porc: null, telefono: "5", nota: "", estado: "aprobado", comision: 246.70, comision_pagada_en: null, creado: hoyISO }
   ];
   const preConta = { codigo: adminValido, foto: { reportes: [], ayudas: [], usuarios: [], datos: null, cuando: "", publicar: [], borrados: [], tarifaPanel: null, mercado: null }, calc: { saldo: { salida: 950, costo: 1040, tasa: 320, saldo: 3600 }, transf: { efectivo: 5000, porc: 30, libro: 1130, salida: 950 }, busc: { precio: 0, tasaVenta: 0, efectivo: 0, porc: 0, libro: 0, salida: 0 } }, cola: [], sellos: {}, tarifaViva: null, tarifaVivaEn: "", publicarPendiente: null };
   const { w } = crear({ preState: preConta });
   await sleep(350);
   const d = w.document;
   ok(w.PUERTAS.marcarPrueba === "admin_marcar_prueba", "F1-1 la puerta nueva está registrada: PUERTAS.marcarPrueba = admin_marcar_prueba");
-  ok(w.MN_VERSION === "v12", "F1-2 MN_VERSION subió a v12");
+  ok(w.MN_VERSION === "v13", "F1-2 MN_VERSION subió a v13");
   /* Funciones puras con las fórmulas del servidor (tarifa del banco: 1098.68 / 1069.38 / 950) */
   ok(cerca(w.contaGananciaBruta({ tipo: "saldo", precio: 1000, cantidad: 100 }), 9868) && cerca(w.contaNeta({ tipo: "saldo", precio: 1000, cantidad: 100, comision: 2467 }), 7401), "F1-3 saldo r1: bruta 9868 · neta 7401 (comisión GUARDADA, no recalculada)");
   /* NOTA (desviación de la espec, verificada con la fórmula): la
@@ -812,7 +820,7 @@ function pestaña(w, nombre){ [...w.document.querySelectorAll(".tab")].forEach(t
   const mPct = txtConta.match(/([0-9]+\.[0-9]+)\s*%/);
   ok(!!mPct && Math.abs(Number(mPct[1]) - ((8810.09 - 7401) / 7401 * 100)) <= 0.2, "F1-13 comparativa: el % es el calculado desde las dos semanas (±0.2): " + (mPct && mPct[1]));
   /* Bloque 3 · Por pagar agrupado + historial */
-  ok(txtConta.includes("401.58") && txtConta.includes("2483.50"), "F1-14 Por pagar agrupado: BRIKU-SEF 401.58 (2) · ABRAHAM-5ZU 2483.50 (1)");
+  ok(txtConta.includes("401.58") && txtConta.includes("2483.50"), "F1-14 Por pagar agrupado: BUSCA-001 401.58 (2) · BUSCA-002 2483.50 (1)");
   ok(txtConta.includes("Total por pagar") && txtConta.includes("2885.08") && txtConta.includes("(de 3 comisiones)"), "F1-15 Total por pagar: 2885.08 CUP (de 3 comisiones)");
   ok((txtConta.match(/pagada el/g) || []).length === 1 && txtConta.includes("pagada el 2026-11-06") && txtConta.includes("2467.00"), "F1-16 Historial de pagos: 1 entrada (r1, 2467, pagada el 2026-11-06)");
   /* Bloque 2 · Libro y sus filtros (solo de vista) */
@@ -824,9 +832,9 @@ function pestaña(w, nombre){ [...w.document.querySelectorAll(".tab")].forEach(t
   ok(nAsientos() === 1 && d.getElementById("pgContabilidad").textContent.includes("1 tratos"), "F1-19 Libro filtro Hoy → 1 asiento (r7, el de hoy)");
   click(d.querySelector('[data-conta-periodo="todo"]'));
   await sleep(40);
-  click(d.querySelector('[data-conta-buscador="BRIKU-SEF"]'));
+  click(d.querySelector('[data-conta-buscador="BUSCA-001"]'));
   await sleep(40);
-  ok(nAsientos() === 3, "F1-20 Libro filtro buscador BRIKU-SEF (periodo Todo) → 3 asientos (r1, r2, r7)");
+  ok(nAsientos() === 3, "F1-20 Libro filtro buscador BUSCA-001 (periodo Todo) → 3 asientos (r1, r2, r7)");
   click(d.querySelector('[data-conta-buscador=""]'));
   await sleep(40);
   click(d.querySelector('[data-conta-tipo="transferencia"]'));
@@ -865,8 +873,8 @@ function pestaña(w, nombre){ [...w.document.querySelectorAll(".tab")].forEach(t
    Contabilidad lo sigue contando como pendiente. */
 {
   R.noPersistePago = true; // mundo fantasma: el servidor responde ok pero NUNCA guarda el sello
-  R.usuarios = [ { codigo: "BRIKU-SEF", nombre: "BRIKU-SEF", activo: true } ];
-  R.reportes = [ { id: "rp", codigo: "BRIKU-SEF", nombre: "BRIKU-SEF", tipo: "saldo", cantidad: 10, precio: 1000, porc: null, telefono: "5", nota: "", estado: "aprobado", comision: 246.70, comision_pagada_en: null, creado: new Date().toISOString() } ];
+  R.usuarios = [ { codigo: "BUSCA-001", nombre: "BUSCA-001", activo: true } ];
+  R.reportes = [ { id: "rp", codigo: "BUSCA-001", nombre: "BUSCA-001", tipo: "saldo", cantidad: 10, precio: 1000, porc: null, telefono: "5", nota: "", estado: "aprobado", comision: 246.70, comision_pagada_en: null, creado: new Date().toISOString() } ];
   const { w } = crear({ preState: { codigo: adminValido, foto: { reportes: [], ayudas: [], usuarios: [], datos: null, cuando: "", publicar: [], borrados: [], tarifaPanel: null, mercado: null }, cola: [ { tipo: "pagado", id: "rp", cuando: new Date().toISOString() } ], sellos: {}, tarifaViva: null, tarifaVivaEn: "", publicarPendiente: null } });
   await sleep(400);
   const d = w.document;
@@ -886,8 +894,8 @@ function pestaña(w, nombre){ [...w.document.querySelectorAll(".tab")].forEach(t
      servidor: la tarjeta NO dice PAGADO y la Contabilidad lo
      cuenta como pendiente. Es el caso real de la fila de prueba
      que se veía «PAGADO 08:53» con la base en NULL. */
-  R.reportes = [ { id: "rp", codigo: "BRIKU-SEF", nombre: "BRIKU-SEF", tipo: "saldo", cantidad: 10, precio: 1000, porc: null, telefono: "5", nota: "", estado: "aprobado", comision: 246.70, comision_pagada_en: null, creado: new Date().toISOString() } ];
-  const fotoVieja = { reportes: [ { id: "rp", codigo: "BRIKU-SEF", nombre: "BRIKU-SEF", tipo: "saldo", cantidad: 10, precio: 1000, estado: "aprobado", comision: 246.70, comision_pagada_en: "2026-11-10T12:00:00.000Z", creado: "2026-11-10" } ],
+  R.reportes = [ { id: "rp", codigo: "BUSCA-001", nombre: "BUSCA-001", tipo: "saldo", cantidad: 10, precio: 1000, porc: null, telefono: "5", nota: "", estado: "aprobado", comision: 246.70, comision_pagada_en: null, creado: new Date().toISOString() } ];
+  const fotoVieja = { reportes: [ { id: "rp", codigo: "BUSCA-001", nombre: "BUSCA-001", tipo: "saldo", cantidad: 10, precio: 1000, estado: "aprobado", comision: 246.70, comision_pagada_en: "2026-11-10T12:00:00.000Z", creado: "2026-11-10" } ],
     ayudas: [], usuarios: R.usuarios, datos: datosPublicados, cuando: "2026-11-11 01:00", publicar: [], borrados: [], tarifaPanel: null, mercado: null };
   const seg = crear({ preState: { codigo: adminValido, foto: fotoVieja, cola: [], sellos: {}, tarifaViva: null, tarifaVivaEn: "", publicarPendiente: null } });
   await sleep(400);
@@ -921,15 +929,15 @@ function pestaña(w, nombre){ [...w.document.querySelectorAll(".tab")].forEach(t
 {
   const hoyISO21 = new Date().toISOString();
   R.chat = true; R.tarifaVivaOk = true; R.noPersistePago = false;
-  R.usuarios = [ { codigo: "BRIKU-SEF", nombre: "BRIKU-SEF", activo: true }, { codigo: "ABRAHAM-5ZU", nombre: "ABRAHAM-5ZU", activo: true } ];
+  R.usuarios = [ { codigo: "BUSCA-001", nombre: "BUSCA-001", activo: true }, { codigo: "BUSCA-002", nombre: "BUSCA-002", activo: true } ];
   const fixture21 = () => [
-    { id: "r1", codigo: "BRIKU-SEF", nombre: "BRIKU-SEF", tipo: "saldo", cantidad: 100, precio: 1000, porc: null, telefono: "5", nota: "", estado: "aprobado", comision: 2467, comision_pagada_en: "2026-11-06T10:00:00.000Z", creado: "2026-11-05T10:00:00.000Z" },
-    { id: "r2", codigo: "BRIKU-SEF", nombre: "BRIKU-SEF", tipo: "transferencia", cantidad: 5000, precio: null, porc: 30, telefono: "5", nota: "", estado: "aprobado", comision: 154.88, comision_pagada_en: null, creado: "2026-11-10T10:00:00.000Z" },
-    { id: "r3", codigo: "ABRAHAM-5ZU", nombre: "ABRAHAM-5ZU", tipo: "saldo", cantidad: 50, precio: 900, porc: null, telefono: "5", nota: "", estado: "aprobado", comision: 2483.50, comision_pagada_en: null, creado: "2026-11-10T11:00:00.000Z" },
-    { id: "r4", codigo: "BRIKU-SEF", nombre: "BRIKU-SEF", tipo: "saldo", cantidad: 100, precio: 1000, porc: null, telefono: "5", nota: "", estado: "aprobado", comision: 2467, comision_pagada_en: null, prueba: true, creado: "2026-11-10T12:00:00.000Z" },
-    { id: "r5", codigo: "BRIKU-SEF", nombre: "BRIKU-SEF", tipo: "saldo", cantidad: 10, precio: 1000, porc: null, telefono: "5", nota: "", estado: "pendiente", comision: null, comision_pagada_en: null, creado: "2026-11-10T13:00:00.000Z" },
-    { id: "r6", codigo: "ABRAHAM-5ZU", nombre: "ABRAHAM-5ZU", tipo: "saldo", cantidad: 10, precio: 1000, porc: null, telefono: "5", nota: "", estado: "rechazado", comision: null, comision_pagada_en: null, creado: "2026-11-10T14:00:00.000Z" },
-    { id: "r7", codigo: "BRIKU-SEF", nombre: "BRIKU-SEF", tipo: "saldo", cantidad: 10, precio: 1000, porc: null, telefono: "5", nota: "", estado: "aprobado", comision: 246.70, comision_pagada_en: null, creado: hoyISO21 }
+    { id: "r1", codigo: "BUSCA-001", nombre: "BUSCA-001", tipo: "saldo", cantidad: 100, precio: 1000, porc: null, telefono: "5", nota: "", estado: "aprobado", comision: 2467, comision_pagada_en: "2026-11-06T10:00:00.000Z", creado: "2026-11-05T10:00:00.000Z" },
+    { id: "r2", codigo: "BUSCA-001", nombre: "BUSCA-001", tipo: "transferencia", cantidad: 5000, precio: null, porc: 30, telefono: "5", nota: "", estado: "aprobado", comision: 154.88, comision_pagada_en: null, creado: "2026-11-10T10:00:00.000Z" },
+    { id: "r3", codigo: "BUSCA-002", nombre: "BUSCA-002", tipo: "saldo", cantidad: 50, precio: 900, porc: null, telefono: "5", nota: "", estado: "aprobado", comision: 2483.50, comision_pagada_en: null, creado: "2026-11-10T11:00:00.000Z" },
+    { id: "r4", codigo: "BUSCA-001", nombre: "BUSCA-001", tipo: "saldo", cantidad: 100, precio: 1000, porc: null, telefono: "5", nota: "", estado: "aprobado", comision: 2467, comision_pagada_en: null, prueba: true, creado: "2026-11-10T12:00:00.000Z" },
+    { id: "r5", codigo: "BUSCA-001", nombre: "BUSCA-001", tipo: "saldo", cantidad: 10, precio: 1000, porc: null, telefono: "5", nota: "", estado: "pendiente", comision: null, comision_pagada_en: null, creado: "2026-11-10T13:00:00.000Z" },
+    { id: "r6", codigo: "BUSCA-002", nombre: "BUSCA-002", tipo: "saldo", cantidad: 10, precio: 1000, porc: null, telefono: "5", nota: "", estado: "rechazado", comision: null, comision_pagada_en: null, creado: "2026-11-10T14:00:00.000Z" },
+    { id: "r7", codigo: "BUSCA-001", nombre: "BUSCA-001", tipo: "saldo", cantidad: 10, precio: 1000, porc: null, telefono: "5", nota: "", estado: "aprobado", comision: 246.70, comision_pagada_en: null, creado: hoyISO21 }
   ];
   const preConta21 = () => ({ codigo: adminValido, foto: { reportes: [], ayudas: [], usuarios: [], datos: null, cuando: "", publicar: [], borrados: [], tarifaPanel: null, mercado: null }, calc: { saldo: { salida: 950, costo: 1040, tasa: 320, saldo: 3600 }, transf: { efectivo: 5000, porc: 30, libro: 1130, salida: 950 }, busc: { precio: 0, tasaVenta: 0, efectivo: 0, porc: 0, libro: 0, salida: 0 } }, cola: [], sellos: {}, tarifaViva: null, tarifaVivaEn: "", publicarPendiente: null });
   R.reportes = fixture21();
@@ -944,7 +952,7 @@ function pestaña(w, nombre){ [...w.document.querySelectorAll(".tab")].forEach(t
   ok(celdas21.length === 4 && !!heroe21 && heroe21.textContent.trim() === "16211.09", "F2-1 Panel PRO: 4 celdas .cell .v y la héroe dice 16211.09 [" + celdas21.join(" | ") + "]");
   const titulos21 = [...pg.querySelectorAll("h3")].map(e => e.textContent).join(" ");
   ok(!titulos21.includes("📊") && !titulos21.includes("📒") && !titulos21.includes("💸"), "F2-2 los títulos de Contabilidad no contienen 📊 ni 📒 ni 💸");
-  ok(!d.getElementById("contaBusc") && !!pg.querySelector('[data-conta-buscador="BRIKU-SEF"]') && !!pg.querySelector('[data-conta-buscador="ABRAHAM-5ZU"]'), "F2-3 fuera el select #contaBusc: el buscador va en chips (BRIKU-SEF y ABRAHAM-5ZU)");
+  ok(!d.getElementById("contaBusc") && !!pg.querySelector('[data-conta-buscador="BUSCA-001"]') && !!pg.querySelector('[data-conta-buscador="BUSCA-002"]'), "F2-3 fuera el select #contaBusc: el buscador va en chips (BUSCA-001 y BUSCA-002)");
   ok(pg.querySelectorAll(".contaBar").length === 7, "F2-4 hay 7 barras .contaBar (una por día de la semana)");
   const chipOk21 = pg.querySelector(".contaChipT.ok");
   ok(!!chipOk21 && chipOk21.textContent.includes("▲"), "F2-5 chip de tendencia al alza: .contaChipT.ok con ▲");
@@ -971,7 +979,7 @@ function pestaña(w, nombre){ [...w.document.querySelectorAll(".tab")].forEach(t
   ok(celdasCero21.join("|") === "0.00|0.00|0.00|0" && pgCero21.textContent.includes("Sin datos aún"), "F2-7 cero datos: las 4 celdas dicen 0.00|0.00|0.00|0 y el texto incluye «Sin datos aún» [" + celdasCero21.join(" | ") + "]");
   cero21.w.close();
   /* F2-8 · SEMANA A LA BAJA: un solo trato de la semana pasada */
-  R.reportes = [ { id: "r1", codigo: "BRIKU-SEF", nombre: "BRIKU-SEF", tipo: "saldo", cantidad: 100, precio: 1000, porc: null, telefono: "5", nota: "", estado: "aprobado", comision: 2467, comision_pagada_en: "2026-11-06T10:00:00.000Z", creado: "2026-11-05T10:00:00.000Z" } ];
+  R.reportes = [ { id: "r1", codigo: "BUSCA-001", nombre: "BUSCA-001", tipo: "saldo", cantidad: 100, precio: 1000, porc: null, telefono: "5", nota: "", estado: "aprobado", comision: 2467, comision_pagada_en: "2026-11-06T10:00:00.000Z", creado: "2026-11-05T10:00:00.000Z" } ];
   const baja21 = crear({ preState: preConta21() });
   await sleep(350);
   pestaña(baja21.w, "Contabilidad");
@@ -1033,11 +1041,11 @@ function pestaña(w, nombre){ [...w.document.querySelectorAll(".tab")].forEach(t
    genérico. */
 {
   R.usuarios = [
-    { codigo: "BRIKU-SEF", nombre: "Briku", activo: true },
-    { codigo: "ABRAHAM-5ZU", nombre: "Abraham", activo: true }
+    { codigo: "BUSCA-001", nombre: "Briku", activo: true },
+    { codigo: "BUSCA-002", nombre: "Abraham", activo: true }
   ];
   R.chatMsgs = [];
-  const { w } = crear({ preState: { codigo: adminValido, foto: { reportes: [], ayudas: [], usuarios: R.usuarios, datos: datosPublicados, cuando: "", publicar: [], borrados: [], tarifaPanel: null, mercado: null, perfiles: { "BRIKU-SEF": { nombre: "Briku", telefono: "51234567" } } }, cola: [], sellos: {}, tarifaViva: null, tarifaVivaEn: "", publicarPendiente: null } });
+  const { w } = crear({ preState: { codigo: adminValido, foto: { reportes: [], ayudas: [], usuarios: R.usuarios, datos: datosPublicados, cuando: "", publicar: [], borrados: [], tarifaPanel: null, mercado: null, perfiles: { "BUSCA-001": { nombre: "Briku", telefono: "51234567" } } }, cola: [], sellos: {}, tarifaViva: null, tarifaVivaEn: "", publicarPendiente: null } });
   await sleep(300);
   const d = w.document;
   pestaña(w, "Equipo");
@@ -1046,18 +1054,18 @@ function pestaña(w, nombre){ [...w.document.querySelectorAll(".tab")].forEach(t
   ok(btns.length === 2 && btns.every(b => b.textContent.includes("Enviar su enlace")), "E9-1 cada tarjeta de buscador lleva su botón «📤 Enviar su enlace»");
   const abiertas = [];
   w.open = function(u){ abiertas.push(String(u)); };
-  click(d.querySelector('[data-enviar="BRIKU-SEF"]'));
+  click(d.querySelector('[data-enviar="BUSCA-001"]'));
   await sleep(400);
   ok(abiertas.length === 1 && abiertas[0].indexOf("https://wa.me/5351234567?text=") === 0, "E9-2 con teléfono en el perfil, WhatsApp va dirigido a su número (+53 + 8 dígitos)");
   const txtB = abiertas.length ? decodeURIComponent(abiertas[0].split("?text=")[1] || "") : "";
   ok(txtB.includes("https://example.invalid/apk"), "E9-3 el mensaje trae el apkUrl LEÍDO EN VIVO de datos.json (el del stub), no una constante");
-  ok(txtB.includes("BRIKU-SEF"), "E9-4 el mensaje trae el código personal de ESE buscador");
-  ok(txtB.includes("https://ernesto5058.github.io/calculadora-ernesto/buscadores/?codigo=BRIKU-SEF"), "E9-5 el mensaje trae su enlace personal ?codigo= (el que rebota a la app)");
-  click(d.querySelector('[data-enviar="ABRAHAM-5ZU"]'));
+  ok(txtB.includes("BUSCA-001"), "E9-4 el mensaje trae el código personal de ESE buscador");
+  ok(txtB.includes("https://ernesto5058.github.io/calculadora-ernesto/buscadores/?codigo=BUSCA-001"), "E9-5 el mensaje trae su enlace personal ?codigo= (el que rebota a la app)");
+  click(d.querySelector('[data-enviar="BUSCA-002"]'));
   await sleep(400);
   ok(abiertas.length === 2 && abiertas[1].indexOf("https://wa.me?text=") === 0, "E9-6 sin teléfono en el perfil, se abre el compartir genérico de WhatsApp");
   const txtA = abiertas.length > 1 ? decodeURIComponent(abiertas[1].split("?text=")[1] || "") : "";
-  ok(txtA.includes("ABRAHAM-5ZU") && !txtA.includes("BRIKU-SEF"), "E9-7 el mensaje de Abraham trae SU código y no el de Briku");
+  ok(txtA.includes("BUSCA-002") && !txtA.includes("BUSCA-001"), "E9-7 el mensaje de Abraham trae SU código y no el de Briku");
   const mp = w.mensajeEnlaceBuscador({ codigo: "X-1", nombre: "Prueba" }, "https://ejemplo.invalid/otra.apk");
   ok(mp.includes("https://ejemplo.invalid/otra.apk") && mp.includes("X-1") && !mp.includes("example.invalid/apk"), "E9-8 la composición es pura: usa el apkUrl que se le pase en el momento (nada fijo en código)");
   w.close();
@@ -1120,7 +1128,7 @@ function pestaña(w, nombre){ [...w.document.querySelectorAll(".tab")].forEach(t
    para enviarse ni para oírse, la duración sale del temporizador
    y el fallo se ve (⚠) con reintento, no un 🕐 eterno mudo. */
 {
-  R.usuarios = [ { codigo: "BRIKU-SEF", nombre: "Briku", activo: true }, { codigo: "PEUEBA", nombre: "Prueba", activo: true } ];
+  R.usuarios = [ { codigo: "BUSCA-001", nombre: "Briku", activo: true }, { codigo: "PEUEBA", nombre: "Prueba", activo: true } ];
   const { w } = crear({ preState: { codigo: adminValido, foto: { reportes: [], ayudas: [], usuarios: R.usuarios, datos: datosPublicados, cuando: "", publicar: [], borrados: [], tarifaPanel: null, mercado: null }, cola: [], sellos: {}, tarifaViva: null, tarifaVivaEn: "", publicarPendiente: null } });
   await sleep(300);
   const d = w.document;
@@ -1155,12 +1163,12 @@ function pestaña(w, nombre){ [...w.document.querySelectorAll(".tab")].forEach(t
   R.actividad = [
     { accion: "pagar_comision", quien: "ADMIN", creado_en: ahoraA, detalle: { reporte: "83dd3d64-9c59-4720-8220-733ee0ccfd63", buscador: "PEUEBA", comision: 2467 } },
     { accion: "cambiar_tarifa", quien: "ADMIN", creado_en: ahoraA, detalle: { libro: 1069.38, salida: 925, ingreso: 1098.68 } },
-    { accion: "pagar_comision_telegram", quien: "ADMIN", creado_en: ahoraA, detalle: { reporte: "c98e57dc-69f9-400a-a7fc-b5425469d3e2", buscador: "BRIKU-SEF", comision: 246.7, ya_pagado: true } },
+    { accion: "pagar_comision_telegram", quien: "ADMIN", creado_en: ahoraA, detalle: { reporte: "c98e57dc-69f9-400a-a7fc-b5425469d3e2", buscador: "BUSCA-001", comision: 246.7, ya_pagado: true } },
     { accion: "telegram_vinculo_fallido", quien: "telegram", creado_en: ahoraA, detalle: { via: "token" } },
     { accion: "generar_cierre", quien: "ADMIN", creado_en: ahoraA, detalle: { semana_inicio: "2026-11-09" } },
     { accion: "evento_que_no_existe", quien: "ADMIN", creado_en: ahoraA, detalle: { x: 1 } }
   ];
-  R.usuarios = [ { codigo: "BRIKU-SEF", nombre: "Briku", activo: true }, { codigo: "PEUEBA", nombre: "Prueba", activo: true } ];
+  R.usuarios = [ { codigo: "BUSCA-001", nombre: "Briku", activo: true }, { codigo: "PEUEBA", nombre: "Prueba", activo: true } ];
   const { w } = crear({ preState: { codigo: adminValido, foto: { reportes: [], ayudas: [], usuarios: R.usuarios, datos: datosPublicados, cuando: "", publicar: [], borrados: [], tarifaPanel: null, mercado: null }, cola: [], sellos: {}, tarifaViva: null, tarifaVivaEn: "", publicarPendiente: null } });
   await sleep(300);
   const d = w.document;
@@ -1177,10 +1185,10 @@ function pestaña(w, nombre){ [...w.document.querySelectorAll(".tab")].forEach(t
   await sleep(30);
   ok(det0.style.display === "block", "AC-5 «ver detalle» despliega el JSON crudo solo cuando Ernesto lo pide");
   ok(filasA[1].textContent.includes("salida (efectivo) a 925.00 CUP por QUSD") && filasA[1].textContent.includes("libro (transferencia) a 1069.38 CUP por QUSD"), "AC-6 cambiar_tarifa se lee con dimensiones escritas (efectivo ≠ transferencia, cada cifra con su unidad)");
-  ok(filasA[2].textContent.includes("Briku") && filasA[2].textContent.includes("no se pagó dos veces"), "AC-7 el pago repetido desde Telegram se cuenta como lo que es: YA estaba pagado, no se cobró de nuevo (y «BRIKU-SEF» se lee «Briku»)");
+  ok(filasA[2].textContent.includes("Briku") && filasA[2].textContent.includes("no se pagó dos veces"), "AC-7 el pago repetido desde Telegram se cuenta como lo que es: YA estaba pagado, no se cobró de nuevo (y «BUSCA-001» se lee «Briku»)");
   ok(filasA[3].textContent.includes("FALLÓ") && filasA[4].textContent.includes("Generaste el cierre de la semana") && filasA[5].textContent.includes("Evento del sistema"), "AC-8 vínculo fallido, cierre y hasta un tipo desconocido tienen su frase (respaldo humanizado, nunca código crudo)");
   const CATALOGO = ["cambiar_tarifa", "generar_cierre", "pagar_comision", "pagar_comision_telegram", "publicar_tratos", "aprobar_telegram", "rechazar_telegram", "fijar_mensaje", "desfijar_mensaje", "bloquear", "desbloquear", "marcar_prueba", "desmarcar_prueba", "vincular_telegram", "telegram_vinculo_fallido", "analista_accion"];
-  const detGen = { libro: 1, salida: 2, ingreso: 3, semana_inicio: "2026-11-09", reporte: "x", buscador: "BRIKU-SEF", comision: 5, ya_pagado: false, usuarios: 2, conversacion: "BRIKU-SEF", usuario: "BRIKU-SEF", via: "token", ok: true };
+  const detGen = { libro: 1, salida: 2, ingreso: 3, semana_inicio: "2026-11-09", reporte: "x", buscador: "BUSCA-001", comision: 5, ya_pagado: false, usuarios: 2, conversacion: "BUSCA-001", usuario: "BUSCA-001", via: "token", ok: true };
   ok(CATALOGO.every(t => { const f = w.actividadFrase({ accion: t, quien: "ADMIN", detalle: detGen }); return typeof f === "string" && f.length > 10 && !/undefined|null/.test(f); }), "AC-9 los 16 tipos del catálogo real tienen traducción (ninguna frase sale vacía ni con «undefined»)");
   R.actividad = null;
   w.close();
@@ -1226,6 +1234,99 @@ function pestaña(w, nombre){ [...w.document.querySelectorAll(".tab")].forEach(t
   fi.click = clickOrig;
   w.close();
   R.chatMsgs = [];
+}
+
+/* ===== 26. TANDA INSPECTOR Nº2: TARIFA ÚNICA + PUBLICAR VIVO + XSS =====
+   E-1/E-8: sin edición local posterior, tarifa() == fila viva campo a
+   campo (la derivada de fábrica 950/1110 NO pisa la viva 925); con
+   edición posterior de la sección Buscadores, la derivada manda y se
+   NOMBRA. Sin viva ni datos.json: tarifa() = null y «sin tarifa real
+   todavía». E-2/C-1: con la fixture en forma viva (objeto), Publicar
+   y el respaldo no revientan y las claves de bono salen vivas. E-3/
+   C-3: adj_datos con comillas+onerror no ejecuta ni rompe el src. */
+{
+  R.chat = true; R.guardarOk = true; R.tarifaVivaOk = true;
+  R.usuarios = [ { codigo: "BUSC-1", nombre: "Busc Uno", activo: true } ];
+  R.reportes = []; R.ayudas = [];
+  /* La viva REAL del día: salida 925 (la de CalculadoraPRO). La
+     fixture datos.json trae salidaRef 950 y CALC_DEF 950/1110: si la
+     derivada pisara, tarifa() diría 950/1092.65/1110. */
+  R.tarifaVivaFila = { ingreso_ref360: 1098.68, libro_ref: 1069.38, salida_ref: 925, comision_saldo: 25, comision_transf: 20, piso_transf: 25, actualizado: "2026-11-12 09:00" };
+  const { w } = crear({ preState: { codigo: adminValido, foto: { reportes: [], ayudas: [], usuarios: [], datos: null, cuando: "", publicar: [], borrados: [], tarifaPanel: null, mercado: null }, cola: [], sellos: {}, tarifaViva: null, tarifaVivaEn: "", publicarPendiente: null } });
+  await sleep(350);
+  const d = w.document;
+  const tv = w.tarifa();
+  ok(!!tv && tv.salidaRef === 925 && tv.libroRef === 1069.38 && tv.ingresoRef360 === 1098.68 && tv.pctSaldo === 25 && tv.pctTransf === 20 && tv.pisoTransf === 25, "T2-1 E-1: sin edición local, tarifa() == fila viva CAMPO A CAMPO (salida 925, no el 950 de fábrica ni el de datos.json)");
+  ok(tv._fuente === "viva" && d.getElementById("pgInicio").textContent.includes("Tarifa viva de la base"), "T2-2 E-8: Inicio nombra el origen real (tarifa viva de la base) con su hora");
+  /* Edición POSTERIOR de la sección Buscadores → la derivada manda y se nombra */
+  pestaña(w, "Calculadora");
+  await sleep(80);
+  input(d.getElementById("c_b_salida"), "960");
+  await sleep(60);
+  const td = w.tarifa();
+  ok(td._fuente === "derivada" && td.salidaRef === 960 && td.libroRef === 1110 && Math.abs(td.ingresoRef360 - 1104.15) < 0.01, "T2-3 E-1: edición de Buscadores posterior a la viva → derivada (960 / (360÷313)×960 = 1104.15 / libro 1110)");
+  pestaña(w, "Tarifa");
+  await sleep(60);
+  ok(d.getElementById("pgTarifa").textContent.includes("Derivada de tu edición"), "T2-4 E-1: la pantalla de Tarifa NOMBRA la fuente derivada con su hora");
+  /* Una lectura viva MÁS NUEVA que la edición devuelve el mando a la viva */
+  R.tarifaVivaFila = { ingreso_ref360: 1100, libro_ref: 1070, salida_ref: 930, comision_saldo: 25, comision_transf: 20, piso_transf: 25, actualizado: new Date(Date.now() + 3600000).toISOString().replace("T", " ").slice(0, 16) };
+  await w.leerTarifaViva();
+  await sleep(60);
+  const tv2 = w.tarifa();
+  ok(tv2._fuente === "viva" && tv2.salidaRef === 930, "T2-5 E-1: lectura viva posterior a la edición → vuelve a mandar la viva (930)");
+  R.tarifaVivaFila = null;
+  /* C-1: Publicar + Generar con la forma viva NO revientan */
+  pestaña(w, "Tarifa");
+  await sleep(80);
+  let errorPub = null;
+  try { click(d.getElementById("tfPub")); } catch(e){ errorPub = e; }
+  await sleep(300);
+  ok(!errorPub && llamadas.includes("rpc:admin_guardar_tarifa") && llamadas.includes("rpc:admin_publicar_tratos"), "T2-6 C-1/E-2: «Publicar ahora» con buscadores como OBJETO no revienta y sale por las puertas");
+  const base1 = w.construirBase(w.tarifa());
+  ok(!("buscadores" in base1) && !JSON.stringify(base1).includes("BUSC-1"), "T2-7 E-2/E-4: el respaldo de construirBase NO republica buscadores ni códigos (la Tanda Nº1 los sacó del archivo público; la lista interna vive en mapaBuscadores/listaPublicar)");
+  ok(base1.tarifa.bonoSaldoMeta === 150 && base1.tarifa.bonoSaldoMonto === 300 && base1.tarifa.bonoTransfMeta === 10 && base1.tarifa.bonoTransfMonto === 300 && !("bonoSaldoRecargas" in base1.tarifa) && !("bonoSaldoCUP" in base1.tarifa) && !("bonoTransfTratos" in base1.tarifa) && !("bonoTransfCUP" in base1.tarifa), "T2-8 E-2: las claves de bono salen VIVAS (Meta/Monto) y las viejas no se escriben");
+  ok(base1.versionApp === "1.5.1", "T2-9 E-2: el respaldo conserva la versionApp viva (1.5.1)");
+  const lista1 = w.listaPublicar();
+  ok(Array.isArray(lista1) && lista1.some(x => x.codigo === "BUSC-1") && lista1.some(x => x.codigo === "BUSC-2"), "T2-10 E-2: listaPublicar normaliza el objeto a la lista por código que come la puerta");
+  w.close();
+}
+{
+  /* E-8: sin viva ni datos.json → nada de TARIFA_DEF silenciosa */
+  R.tarifaVivaOk = false; R.tarifaVivaFila = null;
+  const { w } = crear({ sinRed: true, preState: { codigo: adminValido, foto: { reportes: [], ayudas: [], usuarios: [], datos: null, cuando: "", publicar: [], borrados: [], tarifaPanel: null, mercado: null, perfiles: {} }, cola: [], sellos: {}, tarifaViva: null, tarifaVivaEn: "", publicarPendiente: null } });
+  await sleep(300);
+  const d = w.document;
+  ok(w.tarifa() === null, "T2-11 E-8: sin fila viva ni datos.json, tarifa() es null (ningún default de fábrica la sustituye)");
+  ok(d.getElementById("pgInicio").textContent.includes("Sin tarifa real todavía"), "T2-12 E-8: Inicio lo dice: «Sin tarifa real todavía»");
+  const sug = w.sugerencia({ tipo: "saldo", precio: 1000, cantidad: 10 });
+  ok(sug.com === 0 && /Sin tarifa real/.test(sug.aviso), "T2-13 E-8: la sugerencia de dinero se BLOQUEA sin tarifa real (comisión 0 con aviso)");
+  w.close();
+  R.tarifaVivaOk = true;
+}
+{
+  /* C-3: XSS por adjunto en Bandeja y en el chat */
+  R.chat = true;
+  R.usuarios = [ { codigo: "BUSC-1", nombre: "Busc Uno", activo: true } ];
+  const ataque = 'x" onerror="window.__xss=1';
+  R.reportes = [ { id: "rx", codigo: "BUSC-1", nombre: "Busc Uno", tipo: "saldo", cantidad: 1, precio: 1000, porc: null, telefono: "5", nota: "", estado: "pendiente", creado: "2026-11-12", adj_datos: ataque } ];
+  R.chatMsgs = [ { id: "mx", de: "BUSC-1", para: "ADMIN", texto: "", creado: hace2min, leido: false, adj_tipo: "foto", adj_datos: ataque } ];
+  const { w } = crear({ preState: { codigo: adminValido, foto: { reportes: [], ayudas: [], usuarios: R.usuarios, datos: datosPublicados, cuando: "", publicar: [], borrados: [], tarifaPanel: null, mercado: null }, cola: [], sellos: {}, tarifaViva: null, tarifaVivaEn: "", publicarPendiente: null } });
+  await sleep(300);
+  const d = w.document;
+  pestaña(w, "Bandeja");
+  await sleep(80);
+  const imgsB = [...d.querySelectorAll("#pgBandeja img")];
+  ok(w.__xss === undefined && !imgsB.some(im => (im.getAttribute("src") || "").includes("onerror")), "T2-14 C-3/E-3: el adjunto hostil en la Bandeja NO se pinta como src ni ejecuta (sin window.__xss, sin onerror en ningún src)");
+  pestaña(w, "Equipo");
+  await sleep(120);
+  click(d.querySelector("[data-chat]"));
+  await sleep(250);
+  const imgsC = [...d.querySelectorAll("#pgChat img.adjFoto")];
+  ok(w.__xss === undefined && !imgsC.some(im => (im.getAttribute("src") || "").includes("onerror")), "T2-15 C-3/E-3: el adjunto hostil en el chat tampoco entra a un src (la foto inválida simplemente no se pinta)");
+  ok(w.srcSeguroAdj("data:image/png;base64,QUJD", "image/png") === "data:image/png;base64,QUJD" && w.srcSeguroAdj("QUJD", "image/png") === "data:image/png;base64,QUJD" && w.srcSeguroAdj('data:text/html;base64,QUJD') === "" && w.srcSeguroAdj(ataque, "image/jpeg") === "", "T2-16 E-3: srcSeguroAdj acepta dataURL/base64 de mime permitido y rechaza text/html y la cadena del ataque");
+  ok(w.esc('a"b') === "a&quot;b", "T2-17 E-3: esc() escapa también las comillas (seguro en atributos)");
+  w.close();
+  R.reportes = []; R.chatMsgs = [];
 }
 
 console.log("\nBANCO MI NEGOCIO: " + pass + " PASS · " + fail + " FAIL");
