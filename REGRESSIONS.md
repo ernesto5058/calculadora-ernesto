@@ -42,3 +42,10 @@ Cada entrada lleva: fecha · síntoma · causa raíz · chequeo eterno.
 - **Síntoma:** La primera venta real por la app fue negada: la baranda exige que `details` de la oferta propia sea un array y el registro de formas se había capturado del libro público, que no trae `details`.
 - **Causa raíz:** La forma real de la vista del dueño nunca se registró.
 - **Chequeo eterno:** banco `bancos/prueba-actuar-v1.mjs` (casos `forma_details` de la fase 2, 52 aserciones) · fila en CHEQUEOS: pendiente de numerar.
+
+### 6. Las puertas base de Mi Negocio no tenían fuente en el repo
+
+- **Fecha:** 2026-11-12
+- **Síntoma:** Las definiciones vivas de las puertas RPC de Mi Negocio existían en Supabase pero su SQL no estaba versionado en ningún repo: no auditable ni recuperable (Inspector Ola 1, F-1/E-5).
+- **Causa raíz:** Las puertas base se crearon fuera del flujo de paquetes SQL versionados del repo.
+- **Chequeo eterno:** Respaldo vivo en `supabase/sql/puertas-minegocio-vivas-2026-11-12.sql` (33 puertas volcadas con `pg_get_functiondef`, 0 faltantes, 0 sobrecargas) + banco `bancos/prueba-puertas-sin-gemelas.mjs`; toda puerta nueva nace con su `.sql` versionado en la misma tanda.
