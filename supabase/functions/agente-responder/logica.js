@@ -286,20 +286,15 @@ function hora12(hhmm) {
   const h12 = hh % 12 === 0 ? 12 : hh % 12;
   return h12 + ":" + String(mm || 0).padStart(2, "0") + " " + suf;
 }
-function horaCorta(iso) {
-  try {
-    return new Intl.DateTimeFormat("es", {
-      timeZone: "America/Havana", hour: "numeric", minute: "2-digit", hour12: true,
-    }).format(new Date(iso));
-  } catch { return ""; }
-}
-
 export function renderDato(datoClave, datos) {
   const cat = datos.catalogo;
   const fue = datos.fuente;
   const F = (clave) => fue.get(clave);
   const C = (clave) => cat.get(clave);
-  const cita = (fuenteRef) => " (dato de la ficha, actualizado " + horaCorta(fuenteRef.actualizado_en) + ")";
+  // v2: la trazabilidad (fuente + hora del dato) vive SOLO en la
+  // auditoría (fuentes/fuentes_detalle de la decisión); el texto al
+  // cliente va LIMPIO, sin notas internas — orden de Ernesto tras ver
+  // «(dato de la ficha, actualizado…)» en su propio chat de prueba.
   switch (datoClave) {
     case "precio_corte": {
       const a = C("corte"), b = C("corte_transferencia");
@@ -307,19 +302,16 @@ export function renderDato(datoClave, datos) {
       const fuentes = [a, b].filter(Boolean);
       let texto = "El corte cuesta " + fmtNum(a.precio) + " " + a.moneda + " en efectivo";
       if (b) texto += " y " + fmtNum(b.precio) + " " + b.moneda + " por transferencia";
-      const c = cita(a);
-      texto += "." + c;
-      // la hora citada se deriva del dato: sus cifras son legítimas
-      return { texto, fuentes, extra: extraerCifras(c) };
+      texto += ".";
+      return { texto, fuentes };
     }
     case "precio_lavadora": {
       const a = C("lavadora_hys");
       if (!a) return null;
-      const c = cita(a);
       return {
         texto: "La lavadora HYS de 7 kg cuesta " + fmtNum(a.precio) + " " + a.moneda +
-               ". " + (a.nota ?? "") + c,
-        fuentes: [a], extra: extraerCifras(c),
+               ". " + (a.nota ?? ""),
+        fuentes: [a],
       };
     }
     case "precio_bateria": {
@@ -335,14 +327,13 @@ export function renderDato(datoClave, datos) {
       const t = F("tarifa_publica_saldo");
       if (!t) return null;
       const v = t.valor;
-      const c = cita(t);
       return {
         texto: "Sí, Ernesto compra saldo móvil en efectivo: paga al " + fmtNum(v.pago) +
                " (1 000 de saldo = " + fmtNum(v.tabla["1000"]) + " CUP; 5 000 = " +
                fmtNum(v.tabla["5000"]) + " CUP) y más de " + fmtNum(v.a_partir_de) +
                " los paga al " + fmtNum(v.pago_mayor) + ". Las recargas las paga a " +
-               fmtNum(v.recarga) + " CUP. El domicilio es gratis." + c,
-        fuentes: [t], extra: extraerCifras(c),
+               fmtNum(v.recarga) + " CUP. El domicilio es gratis.",
+        fuentes: [t],
       };
     }
     case "horario": {
@@ -635,6 +626,8 @@ export const SALUDO_DUENO = "¡Hola, Ernesto! 👋 Te saludo por tu nombre porqu
   "desde tu cuenta de Telegram, la que quedó registrada como la del dueño.\n" +
   "Ojo: esto es la VISTA DE CLIENTE — por aquí no muestro nada interno, ni siquiera a ti. " +
   "A cualquier otra persona la atiendo solo con lo público: precios, horario, ubicación y citas.\n" +
+  "Y con el botón ⚙️ Ajustes de este panel cambias TÚ el horario, el precio del corte " +
+  "y las respuestas, y pausas o reanudas el agente — solo desde tu cuenta.\n" +
   "Pruébame como si fueras un cliente 👇";
 
 /* Capa de comandos: /start jamás puede caer al matcher (v1.1, F1). */
@@ -644,6 +637,7 @@ export function detectarComando(crudo) {
   const c = primero.slice(1).split("@")[0].toLowerCase();
   if (c === "start") return "start";
   if (c === "ayuda" || c === "help") return "ayuda";
+  if (c === "admin" || c === "ajustes" || c === "dueno") return "admin";
   if (c === "precios" || c === "horario" || c === "ubicacion" || c === "cita") return c;
   return null;
 }
@@ -663,10 +657,43 @@ export function orquestar(datos, conv, textoCrudo, hoyISO) {
 
   if (conv?.escalada) return { ...base, accion: "silencio", motivo: "ya_escalada" };
 
+  // ── v2: pausa, panel y modo dueño ────────────────────────────────
+  // Agente pausado: la puerta solo deja pasar al dueño (Telegram);
+  // para él, todo cae al panel de ajustes (la reanudación vive ahí).
+  if (datos.pausado && datos.esDueno &&
+      conv?.flujo?.tipo !== "dueno" && !crudo.startsWith("/dueno") &&
+      detectarComando(crudo) !== "admin") {
+    return { ...base, accion: "dueno", panel: { vista: "dueno" },
+             respuesta: "⏸ El agente está pausado: tus clientes no reciben respuesta.",
+             auditoria: { pausado: true } };
+  }
+  // «/panel <vista>»: navegación del panel único (callbacks de Telegram).
+  if (crudo.startsWith("/panel")) {
+    const vista = crudo.split(/\s+/)[1] ?? "inicio";
+    if (["inicio", "barberia", "saldo", "lavadora", "bateria", "cita", "otra", "dueno"].includes(vista)) {
+      if (vista === "dueno" && !datos.esDueno) {
+        return { ...base, accion: "no_se", respuesta: FRASE_NO_SE };
+      }
+      return { ...base, accion: "panel", panel: { vista }, flujo: null,
+               auditoria: { panel: vista } };
+    }
+  }
+  // «/dueno <acción>»: callbacks del modo dueño; SOLO su cuenta.
+  if (crudo.startsWith("/dueno")) {
+    if (!datos.esDueno) return { ...base, accion: "no_se", respuesta: FRASE_NO_SE };
+    return duenoAccion(datos, conv, crudo.split(/\s+/)[1] ?? "menu", base);
+  }
+
   // CAPA DE COMANDOS (v1.1, F1): determinista, ANTES del matcher y de
   // los flujos. /start jamás puede caer al «no sé».
   const comando = detectarComando(crudo);
   if (comando) {
+    if (comando === "admin") {
+      if (!datos.esDueno) return { ...base, accion: "no_se", respuesta: FRASE_NO_SE };
+      return { ...base, accion: "dueno", comando, panel: { vista: "dueno" }, flujo: null,
+               respuesta: "⚙️ Ajustes del negocio — solo tú ves esto.",
+               auditoria: { comando } };
+    }
     if (comando === "cita") {
       const flujo = inicioCita(null, crudo, hoyISO);
       return {
@@ -677,23 +704,18 @@ export function orquestar(datos, conv, textoCrudo, hoyISO) {
     if (comando === "start" || comando === "ayuda") {
       return {
         ...base, accion: "comando", comando, flujo: null, botones: true,
+        panel: { vista: "inicio", conSaludo: true },
         respuesta: datos.esDueno ? SALUDO_DUENO : SALUDO_CLIENTE,
         auditoria: { comando },
       };
     }
     if (comando === "precios") {
-      const partes = [], fuentes = [], extra = [];
-      for (const dc of ["precio_corte", "precio_lavadora", "tarifa_saldo", "precio_bateria"]) {
-        const r = renderDato(dc, datos);
-        if (r) { partes.push(r.texto); fuentes.push(...r.fuentes); extra.push(...(r.extra ?? [])); }
-      }
-      const texto = partes.join("\n");
-      const ver = verificarCifras(texto, fuentes, datos.prohibidas, extra);
-      if (!texto || !ver.ok) {
-        return { ...base, accion: "no_se", respuesta: FRASE_NO_SE, registrar_sin_respuesta: true };
-      }
-      return { ...base, accion: "comando", comando, flujo: null, botones: true,
-               respuesta: texto, auditoria: { comando } };
+      // v2: NADA de volcado — menú de temas (panel en Telegram, chips
+      // en la web). Cada dato se pide por su tema, corto y limpio.
+      return { ...base, accion: "comando", comando, flujo: { tipo: "menu" },
+               panel: { vista: "inicio" },
+               respuesta: TEXTO_MENU, opciones: OPCIONES_TEMAS,
+               auditoria: { comando } };
     }
     const r = renderDato(comando === "horario" ? "horario" : "ubicacion", datos);
     if (!r) return { ...base, accion: "no_se", respuesta: FRASE_NO_SE, registrar_sin_respuesta: true };
@@ -701,6 +723,12 @@ export function orquestar(datos, conv, textoCrudo, hoyISO) {
     if (!ver.ok) return { ...base, accion: "no_se", respuesta: FRASE_NO_SE, registrar_sin_respuesta: true };
     return { ...base, accion: "comando", comando, flujo: null, botones: true,
              respuesta: r.texto, auditoria: { comando } };
+  }
+
+  // flujo del MODO DUEÑO en curso (solo su cuenta): los pasos de
+  // texto (horas, números, textos dictados) se resuelven aquí.
+  if (datos.esDueno && conv?.flujo?.tipo === "dueno") {
+    return duenoPaso(datos, conv, crudo, base);
   }
 
   // flujo de cita en curso manda sobre el matcher
@@ -715,6 +743,29 @@ export function orquestar(datos, conv, textoCrudo, hoyISO) {
       };
     }
     return { ...base, accion: "cita_paso", flujo: r.flujo, respuesta: r.respuesta };
+  }
+
+  // menú de temas abierto (web / texto libre): un número o el nombre
+  // del tema abre SU sección; cualquier otra cosa sigue el flujo normal
+  // (la puerta limpia el menú si la decisión no lo redefine).
+  if (conv?.flujo?.tipo === "menu") {
+    const vista = vistaDesdeMenu(crudo);
+    if (vista) {
+      if (vista === "cita") {
+        const flujo = inicioCita(null, crudo, hoyISO);
+        return { ...base, accion: "cita_paso", flujo,
+                 respuesta: "¡Claro! Te anoto la solicitud de cita 📋 ¿A nombre de quién la pongo?" };
+      }
+      const s = componerSeccion(vista, datos);
+      if (s) {
+        const ver = verificarCifras(s.texto, s.fuentes, datos.prohibidas, s.extra ?? []);
+        if (ver.ok) {
+          return { ...base, accion: "menu", respuesta: s.texto,
+                   opciones: OPCIONES_TEMAS, flujo: { tipo: "menu" },
+                   panel: { vista }, auditoria: { menu: vista } };
+        }
+      }
+    }
   }
 
   // saludo puro (la normalización deja la forma vacía)
@@ -779,6 +830,13 @@ export function orquestar(datos, conv, textoCrudo, hoyISO) {
     };
   }
 
+  // «precios» a secas (sin producto): menú de temas, no volcado (v2).
+  if (esPreciosGenerico(norm, ligero, datos)) {
+    return { ...base, accion: "menu", flujo: { tipo: "menu" },
+             panel: { vista: "inicio" }, respuesta: TEXTO_MENU,
+             opciones: OPCIONES_TEMAS, auditoria: { menu: "generico" } };
+  }
+
   // matcher multi-señal
   const marcador = puntuarCandidatas(norm, {
     faqs: datos.faqs, sinonimos: datos.sinonimos,
@@ -825,7 +883,10 @@ export function orquestar(datos, conv, textoCrudo, hoyISO) {
                 "horario", "ubicacion", "identidad"].includes(f.dato_clave ?? "") ||
                f.intencion === "capacidades",
       aviso_lead: caliente.caliente,
-      auditoria: { senales: nivel.top.senales, puntaje: nivel.top.total, fuentes: fuentes.map((x) => x.clave ?? x.id ?? "fuente"), verificador: { ok: true } },
+      auditoria: { senales: nivel.top.senales, puntaje: nivel.top.total,
+                   fuentes: fuentes.map((x) => x.clave ?? x.id ?? "fuente"),
+                   fuentes_detalle: fuentes.map((x) => ({ clave: x.clave ?? x.id ?? "fuente", actualizado_en: x.actualizado_en ?? null })),
+                   verificador: { ok: true } },
     };
   }
 
@@ -881,4 +942,408 @@ export function resolverAclaracion(flujo, textoCrudo, datos) {
   }
   if (f.respuesta_tipo === "texto") return { faq_id: f.id, respuesta: f.respuesta_texto };
   return null;
+}
+
+/* =====================================================================
+   v2 — PANEL ÚNICO · MENÚ DE TEMAS · MODO DUEÑO · CEREBRO (validación)
+   Orden de Ernesto (2026-11-12): nada de volcados «súper regados» —
+   UN mensaje-panel que se edita a sí mismo, temas cortos y limpios;
+   el dueño cambia horario/precio/respuestas y pausa/reanuda DESDE su
+   chat con flujos estructurados y confirmación; y la capa
+   conversacional (si un día hay cerebro) redacta SOLO sobre la
+   proyección pública y pasa por el mismo verificador de cifras.
+   ===================================================================== */
+export const TEMAS = [
+  { vista: "barberia", etiqueta: "💈 Barbería" },
+  { vista: "saldo", etiqueta: "📱 Saldo" },
+  { vista: "lavadora", etiqueta: "🧺 Lavadora" },
+  { vista: "bateria", etiqueta: "🔋 Batería" },
+  { vista: "cita", etiqueta: "📋 Pedir cita" },
+  { vista: "otra", etiqueta: "💬 Otra cosa" },
+];
+export const TEXTO_MENU = "¿De qué quieres los precios? Toca un tema 👇";
+export const OPCIONES_TEMAS = TEMAS.map((t) => ({ faq_id: "tema:" + t.vista, etiqueta: t.etiqueta }));
+
+const FILA_NAV = [
+  { text: "⬅️ Atrás", callback_data: "v2:p:inicio" },
+  { text: "🏠 Inicio", callback_data: "v2:p:inicio" },
+];
+function tecladoTemas(datos) {
+  const filas = [];
+  for (let i = 0; i < TEMAS.length; i += 2) {
+    filas.push(TEMAS.slice(i, i + 2).map((t) => ({ text: t.etiqueta, callback_data: "v2:p:" + t.vista })));
+  }
+  if (datos?.esDueno) filas.push([{ text: "⚙️ Ajustes", callback_data: "v2:d:menu" }]);
+  return filas;
+}
+
+/* El texto de UNA sección, con sus fuentes (limpio, sin notas). */
+export function componerSeccion(vista, datos) {
+  const partes = [], fuentes = [], extra = [];
+  const add = (dc) => {
+    const r = renderDato(dc, datos);
+    if (r) { partes.push(r.texto); fuentes.push(...r.fuentes); extra.push(...(r.extra ?? [])); }
+  };
+  switch (vista) {
+    case "barberia": add("precio_corte"); add("horario"); break;
+    case "saldo": add("tarifa_saldo"); break;
+    case "lavadora": add("precio_lavadora"); add("stock_lavadora"); break;
+    case "bateria": add("precio_bateria"); add("stock_bateria"); break;
+    case "cita":
+      return { texto: "📋 Cita de barbería: te la anoto como SOLICITUD y Ernesto la confirma en persona. Toca «Empezar» y te voy preguntando aquí mismo, en este mismo mensaje.", fuentes, extra };
+    case "otra":
+      return { texto: "💬 Cuéntame qué necesitas por escrito: precios, horario, ubicación o una cita te los respondo al momento. Cualquier otra cosa se la paso al dueño del negocio.", fuentes, extra };
+    default: return null;
+  }
+  if (!partes.length) return null;
+  return { texto: partes.join("\n"), fuentes, extra };
+}
+
+/* La vista del panel único: texto + teclado inline. La puerta la
+   EDITA sobre el mismo mensaje (editMessageText); null = no sale. */
+export function panelVista(vista, datos, conv = {}, opts = {}) {
+  if (vista === "dueno") {
+    if (!datos?.esDueno) return null;
+    return { vista, texto: textoPanelDueno(datos, conv),
+             teclado: { inline_keyboard: tecladoDueno(datos, conv) } };
+  }
+  if (vista === "inicio") {
+    const texto = opts.conSaludo
+      ? (datos?.esDueno ? SALUDO_DUENO : SALUDO_CLIENTE)
+      : "¿Qué quieres ver? Toca un tema 👇";
+    return { vista, texto, teclado: { inline_keyboard: tecladoTemas(datos) } };
+  }
+  const s = componerSeccion(vista, datos);
+  if (!s) return null;
+  const ver = verificarCifras(s.texto, s.fuentes, datos.prohibidas, s.extra ?? []);
+  if (!ver.ok) return null;
+  const filas = [];
+  if (vista === "cita") filas.push([{ text: "📋 Empezar la cita", callback_data: "v2:p:citaflow" }]);
+  else filas.push([{ text: "📋 Pedir cita", callback_data: "v2:p:cita" }]);
+  filas.push(FILA_NAV);
+  return { vista, texto: s.texto, teclado: { inline_keyboard: filas } };
+}
+
+/* El tema elegido en el menú (número de chip web o nombre). */
+export function vistaDesdeMenu(crudo) {
+  const t = String(crudo ?? "").trim();
+  if (/^[1-6]$/.test(t)) return TEMAS[Number(t) - 1].vista;
+  const lig = normalizarLigero(t);
+  for (const tema of TEMAS) if (lig.includes(tema.vista)) return tema.vista;
+  if (lig.includes("corte") || lig.includes("pelado")) return "barberia";
+  return null;
+}
+
+/* «precios» sin producto = pregunta genérica: menú, no volcado. */
+export function esPreciosGenerico(norm, ligero, datos) {
+  const toks = tokensDe(norm);
+  if (!toks.length || toks.length > 3) return false;
+  if (detectarProductos(norm, datos.sinonimos).length) return false;
+  const ints = new Set([...detectarIntenciones(norm, datos.sinonimos),
+                        ...detectarIntencionesLigero(ligero)]);
+  if (!ints.has("precio")) return false;
+  return toks.every((t) => ["precio", "precios", "cuesta", "vale", "valor", "lista"].includes(t) ||
+    destinoDeToken(t, datos.sinonimos, "intencion")?.destino === "precio");
+}
+
+/* --- Modo dueño: panel de ajustes y flujos estructurados ------------- */
+const TECLADO_CANCELAR = { inline_keyboard: [[{ text: "✖️ Cancelar", callback_data: "v2:d:x" }]] };
+const TECLADO_CONFIRMAR = { inline_keyboard: [
+  [{ text: "✅ Aplicar el cambio", callback_data: "v2:d:ok" }],
+  [{ text: "✖️ Cancelar", callback_data: "v2:d:x" }],
+]};
+function panelFlujo(texto, teclado) { return { texto, teclado }; }
+function estadoAgente(datos) {
+  return (datos.pausado || datos.config?.detenido)
+    ? "⏸ PAUSADO — los clientes no reciben respuesta"
+    : "▶️ Activo, respondiendo a los clientes";
+}
+function textoPanelDueno(datos, conv) {
+  let t = "⚙️ Ajustes del negocio — solo tú ves esto.\nEstado: " + estadoAgente(datos) + ".";
+  const u = conv?.dueno_ultimo;
+  if (u?.resumen) t += "\nÚltimo cambio: " + u.resumen + " (puedes deshacerlo).";
+  return t + "\nToca una opción 👇";
+}
+function tecladoDueno(datos, conv) {
+  const filas = [
+    [{ text: "🕘 Cambiar horario", callback_data: "v2:d:horario" },
+     { text: "💈 Precio del corte", callback_data: "v2:d:corte" }],
+    [{ text: "📝 Editar una respuesta", callback_data: "v2:d:faq" }],
+    [(datos.pausado || datos.config?.detenido)
+      ? { text: "▶️ Reanudar el agente", callback_data: "v2:d:reanudar" }
+      : { text: "⏸ Pausar el agente", callback_data: "v2:d:pausar" }],
+  ];
+  if (conv?.dueno_ultimo) {
+    filas.push([{ text: "↩️ Deshacer último cambio", callback_data: "v2:d:deshacer" }]);
+  }
+  filas.push([{ text: "🏠 Vista de cliente", callback_data: "v2:p:inicio" }]);
+  return filas;
+}
+function faqsTexto(datos) {
+  return (datos.faqs ?? []).filter((f) => f.estado === "activa" && f.respuesta_tipo === "texto");
+}
+function confirmarDueno(base, datosCambio, resumen) {
+  return { ...base, accion: "dueno",
+    flujo: { tipo: "dueno", paso: "confirmar", datos: datosCambio },
+    panel: panelFlujo(resumen + "\n\n¿Lo aplico?", TECLADO_CONFIRMAR),
+    respuesta: resumen, auditoria: { dueno: "confirmar" } };
+}
+
+/* Acciones del panel del dueño (callbacks «/dueno <acción>»). */
+export function duenoAccion(datos, conv, accion, base) {
+  switch (accion) {
+    case "menu":
+      return { ...base, accion: "dueno", panel: { vista: "dueno" }, flujo: null,
+               respuesta: "⚙️ Ajustes del negocio — solo tú ves esto.",
+               auditoria: { dueno: "menu" } };
+    case "horario": {
+      const h = datos.fuente.get("horario_barberia")?.valor ?? {};
+      const txt = "🕘 Nuevo horario (ahora: " + hora12(h.abre) + " – " + hora12(h.cierra) +
+                  ", " + (h.dias ?? "") + ").\n¿A qué hora ABRE? Escríbelo así: 9:00";
+      return { ...base, accion: "dueno",
+        flujo: { tipo: "dueno", paso: "horario_abre", datos: {} },
+        panel: panelFlujo(txt, TECLADO_CANCELAR), respuesta: txt,
+        auditoria: { dueno: "horario" } };
+    }
+    case "corte": {
+      const a = datos.catalogo.get("corte"), b = datos.catalogo.get("corte_transferencia");
+      const txt = "💈 Precio del corte (ahora: " + fmtNum(a?.precio) + " CUP en efectivo y " +
+                  fmtNum(b?.precio) + " por transferencia).\n¿Nuevo precio en EFECTIVO? Escribe solo el número.";
+      return { ...base, accion: "dueno",
+        flujo: { tipo: "dueno", paso: "corte_efectivo", datos: {} },
+        panel: panelFlujo(txt, TECLADO_CANCELAR), respuesta: txt,
+        auditoria: { dueno: "corte" } };
+    }
+    case "faq": {
+      const lista = faqsTexto(datos);
+      if (!lista.length) {
+        return { ...base, accion: "dueno", panel: { vista: "dueno" },
+                 respuesta: "Ahora mismo no hay respuestas de texto editables.",
+                 auditoria: { dueno: "faq" } };
+      }
+      const txt = "📝 Respuestas que puedes editar:\n" +
+        lista.map((f, i) => (i + 1) + ") " + f.pregunta).join("\n") +
+        "\nRespóndeme con el NÚMERO de la que quieres cambiar.";
+      return { ...base, accion: "dueno",
+        flujo: { tipo: "dueno", paso: "faq_num", datos: { ids: lista.map((f) => f.id) } },
+        panel: panelFlujo(txt, TECLADO_CANCELAR), respuesta: txt,
+        auditoria: { dueno: "faq" } };
+    }
+    case "pausar":
+      return confirmarDueno(base, { accion: "pausar" },
+        "⏸ Pausar el agente: los clientes dejan de recibir respuesta (Telegram y web) hasta que lo reanudes desde aquí.");
+    case "reanudar":
+      return confirmarDueno(base, { accion: "reanudar" },
+        "▶️ Reanudar el agente: vuelve a responder a los clientes al momento.");
+    case "ok":
+      return duenoConfirmar(datos, conv, base);
+    case "x":
+      return { ...base, accion: "dueno", flujo: null, panel: { vista: "dueno" },
+               respuesta: "✖️ Cancelado: no toqué nada.", auditoria: { dueno: "cancelar" } };
+    case "deshacer": {
+      const u = conv?.dueno_ultimo;
+      if (!u?.parches?.length) {
+        return { ...base, accion: "dueno", panel: { vista: "dueno" },
+                 respuesta: "No hay ningún cambio reciente que deshacer.",
+                 auditoria: { dueno: "deshacer_vacio" } };
+      }
+      return { ...base, accion: "dueno", flujo: null, panel: { vista: "dueno" },
+        cambio: { etiqueta: "deshacer", resumen: "Deshecho: " + (u.resumen ?? "último cambio"),
+                  parches: u.parches, esDeshacer: true },
+        respuesta: "↩️ Deshecho: " + (u.resumen ?? "el último cambio") + ". Quedó como estaba.",
+        auditoria: { dueno: "deshacer" } };
+    }
+    default:
+      return { ...base, accion: "dueno", panel: { vista: "dueno" }, flujo: null,
+               respuesta: "⚙️ Ajustes del negocio — solo tú ves esto.",
+               auditoria: { dueno: "menu" } };
+  }
+}
+
+/* Confirmación (✅): construye el CAMBIO validado; la puerta lo aplica
+   contra la base y guarda el inverso para «Deshacer». */
+export function duenoConfirmar(datos, conv, base) {
+  const f = conv?.flujo;
+  const sinPendiente = { ...base, accion: "dueno", panel: { vista: "dueno" },
+    respuesta: "No hay ningún cambio esperando confirmación.", auditoria: { dueno: "ok_vacio" } };
+  if (f?.tipo !== "dueno" || f.paso !== "confirmar") return sinPendiente;
+  const d = f.datos ?? {};
+  const hecho = (cambio, resumen) => ({ ...base, accion: "dueno", flujo: null,
+    panel: { vista: "dueno" }, cambio, respuesta: "✅ " + resumen,
+    auditoria: { dueno: "aplicar", etiqueta: cambio.etiqueta } });
+  if (d.accion === "horario") {
+    const antes = datos.fuente.get("horario_barberia")?.valor ?? {};
+    const nuevo = { abre: d.abre, cierra: d.cierra, dias: d.dias };
+    return hecho({ etiqueta: "horario",
+      resumen: "Horario: " + hora12(antes.abre) + "–" + hora12(antes.cierra) + " → " +
+               hora12(nuevo.abre) + "–" + hora12(nuevo.cierra) + " (" + nuevo.dias + ")",
+      parches: [{ tabla: "agente_fuente", filtro: "clave=eq.horario_barberia",
+                  parche: { valor: nuevo }, deshacer: { valor: antes } }] },
+      "Horario actualizado: abre " + hora12(nuevo.abre) + ", cierra " + hora12(nuevo.cierra) + ", " + nuevo.dias + ".");
+  }
+  if (d.accion === "corte") {
+    const a = datos.catalogo.get("corte"), b = datos.catalogo.get("corte_transferencia");
+    const parches = [{ tabla: "agente_catalogo", filtro: "clave=eq.corte",
+      parche: { precio: d.efectivo }, deshacer: { precio: a?.precio ?? null } }];
+    if (b) parches.push({ tabla: "agente_catalogo", filtro: "clave=eq.corte_transferencia",
+      parche: { precio: d.transferencia }, deshacer: { precio: b?.precio ?? null } });
+    return hecho({ etiqueta: "precio_corte",
+      resumen: "Precio del corte: " + fmtNum(a?.precio) + "/" + fmtNum(b?.precio) + " → " +
+               fmtNum(d.efectivo) + "/" + fmtNum(d.transferencia) + " CUP",
+      parches },
+      "Precio del corte actualizado: " + fmtNum(d.efectivo) + " CUP en efectivo y " + fmtNum(d.transferencia) + " por transferencia.");
+  }
+  if (d.accion === "faq") {
+    const faq = (datos.faqs ?? []).find((x) => x.id === d.faqId);
+    return hecho({ etiqueta: "faq",
+      resumen: "Respuesta de «" + (faq?.pregunta ?? "FAQ") + "» editada",
+      parches: [{ tabla: "agente_faq", filtro: "id=eq." + d.faqId,
+                  parche: { respuesta_texto: d.texto },
+                  deshacer: { respuesta_texto: faq?.respuesta_texto ?? null } }] },
+      "Respuesta actualizada: «" + (faq?.pregunta ?? "") + "» ya dice el texto nuevo.");
+  }
+  if (d.accion === "pausar") {
+    return hecho({ etiqueta: "pausa", resumen: "Agente pausado",
+      parches: [{ tabla: "agente_config", filtro: "id=eq.1",
+                  parche: { detenido: true }, deshacer: { detenido: false } }] },
+      "Agente PAUSADO ⏸ Los clientes no reciben respuesta hasta que lo reanudes.");
+  }
+  if (d.accion === "reanudar") {
+    return hecho({ etiqueta: "reanudar", resumen: "Agente reanudado",
+      parches: [{ tabla: "agente_config", filtro: "id=eq.1",
+                  parche: { detenido: false, pausa_telegram: false, pausa_web: false },
+                  deshacer: { detenido: true } }] },
+      "Agente ACTIVO ▶️ Ya responde a los clientes otra vez.");
+  }
+  return sinPendiente;
+}
+
+/* Pasos de TEXTO del modo dueño (horas, números, textos dictados). */
+function horaValida(txt) {
+  const m = String(txt ?? "").trim().match(/^(\d{1,2}):(\d{2})$/);
+  if (!m) return null;
+  const hh = Number(m[1]), mm = Number(m[2]);
+  if (hh > 23 || mm > 59) return null;
+  return String(hh).padStart(2, "0") + ":" + m[2];
+}
+function numeroDe(txt) {
+  const c = extraerCifras(txt)[0];
+  if (c === undefined) return null;
+  const n = Number(c);
+  return Number.isFinite(n) && n > 0 && n <= 1000000 ? n : null;
+}
+export function duenoPaso(datos, conv, crudo, base) {
+  const f = conv?.flujo ?? {};
+  const d = { ...(f.datos ?? {}) };
+  const seguir = (paso, datosFlujo, texto) => ({ ...base, accion: "dueno",
+    flujo: { tipo: "dueno", paso, datos: datosFlujo },
+    panel: panelFlujo(texto, TECLADO_CANCELAR), respuesta: texto,
+    auditoria: { dueno: paso } });
+  switch (f.paso) {
+    case "horario_abre": {
+      const h = horaValida(crudo);
+      if (!h) return seguir("horario_abre", d, "No te entendí la hora 😅 Escríbela así: 9:00 (hora:minutos).");
+      d.abre = h;
+      return seguir("horario_cierra", d, "Abre a las " + hora12(h) + ". ¿A qué hora CIERRA?");
+    }
+    case "horario_cierra": {
+      const h = horaValida(crudo);
+      if (!h) return seguir("horario_cierra", d, "No te entendí la hora 😅 Escríbela así: 18:00.");
+      d.cierra = h;
+      const actual = datos.fuente.get("horario_barberia")?.valor?.dias ?? "todos los días";
+      return seguir("horario_dias", d, "Cierra a las " + hora12(h) + ". ¿Los días? Escribe por ejemplo «todos los días» o «de lunes a sábado» — o escribe «igual» para dejar «" + actual + "».");
+    }
+    case "horario_dias": {
+      const actual = datos.fuente.get("horario_barberia")?.valor ?? {};
+      d.dias = normalizarLigero(crudo) === "igual" ? (actual.dias ?? "todos los días")
+                                                    : String(crudo ?? "").trim().slice(0, 80);
+      if (!d.dias) return seguir("horario_dias", d, "Escribe los días o «igual».");
+      return confirmarDueno(base, { accion: "horario", ...d },
+        "🕘 Nuevo horario:\nAbre " + hora12(d.abre) + " · cierra " + hora12(d.cierra) + " · " + d.dias +
+        "\n(Ahora es: abre " + hora12(actual.abre) + " · cierra " + hora12(actual.cierra) + " · " + (actual.dias ?? "") + ")");
+    }
+    case "corte_efectivo": {
+      const n = numeroDe(crudo);
+      if (n === null) return seguir("corte_efectivo", d, "Escribe solo el número del precio en efectivo (ejemplo: 450).");
+      d.efectivo = n;
+      const b = datos.catalogo.get("corte_transferencia");
+      return seguir("corte_transferencia", d, "Efectivo: " + fmtNum(n) + " CUP. ¿Y por transferencia? (ahora " + fmtNum(b?.precio) + " CUP; escribe el número o «igual»)");
+    }
+    case "corte_transferencia": {
+      const b = datos.catalogo.get("corte_transferencia");
+      const n = normalizarLigero(crudo) === "igual" ? Number(b?.precio) : numeroDe(crudo);
+      if (n === null || !Number.isFinite(n)) return seguir("corte_transferencia", d, "Escribe el número o «igual».");
+      d.transferencia = n;
+      const a = datos.catalogo.get("corte");
+      return confirmarDueno(base, { accion: "corte", ...d },
+        "💈 Nuevo precio del corte:\nEfectivo " + fmtNum(d.efectivo) + " CUP · transferencia " + fmtNum(n) + " CUP" +
+        "\n(Ahora es: " + fmtNum(a?.precio) + " / " + fmtNum(b?.precio) + " CUP)");
+    }
+    case "faq_num": {
+      const n = Number(String(crudo ?? "").trim());
+      const ids = d.ids ?? [];
+      if (!Number.isInteger(n) || n < 1 || n > ids.length) {
+        return seguir("faq_num", d, "Respóndeme con el número de la lista (1–" + ids.length + ").");
+      }
+      const faq = (datos.faqs ?? []).find((x) => x.id === ids[n - 1]);
+      if (!faq) return seguir("faq_num", d, "Esa ya no está; abre ⚙️ Ajustes otra vez.");
+      d.faqId = faq.id;
+      return seguir("faq_texto", d, "✏️ Escribe el texto NUEVO para «" + faq.pregunta + "\".\nEl de ahora dice: «" + String(faq.respuesta_texto ?? "").slice(0, 200) + "»");
+    }
+    case "faq_texto": {
+      const texto = String(crudo ?? "").trim().slice(0, 800);
+      if (texto.length < 3) return seguir("faq_texto", d, "El texto quedó muy corto; escríbelo completo.");
+      // Sus cifras propias son su fuente; las INTERNAS bloquean igual.
+      const ver = verificarCifras(texto, [], datos.prohibidas, extraerCifras(texto));
+      if (!ver.ok) {
+        return seguir("faq_texto", d, "⚠️ Ese texto trae una cifra INTERNA del negocio y eso jamás puede salir a un cliente. Quítala y mándalo otra vez.");
+      }
+      d.texto = texto;
+      const faq = (datos.faqs ?? []).find((x) => x.id === d.faqId);
+      return confirmarDueno(base, { accion: "faq", ...d },
+        "📝 Nueva respuesta para «" + (faq?.pregunta ?? "") + "»:\n«" + texto + "»");
+    }
+    case "confirmar":
+      return confirmarDueno(base, d, "Este es el cambio pendiente. Toca ✅ Aplicar o ✖️ Cancelar.");
+    default:
+      return { ...base, accion: "dueno", flujo: null, panel: { vista: "dueno" },
+               respuesta: "⚙️ Ajustes del negocio — solo tú ves esto.",
+               auditoria: { dueno: "menu" } };
+  }
+}
+
+/* --- Capa conversacional: proyección pública y validación ------------ */
+export const CLAVES_PROYECCION = ["precio_corte", "precio_lavadora", "precio_bateria",
+  "tarifa_saldo", "horario", "ubicacion", "domicilio", "formas_pago",
+  "garantia_lavadora", "contacto", "identidad"];
+/* Lo ÚNICO que un cerebro puede ver: los textos públicos ya rendidos
+   y las respuestas de texto aprobadas. Ni tarifa viva ni internos. */
+export function proyeccionPublica(datos) {
+  const textos = [], valores = [];
+  for (const dc of CLAVES_PROYECCION) {
+    const r = renderDato(dc, datos);
+    if (r) { textos.push(r.texto); valores.push(r.texto, ...r.fuentes); }
+  }
+  for (const f of datos.faqs ?? []) {
+    if (f.estado === "activa" && f.respuesta_tipo === "texto" && f.respuesta_texto) {
+      textos.push("P: " + f.pregunta + "\nR: " + f.respuesta_texto);
+      valores.push(f.respuesta_texto);
+    }
+  }
+  return { texto: textos.join("\n"), valores };
+}
+/* La respuesta del cerebro SOLO sale si: sin hierro, sin promesas y
+   cada cifra presente en la proyección pública (o derivada de ella);
+   una cifra interna la bloquea siempre. */
+export function validarRespuestaCerebro(texto, fuentesValores, prohibidas) {
+  const t = String(texto ?? "").trim();
+  if (!t || t.length > 700) return { ok: false, motivo: "largo_o_vacio" };
+  const hierro = detectarHierro(normalizarLigero(t), t);
+  if (hierro) return { ok: false, motivo: "hierro_" + hierro.tipo };
+  const ver = verificarCifras(t, fuentesValores, prohibidas);
+  if (!ver.ok) {
+    return { ok: false, motivo: ver.interna ? "cifra_interna" : "cifra_sin_fuente",
+             huerfanas: ver.huerfanas };
+  }
+  return { ok: true };
 }
