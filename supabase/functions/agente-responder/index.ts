@@ -57,6 +57,7 @@ import {
   debeDegradarPorTopeDiario,
   decisionPorConfig,
   escaladoCaducado,
+  respuestaNoTextoTelegram,
   inicioDiaHabanaISO,
   inicioVentana24h,
   sesionBloqueada,
@@ -160,6 +161,7 @@ interface Datos {
   citasPendientes: Record<string, unknown>[];
   citasConfirmadas: Record<string, unknown>[];
   citasCerradas: Record<string, unknown>[];
+  pendientesSinRespuesta: Record<string, unknown>[];
 }
 async function cargarDatos(env: Env): Promise<Datos> {
   // v2.4: la semana del resumen de dinero se acota aquí (lunes a hoy,
@@ -167,7 +169,7 @@ async function cargarDatos(env: Env): Promise<Datos> {
   // ventana — el resumen jamás lee totales guardados.
   const hoyH = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Havana" }).format(new Date());
   const lunesH = lunesDeSemana(hoyH);
-  const [cfgLectura, cat, fue, faqs, pats, sin, tar, citas, citasConf, citasCer] = await Promise.all([
+  const [cfgLectura, cat, fue, faqs, pats, sin, tar, citas, citasConf, citasCer, pendSR] = await Promise.all([
     leerConfig(env),
     leerTabla(env, "agente_catalogo", "activo=eq.true&select=*"),
     leerTabla(env, "agente_fuente", "select=*"),
@@ -186,6 +188,10 @@ async function cargarDatos(env: Env): Promise<Datos> {
     // v2.4: cerradas de ESTA semana pa el resumen de dinero en vivo.
     leerTabla(env, "agente_citas",
       "asistencia=not.is.null&dia=gte." + lunesH + "&order=dia.asc,hora.asc&limit=200&select=id,nombre,servicio,dia,hora,asistencia,pago_monto,pago_metodo,cerrada_en"),
+    // F2: la cola de «sin respuesta» (grupos cabeza, sin resolver)
+    // alimenta el botón ❓ Enseñar del panel del dueño.
+    leerTabla(env, "agente_pendientes",
+      "grupo_de=is.null&estado=in.(nueva,agrupada,presentada)&order=veces.desc,ultima_en.desc&limit=10&select=id,pregunta,veces,estado"),
   ]);
   const porFaq = new Map<string, string[]>();
   for (const p of pats) {
@@ -209,6 +215,7 @@ async function cargarDatos(env: Env): Promise<Datos> {
     citasPendientes: citas,
     citasConfirmadas: citasConf,
     citasCerradas: citasCer,
+    pendientesSinRespuesta: pendSR,
   };
 }
 
@@ -589,9 +596,14 @@ async function procesar(env: Env, e: Entrada): Promise<Salida> {
     const cerebro = crearCerebro(env);
     if (!pinListo && cerebro.nombre !== "ninguno-faq-exacta") {
       const proy = proyeccionPublica(datos as never);
+      // E9 (Tanda Nº6): NADA crudo sale al proveedor externo del
+      // cerebro — pregunta e historial viajan ENMASCARADOS con la
+      // misma función del registro (teléfonos, PIN, tarjetas). La
+      // Tanda Nº5 lo enunció en su alcance pero no quedó hecho en
+      // v2.5/v2.6: verificado contra el código vivo, salía e.texto.
       const r = await cerebro.responder({
-        pregunta: e.texto, candidata: null,
-        historial: histCron.slice(-4),
+        pregunta: enmascarar(e.texto), candidata: null,
+        historial: histCron.slice(-4).map((m) => ({ ...m, texto: enmascarar(m.texto) })),
         proyeccion: proy.texto,
       });
       if (r?.texto) {
@@ -632,6 +644,30 @@ async function procesar(env: Env, e: Entrada): Promise<Salida> {
       dec = { ...dec, cambio: undefined,
               respuesta: "⚠️ No pude guardar el cambio (falló el servidor). NO quedó aplicado; inténtalo otra vez." };
       await accion(env, "dueno_cambio_error", { etiqueta: (dec.auditoria as Record<string, unknown>)?.etiqueta ?? "?" });
+    }
+  }
+
+  // F2 — ENSEÑAR una respuesta NUEVA desde la cola: la lógica la
+  // validó y la puerta la crea por la RPC de la escuela
+  // `agente_ensenar_responder` (valida dueño en SQL, crea la FAQ +
+  // su patrón y resuelve el grupo; si el texto trae cifra, la FAQ
+  // nace en BORRADOR y el grupo sigue en la cola: se dice tal cual).
+  if (dec.accion === "dueno_ensenar" && dec.ensenar && esDuenoTg) {
+    const en = dec.ensenar as { grupoId: string; texto: string };
+    const r = await rpc(env, "agente_ensenar_responder", {
+      p_chat_id: e.externo_id, p_grupo: en.grupoId, p_texto: en.texto,
+    });
+    if (r?.ok === true && r?.ya === true) {
+      dec = { ...dec, respuesta: "Esa pregunta ya estaba resuelta: no toqué nada." };
+    } else if (r?.ok !== true) {
+      dec = { ...dec, respuesta: "⚠️ No pude guardar la respuesta nueva (falló el servidor). La pregunta sigue en la cola; inténtalo otra vez." };
+      await accion(env, "ensenar_error", { grupo: en.grupoId });
+    } else if (r?.cifra_detectada === true || r?.borrador === true) {
+      dec = { ...dec, respuesta: "📝 Guardada en BORRADOR: tu respuesta trae una cifra, así que NO quedó activa todavía — queda pendiente de que la confirmes como cifra fija. La pregunta sigue en la cola ❓." };
+      await accion(env, "ensenar_borrador", { grupo: en.grupoId, faq: r?.faq ?? null });
+    } else {
+      dec = { ...dec, respuesta: "✅ Respuesta nueva guardada y ACTIVA: desde ahora el asistente responde eso cuando un cliente pregunte así." };
+      await accion(env, "ensenar_creada", { grupo: en.grupoId, faq: r?.faq ?? null });
     }
   }
 
@@ -746,6 +782,10 @@ async function procesar(env: Env, e: Entrada): Promise<Salida> {
   if (dec.accion === "cita_completa" && dec.cita) {
     const cita = await insertar(env, "agente_citas", {
       nombre: dec.cita.nombre ?? "Sin nombre",
+      // F3: el contacto pedido en la cita WEB (columna contacto, que
+      // existía desde v1 y jamás se llenaba) viaja a la cita; el
+      // aviso al dueño lo referencia.
+      contacto: dec.cita.contacto ?? null,
       servicio: dec.cita.servicio ?? "corte",
       dia: dec.cita.dia, hora: dec.cita.hora,
       canal: e.canal, conversacion_id: conv.id,
@@ -965,6 +1005,18 @@ export async function manejar(req: Request, env: Env = (k) => Deno.env.get(k)): 
   if (upd.message?.chat?.id && tgOk) {
     const chatId = upd.message.chat.id;
     const texto = String(upd.message.text ?? "").trim();
+    if (!texto) {
+      // F1 (Tanda Nº6): un mensaje que NO es texto (voz, foto,
+      // ubicación…) ya no recibe silencio: guía corta por tipo, sin
+      // crear conversación, sin registro de pregunta y sin cerebro.
+      const tokenNT = env("AGENTE_TG_BOT_TOKEN") || "";
+      const nt = respuestaNoTextoTelegram(upd.message as unknown as Record<string, unknown>);
+      if (nt && tokenNT) {
+        await tgLlamar(tokenNT, "sendMessage", { chat_id: chatId, text: nt.texto });
+      }
+      await accion(env, "telegram_no_texto", { tipo: nt?.tipo ?? "desconocido", chat: chatId });
+      return json({ ok: true });
+    }
     if (texto) {
       const token = env("AGENTE_TG_BOT_TOKEN") || "";
       // «escribiendo…» antes de responder (v1.1): cosmético, con tope.
