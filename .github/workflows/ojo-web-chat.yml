@@ -44,11 +44,17 @@ jobs:
         run: |
           git config user.name "ojo-web-chat"
           git config user.email "actions@github.com"
+          # la instalación de Playwright ensucia package.json/package-lock:
+          # se restauran ANTES de commitear (un pull --rebase con el árbol
+          # sucio se niega, y el commit del álbum se perdía tras un push
+          # rechazado porque el lazo confundía «sin cambios nuevos» con
+          # «nada que publicar» — cazado en la corrida VERDE del estreno)
+          git checkout -- package.json package-lock.json 2>/dev/null || true
+          git add ojo-web/chat-pro
+          if git diff --cached --quiet; then echo "sin cambios que publicar"; exit 0; fi
+          git commit -m "Ojo Chat PRO: caza en vivo del compositor (foco, hoja, Textos)"
           for i in 1 2 3 4; do
-            git add ojo-web/chat-pro
-            if git diff --cached --quiet; then echo "sin cambios que publicar"; exit 0; fi
-            git commit -m "Ojo Chat PRO: caza en vivo del compositor (foco, hoja, Textos)"
-            git pull --rebase origin main || true
+            git pull --rebase origin main || git rebase --abort || true
             if git push origin main; then echo "álbum publicado (intento $i)"; exit 0; fi
             echo "push rechazado (intento $i): reintentando con rebase…"; sleep 5
           done
