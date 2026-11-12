@@ -413,11 +413,18 @@ var CALC_DEF = {
   transf: { efectivo: 5000, porc: 30, libro: 1130, salida: 950 },
   busc: { precio: 950, tasaVenta: 313, efectivo: 5000, porc: 30, libro: 1110, salida: 950 }
 };
-var TARIFA_DEF = { ingresoRef360: 1098.68, libroRef: 1069.38, salidaRef: 950, pctSaldo: 25, pctTransf: 20, pisoTransf: 25 };
+/* TANDA INSPECTOR Nº2 (E-1/E-8): TARIFA_DEF ELIMINADA como fuente.
+   Ya no existe ninguna constante de tarifa de fábrica: sin fila viva
+   (leer_tarifa) ni tarifa publicada en datos.json, tarifa() devuelve
+   null, la app lo dice («sin tarifa real todavía») y las sugerencias
+   de dinero se bloquean. Los únicos porcentajes fijados son los del
+   ESQUEMA v2 de buscadores (25/20/25), que no son una tarifa: se usan
+   como último respaldo de porcentajes cuando aún no hay tarifa. */
+var PCT_ESQUEMA = { pctSaldo: 25, pctTransf: 20, pisoTransf: 25 };
 function fotoVacia(){ return { reportes: [], ayudas: [], usuarios: [], datos: null, cuando: "", publicar: [], borrados: [], tarifaPanel: null, mercado: null, perfiles: {} }; }
 function estadoVacio(){
   return { codigo: "", foto: fotoVacia(), calc: JSON.parse(JSON.stringify(CALC_DEF)),
-    cola: [], sellos: {}, tarifaViva: null, tarifaVivaEn: "", publicarPendiente: null, calcSync: null };
+    cola: [], sellos: {}, tarifaViva: null, tarifaVivaEn: "", publicarPendiente: null, calcSync: null, calcEditEn: null };
 }
 var state = estadoVacio();
 function cargarEstado(){
@@ -461,7 +468,7 @@ var vozAudios = {};      /* clave -> { audio, dur } */
 /* ===== AYUDAS DE FORMATO ===== */
 function $(id){ return document.getElementById(id); }
 function fmt(n){ if (n === null || n === undefined || isNaN(n)) return "—"; return (Math.round(n * 100) / 100).toFixed(2); }
-function esc(s){ return String(s === null || s === undefined ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+function esc(s){ return String(s === null || s === undefined ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;"); }
 function r2(n){ return Math.round(n * 100) / 100; }
 function numPos(v){ var n = Number(v); return (isFinite(n) && n > 0) ? n : null; }
 function fechaCorta(iso){ return iso ? String(iso).slice(0, 10) : ""; }
@@ -666,15 +673,25 @@ function armarPrensa(el, abrir){
   el.addEventListener("click", function(e){ if (listo) { listo = false; e.preventDefault(); e.stopPropagation(); } }, true);
 }
 
-/* ===== TARIFA (misma cadena de prioridad que PanelPRO) =====
-   1) ajuste manual guardado (foto.tarifaPanel) · 2) derivada de la
-   Calculadora (sección Buscadores del estado calc) · 3) tarifa viva
-   de Supabase (leer_tarifa) o la publicada en datos.json. */
+/* ===== TARIFA ÚNICA (Tanda Inspector Nº2 · E-1 + E-8) =====
+   REGLA SIN EXCEPCIÓN: la ÚNICA fuente de salida/costo/ingreso es la
+   fila VIVA — la que alimenta el tecleo de Ernesto en CalculadoraPRO
+   vía leer_tarifa — o, en su ausencia, la tarifa publicada en
+   datos.json. NINGUNA ruta deriva, impone ni sobrescribe con valores
+   de fábrica (CALC_DEF solo siembra los CAMPOS de la calculadora
+   interna; TARIFA_DEF ya no existe).
+   Única excepción, nombrada: si Ernesto editó la sección Buscadores
+   de la calculadora interna DESPUÉS de la última lectura viva
+   (marca propia state.calcEditEn, persistida), su edición manda y
+   tarifa() lo etiqueta fuente «derivada» con su hora. Sin edición
+   posterior, tarifa() == fila viva campo a campo.
+   Sin viva ni datos.json: tarifa() devuelve null y toda sugerencia
+   de dinero se bloquea («sin tarifa real todavía»). */
 function tarifaBase(){
-  if (state.tarifaViva) return state.tarifaViva;
-  if (datosLive && datosLive.tarifa) return datosLive.tarifa;
-  if (state.foto.datos && state.foto.datos.tarifa) return state.foto.datos.tarifa;
-  return TARIFA_DEF;
+  if (state.tarifaViva) return { tarifa: state.tarifaViva, origen: "viva", cuando: state.tarifaVivaEn || "" };
+  if (datosLive && datosLive.tarifa) return { tarifa: datosLive.tarifa, origen: "datos", cuando: datosLive.actualizado || "" };
+  if (state.foto.datos && state.foto.datos.tarifa) return { tarifa: state.foto.datos.tarifa, origen: "datos", cuando: state.foto.datos.actualizado || "" };
+  return null;
 }
 function derivadaCalc(){
   var b = (state.calc && state.calc.busc) || {}, t = (state.calc && state.calc.transf) || {}, s = (state.calc && state.calc.saldo) || {};
@@ -686,17 +703,35 @@ function derivadaCalc(){
 }
 function tarifa(){
   var base = tarifaBase();
-  var out = { ingresoRef360: base.ingresoRef360, libroRef: base.libroRef, salidaRef: base.salidaRef,
-    pctSaldo: base.pctSaldo, pctTransf: base.pctTransf, pisoTransf: base.pisoTransf };
-  var d = derivadaCalc();
-  if (d) { out.ingresoRef360 = d.ingresoRef360; out.libroRef = d.libroRef; out.salidaRef = d.salidaRef; }
-  var tp = state.foto.tarifaPanel;
-  if (tp) {
-    if (numPos(tp.ingresoRef360)) out.ingresoRef360 = Number(tp.ingresoRef360);
-    if (numPos(tp.libroRef)) out.libroRef = Number(tp.libroRef);
-    if (numPos(tp.salidaRef)) out.salidaRef = Number(tp.salidaRef);
+  if (!base) return null;
+  var bt = base.tarifa;
+  var out = { ingresoRef360: numPos(bt.ingresoRef360) ? Number(bt.ingresoRef360) : bt.ingresoRef360,
+    libroRef: numPos(bt.libroRef) ? Number(bt.libroRef) : bt.libroRef,
+    salidaRef: numPos(bt.salidaRef) ? Number(bt.salidaRef) : bt.salidaRef,
+    pctSaldo: (bt.pctSaldo != null ? bt.pctSaldo : PCT_ESQUEMA.pctSaldo),
+    pctTransf: (bt.pctTransf != null ? bt.pctTransf : PCT_ESQUEMA.pctTransf),
+    pisoTransf: (bt.pisoTransf != null ? bt.pisoTransf : PCT_ESQUEMA.pisoTransf),
+    _fuente: base.origen, _fuenteEn: base.cuando };
+  if (state.calcEditEn) {
+    var tViva = base.cuando ? Date.parse(String(base.cuando).replace(" ", "T")) : NaN;
+    var tEdit = Date.parse(state.calcEditEn);
+    if (!isNaN(tEdit) && (isNaN(tViva) || tEdit > tViva)) {
+      var d = derivadaCalc();
+      if (d) {
+        out.ingresoRef360 = d.ingresoRef360; out.libroRef = d.libroRef; out.salidaRef = d.salidaRef;
+        out._fuente = "derivada"; out._fuenteEn = state.calcEditEn;
+      }
+    }
   }
   return out;
+}
+/* La fuente REAL de la tarifa en uso, nombrada con su hora: la
+   tarjeta de Inicio y la de Tarifa la pintan SIEMPRE (E-8). */
+function tarifaOrigenTexto(t){
+  if (!t) return "Sin tarifa real todavía";
+  if (t._fuente === "derivada") return "Derivada de tu edición en la Calculadora (sección Buscadores), del " + String(t._fuenteEn || "").replace("T", " ").slice(0, 16);
+  if (t._fuente === "viva") return "Tarifa viva de la base (leer_tarifa)" + (t._fuenteEn ? ", actualizada el " + t._fuenteEn : "");
+  return "Tarifa publicada en datos.json" + (t._fuenteEn ? ", actualizada el " + t._fuenteEn : "");
 }
 /* Efectivo de un trato de transferencia (arreglo H-1, 2026-11-11): la
    forma REAL almacenada lo trae en «cantidad» y «precio» queda null —
@@ -710,6 +745,7 @@ function efectivoDe(r){
 /* Comisión sugerida del esquema v2 (idéntica a PanelPRO). */
 function sugerencia(r){
   var t = tarifa();
+  if (!t) return { com: 0, aviso: "Sin tarifa real todavía: conéctate para leer la tarifa viva antes de aprobar (ninguna comisión sale de valores de fábrica)." };
   if (r.tipo === "saldo") {
     var ex = (Number(t.ingresoRef360) - Number(r.precio)) * Number(r.cantidad || 1);
     return { com: ex > 0 ? Math.round(ex * Number(t.pctSaldo || 25)) / 100 : 0, aviso: ex > 0 ? "" : "Sin excedente con la tarifa de hoy: comisión 0." };
@@ -830,6 +866,7 @@ function ejecutarAccion(a){
          aquí, cuando AMBAS puertas confirmaron: nada de sellos
          fantasma (lección del PAGADO de la Fase 1). */
       var tA = tarifa();
+      if (!tA) return Promise.reject(new Error("sin tarifa real todavía: la sincronización espera a la primera lectura viva"));
       return rpc("guardarTarifa", { p_codigo: cod, p_ingreso: tA.ingresoRef360, p_libro: tA.libroRef, p_salida: a.salida, p_com_saldo: tA.pctSaldo, p_com_transf: tA.pctTransf, p_piso: tA.pisoTransf })
         .then(function(){ return rpc("mercadoCosto", { p_codigo: cod, p_costo: a.costo }); })
         .then(function(r){
@@ -1286,6 +1323,28 @@ function tamDeDatos(datos){
   var b64 = i >= 0 ? s.slice(i + 1) : s;
   return Math.floor(b64.length * 3 / 4);
 }
+/* TANDA INSPECTOR Nº2 (E-3 · XSS en adjuntos): NINGÚN dato de adjunto
+   llega a un atributo src por interpolación sin validar. Se acepta
+   solo un dataURL estricto (mime de la lista permitida + base64
+   puro) o base64 crudo con el mime declarado permitido; cualquier
+   otra cosa (comillas, onerror, data:text/html…) devuelve "" y la
+   imagen NO se pinta. La validación de servidor queda pendiente de
+   la tanda de puertas: esto es la defensa del lado cliente. */
+var ADJ_MIMES_OK = ["image/jpeg", "image/png", "image/gif", "image/webp", "audio/mp4", "audio/webm", "audio/ogg", "audio/mpeg", "application/pdf"];
+function srcSeguroAdj(datos, mime){
+  var s = String(datos === null || datos === undefined ? "" : datos);
+  var m = s.match(/^data:([a-zA-Z0-9.+-]+\/[a-zA-Z0-9.+-]+);base64,([A-Za-z0-9+/]+={0,2})$/);
+  if (m) {
+    if (ADJ_MIMES_OK.indexOf(m[1].toLowerCase()) < 0) return "";
+    return "data:" + m[1].toLowerCase() + ";base64," + m[2];
+  }
+  if (/^[A-Za-z0-9+/]+={0,2}$/.test(s)) {
+    var mm = String(mime || "image/jpeg").toLowerCase();
+    if (ADJ_MIMES_OK.indexOf(mm) < 0) return "";
+    return "data:" + mm + ";base64," + s;
+  }
+  return "";
+}
 function iconoDoc(m){
   var mime = String((m && (m.adj_mime || m.mime)) || "").toLowerCase();
   var nom = String((m && (m.adj_nombre || m.nombre)) || "").toLowerCase();
@@ -1326,7 +1385,7 @@ function previaAdjHtml(){
   }
   if (chatAdj.tipo === "foto") {
     var tamF = chatAdj.tam || tamDeDatos(chatAdj.datos);
-    return '<div class="prevAdj"><img class="prevFoto" id="chPrevFoto" src="' + chatAdj.datos + '" alt="Foto a enviar">'
+    return '<div class="prevAdj"><img class="prevFoto" id="chPrevFoto" alt="Foto a enviar">'
       + '<span class="prevMeta"><b>' + esc(chatAdj.nombre || "Foto") + '</b>' + (tamF ? fmtBytes(tamF) + " · " : "") + 'Toca la imagen para verla grande. El texto que escribas abajo sale JUNTO con la foto, en un solo mensaje: toca ➤ y listo.</span>'
       + '<button class="bGhost bMini" id="chAdjX">Quitar</button></div>';
   }
@@ -1413,7 +1472,8 @@ function abrirEditorFotoMN(){
   if (!chatAdj || chatAdj.tipo !== "foto") return;
   var v = editorFotoEl();
   v.querySelector("#edFotoNom").textContent = chatAdj.nombre || "Foto";
-  v.querySelector("#edFotoImg").src = chatAdj.datos;
+  var srcE = srcSeguroAdj(chatAdj.datos, chatAdj.mime || "image/jpeg");
+  if (srcE) v.querySelector("#edFotoImg").src = srcE;
   v.querySelector("#edFotoTxt").value = "";
   v.classList.add("abierto");
   var t = v.querySelector("#edFotoTxt");
@@ -1461,7 +1521,12 @@ function alistarMedios(el){
     });
   });
   var pf = el.querySelector("#chPrevFoto");
-  if (pf) pf.addEventListener("click", function(){ if (chatAdj) abrirVisorDatos(chatAdj.datos, chatAdj.nombre); });
+  if (pf) {
+    /* E-3: la src de la previa se asigna POR PROPIEDAD tras validar,
+       nunca interpolada en el HTML de previaAdjHtml. */
+    if (chatAdj && chatAdj.datos) { var srcP = srcSeguroAdj(chatAdj.datos, chatAdj.mime || "image/jpeg"); if (srcP) pf.src = srcP; }
+    pf.addEventListener("click", function(){ if (chatAdj) abrirVisorDatos(chatAdj.datos, chatAdj.nombre); });
+  }
 }
 
 /* ===== CARGA DE DATOS + PRESENCIA ===== */
@@ -1509,7 +1574,7 @@ function cargarTodo(silencioso){
     state.foto.ayudas = Array.isArray(res[1]) ? res[1] : [];
     state.foto.usuarios = Array.isArray(res[2]) ? res[2] : [];
     state.foto.borrados = state.foto.borrados.filter(function(cod){ return !state.foto.usuarios.some(function(u){ return u.codigo === cod; }); });
-    if (res[3]) { datosLive = res[3]; state.foto.datos = res[3]; }
+    if (res[3]) { datosLive = normalizarDatos(res[3]); state.foto.datos = datosLive; }
     state.foto.cuando = horaFoto();
     state.sellos.bandeja = new Date().toISOString();
     state.sellos.equipo = new Date().toISOString();
@@ -1701,12 +1766,18 @@ registrarModulo({
     var pendRep = state.foto.reportes.filter(function(r){ return r.estado === "pendiente"; }).length;
     var pendEnvio = state.cola.length + (state.publicarPendiente ? 1 : 0);
     var h = "";
-    h += '<div class="card"><h3><span class="secIco">' + icono("tarifa") + '</span>Tarifa viva</h3>'
-      + '<div class="kv">Ingreso por recarga de 360: <b>' + fmt(Number(t.ingresoRef360)) + ' CUP</b></div>'
-      + '<div class="kv">Libro (CUP por QUSD): <b>' + fmt(Number(t.libroRef)) + '</b> · Salida de referencia: <b>' + fmt(Number(t.salidaRef)) + '</b></div>'
-      + '<div class="kv">Comisiones: saldo <b>' + t.pctSaldo + '%</b> · transferencia <b>' + t.pctTransf + '%</b> · piso <b>' + t.pisoTransf + '%</b></div>'
-      + (state.tarifaViva ? '<div class="mut">Viene de la tarifa guardada en la base' + (state.tarifaVivaEn ? ", actualizada el " + esc(state.tarifaVivaEn) : "") + '.</div>' : "")
-      + '<div class="ayuda">Es la tarifa que tus buscadores ven. La ajustas en la pestaña Tarifa.</div></div>';
+    if (!t) {
+      h += '<div class="card"><h3><span class="secIco">' + icono("tarifa") + '</span>Tarifa</h3>'
+        + '<div class="kv"><b>Sin tarifa real todavía</b>: aún no se ha leído la tarifa viva de la base ni la publicada en datos.json.</div>'
+        + '<div class="ayuda">Sin tarifa real, las sugerencias de comisión y las cuentas quedan bloqueadas (nada sale de valores de fábrica). Conéctate una vez y la tarifa llega sola.</div></div>';
+    } else {
+      h += '<div class="card"><h3><span class="secIco">' + icono("tarifa") + '</span>' + (t._fuente === "viva" ? "Tarifa viva" : "Tarifa") + '</h3>'
+        + '<div class="kv">Ingreso por recarga de 360: <b>' + fmt(Number(t.ingresoRef360)) + ' CUP</b></div>'
+        + '<div class="kv">Libro (CUP por QUSD): <b>' + fmt(Number(t.libroRef)) + '</b> · Salida de referencia: <b>' + fmt(Number(t.salidaRef)) + '</b></div>'
+        + '<div class="kv">Comisiones: saldo <b>' + t.pctSaldo + '%</b> · transferencia <b>' + t.pctTransf + '%</b> · piso <b>' + t.pisoTransf + '%</b></div>'
+        + '<div class="mut">Origen: ' + esc(tarifaOrigenTexto(t)) + '.</div>'
+        + '<div class="ayuda">Es la tarifa que tus buscadores ven. La ajustas en la pestaña Tarifa.</div></div>';
+    }
     h += '<div class="card"><h3><span class="secIco">' + icono("bandeja") + '</span>Por atender</h3>'
       + '<div class="kv">Reportes pendientes de aprobar: <b>' + pendRep + '</b></div>'
       + (puertasChat === true
@@ -1874,7 +1945,7 @@ function calcHtml(){
     + campo("c_b_libro", "Libro BANK_CUP de la vuelta", b.libro, "Precio de 1 QUSD por transferencia en esa vuelta.")
     + campo("c_b_salida", "Salida del QUSD (CUP)", b.salida, "Sirve para saldo y transferencia: de aquí salen el ingreso y la ganancia.")
     + '</div>';
-  h += '<div class="ayuda">La calculadora trabaja 100% sin internet y guarda tus números en este teléfono. La sección Buscadores alimenta la tarifa derivada de la pestaña Tarifa.</div>';
+  h += '<div class="ayuda">La calculadora trabaja 100% sin internet y guarda tus números en este teléfono. La tarifa del negocio es la VIVA (la de tu CalculadoraPRO); si editas la sección Buscadores después de la última lectura viva, tu edición manda y la pestaña Tarifa lo nombra como «derivada de tu edición».</div>';
   return h;
 }
 function renderCalc(outOnly){
@@ -1884,6 +1955,11 @@ function renderCalc(outOnly){
       $(id).addEventListener("input", function(){
         valCalc(id.split("_")[1] === "s" ? "saldo" : (id.split("_")[1] === "t" ? "transf" : "busc"),
           { c_s_salida:"salida", c_s_costo:"costo", c_s_tasa:"tasa", c_s_saldo:"saldo", c_t_efectivo:"efectivo", c_t_porc:"porc", c_t_libro:"libro", c_t_salida:"salida", c_b_precio:"precio", c_b_tasaVenta:"tasaVenta", c_b_efectivo:"efectivo", c_b_porc:"porc", c_b_libro:"libro", c_b_salida:"salida" }[id], id);
+        /* TANDA INSPECTOR Nº2 (E-1): editar la sección Buscadores
+           estampa la marca de edición propia — solo con esa marca,
+           y solo si es posterior a la última lectura viva, la
+           derivada puede pisar la tarifa viva (y nombrándose). */
+        if (id.indexOf("c_b_") === 0) state.calcEditEn = new Date().toISOString();
         guardar();
         renderCalc(true);
         if (id === "c_s_salida" || id === "c_s_costo") programarSyncCalc();
@@ -1930,7 +2006,10 @@ function renderCalc(outOnly){
   }
   var ob = $("c_out_b");
   if (ob) {
-    var t2 = tarifa();
+    /* Sin tarifa real, la calculadora enseña solo los porcentajes del
+       esquema v2 (25/20, constantes del esquema, no una tarifa): las
+       cifras de esta sección salen de los campos que Ernesto teclea. */
+    var t2 = tarifa() || PCT_ESQUEMA;
     var ing2 = (360 / Number(b.tasaVenta)) * Number(b.salida);
     var exc2 = ing2 - Number(b.precio);
     var comS2 = exc2 > 0 ? exc2 * Number(t2.pctSaldo) / 100 : 0;
@@ -2036,7 +2115,7 @@ function tarjetaReporte(r){
     + '<div class="kv">Teléfono: ' + esc(r.telefono || "—") + (r.nota ? ' · Nota: ' + esc(r.nota) : '') + '</div>'
     + (r.estado === "aprobado" && r.comision !== null && r.comision !== undefined ? '<div class="kv">Comisión: <b>' + fmt(Number(r.comision)) + ' CUP</b></div>' : "")
     + (r.comision_pagada_en ? '<div class="kv">Comisión pagada el ' + fechaCorta(r.comision_pagada_en) + " " + horaDe(r.comision_pagada_en) + '</div>' : "")
-    + (r.adj_datos ? '<img class="adj-foto" alt="Comprobante del reporte" src="' + (String(r.adj_datos).indexOf("data:") === 0 ? r.adj_datos : "data:image/jpeg;base64," + r.adj_datos) + '">' : "")
+    + (function(){ var srcA = r.adj_datos ? srcSeguroAdj(r.adj_datos, "image/jpeg") : ""; return srcA ? '<img class="adj-foto" alt="Comprobante del reporte" src="' + srcA + '">' : ""; })()
     + (r.estado === "aprobado" && !r.comision_pagada_en ? '<div class="fila" style="margin-top:8px"><button class="bOk bMini" data-pagar="' + r.id + '">Ya pagué</button></div><div class="ayuda">Al pagarla, el buscador ve «Comisión pagada» en su trato y la cuenta de la semana baja sola.</div>' : "")
     + (r.estado === "rechazado" && r.motivo ? '<div class="kv">Motivo: ' + esc(r.motivo) + '</div>' : "")
     + (sug ? '<div class="kv">Comisión sugerida: <b>' + fmt(sug.com) + ' CUP</b></div>' + (sug.aviso ? '<div class="mut">' + esc(sug.aviso) + '</div>' : "") : "")
@@ -2516,7 +2595,7 @@ function burbujaInnerMN(m){
   if (m.borrado) inner = '<span class="eliminado">Este mensaje fue eliminado</span>';
   else {
     if (m.resp_texto) inner += '<span class="citaB">' + esc(m.resp_autor === "ADMIN" ? "Tú" : chatNombre) + ": " + esc(String(m.resp_texto).slice(0, 90)) + "</span>";
-    if (m.adj_tipo === "foto" && m.adj_datos) inner += '<img class="adjFoto" alt="Foto" src="' + (String(m.adj_datos).indexOf("data:") === 0 ? m.adj_datos : "data:image/jpeg;base64," + m.adj_datos) + '">';
+    if (m.adj_tipo === "foto" && m.adj_datos) { var srcF = srcSeguroAdj(m.adj_datos, m.adj_mime || "image/jpeg"); if (srcF) inner += '<img class="adjFoto" alt="Foto" src="' + srcF + '">'; }
     else if (m.adj_tipo === "foto" && m.adj_ref) inner += '<img class="adjFoto" alt="Foto" data-adjref="' + esc(m.adj_ref) + '">';
     else if (m.adj_tipo === "voz" && (m.adj_datos || m.adj_ref)) inner += reproductorVozHtml(m);
     else if (m.adj_datos || m.adj_ref) inner += tarjetaDocHtml(m);
@@ -2933,15 +3012,36 @@ function enviarChatUI(textoForzado){
 
 /* ===== MÓDULO TARIFA (derivada + ajuste manual + Publicar) ===== */
 function leerCampoTarifa(id, def){ var n = parseFloat(String($(id).value).replace(",", ".")); return isFinite(n) ? n : def; }
-function construirBase(p){
-  var base = datosLive || state.foto.datos || {};
-  var out = JSON.parse(JSON.stringify(base));
-  out.tarifa = { version: (base.tarifa && base.tarifa.version || 4) + 1, ingresoRef360: p.ingresoRef360, libroRef: p.libroRef,
-    salidaRef: p.salidaRef, pctSaldo: p.pctSaldo, pctTransf: p.pctTransf, pisoTransf: p.pisoTransf,
-    bonoSaldoRecargas: 150, bonoSaldoCUP: 300, bonoTransfTratos: 10, bonoTransfCUP: 300 };
+/* TANDA INSPECTOR Nº2 (E-2): ÚNICO punto de normalización de
+   «buscadores». El datos.json VIVO lo trae como OBJETO por clave
+   (la clave es opaca: hoy es un código, mañana puede ser un id —
+   este código NO depende de su forma); la forma vieja era ARRAY.
+   Salida canónica interna: array de { codigo, nombre, tratos }. */
+function normalizarBuscadores(datos){
+  var b = datos && datos.buscadores, lista = [];
+  if (Array.isArray(b)) {
+    b.forEach(function(x){ if (x && x.codigo != null) lista.push({ codigo: x.codigo, nombre: x.nombre, tratos: Array.isArray(x.tratos) ? x.tratos : [] }); });
+  } else if (b && typeof b === "object") {
+    Object.keys(b).forEach(function(k){ var v = b[k] || {}; lista.push({ codigo: k, nombre: v.nombre, tratos: Array.isArray(v.tratos) ? v.tratos : [] }); });
+  }
+  return lista;
+}
+function normalizarDatos(d){
+  if (!d || typeof d !== "object") return d;
+  var copia = JSON.parse(JSON.stringify(d));
+  copia.buscadores = normalizarBuscadores(copia);
+  return copia;
+}
+/* v13 (Inspector E-4): el mapa de buscadores es SOLO interno, pa la
+   lista de admin_publicar_tratos (servidor). El datos.json de
+   respaldo (construirBase) YA NO lleva sección buscadores ni ningún
+   código de acceso: el JSON es público. */
+function mapaBuscadores(base){
   var map = {};
-  ((base.buscadores) || []).forEach(function(bd){ map[bd.codigo] = { codigo: bd.codigo, nombre: bd.nombre, tratos: (bd.tratos || []).slice() }; });
-  state.foto.usuarios.forEach(function(u){
+  var previos = (base && base.buscadores) || [];
+  if (Array.isArray(previos)) previos.forEach(function(bd){ if (bd && bd.codigo) map[bd.codigo] = { codigo: bd.codigo, nombre: bd.nombre, tratos: (bd.tratos || []).slice() }; });
+  else Object.keys(previos).forEach(function(k){ var bd = previos[k] || {}; map[k] = { codigo: k, nombre: bd.nombre, tratos: (bd.tratos || []).slice() }; });
+  (state.foto.usuarios || []).forEach(function(u){
     if (state.foto.borrados.indexOf(u.codigo) >= 0) return;
     if (!map[u.codigo]) map[u.codigo] = { codigo: u.codigo, nombre: u.nombre, tratos: [] };
     else map[u.codigo].nombre = u.nombre;
@@ -2956,7 +3056,22 @@ function construirBase(p){
     if (!map[tr.codigo]) map[tr.codigo] = { codigo: tr.codigo, nombre: tr.nombre, tratos: [] };
     map[tr.codigo].tratos.push({ fecha: fechaCorta(tr.fecha), concepto: tr.concepto, comision: Number(tr.comision) });
   });
-  out.buscadores = Object.keys(map).map(function(k){ return map[k]; });
+  return map;
+}
+function construirBase(p){
+  var base = datosLive || state.foto.datos || {};
+  var out = JSON.parse(JSON.stringify(base));
+  var tb2 = (base.tarifa && typeof base.tarifa === "object") ? base.tarifa : {};
+  /* Claves de bono VIVAS (Tanda Inspector Nº2 · E-2): se conserva el
+     valor que la fuente trae (bonoSaldoMeta/bonoSaldoMonto y
+     bonoTransfMeta/bonoTransfMonto); las viejas (…Recargas/…CUP/
+     …Tratos) ya no se escriben nunca. */
+  out.tarifa = { version: (base.tarifa && base.tarifa.version || 4) + 1, ingresoRef360: p.ingresoRef360, libroRef: p.libroRef,
+    salidaRef: p.salidaRef, pctSaldo: p.pctSaldo, pctTransf: p.pctTransf, pisoTransf: p.pisoTransf,
+    bonoSaldoMeta: (tb2.bonoSaldoMeta != null ? tb2.bonoSaldoMeta : 150), bonoSaldoMonto: (tb2.bonoSaldoMonto != null ? tb2.bonoSaldoMonto : 300),
+    bonoTransfMeta: (tb2.bonoTransfMeta != null ? tb2.bonoTransfMeta : 10), bonoTransfMonto: (tb2.bonoTransfMonto != null ? tb2.bonoTransfMonto : 300) };
+  mapaBuscadores(base);   /* solo pa poblar ultRetenidosMN; su resultado NO sale en el respaldo */
+  delete out.buscadores;
   out.version = (base.version || 4) + 1;
   out.versionApp = (datosLive && datosLive.versionApp) || (state.foto.datos && state.foto.datos.versionApp) || "1.3.0";
   if (datosLive && datosLive.apkUrl) out.apkUrl = datosLive.apkUrl;
@@ -2965,15 +3080,18 @@ function construirBase(p){
 }
 var ultRetenidosMN = [];
 function listaPublicar(){
-  var base = construirBase(tarifa());
-  return base.buscadores.map(function(bd){ return { codigo: bd.codigo, nombre: bd.nombre, tratos: bd.tratos }; });
+  var base = datosLive || state.foto.datos || {};
+  var map = mapaBuscadores(base);
+  return Object.keys(map).map(function(k){ return { codigo: map[k].codigo, nombre: map[k].nombre, tratos: map[k].tratos }; });
 }
 function publicarAhora(){
+  var t0 = tarifa();
+  if (!t0) { toast("Sin tarifa real todavía: no hay nada que publicar hasta leer la tarifa viva.", false); return; }
   var p = {
-    ingresoRef360: leerCampoTarifa("tf_ing", tarifa().ingresoRef360),
-    libroRef: leerCampoTarifa("tf_lib", tarifa().libroRef),
-    salidaRef: leerCampoTarifa("tf_sal", tarifa().salidaRef),
-    pctSaldo: tarifaBase().pctSaldo, pctTransf: tarifaBase().pctTransf, pisoTransf: tarifaBase().pisoTransf
+    ingresoRef360: leerCampoTarifa("tf_ing", t0.ingresoRef360),
+    libroRef: leerCampoTarifa("tf_lib", t0.libroRef),
+    salidaRef: leerCampoTarifa("tf_sal", t0.salidaRef),
+    pctSaldo: t0.pctSaldo, pctTransf: t0.pctTransf, pisoTransf: t0.pisoTransf
   };
   state.foto.tarifaPanel = { ingresoRef360: p.ingresoRef360, libroRef: p.libroRef, salidaRef: p.salidaRef };
   var payload = { tarifa: p, lista: listaPublicar() };
@@ -3010,11 +3128,13 @@ function publicarAhora(){
     });
 }
 function mostrarJsonRespaldo(){
+  var t0 = tarifa();
+  if (!t0 && !state.foto.tarifaPanel) { toast("Sin tarifa real todavía: no se puede generar el respaldo hasta leer la tarifa viva.", false); return; }
   var p = {
-    ingresoRef360: state.foto.tarifaPanel ? state.foto.tarifaPanel.ingresoRef360 : tarifa().ingresoRef360,
-    libroRef: state.foto.tarifaPanel ? state.foto.tarifaPanel.libroRef : tarifa().libroRef,
-    salidaRef: state.foto.tarifaPanel ? state.foto.tarifaPanel.salidaRef : tarifa().salidaRef,
-    pctSaldo: tarifaBase().pctSaldo, pctTransf: tarifaBase().pctTransf, pisoTransf: tarifaBase().pisoTransf
+    ingresoRef360: state.foto.tarifaPanel ? state.foto.tarifaPanel.ingresoRef360 : t0.ingresoRef360,
+    libroRef: state.foto.tarifaPanel ? state.foto.tarifaPanel.libroRef : t0.libroRef,
+    salidaRef: state.foto.tarifaPanel ? state.foto.tarifaPanel.salidaRef : t0.salidaRef,
+    pctSaldo: t0 ? t0.pctSaldo : PCT_ESQUEMA.pctSaldo, pctTransf: t0 ? t0.pctTransf : PCT_ESQUEMA.pctTransf, pisoTransf: t0 ? t0.pisoTransf : PCT_ESQUEMA.pisoTransf
   };
   var datos = construirBase(p);
   $("hojaTit").textContent = "datos.json de respaldo";
@@ -3047,7 +3167,13 @@ registrarModulo({
   id: "Tarifa", tab: "Tarifa", icono: "tarifa",
   render: function(){
     var el = $("pgTarifa"); if (!el) return;
-    var t = tarifa(), tb = tarifaBase(), d = derivadaCalc();
+    var t = tarifa();
+    if (!t) {
+      el.innerHTML = '<div class="card"><h3>Tarifa para los buscadores</h3>'
+        + '<div class="kv"><b>Sin tarifa real todavía</b>: aún no se ha leído la tarifa viva de la base ni la publicada en datos.json, así que no hay números que publicar.</div>'
+        + '<div class="ayuda">La tarifa nace de tu CalculadoraPRO (la fila viva): en cuanto la app la lea una vez con conexión, esta pantalla vuelve a su forma normal. Nada se rellena con valores de fábrica.</div></div>';
+      return;
+    }
     var h = (!online ? '<div class="offBanner" style="display:block">' + selloTexto("tarifa") + ". Puedes dejar la tarifa preparada: quedará en cola.</div>" : "");
     h += '<div class="card"><h3>Tarifa para los buscadores</h3>'
       + '<label for="tf_ing">Ingreso por recarga de 360 (CUP)</label><input id="tf_ing" type="text" inputmode="decimal" value="' + fmt(Number(t.ingresoRef360)) + '">'
@@ -3056,9 +3182,9 @@ registrarModulo({
       + '<div class="ayuda">El precio de 1 QUSD pagando por transferencia.</div>'
       + '<label for="tf_sal">Salida de referencia (CUP por QUSD)</label><input id="tf_sal" type="text" inputmode="decimal" value="' + fmt(Number(t.salidaRef)) + '">'
       + '<div class="ayuda">OJO: esta es la salida que VEN tus buscadores (la referencia con la que se les paga). Y es la misma tarifa que leen el bot y las apps: la salida de tu Calculadora (sección Saldo) se guarda aquí sola al cambiarla.</div>'
-      + '<div class="kv">Comisiones: saldo <b>' + tb.pctSaldo + '%</b> del excedente · transferencia <b>' + tb.pctTransf + '%</b> de la ganancia · piso transf. <b>' + tb.pisoTransf + '%</b></div>'
-      + (d ? '<div class="mut">Viene de tu Calculadora ahora mismo (salida ' + fmt(d.salida) + " · tasa de venta " + fmt(d.tasaVenta) + " · libro " + fmt(d.libro) + '). Si escribes a mano aquí, tu número manda y queda guardado.</div>' : "")
-      + (state.tarifaVivaEn ? '<div class="mut">Tarifa guardada en la base, actualizada el ' + esc(state.tarifaVivaEn) + ".</div>" : "")
+      + '<div class="kv">Comisiones: saldo <b>' + t.pctSaldo + '%</b> del excedente · transferencia <b>' + t.pctTransf + '%</b> de la ganancia · piso transf. <b>' + t.pisoTransf + '%</b></div>'
+      + '<div class="mut">Origen: ' + esc(tarifaOrigenTexto(t)) + ".</div>"
+      + (t._fuente === "derivada" ? '<div class="mut">Tu edición de la Calculadora es posterior a la última lectura viva, así que manda ella. En cuanto llegue una tarifa viva más nueva, vuelve a mandar la viva.</div>' : "")
       + '<button class="bGold" id="tfPub">Publicar ahora</button>'
       + (state.publicarPendiente ? '<div class="kv" style="margin-top:8px"><span class="pill pCola">PENDIENTE DE ENVIAR</span> la última tarifa espera conexión o activación.</div>' : "")
       + '<button class="bGhost" id="tfRespaldo">Respaldo: generar datos.json</button>'
@@ -3178,14 +3304,14 @@ function intentarEntrar(){
    controllerchange recarga la app UNA sola vez (marca en
    sessionStorage por versión: sin bucles). MN_VERSION se sube
    junto con el CACHE de sw.js. */
-var MN_VERSION = "v12";
+var MN_VERSION = "v13";
 /* Sello VISIBLE de compilación (punto 6): Ernesto quejándose con
    razón — «no sé si se actualizó o no». Una sola constante que
    sube con cada publicación; se ve en Inicio y en la hoja ℹ️ del
    chat. Formato: «Mi Negocio · versión 2026-11-11 HH:MM · caché v6»
    (fecha Y HORA de la publicación, para distinguir dos subidas
    del mismo día). La hora es la de Cuba (CST) al compilar. */
-var MN_COMPILACION = "2026-11-12 12:56";
+var MN_COMPILACION = "2026-11-12 10:55";
 function selloVersion(){ return "Mi Negocio · versión " + MN_COMPILACION + " · caché " + MN_VERSION; }
 var regSW = null;
 var swConControladorAlArrancar = false;
@@ -4086,7 +4212,9 @@ registrarModulo({
     }
     $("txSaldo").addEventListener("click", function(){
       guardarDatos(); fijarModoTextos("saldo");
-      var pub = { precioCompraRecarga: Math.floor(tarifa().ingresoRef360 * 0.9 / 10) * 10, telefono: $("txTel").value, zona: $("txZona").value, condicionesSaldo: "Pago en efectivo al momento" };
+      var tTx = tarifa();
+      if (!tTx) { toast("Sin tarifa real todavía: el texto de saldo necesita la tarifa viva. Conéctate una vez.", false); return; }
+      var pub = { precioCompraRecarga: Math.floor(tTx.ingresoRef360 * 0.9 / 10) * 10, telefono: $("txTel").value, zona: $("txZona").value, condicionesSaldo: "Pago en efectivo al momento" };
       pintar(TextosMotor.textoRapidoSaldo(pub, estilo(), "ADMIN"), "Texto de saldo");
     });
     $("txTransf").addEventListener("click", function(){
@@ -4137,6 +4265,7 @@ function contaRepsBase(){
 function contaNombre(r){ return r.nombre || r.buscador || "Sin nombre"; }
 function contaGananciaBruta(r, t){
   t = t || tarifa();
+  if (!t) return 0;
   if (r.tipo === "saldo") return (Number(t.ingresoRef360) - Number(r.precio)) * Number(r.cantidad || 1);
   var ef = efectivoDe(r), pc = Number(r.porc || 0);
   return (ef * (1 + pc / 100) / Number(t.libroRef)) * Number(t.salidaRef) - ef;
@@ -4163,6 +4292,11 @@ registrarModulo({
   render: function(){
     var el = $("pgContabilidad"); if (!el) return;
     var t = tarifa();
+    if (!t) {
+      el.innerHTML = '<div class="sub">Las cuentas de tu negocio, solas: salen de los tratos aprobados que entraron por Mi Trabajo. Aquí nunca escribes un número.</div>'
+        + '<div class="card"><div class="kv"><b>Sin tarifa real todavía</b>: las ganancias se derivan con la tarifa, y aún no se ha leído la viva. Conéctate una vez y las cuentas vuelven.</div></div>';
+      return;
+    }
     var reps = contaRepsBase();
     var hoy = fechaCorta(new Date().toISOString());
     var mes = hoy.slice(0, 7);
