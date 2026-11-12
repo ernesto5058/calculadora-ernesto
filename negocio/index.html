@@ -104,20 +104,20 @@
     <h2>💈 Barbería</h2>
     <p>Barbero con barbería propia en Micro 10, Santiago de Cuba. Pásate por el local o escríbeme por WhatsApp para coordinar tu corte.</p>
     <p>🕘 Horario: todos los días · 9:00 a. m. – 6:00 p. m.</p>
-    <p class="precio">✂️ Corte: 400 CUP en efectivo · 700 CUP por transferencia</p>
+    <p class="precio" id="cat-precio-corte">✂️ Corte: 400 CUP en efectivo · 700 CUP por transferencia</p>
   </section>
 
-  <section>
+  <section data-cat-section="bateria_lifepo4">
     <h2>🔋 Baterías LiFePO4 12.8V 100Ah</h2>
-    <p>Baterías de litio LiFePO4 de 12.8V y 100Ah en venta, ideales para respaldo eléctrico e inversores.</p>
-    <p class="precio">💰 Precio: al privado</p>
+    <p id="cat-desc-bateria_lifepo4">Baterías de litio LiFePO4 de 12.8V y 100Ah en venta, ideales para respaldo eléctrico e inversores.</p>
+    <p class="precio" id="cat-precio-bateria_lifepo4">💰 Precio: al privado</p>
     <p>Llama o escribe al <strong>51231558</strong> para el precio y coordinar. Domicilio en Santiago de Cuba.</p>
   </section>
 
-  <section>
+  <section data-cat-section="lavadora_hys">
     <h2>🧺 Lavadora HYS 7 kg</h2>
-    <p>Lavadora HYS semiautomática de 7 kg con Air-Dry.</p>
-    <p class="precio">💰 Precio: 250 USD</p>
+    <p id="cat-desc-lavadora_hys">Lavadora HYS semiautomática de 7 kg con Air-Dry.</p>
+    <p class="precio" id="cat-precio-lavadora_hys">💰 Precio: 250 USD</p>
     <ul>
       <li>✅ Garantía: 1 año</li>
       <li>✅ Domicilio incluido en Santiago</li>
@@ -126,7 +126,7 @@
 
   <section>
     <h2>💸 Compro saldo móvil — pago en efectivo</h2>
-    <p>Compro saldo x cantidad. Pago en efectivo al 2:</p>
+    <p id="cat-desc-compro_saldo">Compro saldo x cantidad. Pago en efectivo al 2:</p>
     <table>
       <tr><td>1 000 de saldo</td><td>2 000 CUP</td></tr>
       <tr><td>2 000 de saldo</td><td>4 000 CUP</td></tr>
@@ -447,6 +447,48 @@
   } catch (e) { /* silencio total: la app manda */ }
 })();
 
+</script>
+
+<script>
+/* ===== Catalogo vivo (Agente v3, 2026-11-12) =====
+   La paginita lee los productos y textos del MISMO catalogo que
+   alimenta al asistente (RPC publica agente_catalogo_publico):
+   pagina y agente jamas se contradicen. Si la red falla, queda el
+   contenido estatico de arriba como respaldo. */
+(function () {
+  var RPC = "https://otsudfgwpapkluusrlnj.supabase.co/rest/v1/rpc/agente_catalogo_publico";
+  var PUBLICA = "sb_publishable_Uchl5QnojJkZbXR5ar8vDg_5CXnqi_d";
+  function fmt(n) { return String(Math.round(Number(n))).replace(/\B(?=(\d{3})+(?!\d))/g, " "); }
+  function precioTxt(f) {
+    if (f.precio_al_privado) return "\u{1F4B0} Precio: al privado";
+    if (f.precio != null) return "\u{1F4B0} Precio: " + fmt(f.precio) + " " + (f.moneda || "CUP");
+    return null;
+  }
+  function poner(id, texto) { var el = document.getElementById(id); if (el && texto) el.textContent = texto; }
+  fetch(RPC, { method: "POST", headers: { "Content-Type": "application/json", apikey: PUBLICA, Authorization: "Bearer " + PUBLICA }, body: "{}" })
+    .then(function (r) { return r.ok ? r.json() : null; })
+    .then(function (filas) {
+      if (!Array.isArray(filas)) return;
+      var por = {};
+      filas.forEach(function (f) { por[f.clave] = f; });
+      document.querySelectorAll("[data-cat-section]").forEach(function (sec) {
+        if (!por[sec.getAttribute("data-cat-section")]) sec.style.display = "none";
+      });
+      var corte = por.corte, trans = por.corte_transferencia;
+      if (corte && corte.precio != null) {
+        poner("cat-precio-corte", "\u2702\uFE0F Corte: " + fmt(corte.precio) + " " + (corte.moneda || "CUP") + " en efectivo" +
+          (trans && trans.precio != null ? " \u00B7 " + fmt(trans.precio) + " " + (trans.moneda || "CUP") + " por transferencia" : ""));
+      }
+      ["bateria_lifepo4", "lavadora_hys"].forEach(function (clave) {
+        var f = por[clave]; if (!f) return;
+        poner("cat-precio-" + clave, precioTxt(f));
+        if (f.descripcion) poner("cat-desc-" + clave, f.descripcion);
+      });
+      var saldo = por.compro_saldo;
+      if (saldo && saldo.descripcion) poner("cat-desc-compro_saldo", saldo.descripcion);
+    })
+    .catch(function () { /* respaldo estatico */ });
+})();
 </script>
 </body>
 </html>
