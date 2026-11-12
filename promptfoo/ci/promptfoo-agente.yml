@@ -1,0 +1,67 @@
+# =====================================================================
+# promptfoo-agente.yml — workflow PREPARADO, NO INSTALADO.
+# Destino final: .github/workflows/promptfoo-agente.yml del repo
+# calculadora-ernesto (lo copia Máximo tras el montaje paralelo;
+# esta tanda no toca .github/workflows). Mientras tanto la batería
+# corre en local por la regla de la skill promptfoo_agente.
+#
+# Qué hace: en cada push/PR que toque la lógica del agente, su
+# dataset o su banco eterno, corre la batería dorada completa y
+# FALLA el job si un solo caso cae — la batería corre sola en el
+# flujo de cada tanda, sin que nadie tenga que acordarse.
+# =====================================================================
+name: Promptfoo · Agente (batería dorada)
+
+on:
+  push:
+    paths:
+      - "supabase/functions/agente-responder/**"
+      - "promptfoo/**"
+      - "bancos/prueba-agente-v1.mjs"
+  pull_request:
+    paths:
+      - "supabase/functions/agente-responder/**"
+      - "promptfoo/**"
+      - "bancos/prueba-agente-v1.mjs"
+  workflow_dispatch:
+
+jobs:
+  promptfoo-agente:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: "npm"
+          cache-dependency-path: promptfoo/package-lock.json
+
+      - name: Instalar promptfoo (versión fijada del proyecto)
+        working-directory: promptfoo
+        run: npm ci --no-audit --no-fund
+
+      - name: Correr la batería dorada del agente
+        working-directory: promptfoo
+        env:
+          PROMPTFOO_DISABLE_TELEMETRY: "1"
+        run: npx promptfoo eval -c promptfooconfig.yaml --no-cache -o results/resultados.json
+
+      - name: Puerta dura — cualquier fallo tumba el job
+        if: always()
+        working-directory: promptfoo
+        run: |
+          FAILURES=$(jq '.results.stats.failures' results/resultados.json)
+          echo "Casos en rojo: $FAILURES"
+          if [ "$FAILURES" -gt 0 ]; then
+            echo "❌ Batería del agente en rojo: revisa el artefacto resultados-promptfoo-agente"
+            exit 1
+          fi
+          echo "✅ Batería del agente en verde"
+
+      - name: Subir resultados
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: resultados-promptfoo-agente
+          path: promptfoo/results/resultados.json
