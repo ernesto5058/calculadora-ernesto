@@ -126,3 +126,6 @@ jobs:
 
       - name: Banco Sentry de la casa — escrubado y no-op sin DSN (fila 40)
         run: node sentry-staging/prueba-sentry-casa.mjs
+
+      - name: Banco puerta de avisos — fail-closed 503/401/pasa (fila 53)
+        run: node bancos/prueba-avisos-puerta.mjs
