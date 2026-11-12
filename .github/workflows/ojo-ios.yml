@@ -68,17 +68,27 @@ jobs:
         run: |
           UDID="${{ steps.sim.outputs.udid }}"
           : > ojo-ios/capturas.txt
-          foto(){ # $1 url, $2 espera, $3 archivo, $4 pie
+          foto(){ # $1 url, $2 espera por pasada, $3 archivo, $4 pie
+            # Arnés v1.2: la v1.1 cazó dos fotos malas — la primera salió con
+            # la página de inicio de Safari (arranque en frío: el openurl se
+            # perdió mientras Safari despertaba) y la de Lovable salió en
+            # blanco (la SPA aún no había pintado). Ahora cada web se abre
+            # DOS veces (la segunda ya con Safari despierto) y la foto buena
+            # es la segunda de dos disparos seguidos.
             echo "== $3 <- $1"
             xcrun simctl openurl "$UDID" "$1" || true
             sleep "$2"
+            xcrun simctl openurl "$UDID" "$1" || true
+            sleep "$2"
+            xcrun simctl io "$UDID" screenshot "ojo-ios/capturas/$3" || true
+            sleep 6
             xcrun simctl io "$UDID" screenshot "ojo-ios/capturas/$3" || true
             if [ -f "ojo-ios/capturas/$3" ]; then echo "$3|$4" >> ojo-ios/capturas.txt; fi
           }
-          foto "https://ernesto5058.github.io/calculadora-ernesto/minegocio/" 14 "01-minegocio-puerta.png" "Mi Negocio en Safari — SOLO la puerta: el código del dueño no viaja a ningún robot."
-          foto "https://ernesto5058.github.io/calculadora-ernesto/mercado/" 16 "02-mercado.png" "Mercado en Safari — el panel del mercado QvaPay con sus datos en vivo."
-          foto "https://ernesto5058.github.io/calculadora-ernesto/negocio/" 10 "03-negocio.png" "La paginita en Safari — la tarjeta pública del negocio."
-          foto "https://mi-mercado-ernesto.lovable.app" 18 "04-mi-mercado.png" "Mi Mercado (Lovable) en Safari — el conversor alimentado por los datos del vigía."
+          foto "https://ernesto5058.github.io/calculadora-ernesto/minegocio/" 10 "01-minegocio-puerta.png" "Mi Negocio en Safari — SOLO la puerta: el código del dueño no viaja a ningún robot."
+          foto "https://ernesto5058.github.io/calculadora-ernesto/mercado/" 10 "02-mercado.png" "Mercado en Safari — el panel del mercado QvaPay con sus datos en vivo."
+          foto "https://ernesto5058.github.io/calculadora-ernesto/negocio/" 8 "03-negocio.png" "La paginita en Safari — la tarjeta pública del negocio."
+          foto "https://mi-mercado-ernesto.lovable.app" 14 "04-mi-mercado.png" "Mi Mercado (Lovable) en Safari — el conversor alimentado por los datos del vigía."
           ls -la ojo-ios/capturas/
 
       - name: Generar el índice (Pages)
