@@ -523,42 +523,57 @@ export function decidir(marcador, config) {
    ===================================================================== */
 const SERVICIOS = ["corte"];
 export function flujoCitaPaso(flujo, textoCrudo, hoyISO) {
-  const norm = normalizar(textoCrudo);
   const f = { ...(flujo ?? {}) };
   f.datos = { ...(f.datos ?? {}) };
   const pedir = (paso, texto) => ({ flujo: { tipo: "cita", paso, datos: f.datos }, respuesta: texto, completa: false });
-  if (!f.paso || f.paso === "nombre") {
-    if (!f.datos.nombre) {
-      const nombre = String(textoCrudo ?? "").trim()
-        .replace(/^(me llamo|mi nombre es|soy|a nombre de)\s+/i, "")
-        .replace(/[.!]+$/, "").trim().slice(0, 60);
-      if (nombre.length < 2) return pedir("nombre", "¿A nombre de quién anoto la cita?");
-      f.datos.nombre = nombre;
+
+  /* v2.3 — COSECHA NATURAL: el mensaje COMPLETO puede traer el día
+     y/o la hora en CUALQUIER paso («Hoy a las 2:00 pm» llena los
+     dos de una vez); solo se pregunta lo que falta y JAMÁS se
+     re-pregunta un dato ya dado en el mismo mensaje. Fallo en vivo
+     (2026-11-12): el paso del día leía SOLO el día y la hora del
+     mismo mensaje se tiraba — el cliente tuvo que repetir «2 pm». */
+  const dh = extraerDiaHora(textoCrudo, hoyISO);
+  if (dh.dia) f.datos.dia = dh.dia;
+
+  if (!f.datos.nombre && (!f.paso || f.paso === "nombre")) {
+    const nombre = String(textoCrudo ?? "").trim()
+      .replace(/^(me llamo|mi nombre es|soy|a nombre de)\s+/i, "")
+      .replace(/[.!]+$/, "").trim().slice(0, 60);
+    if (nombre.length >= 2) f.datos.nombre = nombre;
+  }
+  if (!f.datos.nombre) return pedir("nombre", "¿A nombre de quién anoto la cita?");
+
+  if (f.paso === "servicio") f.datos.servicio = "corte";
+  if (!f.datos.servicio) {
+    return pedir("servicio", "¿Qué servicio quieres? Por ahora: corte de cabello. ¿Anoto corte?");
+  }
+
+  if (dh.hora) f.datos.hora = dh.hora;
+  else if (dh.horaFuera) delete f.datos.hora;
+  else if (f.paso === "hora") {
+    // en el paso de la hora vale también la hora pelada («10»)
+    const h = parseHora(textoCrudo);
+    if (h) {
+      const hh = Number(h.split(":")[0]);
+      if (hh >= 9 && hh < 18) f.datos.hora = h;
+      else dh.horaFuera = h;
     }
-    if (!f.datos.servicio) return pedir("servicio", "¿Qué servicio quieres? Por ahora: corte de cabello. ¿Anoto corte?");
-    return pedir("dia", "");
   }
-  if (f.paso === "servicio") {
-    f.datos.servicio = "corte";
-    return pedir("dia", "Perfecto: corte. ¿Qué día te viene bien? (por ejemplo: mañana, el viernes, o 15/11)");
+  if (!f.datos.hora && dh.horaFuera) {
+    return pedir("hora", "Esa hora está fuera del horario (9:00 a. m. – 6:00 p. m.). ¿Cuál te sirve dentro de ese rango?");
   }
-  if (f.paso === "dia") {
-    const dia = parseDia(textoCrudo, hoyISO);
-    if (!dia) return pedir("dia", "No te entendí el día 😅 Dime por ejemplo «mañana», «el viernes» o una fecha como 15/11.");
-    f.datos.dia = dia;
-    return pedir("hora", "Anotado: " + diaLegible(dia) + ". ¿A qué hora? La barbería abre de 9:00 a. m. a 6:00 p. m.");
+
+  if (!f.datos.dia) {
+    if (f.paso === "dia") return pedir("dia", "No te entendí el día 😅 Dime por ejemplo «mañana», «el viernes» o una fecha como 15/11.");
+    if (f.paso === "servicio") return pedir("dia", "Perfecto: corte. ¿Qué día te viene bien? (por ejemplo: mañana, el viernes, o 15/11)");
+    return pedir("dia", "¿Qué día te viene bien? (por ejemplo: mañana, el viernes, o 15/11)");
   }
-  if (f.paso === "hora") {
-    const hora = parseHora(textoCrudo);
-    if (!hora) return pedir("hora", "Dime la hora así: «10», «10:30» o «4 de la tarde».");
-    const [hh] = hora.split(":").map(Number);
-    if (hh < 9 || hh >= 18) {
-      return pedir("hora", "Esa hora está fuera del horario (9:00 a. m. – 6:00 p. m.). ¿Cuál te sirve dentro de ese rango?");
-    }
-    f.datos.hora = hora;
-    return { flujo: null, respuesta: null, completa: true, datos: f.datos };
+  if (!f.datos.hora) {
+    if (f.paso === "hora") return pedir("hora", "Dime la hora así: «10», «10:30» o «4 de la tarde».");
+    return pedir("hora", "Anotado: " + diaLegible(f.datos.dia) + ". ¿A qué hora? La barbería abre de 9:00 a. m. a 6:00 p. m.");
   }
-  return pedir("nombre", "Vamos a anotar tu cita. ¿A nombre de quién?");
+  return { flujo: null, respuesta: null, completa: true, datos: f.datos };
 }
 export function inicioCita(flujoPrevio, textoCrudo, hoyISO) {
   // detecta datos ya dados en el primer mensaje (hora/día sueltos)
@@ -596,17 +611,48 @@ function parseDia(txt, hoyISO) {
   }
   return null;
 }
+function normHora(hhStr, mmStr, suf) {
+  let hh = Number(hhStr);
+  const mm = Number(mmStr ?? 0);
+  const s = String(suf ?? "");
+  if (/pm|tarde|noche/.test(s) && hh < 12) hh += 12;
+  if (/am|manana/.test(s) && hh === 12) hh = 0;
+  if (!Number.isFinite(hh) || hh > 23 || mm > 59) return null;
+  return String(hh).padStart(2, "0") + ":" + String(mm).padStart(2, "0");
+}
 function parseHora(txt) {
   const t = quitarAcentos(String(txt ?? "").toLowerCase());
-  const m = t.match(/\b(\d{1,2})(?::(\d{2}))?\s*(am|pm|a\. m\.|p\. m\.|de la tarde|de la manana|del mediodia)?\b/);
+  const m = t.match(/\b(\d{1,2})(?::(\d{2}))?\s*(am|pm|a\. m\.|p\. m\.|de la tarde|de la manana|del mediodia|de la noche)?\b/);
   if (!m) return null;
-  let hh = Number(m[1]);
-  const mm = m[2] ? Number(m[2]) : 0;
-  const suf = m[3] ?? "";
-  if (/pm|tarde/.test(suf) && hh < 12) hh += 12;
-  if (/am|manana/.test(suf) && hh === 12) hh = 0;
-  if (hh > 23 || mm > 59) return null;
-  return String(hh).padStart(2, "0") + ":" + String(mm).padStart(2, "0");
+  return normHora(m[1], m[2] ?? "00", m[3] ?? "");
+}
+/* v2.3 — Hora NATURAL: solo formas que en un mensaje suelto NO se
+   confunden con un día ni con una cifra cualquiera: con minutos
+   («2:00 pm», «2:00pm», «14:00»), con marca («3 pm», «4 de la
+   tarde», «8 de la noche») o tras «a las / a la» («a las 10»). La
+   hora pelada («10») solo vale como respuesta al paso de la hora,
+   vía parseHora, como siempre. */
+export function buscarHoraNatural(txt) {
+  const t = quitarAcentos(String(txt ?? "").toLowerCase());
+  let m = t.match(/\b(\d{1,2}):(\d{2})\s*(am|pm|a\. m\.|p\. m\.)?\b/);
+  if (m) return normHora(m[1], m[2], m[3] ?? "");
+  m = t.match(/\b(\d{1,2})\s*(am|pm|a\. m\.|p\. m\.|de la tarde|de la manana|del mediodia|de la noche)\b/);
+  if (m) return normHora(m[1], "00", m[2]);
+  m = t.match(/\ba (?:las|la)\s+(\d{1,2})\b/);
+  if (m) return normHora(m[1], "00", "");
+  return null;
+}
+/* v2.3 — Día y hora de UN mensaje completo (la cosecha del flujo):
+   el día sale de parseDia sobre el texto entero y la hora de las
+   formas naturales; la hora FUERA del horario (9–18) no se guarda:
+   se devuelve aparte pa que el flujo la señale sin perder el día. */
+export function extraerDiaHora(txt, hoyISO) {
+  const dia = parseDia(txt, hoyISO);
+  const h = buscarHoraNatural(txt);
+  if (!h) return { dia, hora: null, horaFuera: null };
+  const hh = Number(h.split(":")[0]);
+  if (hh >= 9 && hh < 18) return { dia, hora: h, horaFuera: null };
+  return { dia, hora: null, horaFuera: h };
 }
 export function diaLegible(iso) {
   try {
@@ -614,6 +660,86 @@ export function diaLegible(iso) {
       timeZone: "America/Havana", weekday: "long", day: "numeric", month: "long",
     }).format(new Date(iso + "T12:00:00Z"));
   } catch { return iso; }
+}
+
+/* =====================================================================
+   v2.3 — CONTROL DE CITAS DEL DUEÑO (puro): aviso con botones, vista
+   de pendientes en Ajustes y decisión con aviso al cliente. La
+   DECISIÓN la ejecuta UNA sola puerta SQL (agente_cita_decidir, la
+   misma del bot de gestión: estado + decidida_en + auditoría, con su
+   idempotencia); aquí viven los textos y los teclados, y la puerta
+   (index.ts) hace el IO: RPC, push al cliente de Telegram o aviso
+   encolado en la conversación web. Sin esto, la cita caía en la
+   tabla y Ernesto no tenía dónde verla ni decidirla desde el bot
+   de clientes, y el cliente jamás se enteraba del desenlace.
+   ===================================================================== */
+export function horaCorta(h) {
+  return String(h ?? "").slice(0, 5);
+}
+export function resumenCita(cita) {
+  return String(cita?.nombre ?? "Sin nombre") + " — " + String(cita?.servicio ?? "corte") +
+         " · " + diaLegible(String(cita?.dia ?? "")) + " a las " + horaCorta(cita?.hora) +
+         " (por " + String(cita?.canal ?? "—") + ")";
+}
+/* El aviso que le llega al dueño al crearse la cita, con sus botones
+   de decisión (callback «v2:c:ok|no:<id>», los maneja esta puerta). */
+export function textoAvisoCitaNueva(cita) {
+  return "📋 Nueva solicitud de cita\n" + resumenCita(cita) +
+         "\nEs una SOLICITUD, no está confirmada: decídela aquí 👇";
+}
+export function tecladoDecisionCita(citaId) {
+  return { inline_keyboard: [[
+    { text: "✅ Confirmar", callback_data: "v2:c:ok:" + citaId },
+    { text: "✖️ Rechazar", callback_data: "v2:c:no:" + citaId },
+  ]] };
+}
+/* La vista «📋 Citas» de Ajustes: pendientes de hoy en adelante, en
+   el orden en que la puerta las lee (día, hora). */
+export function textoCitasPendientes(citas) {
+  const lista = citas ?? [];
+  if (!lista.length) {
+    return "📋 No tienes citas pendientes ✨\nCuando un cliente pida una, te llega " +
+           "el aviso aquí mismo, con botones pa decidirla.";
+  }
+  return "📋 Citas pendientes (" + lista.length + ")\n" +
+         lista.map((c) => "• " + resumenCita(c)).join("\n") +
+         "\nToca ✅ o ✖️ en cada una pa decidirla 👇";
+}
+export function tecladoCitasPendientes(citas) {
+  const filas = (citas ?? []).slice(0, 8).map((c) => ([
+    { text: "✅ " + String(c.nombre ?? "cita").slice(0, 18), callback_data: "v2:c:ok:" + c.id },
+    { text: "✖️", callback_data: "v2:c:no:" + c.id },
+  ]));
+  filas.push([
+    { text: "⚙️ Ajustes", callback_data: "v2:d:menu" },
+    { text: "🏠 Inicio", callback_data: "v2:p:inicio" },
+  ]);
+  return { inline_keyboard: filas };
+}
+/* La decisión sobre UNA cita pendiente: valida que siga pendiente
+   (en la foto que trae datos) y compone los dos textos — el del
+   dueño y el aviso al cliente. La frase del aviso NUNCA promete lo
+   que el canal no cumple: Telegram lo recibe al momento; la web lo
+   ve en su próxima visita al chat de la página. */
+export function decisionCita(datos, citaId, decision) {
+  const cita = (datos?.citasPendientes ?? []).find((c) => String(c.id) === String(citaId));
+  if (!cita) return { ok: false, motivo: "no_pendiente" };
+  const confirma = decision === "ok";
+  const estadoNuevo = confirma ? "confirmada" : "rechazada";
+  const cuando = diaLegible(String(cita.dia)) + " a las " + horaCorta(cita.hora);
+  const avisoTexto = confirma
+    ? "✅ Tu cita quedó CONFIRMADA: " + String(cita.servicio ?? "corte") + ", " + cuando +
+      ". Te esperamos en la barbería de Micro 10 💈 Si necesitas cambiarla, escríbenos por aquí."
+    : "🙏 Tu cita del " + cuando + " no se pudo confirmar. ¿Te sirve otra hora? " +
+      "La barbería abre de 9:00 a. m. a 6:00 p. m.: dime otro día y hora y te la anoto enseguida.";
+  const avisoDueno = cita.canal === "telegram"
+    ? "El cliente lo recibió al momento en su chat."
+    : "El cliente lo verá en su próxima visita al chat de la página.";
+  return {
+    ok: true, cita, estadoNuevo, avisoTexto,
+    textoDueno: (confirma ? "✅ Cita CONFIRMADA: " : "✖️ Cita RECHAZADA: ") +
+                resumenCita(cita) + ". " + avisoDueno,
+  };
 }
 
 /* =====================================================================
@@ -778,6 +904,7 @@ export function orquestar(datos, conv, textoCrudo, hoyISO) {
   // para él, todo cae al panel de ajustes (la reanudación vive ahí).
   if (datos.pausado && datos.esDueno &&
       conv?.flujo?.tipo !== "dueno" && !crudo.startsWith("/dueno") &&
+      !crudo.startsWith("/citadec") &&
       detectarComando(crudo) !== "admin") {
     return { ...base, accion: "dueno", panel: { vista: "dueno" },
              respuesta: "⏸ El agente está pausado: tus clientes no reciben respuesta.",
@@ -798,6 +925,32 @@ export function orquestar(datos, conv, textoCrudo, hoyISO) {
   if (crudo.startsWith("/dueno")) {
     if (!datos.esDueno) return { ...base, accion: "no_se", respuesta: FRASE_NO_SE };
     return duenoAccion(datos, conv, crudo.split(/\s+/)[1] ?? "menu", base);
+  }
+
+  // v2.3 — «/citadec ok|no <id>»: decisión de una cita desde los
+  // botones (el aviso nuevo o la vista de Ajustes). SOLO su cuenta;
+  // aquí solo se valida y se compone: la puerta ejecuta la decisión
+  // por la puerta SQL `agente_cita_decidir` (la misma del bot de
+  // gestión) y entrega el aviso al cliente por su canal.
+  if (crudo.startsWith("/citadec")) {
+    // OJO: jamás «no_se» aquí — un no_se cae a la capa conversacional
+    // y el cerebro podría IMPROVISAR un «tu cita está confirmada»
+    // (visto en el humo vivo del despliegue v2.3). La negativa a un
+    // comando de decisión es determinista y final: «denegar».
+    if (!datos.esDueno) {
+      return { ...base, accion: "denegar", registrar_sin_respuesta: true,
+               respuesta: "Eso no lo puedo hacer: las citas las decide el dueño del negocio. " +
+                          "Si quieres una cita, pídela y él la confirma." };
+    }
+    const [, dec, id] = crudo.split(/\s+/);
+    if ((dec !== "ok" && dec !== "no") || !id) {
+      return { ...base, accion: "dueno", panel: { vista: "dueno" }, flujo: null,
+               respuesta: "Ese botón de cita ya no vale; abre 📋 Citas en Ajustes.",
+               auditoria: { dueno: "citadec_invalida" } };
+    }
+    return { ...base, accion: "cita_decision", citaDecision: { id, decision: dec },
+             respuesta: "Decidiendo la cita…",
+             auditoria: { dueno: "citadec", decision: dec } };
   }
 
   // CAPA DE COMANDOS (v1.1, F1): determinista, ANTES del matcher y de
@@ -1213,10 +1366,12 @@ function textoPanelDueno(datos, conv) {
   return t + "\nToca una opción 👇";
 }
 function tecladoDueno(datos, conv) {
+  const nCitas = (datos?.citasPendientes ?? []).length;
   const filas = [
     [{ text: "🕘 Cambiar horario", callback_data: "v2:d:horario" },
      { text: "💈 Precio del corte", callback_data: "v2:d:corte" }],
-    [{ text: "📝 Editar una respuesta", callback_data: "v2:d:faq" }],
+    [{ text: "📋 Citas" + (nCitas ? " (" + nCitas + ")" : ""), callback_data: "v2:d:citas" },
+     { text: "📝 Editar una respuesta", callback_data: "v2:d:faq" }],
     [(datos.pausado || datos.config?.detenido)
       ? { text: "▶️ Reanudar el agente", callback_data: "v2:d:reanudar" }
       : { text: "⏸ Pausar el agente", callback_data: "v2:d:pausar" }],
@@ -1244,6 +1399,15 @@ export function duenoAccion(datos, conv, accion, base) {
       return { ...base, accion: "dueno", panel: { vista: "dueno" }, flujo: null,
                respuesta: "⚙️ Ajustes del negocio — solo tú ves esto.",
                auditoria: { dueno: "menu" } };
+    case "citas": {
+      // v2.3: la vista de pendientes vive en Ajustes — un panel con
+      // la lista y los botones de decisión por cita.
+      const citas = datos.citasPendientes ?? [];
+      const txt = textoCitasPendientes(citas);
+      return { ...base, accion: "dueno", flujo: null,
+        panel: panelFlujo(txt, tecladoCitasPendientes(citas)),
+        respuesta: txt, auditoria: { dueno: "citas", pendientes: citas.length } };
+    }
     case "horario": {
       const h = datos.fuente.get("horario_barberia")?.valor ?? {};
       const txt = "🕘 Nuevo horario (ahora: " + hora12(h.abre) + " – " + hora12(h.cierra) +
