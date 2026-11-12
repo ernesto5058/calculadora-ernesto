@@ -122,7 +122,7 @@ async function barridoSW(nombre, texto, cacheViva, esperado) {
   await barridoSW("Mercado desplegado", depSw, "mercado-v3", ["mercado-v2"]);
   await barridoSW("Mercado fuente", fuenteSw && fuenteSw.replaceAll("§CACHE§", "mercado-v3"), "mercado-v3", ["mercado-v2"]);
   await barridoSW("Mi Negocio", leer(path.join(REPO, "minegocio", "sw.js")), "minegocio-v13", ["minegocio-v12"]);
-  await barridoSW("Mi Trabajo", leer(path.join(REPO, "buscadores", "sw.js")), "mitrabajo-v19", ["mitrabajo-v18"]);
+  await barridoSW("Mi Trabajo", leer(path.join(REPO, "buscadores", "sw.js")), "mitrabajo-v20", ["mitrabajo-v18", "mitrabajo-v19"]);
 }
 
 console.log(`\nPARIDAD MERCADO: ${pass} PASS · ${fail} FAIL`);

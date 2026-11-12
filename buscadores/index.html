@@ -295,6 +295,8 @@
     </div>
   </div>
 
+  <div class="warn" id="bootWarn" style="display:none"></div>
+
   <div class="tabs tabbar">
     <div class="tab on" id="tabCalc"><svg class="ic" aria-hidden="true"><use href="#i-calc"/></svg><span class="tabTx">Calculadora</span></div>
     <div class="tab" id="tabRep"><svg class="ic" aria-hidden="true"><use href="#i-send"/></svg><span class="tabTx">Reportar</span></div>
@@ -577,9 +579,11 @@
 
 <script>
 "use strict";
-var APP_VERSION = "1.5.2";
-/* Tarifa de respaldo: se usa sin conexión si nunca se ha descargado datos.json.
-   La tarifa viva viene de datos.json (la actualiza Ernesto/Máximo). */
+var APP_VERSION = "1.5.3";
+/* Tarifa de respaldo (E-7, Tanda Nº6): SOLO se usa si nunca llegó ni
+   datos.json ni la tarifa viva, y mientras manda ella la app lo dice
+   a la vista («RESPALDO» + su origen en tarifaText/pintaFrescura).
+   La tarifa viva viene de leer_tarifa; datos.json es la publicada. */
 var DEFAULT_TARIFA = { ingresoRef360: 1092.65, libroRef: 1110, salidaRef: 950,
   pctSaldo: 25, pctTransf: 20, pisoTransf: 25,
   bonoSaldoMeta: 150, bonoSaldoMonto: 300, bonoTransfMeta: 10, bonoTransfMonto: 300 };
@@ -589,6 +593,7 @@ var DATA_VERSION = 0;   /* mayor version de datos.json aplicada: la guarda no de
 var SESION = "";        /* código personal de la sesión activa ("" = sin entrar) */
 var TARIFA_VIVA = null; /* v1.3.0: tarifa leída en vivo (leer_tarifa); manda sobre datos.json */
 var TARIFA_VIVA_EN = "";/* v1.3.0: ISO de la última publicación de la tarifa viva */
+var TARIFA_FUENTE = "respaldo"; /* v1.5.3 (E-7): "viva" | "publicada" | "respaldo" — jamás silenciosa */
 var PANEL_VIVO = null;  /* v1.3.0: {nombre, tratos} leídos en vivo (leer_panel) */
 var ADMIN_VISTO = null; /* v1.3.1: ISO del último latido de Ernesto (fila 'ADMIN' en presencia) */
 var CHAT_MSGS = [];     /* v1.3.1: último hilo cargado (para repintar estados al refrescar presencia) */
@@ -647,7 +652,7 @@ function calcSaldo(){
   }
   warn.style.display = "none"; res.style.display = "block";
   $("s_fee").textContent = fmt(r.fee);
-  $("s_det").innerHTML = "Excedente por recarga: " + fmtN(r.exc) + " CUP · tu " + T.pctSaldo + "% = " + fmtN(r.fee / c) + " por recarga" +
+  $("s_det").innerHTML = "Excedente por recarga: " + fmtN(r.exc) + " CUP · tu " + esc(T.pctSaldo) + "% = " + fmtN(r.fee / c) + " por recarga" +
     (c > 1 ? " · × " + c + " recargas" : "") + "<br>Entre más barato consigas, más ganas.";
 }
 function calcTransf(){
@@ -669,7 +674,7 @@ function calcTransf(){
   }
   ok.style.display = "none"; res.style.display = "block";
   $("t_fee").textContent = fmt(r.fee);
-  $("t_det").innerHTML = "La persona recibe " + fmtN(r.recibe) + " por transferencia · la vuelta gana " + fmtN(r.ganancia) + " CUP · tu " + T.pctTransf + "% = tu comisión.<br>Se paga cuando la vuelta cierra.";
+  $("t_det").innerHTML = "La persona recibe " + fmtN(r.recibe) + " por transferencia · la vuelta gana " + fmtN(r.ganancia) + " CUP · tu " + esc(T.pctTransf) + "% = tu comisión.<br>Se paga cuando la vuelta cierra.";
 }
 
 /* ===== Sesión: login único con validación real ===== */
@@ -699,12 +704,25 @@ function rpcValidar(code){
     .then(function(r){ if (r.ok) marcarRedOk(); return r.ok ? r.json() : Promise.reject(new Error("HTTP " + r.status)); })
     .then(function(rows){
       if (rows && rows.length && rows[0].activo !== false)
-        return { estado: "ok", codigo: normCod(rows[0].codigo || code), nombre: rows[0].nombre || "" };
+        return { estado: "ok", codigo: normCod(rows[0].codigo || code), nombre: rows[0].nombre || "", pausa: rows[0].bloqueado === true };
       return { estado: "no" };
     })
     .catch(function(){ return { estado: "sinred" }; });
 }
 
+/* v1.5.3 (E-18): la carga inicial ya NO es todo-o-nada — cada pieza
+   que falla se anuncia por su nombre y el resto de la app sigue. */
+var BOOT_FALLOS = [];
+function bootAviso(pieza){
+  if (BOOT_FALLOS.indexOf(pieza) < 0) BOOT_FALLOS.push(pieza);
+  var el = $("bootWarn"); if (!el) return;
+  el.style.display = "block";
+  el.textContent = "Algunas partes no cargaron (" + BOOT_FALLOS.join(", ") + "). El resto de la app sí funciona: toca «Actualizar» con conexión.";
+}
+function seguro(fn, pieza){
+  try { var r = fn(); if (r && typeof r.catch === "function") r.catch(function(){ bootAviso(pieza); }); return r; }
+  catch(e){ bootAviso(pieza); }
+}
 function gateMsg(msg){
   var w = $("l_warn"); if (!w) return;
   if (msg) { w.style.display = "block"; w.textContent = msg; }
@@ -715,17 +733,39 @@ function mostrarGate(msg){
   document.body.classList.add("locked");
   gateMsg(msg || "");
 }
+/* v1.5.3 (E-6): el candado EN_PAUSA se libera cuando el servidor
+   dice que ya no hay pausa (validar_usuario.bloqueado) o cuando una
+   escritura que la pausa bloquearia sale bien. */
+function aplicarPausa(p){
+  var pf = $("pf_pausa");
+  if (p) { EN_PAUSA = true; if (pf) pf.style.display = "block"; }
+  else if (EN_PAUSA) { EN_PAUSA = false; if (pf) pf.style.display = "none"; try { despacharChat(); } catch(e){} try { syncReportes(); } catch(e){} }
+}
+function liberarPausa(){ aplicarPausa(false); }
+/* v1.5.3 (E-3): la sesion guardada se valida contra el servidor al
+   arrancar y en cada refresco: respuesta definitiva «no» (revocado)
+   expulsa; «sinred» NO expulsa a nadie (se entra con la foto local). */
+function validarSesionRemota(){
+  if (!SESION) return;
+  var cod = SESION;
+  rpcValidar(cod).then(function(v){
+    if (SESION !== cod) return;
+    if (v.estado === "no") { salir("Tu acceso ya no está activo. Habla con Ernesto."); return; }
+    if (v.estado === "ok") aplicarPausa(!!v.pausa);
+  });
+}
 function entrar(code){
   SESION = code; sesionSet(code);
   $("loginGate").classList.add("hide");
   document.body.classList.remove("locked");
   gateMsg("");
   try { $("l_cod").value = ""; } catch(e){}
-  renderPanel();
-  tocarPresencia();
-  chatBadge();
-  cargarAdminPres();
-  cargarVivo();
+  seguro(function(){ renderPanel(); }, "tu panel");
+  seguro(function(){ tocarPresencia(); }, "la presencia");
+  seguro(function(){ chatBadge(); }, "los avisos del chat");
+  seguro(function(){ cargarAdminPres(); }, "la presencia de Ernesto");
+  seguro(function(){ cargarVivo(); }, "la tarifa en vivo");
+  seguro(function(){ validarSesionRemota(); }, "la comprobación de tu sesión");   /* v1.5.3 (E-3) */
   try { despacharChat(); } catch(e){}   /* v1.4.4: al entrar, sale lo que hubiera en cola */
   try { avisosAutoTrasLogin(); } catch(e){}   /* v1.4.5: la app instalada pide su permiso de notificaciones como cualquier app normal */
 }
@@ -783,8 +823,8 @@ function renderPanel(){
     total += tr.comision || 0;
     if (tr.tipo === "saldo") recSaldo += tr.recargas || 0;
     if (tr.tipo === "transferencia") nTransf += 1;
-    html += '<div class="trato"><span class="f">' + tr.fecha + "</span><span>" +
-      (tr.tipo === "saldo" ? ico("i-phone", "mini") + " " : ico("i-bank", "mini") + " ") + (tr.nota || "") + '</span><span class="c">' + fmt(tr.comision || 0) + "</span></div>";
+    html += '<div class="trato"><span class="f">' + esc(tr.fecha) + "</span><span>" +
+      (tr.tipo === "saldo" ? ico("i-phone", "mini") + " " : ico("i-bank", "mini") + " ") + (esc(tr.nota || "")) + '</span><span class="c">' + fmt(tr.comision || 0) + "</span></div>";
   });
   if (!html) html = '<div class="trato"><span>Aún no tienes tratos confirmados. ¡A buscar!</span></div>';
   $("p_total").textContent = fmt(total);
@@ -798,7 +838,10 @@ function renderPanel(){
 }
 
 function tarifaText(){
-  return "<b>Tarifa de referencia</b>" + (DATA.actualizado ? " (" + DATA.actualizado + ")" : "") +
+  var fuente = TARIFA_FUENTE === "viva" ? "<b>Tarifa en vivo</b>"
+    : TARIFA_FUENTE === "publicada" ? "<b>Tarifa publicada</b> (respaldo: la viva no respondió)"
+    : "<b>⚠ RESPALDO</b> — tarifa guardada en la app, sin conexión: puede estar vieja";
+  return fuente + (DATA.actualizado ? " (" + esc(DATA.actualizado) + ")" : "") +
     " · Saldo: cobras el <b>" + T.pctSaldo + "%</b> del excedente · Transferencia: el <b>" + T.pctTransf + "%</b> de la ganancia, mínimo al <b>" + T.pisoTransf + "%</b>" +
     " · Bonos: <b>" + fmt(T.bonoSaldoMonto) + "</b> con " + T.bonoSaldoMeta + " recargas/semana · <b>" + fmt(T.bonoTransfMonto) + "</b> con " + T.bonoTransfMeta + " tratos/semana";
 }
@@ -839,6 +882,7 @@ function applyData(d, fresca){
   if (v < DATA_VERSION) return;                 // guarda: una versión vieja nunca pisa la nueva
   if (v > DATA_VERSION) DATA_VERSION = v;
   DATA = d; T = d.tarifa;
+  if (!TARIFA_VIVA) TARIFA_FUENTE = "publicada";   /* v1.5.3 (E-7): datos.json = publicada, no la viva */
   try { localStorage.setItem("busc_datos", JSON.stringify(d)); } catch(e){}
   checkUpdate();
   $("tarifaTxt").innerHTML = tarifaText();
@@ -881,9 +925,9 @@ function renderOutbox(){
   var a = outboxGet(), box = $("r_lista"), h = "";
   a.slice().reverse().forEach(function(rp){
     var st = rp.estado === "aprobado" ? '<span class="st okk"><span class="dot"></span>Aprobado +' + fmt(rp.comision || 0) + "</span>"
-      : rp.estado === "rechazado" ? '<span class="st no"><span class="dot"></span>Rechazado' + (rp.motivo ? ": " + rp.motivo : "") + "</span>"
+      : rp.estado === "rechazado" ? '<span class="st no"><span class="dot"></span>Rechazado' + (rp.motivo ? ": " + esc(rp.motivo) : "") + "</span>"
       : '<span class="st pend"><span class="dot"></span>Pendiente' + (rp.enviado ? "" : " (guardado, sin enviar)") + "</span>";
-    h += '<div class="rep"><span>' + repResumen(rp) + "<br><small>" + rp.fecha + "</small></span>" + st + "</div>";
+    h += '<div class="rep"><span>' + repResumen(rp) + "<br><small>" + esc(rp.fecha) + "</small></span>" + st + "</div>";
   });
   box.innerHTML = h || '<div class="rep"><span>Todavía no has reportado nada.</span></div>';
 }
@@ -910,7 +954,7 @@ function enviarReporte(rp){
       });
     })
     .then(function(id){
-      if (id) { rp.id = id; rp.enviado = true; }
+      if (id) { rp.id = id; rp.enviado = true; liberarPausa(); }   /* v1.5.3 (E-6) */
       return !!rp.id;
     }).catch(function(){ return false; });
 }
@@ -922,7 +966,14 @@ function syncReportes(){
     chain = chain.then(function(){ return enviarReporte(rp).then(function(ok){ if (ok) changed = true; }); });
   });
   chain.then(function(){
-    if (changed) outboxSet(a);
+    /* v1.5.3 (E-4): se fusiona sobre la outbox FRESCA por opId — la
+       foto vieja `a` jamas sobrescribe un reporte que haya entrado
+       mientras se despachaba. */
+    if (changed) {
+      var aF = outboxGet();
+      aF.forEach(function(x){ var src = pend.filter(function(y){ return y.opId === x.opId; })[0]; if (src && src.enviado) { x.enviado = true; x.id = src.id; } });
+      outboxSet(aF); a = aF;
+    }
     // refrescar estados de los ya enviados (por si Ernesto ya decidió)
     var ids = a.filter(function(rp){ return rp.enviado && rp.id && rp.estado === "pendiente"; }).map(function(rp){ return rp.id; });
     if (!ids.length || !window.fetch) { renderOutbox(); return; }
@@ -930,11 +981,12 @@ function syncReportes(){
         body: JSON.stringify({ p_ids: ids }) })
       .then(function(r){ return r.ok ? r.json() : []; }).then(function(rows){
         var map = {}; (rows || []).forEach(function(x){ map[x.id] = x; });
-        a.forEach(function(rp){
+        var aF2 = outboxGet();   /* v1.5.3 (E-4): fusion sobre la fresca tambien al pintar estados */
+        aF2.forEach(function(rp){
           var s = map[rp.id];
           if (s && s.estado && s.estado !== "pendiente") { rp.estado = s.estado; rp.comision = s.comision; rp.motivo = s.motivo; }
         });
-        outboxSet(a); renderOutbox();
+        outboxSet(aF2); renderOutbox();
       }).catch(function(){ renderOutbox(); });
   });
 }
@@ -964,7 +1016,11 @@ function reportar(){
   if (typeof REP_FOTO !== "undefined" && REP_FOTO) rp.adj = REP_FOTO;   /* v1.4.0: comprobante */
   var a = outboxGet(); a.push(rp); outboxSet(a); renderOutbox();
   enviarReporte(rp).then(function(ok){
-    if (ok) outboxSet(a); // rp ya trae id y enviado=true (misma referencia dentro de a)
+    if (ok) {   /* v1.5.3 (E-4): fusion por opId sobre la outbox fresca (la foto `a` ya puede estar vieja) */
+      var aF = outboxGet();
+      aF.forEach(function(x){ if (x.opId === rp.opId) { x.id = rp.id; x.enviado = true; } });
+      outboxSet(aF);
+    }
     renderOutbox();
     if (ok) { res.style.display = "block"; }
     else if (rp.error === "noautorizado") fallo("Tu código no está autorizado en el sistema de Ernesto. Si eres del equipo, revísalo con él: puede estar mal escrito o desactivado.");
@@ -1042,6 +1098,28 @@ function etiquetaFechaChat(iso){
   return d.getDate() + " de " + meses[d.getMonth()] + " de " + d.getFullYear();
 }
 function escChat(x){ return String(x === null || x === undefined ? "" : x).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+/* v1.5.3 (E-17, escape total): esc() escapa tambien comillas — sirve
+   igual en texto y en atributos. TODO texto del servidor o de otro
+   usuario que se pinte por innerHTML pasa por esc()/escChat(). */
+function esc(x){ return escChat(x).replace(/"/g, "&quot;").replace(/'/g, "&#39;"); }
+/* v1.5.3 (E-17): un adjunto solo se pinta como <img src> si es una
+   dataURL base64 con mime de imagen permitido (patron srcSeguroAdj
+   de Mi Negocio); cualquier otra cosa devuelve "" y no se pinta. */
+var ADJ_MIMES_OK_MT = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+function srcSeguroAdjMT(datos, mime){
+  var s = String(datos === null || datos === undefined ? "" : datos);
+  var m = s.match(/^data:([a-zA-Z0-9.+-]+\/[a-zA-Z0-9.+-]+);base64,([A-Za-z0-9+/]+={0,2})$/);
+  if (m) {
+    if (ADJ_MIMES_OK_MT.indexOf(m[1].toLowerCase()) < 0) return "";
+    return "data:" + m[1].toLowerCase() + ";base64," + m[2];
+  }
+  if (/^[A-Za-z0-9+/]+={0,2}$/.test(s) && s.length > 8) {
+    var mm = String(mime || "image/jpeg").toLowerCase();
+    if (ADJ_MIMES_OK_MT.indexOf(mm) < 0) return "";
+    return "data:" + mm + ";base64," + s;
+  }
+  return "";
+}
 /* ===== Estados del chat «como WhatsApp» (v1.3.1, honestos en v1.4.1) =====
    En TUS mensajes: ✓ enviado (guardado, sin constancia de llegada)
    · ✓✓ entregado · ✓✓ en azul + «Visto». v1.4.1 — SOLO DATOS
@@ -1134,7 +1212,7 @@ function tarjetaDocMT(m){
   var tam = m.adj_bytes || m.tam || (m.adj_datos ? tamDeDatosMT(m.adj_datos) : 0);
   return '<span class="docCard"><span class="docIco">' + iconoDocMT(m) + '</span>'
     + '<span class="docMeta"><b>' + escChat(nom) + '</b>' + (tam ? fmtBytesMT(tam) : "Documento") + '</span>'
-    + '<button type="button" class="docDl" data-docdl="' + m.id + '" title="Descargar ' + escChat(nom) + '">' + ico("i-dl") + '</button></span>';
+    + '<button type="button" class="docDl" data-docdl="' + esc(m.id) + '" title="Descargar ' + esc(nom) + '">' + ico("i-dl") + '</button></span>';
 }
 var visorUrlRevocarMT = null;
 function visorElMT(){
@@ -1220,6 +1298,7 @@ function abrirVisorMsgMT(m){
 }
 function descargarDocMT(m){
   if (!m) return;
+  if (!m.adj_datos && m.adj_tiene) { cargarAdjuntoMsg(m.id); return; }   /* v1.5.3 (E-9): bajo demanda; el siguiente toque ya descarga */
   var r = urlDeMensajeMT(m);
   if (!r.url) return;
   var a = document.createElement("a");
@@ -1310,6 +1389,7 @@ function chatBadge(){
    exactamente como en la 1.2.1 (respaldo intacto). */
 function aplicarTarifaViva(){
   if (!TARIFA_VIVA) return;
+  TARIFA_FUENTE = "viva";   /* v1.5.3 (E-7) */
   T = Object.assign({}, T, TARIFA_VIVA);   // los bonos y demás campos se quedan de datos.json
   try { $("tarifaTxt").innerHTML = tarifaText(); } catch(e){}
   pintaFrescura();
@@ -1360,9 +1440,7 @@ function refrescarTodo(){
   var p = loadData();
   syncReportes(); despacharChat(); chatBadge(); tocarPresencia(); cargarVivo();
   if (!$("viewAyuda").classList.contains("hide")) chatCargar();
-  if (SESION) rpcValidar(SESION).then(function(v){
-    if (v.estado === "no") salir("Tu acceso ya no está activo. Habla con Ernesto.");
-  });
+  validarSesionRemota();   /* v1.5.3 (E-3+E-6): revoca si toca y libera/pone la pausa segun el servidor */
   if (p && p.then) p.then(function(){ pintaFrescura(); });
 }
 
@@ -1397,7 +1475,7 @@ $("btnAct").addEventListener("click", refrescarTodo);
 document.addEventListener("visibilitychange", function(){
   if (!document.hidden && Date.now() - lastRefresh > 60000) refrescarTodo();
 });
-setInterval(function(){ try { pintaFrescura(); } catch(e){} try { tocarPresencia(); } catch(e){} }, 60000);
+setInterval(function(){ try { pintaFrescura(); } catch(e){} try { tocarPresencia(); } catch(e){} try { validarSesionRemota(); } catch(e){} }, 60000);
 setInterval(function(){
   if (!SESION) return;
   try { chatBadge(); } catch(e){}
@@ -1405,7 +1483,8 @@ setInterval(function(){
   try { despacharChat(); } catch(e){}
   try { if (!$("viewAyuda").classList.contains("hide")) chatCargar(); } catch(e){}
 }, 20000);
-window.addEventListener("online", function(){ try { despacharChat(); } catch(e){} try { if (SESION) chatCargar(); } catch(e){} });
+window.addEventListener("online", function(){ try { despacharChat(); } catch(e){} try { syncReportes(); } catch(e){} try { if (SESION) chatCargar(); } catch(e){} });   /* v1.5.3 (E-5): tambien la cola de REPORTES */
+window.addEventListener("focus", function(){ try { despacharChat(); } catch(e){} try { syncReportes(); } catch(e){} });   /* v1.5.3 (E-5): al recuperar el foco */
 setInterval(function(){
   // v1.3.1: con el chat abierto, el hilo se refresca para que los estados
   // (entregado/visto) cambien solos, estilo WhatsApp.
@@ -1427,10 +1506,10 @@ if ("serviceWorker" in navigator && !esNativo()) {
 
 /* ===== Arranque ===== */
 lastRefresh = Date.now();
-loadData();
-leerTarifaViva();
-renderOutbox();
-syncReportes();
+seguro(function(){ return loadData(); }, "la tarifa");
+seguro(function(){ leerTarifaViva(); }, "la tarifa en vivo");
+seguro(function(){ renderOutbox(); }, "tus reportes");
+seguro(function(){ syncReportes(); }, "el envío de reportes");
 (function arranque(){
   var previa = sesionGet();
   var urlCod = "";
@@ -1829,9 +1908,9 @@ function renderPanel(){
       if (tr.tipo === "saldo") sRec += tr.recargas || 0;
       if (tr.tipo === "transferencia") sTra += 1;
     }
-    html += '<div class="trato"><span class="f">' + tr.fecha + "</span><span>" +
-      (tr.tipo === "saldo" ? ico("i-phone", "mini") + " " : ico("i-bank", "mini") + " ") + (tr.nota || "") +
-      (tr.estado === "pagado" ? '<br><small>' + ico("i-check", "mini") + ' Comisión pagada' + (tr.pagado_en ? " el " + tr.pagado_en : "") + "</small>" : "") +
+    html += '<div class="trato"><span class="f">' + esc(tr.fecha) + "</span><span>" +
+      (tr.tipo === "saldo" ? ico("i-phone", "mini") + " " : ico("i-bank", "mini") + " ") + (esc(tr.nota || "")) +
+      (tr.estado === "pagado" ? '<br><small>' + ico("i-check", "mini") + ' Comisión pagada' + (tr.pagado_en ? " el " + esc(tr.pagado_en) : "") + "</small>" : "") +
       '</span><span class="c">' + fmt(tr.comision || 0) + "</span></div>";
   });
   if (!html) html = '<div class="trato"><span>Aún no tienes tratos confirmados. ¡A buscar!</span></div>';
@@ -1898,6 +1977,7 @@ function despacharChat(){
   rpcMsg("enviar_mensaje", body).then(function(r){
     chatDespachando = false;
     if (r.ok) {
+      liberarPausa();   /* v1.5.3 (E-6): el servidor acepto una escritura */
       chatOutSet(chatOutGet().filter(function(x){ return x.opId !== item.opId; }));
       rtTimbreMT();   /* v1.4.2: timbre instantáneo a Mi Negocio de Ernesto */
       if (chatOutGet().length) { pintarChat(CHAT_MSGS); despacharChat(); }
@@ -1949,19 +2029,24 @@ function burbujaInnerMT(m){
   if (m.borrado) inner = '<span class="eliminado">Este mensaje fue eliminado</span>';
   else {
     if (m.resp_texto) inner += '<span class="cita">' + escChat(m.resp_autor === SESION ? "Tú" : (m.resp_autor || "")) + ": " + escChat(String(m.resp_texto).slice(0, 90)) + "</span>";
-    if (m.adj_tipo === "foto" && m.adj_datos) inner += '<img class="adjFoto" alt="Foto" src="' + (String(m.adj_datos).indexOf("data:") === 0 ? m.adj_datos : "data:image/jpeg;base64," + m.adj_datos) + '">';
+    if (m.adj_tipo === "foto" && m.adj_datos) { var srcF153 = srcSeguroAdjMT(m.adj_datos, m.adj_mime); if (srcF153) inner += '<img class="adjFoto" alt="Foto" src="' + srcF153 + '">'; }
+    else if (m.adj_tipo === "foto" && m.adj_tiene) inner += '<span class="adjCargando" data-adjpend="' + esc(m.id) + '">Foto · cargando…</span>';
     else if (m.adj_tipo === "voz" && m.adj_datos) inner += reproductorVozHtmlMT(m);
-    else if (m.adj_datos) inner += tarjetaDocMT(m);
+    else if (m.adj_tipo === "voz" && m.adj_tiene) inner += '<span class="adjCargando" data-adjpend="' + esc(m.id) + '">Nota de voz · toca para cargarla</span>';
+    else if (m.adj_datos || m.adj_tiene) inner += tarjetaDocMT(m);
     if (m.texto) inner += escChat(m.texto);
   }
   inner += '<span class="burMeta">' + (m.editado ? '<span class="editadoLab">editado</span> ' : "") + hora12Chat(m.creado) + est + "</span>";
   var reac = "";
   if (!m.borrado && m.reacciones && m.reacciones.length) {
-    reac = '<div class="reacRow">' + m.reacciones.map(function(r){ return '<span class="reac">' + r.emoji + " " + r.total + "</span>"; }).join("") + "</div>";
+    reac = '<div class="reacRow">' + m.reacciones.map(function(r){ return '<span class="reac">' + esc(r.emoji) + " " + esc(r.total) + "</span>"; }).join("") + "</div>";
   }
   return '<div class="bur">' + inner + "</div>" + reac;
 }
 function alistarNodoMsgMT(nodo, id){
+  nodo.querySelectorAll("[data-adjpend]").forEach(function(el){
+    el.addEventListener("click", function(e){ e.stopPropagation(); cargarAdjuntoMsg(Number(el.getAttribute("data-adjpend"))); });
+  });
   nodo.querySelectorAll("img.adjFoto").forEach(function(img){
     img.addEventListener("click", function(e){
       e.stopPropagation();
@@ -1990,7 +2075,7 @@ function crearNodoMsgMT(m){
 }
 function burbujaColaInnerMT(it){
   var innerC = "";
-  if (it.adj && it.adj.tipo === "foto" && it.adj.datos) innerC += '<img class="adjFoto" alt="Foto" src="' + it.adj.datos + '">';
+  if (it.adj && it.adj.tipo === "foto" && it.adj.datos) { var srcC153 = srcSeguroAdjMT(it.adj.datos, it.adj.mime); if (srcC153) innerC += '<img class="adjFoto" alt="Foto" src="' + srcC153 + '">'; }
   else if (it.adj && it.adj.tipo === "voz" && it.adj.datos) innerC += reproductorVozHtmlMT({ id: "cola-" + it.opId, adj_datos: it.adj.datos, adj_dur: it.adj.dur || null });
   else if (it.adj && it.adj.datos) innerC += tarjetaDocMT({ id: "cola-" + it.opId, adj_nombre: it.adj.nombre, adj_datos: it.adj.datos, adj_mime: it.adj.mime, adj_bytes: it.adj.tam });
   if (it.texto) innerC += escChat(it.texto);
@@ -2168,6 +2253,38 @@ function chatFallo(m){
   var warn = $("c_warn"); if (!warn) return;
   warn.style.display = "block"; warn.textContent = m;
 }
+/* v1.5.3 (E-9): el sondeo de 3 s usa leer_chat_ligero — ultimos 50
+   mensajes SIN adj_datos base64 (solo adj_tiene) — y cada adjunto se
+   trae UNA vez por leer_adjunto y queda en cache de sesion. La
+   puerta completa leer_chat queda para la busqueda (a demanda del
+   usuario) y para Mi Negocio, intacta. */
+var ADJ_CACHE_MT = {};
+function fusionarAdjuntosCache(msgs){
+  (msgs || []).forEach(function(m){ if (m && m.id != null && ADJ_CACHE_MT[m.id]) m.adj_datos = ADJ_CACHE_MT[m.id]; });
+}
+function cargarAdjuntoMsg(id){
+  var m = (CHAT_MSGS || []).filter(function(x){ return String(x.id) === String(id); })[0];
+  if (!m || m.adj_datos || !SESION) return;
+  rpcChat("leer_adjunto", { p_codigo: SESION, p_clave: SESION, p_id: Number(id) }).then(function(r){
+    if (r && r.ok && r.adj_datos) { ADJ_CACHE_MT[id] = r.adj_datos; m.adj_datos = r.adj_datos; pintarChat(CHAT_MSGS); }
+  });
+}
+var adjLoteActivo = false;
+function cargarAdjuntosPendientes(){
+  if (adjLoteActivo || !SESION) return;
+  var pend = (CHAT_MSGS || []).filter(function(m){ return m.adj_tiene && !m.adj_datos; }).slice(-8);
+  if (!pend.length) return;
+  adjLoteActivo = true;
+  var chain = Promise.resolve();
+  pend.forEach(function(m){
+    chain = chain.then(function(){
+      return rpcChat("leer_adjunto", { p_codigo: SESION, p_clave: SESION, p_id: Number(m.id) }).then(function(r){
+        if (r && r.ok && r.adj_datos) { ADJ_CACHE_MT[m.id] = r.adj_datos; m.adj_datos = r.adj_datos; }
+      });
+    });
+  });
+  chain.then(function(){ adjLoteActivo = false; pintarChat(CHAT_MSGS); });
+}
 var chatCargando2 = false;
 var chatFallos = 0, chatReintentoT = null;
 function chatCargar(){
@@ -2177,13 +2294,18 @@ function chatCargar(){
   /* v1.4.4: p_buscar SIEMPRE presente (aunque sea null): sin él, la
      sobrecarga nueva de leer_chat hace la puerta ambigua (HTTP 300)
      y el chat entero caía aunque hubiera internet. */
-  rpcChat("leer_chat", { p_codigo: SESION, p_con: "ADMIN", p_clave: SESION, p_buscar: null }).then(function(r){
+  rpcChat("leer_chat_ligero", { p_codigo: SESION, p_con: "ADMIN", p_clave: SESION }).then(function(r){
+    if (r && r.ok && r.mensajes) return r;
+    return rpcChat("leer_chat", { p_codigo: SESION, p_con: "ADMIN", p_clave: SESION, p_buscar: null });   /* respaldo si la puerta ligera aun no existe */
+  }).then(function(r){
     chatCargando2 = false;
     if (r && r.ok && r.mensajes) {
       chatFallos = 0;
       CHAT_FIJADO = r.fijado || null;
       CHAT_TEMP_SEG = Number(r.temporal_seg || 0);
+      fusionarAdjuntosCache(r.mensajes);
       pintarChat(r.mensajes); pintarBadge(0);
+      cargarAdjuntosPendientes();   /* v1.5.3 (E-9): los adjuntos llegan una vez, no en cada sondeo */
       despacharChat();   // si el chat cargó, la red responde: que salga la cola
     } else if (!CHAT_MSGS.length && !chatOutGet().length) {
       var box = $("c_hilo");
@@ -2232,10 +2354,10 @@ function renderOutbox(){
   var a = outboxGet(), box = $("r_lista"), h = "";
   a.slice().reverse().forEach(function(rp){
     var st = rp.estado === "aprobado" ? '<span class="st okk"><span class="dot"></span>Aprobado +' + fmt(rp.comision || 0) + "</span>"
-      : rp.estado === "rechazado" ? '<span class="st no"><span class="dot"></span>Rechazado' + (rp.motivo ? ": " + rp.motivo : "") + "</span>"
+      : rp.estado === "rechazado" ? '<span class="st no"><span class="dot"></span>Rechazado' + (rp.motivo ? ": " + esc(rp.motivo) : "") + "</span>"
       : '<span class="st pend"><span class="dot"></span>Pendiente' + (rp.enviado ? "" : " (guardado, sin enviar)") + "</span>";
-    var ed = (rp.estado === "pendiente" && rp.id) ? ' <button type="button" class="miniBtn" data-edrep="' + rp.id + '">✏️ Editar</button>' : "";
-    h += '<div class="rep"><span>' + repResumen(rp) + "<br><small>" + rp.fecha + "</small>" + ed + "</span>" + st + "</div>";
+    var ed = (rp.estado === "pendiente" && rp.id) ? ' <button type="button" class="miniBtn" data-edrep="' + esc(rp.id) + '">✏️ Editar</button>' : "";
+    h += '<div class="rep"><span>' + repResumen(rp) + "<br><small>" + esc(rp.fecha) + "</small>" + ed + "</span>" + st + "</div>";
   });
   box.innerHTML = h || '<div class="rep"><span>Todavía no has reportado nada.</span></div>';
   box.querySelectorAll("[data-edrep]").forEach(function(b){
@@ -2322,6 +2444,10 @@ function cambiarCodigo(){
   rpcMsg("cambiar_codigo", { p_codigo_actual: actual, p_codigo_nuevo: nuevo }).then(function(r){
     if (!r.ok || !r.data || r.data.ok !== true) return fallo("No se pudo cambiar: " + (r.error || "ese código ya existe o no es válido") + ". Prueba con otro.");
     panelCacheClear();   /* v1.5.2: ningún JSON que remapear; la foto del panel se repone sola con leer_panel */
+    /* v1.5.3 (E-2, residual cazado en la verificacion viva): los
+       reportes aun en cola llevaban el codigo VIEJO como buscador y
+       el servidor los rechazaba tras el cambio; migran con la sesion. */
+    try { var aCC = outboxGet(); aCC.forEach(function(x){ if (x.buscador === actual) x.buscador = nuevo; }); outboxSet(aCC); } catch(e){}
     SESION = nuevo; sesionSet(nuevo);
     okEl.style.display = "block";
     okEl.textContent = "Código cambiado. Tu enlace personal nuevo está abajo: guárdalo.";
