@@ -1,6 +1,12 @@
+adb shell input tap 500 1358
+sleep 2
 adb shell input tap 541 1351
+sleep 2
+adb shell input keyevent 44
+adb shell input keyevent 33
+adb shell input keyevent 49
+adb shell input keyevent 33
+adb shell input keyevent 30
+adb shell input keyevent 29
 sleep 1
-adb shell input text PEUEBA
-sleep 1
-adb shell input tap 541 1507
-sleep 9
+adb exec-out screencap -p > $RUNNER_TEMP/vivo-out/shots/texto.png
