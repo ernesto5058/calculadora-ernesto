@@ -1,6 +1,6 @@
 "use strict";
 /*__SENTRY_CASA__*/
-var APP_VERSION = "1.5.4";
+var APP_VERSION = "1.5.5";
 /* Tarifa de respaldo (E-7, Tanda Nº6): SOLO se usa si nunca llegó ni
    datos.json ni la tarifa viva, y mientras manda ella la app lo dice
    a la vista («RESPALDO» + su origen en tarifaText/pintaFrescura).
@@ -837,7 +837,52 @@ function leerPanelVivo(){
     if (r && r.ok) { PANEL_VIVO = { nombre: r.nombre || "", tratos: r.tratos || [] }; panelCacheSet(PANEL_VIVO); renderPanel(); }
   });
 }
-function cargarVivo(){ leerTarifaViva(); leerPanelVivo(); }
+function cargarVivo(){ leerTarifaViva(); leerPanelVivo(); cargarDinero(); }
+
+/* ===== v1.5.6: MI CUPO + ESTRELLAS (Libro del Dinero) =====
+   dinero_leer_estado con SU codigo devuelve SOLO lo suyo: su nivel
+   de estrellas, su % vigente, su cupo, su dinero en mano y sus
+   vueltas abiertas con reloj y comision proyectada. Su % de
+   estrellas manda en los estimados de SU calculadora. Si la puerta
+   no responde, la app sigue como siempre, sin el bloque. */
+var DINERO = null;
+function cargarDinero(){
+  if (!SESION) return;
+  fetch(SB_RPC + "dinero_leer_estado", { method: "POST", headers: sbHeaders(), body: JSON.stringify({ p_codigo: SESION }) })
+    .then(function(r){ return r.ok ? r.json() : null; })
+    .then(function(d){
+      if (!d || d.rol !== "buscador") return;
+      DINERO = d;
+      if (d.estrellas) { T.pctSaldo = Number(d.estrellas.pct_saldo); T.pctTransf = Number(d.estrellas.pct_transferencia); }
+      pintarCupo();
+    }).catch(function(){});
+}
+function pintarCupo(){
+  var box = $("p_cupo"); if (!box || !DINERO || !DINERO.estrellas) return;
+  var e = DINERO.estrellas;
+  box.classList.remove("hide");
+  $("cu_est").textContent = "⭐ " + (Math.round(Number(e.estrellas) * 10) / 10);
+  $("cu_pct").textContent = "Cobras el " + e.pct_saldo + "% del saldo · " + e.pct_transferencia + "% de la transferencia";
+  var s = e.siguiente;
+  if (s) {
+    $("cu_prog_lab").innerHTML = "Llevas <b>" + e.conteo_ganadoras + " de " + s.umbral_conteo + "</b> transacciones ganadoras pa ⭐ " + s.estrellas + " — te faltan <b>" + s.faltan + "</b>. Al subir, cobras " + s.pct_saldo + "% del saldo.";
+    $("cu_prog_bar").style.width = Math.min(100, s.umbral_conteo ? (e.conteo_ganadoras / s.umbral_conteo * 100) : 0) + "%";
+  } else {
+    $("cu_prog_lab").innerHTML = "Llevas <b>" + e.conteo_ganadoras + "</b> transacciones ganadoras · ¡nivel máximo! ⭐ 5";
+    $("cu_prog_bar").style.width = "100%";
+  }
+  $("cu_info").innerHTML = "Tu cupo: <b>" + fmtN(DINERO.cupo || 0) + "</b> · dinero en tu mano: <b>" + fmtN(DINERO.en_mano || 0) + "</b>";
+  var html = "";
+  (DINERO.vueltas || []).filter(function(v){ return v.estado === "abierta"; }).forEach(function(v){
+    var h = v.reloj ? Number(v.reloj.horas_desde_entrega || 0) : 0;
+    html += '<div class="trato"><span>' + (v.tipo === "saldo" ? "📱 Saldo" : "🏦 Transferencia") + " · capital " + fmtN(v.capital) +
+      "<br><small>⏱️ " + (h < 1 ? "menos de 1 h" : Math.round(h) + " h") + " en la calle — el mercado no espera" +
+      (v.pago_hecho ? " · ✅ tu pago está hecho: " + fmtN(v.comision) : "") +
+      (v.proyeccion ? "<br>Si Ernesto vende ahora, tu comisión sería " + fmtN(v.proyeccion.comision_proyectada) : "") +
+      "</small></span></div>";
+  });
+  $("cu_vueltas").innerHTML = html ? ('<label>Tus vueltas abiertas</label>' + html) : "";
+}
 
 function chatEnviar(){
   var warn = $("c_warn"); warn.style.display = "none";
@@ -1913,8 +1958,19 @@ function activarAvisosMT(){
     .catch(function(){ txt.textContent = "No se pudo activar: revisa el permiso de notificaciones."; });
 }
 
-/* ===== TEXTOS (v1.4.5: solo textos inteligentes de la tarifa) ===== */
+/* ===== TEXTOS (Ola Nueva 2: motor IA en el servidor) =====
+   Las plantillas locales murieron: ningún texto nace ya en el
+   cliente. Los escribe la Edge Function «textos-generar» con los
+   datos VIVOS de Ernesto (catálogo + tarifa pública) y un
+   verificador de cifras en el servidor; la equivalencia de la
+   cantidad también la calcula el servidor. Estilo fijo PRO de
+   esta app: tono humanizado, WhatsApp, emojis muchos, título en
+   mayúsculas. Sin conexión: el último paquete generado, guardado
+   en este teléfono, con su aviso honesto. */
 var TX_LS = "busc_textos_v1";
+var TX_CAT_LS = "busc_textos_catalogo_v1";
+var TX_PAQ_LS = "busc_textos_paquete_v1";
+var TEXTOS_FN_URL = "https://otsudfgwpapkluusrlnj.supabase.co/functions/v1/textos-generar";
 function txHist(){ try { return JSON.parse(localStorage.getItem(TX_LS) || "[]"); } catch(e){ return []; } }
 function txHistPintar(){
   var el = $("tx_hist"); if (!el) return;
@@ -1923,9 +1979,10 @@ function txHistPintar(){
   el.querySelectorAll("[data-txh]").forEach(function(b){ b.addEventListener("click", function(){ var x = txHist()[Number(b.getAttribute("data-txh"))]; if (x && navigator.clipboard) navigator.clipboard.writeText(x.texto || ""); }); });
 }
 var TX_ULT = [];
-function txPintar(res, titulo){
+function txPintar(res, titulo, esRespaldo){
   TX_ULT = res.versiones;
-  var out = (res.avisos.length ? '<div class="hint">⚠️ ' + res.avisos.map(escChat).join(" ") + "</div>" : "");
+  var avisos = res.avisos || [];
+  var out = (avisos.length ? '<div class="hint">⚠️ ' + avisos.map(escChat).join(" ") + "</div>" : "");
   res.versiones.forEach(function(v, i){
     out += '<label>Versión ' + (i + 1) + " · " + escChat(v.enfoque) + '</label><div class="versionTxt">' + escChat(v.texto) + '</div>' +
       '<div class="chatTools"><button type="button" data-txc="' + i + '">Copiar</button>' +
@@ -1933,113 +1990,104 @@ function txPintar(res, titulo){
   });
   $("tx_out").innerHTML = out;
   $("tx_out").querySelectorAll("[data-txc]").forEach(function(b){ b.addEventListener("click", function(){ if (navigator.clipboard) navigator.clipboard.writeText(TX_ULT[Number(b.getAttribute("data-txc"))].texto); }); });
-  try { localStorage.setItem(TX_LS, JSON.stringify(TextosMotor.historialPush(txHist(), { titulo: titulo, cuando: new Date().toISOString(), texto: res.versiones[0].texto }))); } catch(e){}
+  if (!esRespaldo) { try { localStorage.setItem(TX_LS, JSON.stringify(TextosMotor.historialPush(txHist(), { titulo: titulo, cuando: new Date().toISOString(), texto: res.versiones[0].texto }))); } catch(e){} }
   txHistPintar();
 }
 
 
-/* ===== v1.4.4: TEXTOS INTELIGENTES — el anuncio de Ernesto =====
-   Los textos de catálogo nacen de la CONFIGURACIÓN PÚBLICA del
-   sistema (datos.json → «publico»: la que ve todo el equipo y se
-   actualiza sin tocar la app), jamás de números internos: tasas
-   públicas de compro saldo (al 2 · más de 5000 al 2.2 · recargas
-   a 720), teléfono y zona públicos de Ernesto, y el piso público
-   de la tarifa viva para transferencia. Sin huecos: el texto sale
-   SIEMPRE completo (teléfono + zona + domicilio). Si datos.json
-   aún no ha bajado, manda el respaldo con los mismos valores
-   públicos confirmados por Ernesto (mismo patrón que la tarifa). */
-var DEFAULT_PUBLICO = { telefono: "51231558", zona: "Micro 10, distrito José Martí, Santiago de Cuba",
-  domicilio: "Domicilio gratis en Santiago de Cuba",
-  saldo: { tasa: 2, tasaAlta: 2.2, desdeAlta: 5000, recarga: 720 } };
-function publicoCfg(){
-  var p = (DATA && DATA.publico) || {};
-  var s = p.saldo || {};
-  function n(x, d){ var v = Number(x); return isFinite(v) && v > 0 ? v : d; }
-  return { telefono: p.telefono || DEFAULT_PUBLICO.telefono,
-    zona: p.zona || DEFAULT_PUBLICO.zona,
-    domicilio: p.domicilio || DEFAULT_PUBLICO.domicilio,
-    saldo: { tasa: n(s.tasa, DEFAULT_PUBLICO.saldo.tasa), tasaAlta: n(s.tasaAlta, DEFAULT_PUBLICO.saldo.tasaAlta),
-      desdeAlta: n(s.desdeAlta, DEFAULT_PUBLICO.saldo.desdeAlta), recarga: n(s.recarga, DEFAULT_PUBLICO.saldo.recarga) } };
+/* ===== Motor de textos en el servidor (Ola Nueva 2) =====
+   Catálogo: se pinta desde la respuesta del motor y se cachea
+   («busc_textos_catalogo_v1»); sin red manda el cache o la lista
+   base saldo/transferencia. Generar: estilo fijo PRO y, solo si
+   la clave es «saldo» y hay cantidad escrita, su equivalencia la
+   calcula el SERVIDOR (el cliente ya no hace esa cuenta). */
+var TX_ITEMS = [];
+var TX_CLAVE_SEL = "saldo";
+function txCatalogoCache(){
+  try { var c = JSON.parse(localStorage.getItem(TX_CAT_LS) || "null");
+    return (c && Array.isArray(c.items) && c.items.length) ? c.items : null; } catch(e){ return null; }
 }
-var TX_ROT_N = 0;
-function txQuienStr(){
-  try { TX_ROT_N = Number(localStorage.getItem("busc_tx_rot") || 0) + 1; localStorage.setItem("busc_tx_rot", String(TX_ROT_N)); }
-  catch(e){ TX_ROT_N++; }
-  return (SESION || "BUSC") + "#" + TX_ROT_N;
+function txPaqueteGet(){
+  try { var q = JSON.parse(localStorage.getItem(TX_PAQ_LS) || "null");
+    return (q && Array.isArray(q.versiones) && q.versiones.length) ? q : null; } catch(e){ return null; }
 }
-function fmtTasa(x){ return String(Math.round(Number(x) * 100) / 100); }
-/* Arma las 3 versiones rotando gancho/cierre con la sal de la
-   generación: dos generaciones seguidas nunca dan la misma. */
-function txVersionesPRO(cuerpo, ganchos, cierres){
-  txQuienStr();   /* cada generación AVANZA la rotación: dos seguidas nunca dan la misma versión */
-  var enf = ["directo", "vendedor", "humanizado"];
-  return { avisos: [], versiones: enf.map(function(e, i){
-    var lineas = [];
-    var g = ganchos[(TX_ROT_N + i) % ganchos.length];
-    var c = cierres[(TX_ROT_N + i) % cierres.length];
-    if (e === "humanizado") lineas.push("Buenas — " + cuerpo[0].toLowerCase().replace(/\*/g, "") + ", pago en efectivo al momento.");
-    else { if (g) lineas.push(g); lineas.push(cuerpo[0]); }
-    lineas = lineas.concat(cuerpo.slice(1));
-    if (c) lineas.push(c);
-    return { enfoque: e, texto: lineas.join("\n") };
-  }) };
+function textosFn(body){
+  return fetch(TEXTOS_FN_URL, { method: "POST", headers: sbHeaders(), body: JSON.stringify(body || {}) })
+    .then(function(r){ return r.text().then(function(t){
+      var j = null; try { j = JSON.parse(t); } catch(e){}
+      if (!r.ok || !j || j.ok === false) throw new Error((j && j.error) || ("Error " + r.status));
+      if (r.ok) marcarRedOk();
+      return j;
+    }); });
 }
-function textoComproSaldoPRO(){
-  /* Los textos son para compartir por WhatsApp: el título va con
-     las negritas de WhatsApp (*…*) siempre. */
-  var cfg = publicoCfg(), s = cfg.saldo, wa = true;
-  var cuerpo = [(wa ? "*COMPRO SALDO*" : "COMPRO SALDO"),
-    "Pago en efectivo al " + fmtTasa(s.tasa) + " 🤑🤑",
-    "📲 " + cfg.telefono];
-  [1000, 2000, 3000, 4000, 5000].forEach(function(c){
-    if (c <= s.desdeAlta) cuerpo.push(c + " X " + Math.round(c * s.tasa) + " 💵");
+function txItemSel(){ return TX_ITEMS.filter(function(x){ return x.clave === TX_CLAVE_SEL; })[0] || null; }
+function txCantVisible(){
+  var box = $("tx_cant_box"); if (!box) return;
+  var it = txItemSel();
+  var esSaldo = TX_CLAVE_SEL === "saldo" || (it && it.tipo === "saldo");
+  box.classList.toggle("hide", !esSaldo);
+  var inp = $("tx_cant_saldo"); if (inp) inp.disabled = !esSaldo;
+}
+function txPintarCatalogo(items){
+  TX_ITEMS = (items && items.length) ? items.slice() : [];
+  if (!TX_ITEMS.length) TX_ITEMS = [{ clave: "saldo", nombre: "Compro saldo", tipo: "saldo" }, { clave: "transferencia", nombre: "Transferencia", tipo: "transferencia" }];
+  if (!TX_ITEMS.some(function(x){ return x.clave === TX_CLAVE_SEL; })) TX_CLAVE_SEL = TX_ITEMS[0].clave;
+  var cont = $("tx_cat"); if (!cont) return;
+  cont.innerHTML = "";
+  TX_ITEMS.forEach(function(it){
+    var ch = document.createElement("div");
+    ch.className = "chip" + (it.clave === TX_CLAVE_SEL ? " on" : "");
+    ch.textContent = it.nombre || it.clave;
+    ch.setAttribute("data-clave", it.clave);
+    ch.addEventListener("click", function(){ TX_CLAVE_SEL = it.clave; txPintarCatalogo(TX_ITEMS); });
+    cont.appendChild(ch);
   });
-  cuerpo.push((wa ? "*Más de " + s.desdeAlta + " los pago al " + fmtTasa(s.tasaAlta) + "*" : "Más de " + s.desdeAlta + " los pago al " + fmtTasa(s.tasaAlta)));
-  cuerpo.push("Pago las recargas a " + s.recarga + " 😉");
-  /* Cantidad inteligente: la equivalencia la calcula el sistema
-     con la tasa vigente; el buscador no teclea ni una cifra. */
-  var cantEl = $("tx_cant_saldo");
-  var cant = cantEl ? parseFloat(String(cantEl.value || "").replace(",", ".")) : NaN;
-  if (isFinite(cant) && cant > 0) {
-    var tasa = cant > s.desdeAlta ? s.tasaAlta : s.tasa;
-    cuerpo.push("Por " + TextosMotor.miles(cant) + " de saldo te pago " + TextosMotor.miles(Math.round(cant * tasa)) + " CUP en efectivo (al " + fmtTasa(tasa) + ").");
+  txCantVisible();
+}
+function cargarCatalogoTextos(){
+  var cache = txCatalogoCache();
+  txPintarCatalogo(cache || []);
+  if (!window.fetch || !SESION) return;
+  textosFn({ codigo: SESION, accion: "catalogo" }).then(function(r){
+    if (r && Array.isArray(r.items) && r.items.length) {
+      try { localStorage.setItem(TX_CAT_LS, JSON.stringify({ items: r.items, telefono: r.telefono || "", zona: r.zona || "", cuando: new Date().toISOString() })); } catch(e){}
+      txPintarCatalogo(r.items);
+    }
+  }).catch(function(){ /* sin red: queda el cache o la lista base ya pintada */ });
+}
+function txGenerarTextos(){
+  var out = $("tx_out");
+  if (!SESION) { if (out) out.innerHTML = '<div class="hint">Primero entra con tu código personal.</div>'; return; }
+  var clave = TX_CLAVE_SEL;
+  var it = txItemSel();
+  var titulo = (it && it.nombre) || clave;
+  var btn = $("tx_generar");
+  if (btn) { btn.disabled = true; btn.textContent = "Generando\u2026"; }
+  function soltar(){ var b = $("tx_generar"); if (b) { b.disabled = false; b.textContent = "Generar textos"; } }
+  var body = { codigo: SESION, accion: "generar", clave: clave, tono: "humanizado", tamano: "completo",
+    destino: "wa", emojis: "muchos", mayus: true, urgencia: false, privado: false, hashtags: false };
+  if (clave === "saldo") {
+    var cantEl = $("tx_cant_saldo");
+    var cant = cantEl ? parseFloat(String(cantEl.value || "").replace(",", ".")) : NaN;
+    if (isFinite(cant) && cant > 0) body.cantidad = cant;
   }
-  cuerpo.push("Vivo x " + cfg.zona);
-  cuerpo.push(cfg.domicilio);
-  return txVersionesPRO(cuerpo,
-    ["", "¡Pago al momento! 🤑", "¡Te compro tu saldo hoy mismo!"],
-    ["Escríbeme y cerramos hoy 📲", "Sin vueltas: efectivo en mano", ""]);
+  textosFn(body).then(function(r){
+    soltar();
+    if (!r || !Array.isArray(r.versiones) || !r.versiones.length) throw new Error("respuesta vacia");
+    try { localStorage.setItem(TX_PAQ_LS, JSON.stringify({ clave: clave, versiones: r.versiones, cuando: new Date().toISOString() })); } catch(e){}
+    txPintar({ versiones: r.versiones, avisos: r.avisos || [] }, titulo, false);
+  }).catch(function(){
+    soltar();
+    var paq = txPaqueteGet();
+    if (paq) {
+      var cuandoTxt = "";
+      try { var d = new Date(paq.cuando); if (!isNaN(d.getTime())) cuandoTxt = d.toLocaleString("es-ES"); } catch(e){}
+      txPintar({ versiones: paq.versiones, avisos: ["Sin conexi\u00f3n: \u00faltimo paquete generado el " + (cuandoTxt || paq.cuando || "\u2014") + ". Cuando vuelva internet, genera uno nuevo con los datos vivos."] }, titulo, true);
+    } else if (out) {
+      out.innerHTML = '<div class="hint">Sin conexi\u00f3n con el motor de textos y a\u00fan no tienes un paquete guardado en este tel\u00e9fono: con\u00e9ctate una vez para generar el primero.</div>';
+    }
+  });
 }
-function textoRecargaCambioPRO(){
-  var cfg = publicoCfg(), s = cfg.saldo;
-  var cuerpo = ["RECARGA Y CAMBIO DE SALDO",
-    "Pago las recargas a " + s.recarga + " 😉",
-    "Y compro saldo x cantidad: pago en efectivo al " + fmtTasa(s.tasa) + " 🤑🤑",
-    "Más de " + s.desdeAlta + " de saldo, al " + fmtTasa(s.tasaAlta) + ".",
-    "📲 " + cfg.telefono,
-    "Vivo x " + cfg.zona,
-    cfg.domicilio];
-  return txVersionesPRO(cuerpo,
-    ["", "¡Al momento! 🤑", "Recarga y cambio, sin salir de casa"],
-    ["Escríbeme y cerramos hoy 📲", "Efectivo en mano, sin vueltas", ""]);
-}
-function textoTransferenciaPRO(){
-  var cfg = publicoCfg();
-  var piso = Math.round(Number(T.pisoTransf || 25));
-  var cuerpo = ["CAMBIO TRANSFERENCIA POR EFECTIVO 💵",
-    "Compro tu transferencia y te pago en efectivo, al momento.",
-    "Se aceptan tratos al " + piso + "% o más.",
-    "📲 " + cfg.telefono,
-    "Vivo x " + cfg.zona,
-    cfg.domicilio,
-    "Solo personas conocidas."];
-  return txVersionesPRO(cuerpo,
-    ["", "¡Efectivo en mano! 💵", "Trato serio y rápido"],
-    ["Escríbeme y coordinamos 📲", "Sin vueltas: cerramos hoy", ""]);
-}
-function txRapidoSaldo(){ txPintar(textoComproSaldoPRO(), "Compro saldo"); }
-function txRapidoRecarga(){ txPintar(textoRecargaCambioPRO(), "Recarga y cambio"); }
-function txRapidoTransf(){ txPintar(textoTransferenciaPRO(), "Transferencia"); }
 
 /* ===== D4 (v1.5.1) — navegación de pestañas A PRUEBA DE TRAGOS =====
    El piloto Appetize cazó en la APK v1.4.9 que la pestaña Chat no
@@ -2084,10 +2132,10 @@ function showView(v){
     if (vw) vw.classList.toggle("hide", x !== v);
   });
   if (v === "Rep") renderOutbox();
-  if (v === "Panel") renderPanel();
+  if (v === "Panel") { renderPanel(); pintarCupo(); }
   if (v === "Ayuda") chatCargar();
   if (v === "Perfil") { cargarPerfil(); pintarAvisos(); }
-  if (v === "Textos") txHistPintar();
+  if (v === "Textos") { txHistPintar(); cargarCatalogoTextos(); }
 }
 (function cablearV14(){
   try {
@@ -2096,9 +2144,7 @@ function showView(v){
     $("pf_btn").addEventListener("click", guardarPerfil);
     $("cc_btn").addEventListener("click", cambiarCodigo);
     $("pf_push").addEventListener("click", activarAvisosMT);
-    $("tx_saldo").addEventListener("click", txRapidoSaldo);
-    $("tx_transf").addEventListener("click", txRapidoTransf);
-    var txRec = $("tx_recarga"); if (txRec) txRec.addEventListener("click", txRapidoRecarga);
+    var txGen = $("tx_generar"); if (txGen) txGen.addEventListener("click", txGenerarTextos);
     /* Explicaciones plegables (una línea + «ⓘ»): patrón de la casa. */
     document.querySelectorAll(".hintBtn").forEach(function(b){
       b.addEventListener("click", function(){
