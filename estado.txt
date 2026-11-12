@@ -1,2 +1,6 @@
 [13:50:49] Instalando piezas (Xvfb, x11vnc, noVNC, cloudflared)...
 [13:51:14] Piezas listas (t+27s)
+[13:51:16] /dev/kvm presente: crw-rw-rw- root kvm
+[13:52:21] vivo.ini en: /home/runner/.android/avd/vivo.ini
+[13:52:21] ANDROID_AVD_HOME=/home/runner/.android/avd · AVDs segun el emulador: vivo 
+[13:52:21] AVD creado (t+94s)
