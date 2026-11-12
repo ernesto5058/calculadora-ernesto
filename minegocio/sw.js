@@ -3,9 +3,12 @@
    service worker de buscadores/ (el de la app de buscadores) ni viceversa.
    Estrategia: cache-first del cascarón (index/iconos/manifest) →
    la app abre SIN internet desde la segunda visita. Los datos
-   (Supabase, datos.json, ultimo.json) siempre van a la red primero
-   y la app guarda su última foto en localStorage. */
-var CACHE = "minegocio-v13";
+   (Supabase, datos.json, ultimo.json) van a la red primero y CADA
+   respuesta buena se guarda en la caché (TANDA 6 · E-10: antes el
+   fallback leía una caché que nadie escribía); sin red se sirve
+   esa última copia cacheada, además de la foto en localStorage
+   que guarda la propia app. */
+var CACHE = "minegocio-v14";
 var CASCARON = [
   "./",
   "./index.html",
@@ -35,11 +38,19 @@ self.addEventListener("activate", function(e){
 self.addEventListener("fetch", function(e){
   var url = new URL(e.request.url);
   if (e.request.method !== "GET") return;
-  /* Datos vivos: red primero; si no hay red, lo que haya en caché (si hay) */
+  /* Datos vivos: red primero, y la respuesta buena SE GUARDA en la
+     caché (E-10: el respaldo prometido existe de verdad); si no hay
+     red, se sirve la última copia guardada. */
   var esDato = url.pathname.indexOf("datos.json") >= 0 || url.pathname.indexOf("ultimo.json") >= 0 || url.hostname.indexOf("supabase.co") >= 0;
   if (esDato) {
     e.respondWith(
-      fetch(e.request).catch(function(){ return caches.match(e.request, { ignoreSearch: true }); })
+      fetch(e.request).then(function(r){
+        if (r && r.ok) {
+          var clon = r.clone();
+          caches.open(CACHE).then(function(c){ c.put(e.request, clon); });
+        }
+        return r;
+      }).catch(function(){ return caches.match(e.request, { ignoreSearch: true }); })
     );
     return;
   }
@@ -94,7 +105,12 @@ self.addEventListener("push", (event) => {
 self.addEventListener("notificationclick", function(e){
   e.notification.close();
   var datos = e.notification.data || {};
-  var destino = new URL(datos.url || "./", self.registration.scope).href;
+  /* E-11: con la app CERRADA no hay ventana a la que mandar el
+     postMessage: la pestaña destino viaja en la propia URL de
+     apertura (?tab=…) y la app la consume al arrancar. */
+  var destinoUrl = new URL(datos.url || "./", self.registration.scope);
+  if (datos.tab) destinoUrl.searchParams.set("tab", datos.tab);
+  var destino = destinoUrl.href;
   e.waitUntil(
     clients.matchAll({ type: "window", includeUncontrolled: true }).then(function(lista){
       for (var i = 0; i < lista.length; i++) {

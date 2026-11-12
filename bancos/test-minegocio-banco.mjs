@@ -66,7 +66,14 @@ function crear(extra){
     if (extra && extra.push) {
       /* Stub de avisos: Notification + PushManager + SW listo con
          pushManager; el permiso lo decide el caso (granted/denied). */
-      const fakeSub = { toJSON(){ return { endpoint: "https://push.example/abc", keys: { p256dh: "k", auth: "a" } }; } };
+      /* TANDA 6 · E-12: el stub modela la API REAL de PushSubscription:
+         options.applicationServerKey con la clave VAPID vigente (la del
+         propio HTML) y unsubscribe(); sin eso, la renovación de clave
+         no se puede ejercitar y el flujo «ya suscrito» no existe. */
+      const vapidStr = (html.match(/var VAPID_PUBLICA = "([^"]+)"/) || [])[1] || "";
+      const vapidRaw = w.atob((vapidStr + "=".repeat((4 - (vapidStr.length % 4)) % 4)).replace(/-/g, "+").replace(/_/g, "/"));
+      const vapidBuf = new Uint8Array(vapidRaw.length); for (let i = 0; i < vapidRaw.length; i++) vapidBuf[i] = vapidRaw.charCodeAt(i);
+      const fakeSub = { options: { applicationServerKey: vapidBuf.buffer }, unsubscribe(){ return Promise.resolve(true); }, toJSON(){ return { endpoint: "https://push.example/abc", keys: { p256dh: "k", auth: "a" } }; } };
       const fakeRegP = { pushManager: { getSubscription(){ return Promise.resolve(fakeSub); }, subscribe(){ return Promise.resolve(fakeSub); } } };
       if (w.__swReg) { w.__swReg.ready = Promise.resolve(fakeRegP); }
       else {
@@ -442,7 +449,7 @@ function pestaña(w, nombre){ [...w.document.querySelectorAll(".tab")].forEach(t
 /* ===== 10. SERVICE WORKER: scope y caché propios ===== */
 {
   const sw = fs.readFileSync(REPO + "minegocio/sw.js", "utf8");
-  ok(sw.includes('CACHE = "minegocio-v13"'), "MN-50 SW con caché propio minegocio-v13 (v13 Tanda Inspector Nº2: tarifa única viva, publicar contra la forma viva, adjuntos sin XSS; v12 Chat PRO: compositor fuera del repintado, hilo incremental, hoja de adjuntos nueva y Textos con modo real; v11 tanda foto+texto: puerta única sin gemelas y editor WhatsApp; v10 tanda 3 errores; v9 botón «Enviar su enlace» en Equipo; v8 rediseño PRO de toda la app; v7 rediseño Contabilidad, v6 Fase 1, v5 local-first, v4 ronda 2, v3 ronda 1)");
+  ok(sw.includes('CACHE = "minegocio-v14"'), "MN-50 SW con caché propio minegocio-v14 (v14 Tanda Inspector Nº6: SW honesto que SÍ cachea datos, push que abre en su pestaña y renovación VAPID; v13 Tanda Inspector Nº2: tarifa única viva, publicar contra la forma viva, adjuntos sin XSS; v12 Chat PRO: compositor fuera del repintado, hilo incremental, hoja de adjuntos nueva y Textos con modo real; v11 tanda foto+texto: puerta única sin gemelas y editor WhatsApp; v10 tanda 3 errores; v9 botón «Enviar su enlace» en Equipo; v8 rediseño PRO de toda la app; v7 rediseño Contabilidad, v6 Fase 1, v5 local-first, v4 ronda 2, v3 ronda 1)");
   ok(sw.includes("SKIP_WAITING") && sw.includes('addEventListener("message"'), "MN-50b el SW acepta SKIP_WAITING por mensaje (forzar activación desde la app)");
   ok(!sw.includes("mitrabajo"), "MN-51 el SW de Mi Negocio no toca el de Mi Trabajo");
   const mf = JSON.parse(fs.readFileSync(REPO + "minegocio/manifest.webmanifest", "utf8"));
@@ -517,7 +524,7 @@ function pestaña(w, nombre){ [...w.document.querySelectorAll(".tab")].forEach(t
   ok(d.getElementById("bannerVer").style.display === "block" && d.getElementById("bannerVer").textContent.includes("Nueva versión lista"), "R2-2 SW nuevo instalado con controlador → aviso «Nueva versión lista» visible");
   w.__swReg.__controllerchange();
   await sleep(60);
-  ok(("" + w.sessionStorage.getItem("mnRecarga_v13")) === "1", "R2-3 controllerchange marca la recarga única de la v13 (sin bucles)");
+  ok(("" + w.sessionStorage.getItem("mnRecarga_v14")) === "1", "R2-3 controllerchange marca la recarga única de la v14 (sin bucles)");
   const antes = w.__fakeReg.actualizaciones;
   click(d.getElementById("btnAct"));
   await sleep(120);
@@ -614,11 +621,11 @@ function pestaña(w, nombre){ [...w.document.querySelectorAll(".tab")].forEach(t
   ok(chat.querySelectorAll("[data-vplay]").length === 3 && chat.querySelectorAll(".vozOnda i").length === 72, "R2-25 cada reproductor trae su ▶ circular y su onda de 24 picos");
   ok(typeof w.mejorMimeVoz === "function" && typeof w.hashParChat === "function" && typeof w.rtTimbre === "function", "R2-26 existen mejorMimeVoz, hashParChat y rtTimbre");
   ok(w.hashParChat("ADMIN", "BUSC-1") === w.hashParChat("BUSC-1", "ADMIN") && w.hashParChat("ADMIN", "BUSC-1") !== w.hashParChat("ADMIN", "BUSC-2"), "R2-27 el canal del timbre es el mismo para la pareja en ambos sentidos y distinto por pareja");
-  ok(w.selloVersion() === "Mi Negocio · versión 2026-11-12 10:55 · caché v13", "R2-28 sello de versión exacto: «" + w.selloVersion() + "»");
+  ok(w.selloVersion() === "Mi Negocio · versión 2026-11-12 11:22 · caché v14", "R2-28 sello de versión exacto: «" + w.selloVersion() + "»");
   ok(chat.textContent.includes("cada 3 s"), "R2-29 la ayuda del chat dice el refresco nuevo de 3 s (ya no 15 s)");
   pestaña(w, "Inicio");
   await sleep(120);
-  ok(d.getElementById("pgInicio").textContent.includes("Mi Negocio · versión 2026-11-12 10:55 · caché v13"), "R2-30 el sello de versión se ve en Inicio");
+  ok(d.getElementById("pgInicio").textContent.includes("Mi Negocio · versión 2026-11-12 11:22 · caché v14"), "R2-30 el sello de versión se ve en Inicio");
   w.close();
   R.chatMsgs = [];
 }
@@ -795,7 +802,7 @@ function pestaña(w, nombre){ [...w.document.querySelectorAll(".tab")].forEach(t
   await sleep(350);
   const d = w.document;
   ok(w.PUERTAS.marcarPrueba === "admin_marcar_prueba", "F1-1 la puerta nueva está registrada: PUERTAS.marcarPrueba = admin_marcar_prueba");
-  ok(w.MN_VERSION === "v13", "F1-2 MN_VERSION subió a v13");
+  ok(w.MN_VERSION === "v14", "F1-2 MN_VERSION subió a v14");
   /* Funciones puras con las fórmulas del servidor (tarifa del banco: 1098.68 / 1069.38 / 950) */
   ok(cerca(w.contaGananciaBruta({ tipo: "saldo", precio: 1000, cantidad: 100 }), 9868) && cerca(w.contaNeta({ tipo: "saldo", precio: 1000, cantidad: 100, comision: 2467 }), 7401), "F1-3 saldo r1: bruta 9868 · neta 7401 (comisión GUARDADA, no recalculada)");
   /* NOTA (desviación de la espec, verificada con la fórmula): la
@@ -1327,6 +1334,24 @@ function pestaña(w, nombre){ [...w.document.querySelectorAll(".tab")].forEach(t
   ok(w.esc('a"b') === "a&quot;b", "T2-17 E-3: esc() escapa también las comillas (seguro en atributos)");
   w.close();
   R.reportes = []; R.chatMsgs = [];
+}
+
+/* ===== TANDA Nº6 · E-10/E-11/E-12 (SW honesto, push con destino, VAPID) ===== */
+{
+  const sw6 = fs.readFileSync(REPO + "minegocio/sw.js", "utf8");
+  const ramaDatos = sw6.slice(sw6.indexOf("var esDato"), sw6.indexOf("/* Cascarón"));
+  ok(ramaDatos.includes("c.put(e.request, clon)"), "T6-1 E-10: la rama de datos del SW GUARDA la respuesta buena en caché (el respaldo prometido existe)");
+  ok(sw6.includes('searchParams.set("tab", datos.tab)') && sw6.includes("clients.openWindow(destino)"), "T6-2 E-11: notificationclick sin ventana abierta abre la app con ?tab=<destino> en la URL");
+  const { w } = crear({});
+  await sleep(200);
+  ok(typeof w.mismaClaveVapid === "function" && typeof w.suscribirPush === "function", "T6-3 E-12: la app trae mismaClaveVapid() y suscribirPush()");
+  const claveBuena = w.vapidBytes(w.VAPID_PUBLICA).buffer;
+  ok(w.mismaClaveVapid({ options: { applicationServerKey: claveBuena } }) === true, "T6-4 E-12: suscripción con la clave actual se reconoce como vigente");
+  const claveVieja = new Uint8Array(65); claveVieja[0] = 4;
+  ok(w.mismaClaveVapid({ options: { applicationServerKey: claveVieja.buffer } }) === false && w.mismaClaveVapid({ options: {} }) === false && w.mismaClaveVapid(null) === false, "T6-5 E-12: clave distinta, ausente o suscripción nula => NO vigente (toca re-suscribir)");
+  ok(html.includes("sub.unsubscribe().then(function(){ return suscribirPush(reg); })"), "T6-6 E-12: activarPush da de baja la suscripción de clave vieja y re-suscribe con la actual");
+  ok(html.includes("tabDePush") && html.includes('new URLSearchParams(location.search).get("tab")'), "T6-7 E-11: la app lee ?tab= al arrancar y lo aplica en entrar()");
+  w.close();
 }
 
 console.log("\nBANCO MI NEGOCIO: " + pass + " PASS · " + fail + " FAIL");

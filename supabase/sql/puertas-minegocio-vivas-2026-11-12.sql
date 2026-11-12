@@ -655,6 +655,8 @@ $function$;
 -- ---------------------------------------------------------------------
 -- Puerta: public.enviar_mensaje(p_de text, p_para text, p_texto text, p_clave text, p_adj_tipo text, p_adj_nombre text, p_adj_mime text, p_adj_datos text, p_adj_tam integer, p_resp_de bigint, p_op_id text)
 -- ---------------------------------------------------------------------
+-- (TANDA Nº6, 2026-11-12: validación de adjuntos en servidor vía adj_normalizar;
+--  definición canónica en adjuntos-validacion-tanda6-2026-11-12.sql)
 CREATE OR REPLACE FUNCTION public.enviar_mensaje(p_de text, p_para text, p_texto text, p_clave text, p_adj_tipo text DEFAULT NULL::text, p_adj_nombre text DEFAULT NULL::text, p_adj_mime text DEFAULT NULL::text, p_adj_datos text DEFAULT NULL::text, p_adj_tam integer DEFAULT NULL::integer, p_resp_de bigint DEFAULT NULL::bigint, p_op_id text DEFAULT NULL::text)
  RETURNS jsonb
  LANGUAGE plpgsql
@@ -662,12 +664,14 @@ CREATE OR REPLACE FUNCTION public.enviar_mensaje(p_de text, p_para text, p_texto
  SET search_path TO 'public'
 AS $function$
 declare
-  v_texto  text;
-  v_id     bigint;
-  v_bytes  bigint;
-  v_rde    text;
-  v_rpara  text;
-  v_rtexto text;
+  v_texto     text;
+  v_id        bigint;
+  v_bytes     bigint;
+  v_adj_datos text;
+  v_adj_mime  text;
+  v_rde       text;
+  v_rpara     text;
+  v_rtexto    text;
 begin
   perform public.chat_identidad(p_de, p_clave);
   perform public.chat_exigir_activo(p_de);
@@ -691,10 +695,12 @@ begin
     if p_adj_tipo is null or p_adj_tipo not in ('foto', 'archivo', 'voz') then
       raise exception 'adjunto no valido';
     end if;
-    v_bytes := (length(p_adj_datos) * 3) / 4;
-    if v_bytes > 5242880 then
-      raise exception 'adjunto supera los 5 MB';
-    end if;
+    -- TANDA 6 (E-3): validación de servidor — formato estricto,
+    -- mime de lista blanca coherente con el tipo, firma mágica y
+    -- tamaño real. Devuelve la forma canónica que se guarda.
+    select o_datos, o_mime, o_bytes
+      into v_adj_datos, v_adj_mime, v_bytes
+      from public.adj_normalizar(p_adj_tipo, p_adj_mime, p_adj_datos);
   else
     if v_texto = '' then
       raise exception 'mensaje vacio';
@@ -723,9 +729,9 @@ begin
       p_de, p_para, v_texto,
       case when v_bytes is null then null else p_adj_tipo end,
       case when v_bytes is null then null else left(coalesce(p_adj_nombre, 'archivo'), 120) end,
-      case when v_bytes is null then null else left(coalesce(p_adj_mime, ''), 60) end,
-      case when v_bytes is null then null else coalesce(p_adj_tam, v_bytes) end,
-      case when v_bytes is null then null else p_adj_datos end,
+      case when v_bytes is null then null else v_adj_mime end,
+      case when v_bytes is null then null else v_bytes end,
+      case when v_bytes is null then null else v_adj_datos end,
       p_resp_de, v_rde, v_rtexto, p_op_id
     )
     returning id into v_id;
