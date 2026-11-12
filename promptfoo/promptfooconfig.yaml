@@ -1,0 +1,25 @@
+# =====================================================================
+# promptfooconfig.yaml — Batería dorada/adversarial del Agente de
+# clientes de Ernesto (@AsistenteErnestoBot + widget web).
+#
+# Corre contra la logica.js REAL en local, con los datos semilla
+# espejo del banco eterno — JAMÁS contra producción (sin red, sin
+# Supabase, sin Telegram). Ver README.md y la skill promptfoo_agente.
+#
+# Uso:  npx promptfoo eval -c promptfooconfig.yaml --no-cache
+# (--no-cache es OBLIGATORIO: la caché de promptfoo clavea por prompt
+#  y podría devolver la salida vieja tras cambiar logica.js.)
+# =====================================================================
+description: "Agente Ernesto — batería dorada de incidentes reales (CHEQUEOS-ETERNOS filas 23-27)"
+
+prompts:
+  - "{{input}}"
+
+providers:
+  - id: file://provider/agente-provider.mjs
+    label: "agente-logica-local"
+
+tests: file://tests/casos.yaml
+
+evaluateOptions:
+  maxConcurrency: 1
