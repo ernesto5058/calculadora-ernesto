@@ -1,0 +1,159 @@
+name: Ojo iOS
+
+# OJO iOS (aprobado por Ernesto 2026-11-11): abre las webs de Ernesto en el
+# Safari de un iPhone SIMULADO (simctl, runner macOS de GitHub) y deja el
+# álbum publicado en Pages bajo ojo-ios/ + artifact de la corrida.
+# Honestidad de fábrica: el simulador trae el dispositivo y el iOS de la
+# imagen del runner — NO es el iPhone XR de Ernesto ni su iOS 18.7. El
+# índice registra el dispositivo y el iOS exactos de cada corrida.
+# Alcance v1: «Mi Negocio» solo hasta su puerta (el código del dueño no
+# viaja a ningún robot); Mercado, la paginita y Mi Mercado son públicos.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ojo-ios
+  cancel-in-progress: false
+
+jobs:
+  ojo-ios:
+    name: Safari en el iPhone simulado
+    runs-on: macos-latest
+    timeout-minutes: 45
+    steps:
+      - name: Descargar el repo
+        uses: actions/checkout@v4
+
+      - name: Elegir y encender el iPhone simulado
+        id: sim
+        run: |
+          mkdir -p ojo-ios/capturas
+          python3 - <<'PYEOF'
+          import json, subprocess, re, os
+          def run(*a):
+              return subprocess.run(a, capture_output=True, text=True).stdout
+          devs = json.loads(run("xcrun", "simctl", "list", "devices", "available", "--json"))
+          mejor = None
+          for runtime, lista in devs.get("devices", {}).items():
+              m = re.search(r"iOS-(\d+)-(\d+)", runtime)
+              if not m: continue
+              ver = (int(m.group(1)), int(m.group(2)))
+              for d in lista:
+                  if "iPhone" in d.get("name", "") and d.get("isAvailable", True):
+                      if mejor is None or ver > mejor[0]: mejor = (ver, runtime, d)
+          if mejor is None:
+              raise SystemExit("Sin iPhone simulado disponible en esta imagen")
+          ver, runtime, d = mejor
+          with open("ojo-ios/dispositivo.txt", "w", encoding="utf-8") as f:
+              f.write(f"Dispositivo simulado: {d['name']}\n")
+              f.write(f"iOS del simulador: {ver[0]}.{ver[1]}\n")
+              f.write(f"UDID: {d['udid']}\n")
+          with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+              f.write(f"udid={d['udid']}\n")
+              f.write(f"nombre={d['name']}\n")
+              f.write(f"ios={ver[0]}.{ver[1]}\n")
+          print("Elegido:", d["name"], "· iOS", f"{ver[0]}.{ver[1]}")
+          PYEOF
+          xcrun simctl boot "${{ steps.sim.outputs.udid }}" || true
+          xcrun simctl bootstatus "${{ steps.sim.outputs.udid }}" -b
+          sw_vers
+
+      - name: Abrir cada web en Safari y capturar
+        run: |
+          UDID="${{ steps.sim.outputs.udid }}"
+          : > ojo-ios/capturas.txt
+          foto(){ # $1 url, $2 espera, $3 archivo, $4 pie
+            echo "== $3 <- $1"
+            xcrun simctl openurl "$UDID" "$1" || true
+            sleep "$2"
+            xcrun simctl io "$UDID" screenshot "ojo-ios/capturas/$3" || true
+            if [ -f "ojo-ios/capturas/$3" ]; then echo "$3|$4" >> ojo-ios/capturas.txt; fi
+          }
+          foto "https://ernesto5058.github.io/calculadora-ernesto/minegocio/" 14 "01-minegocio-puerta.png" "Mi Negocio en Safari — SOLO la puerta: el código del dueño no viaja a ningún robot."
+          foto "https://ernesto5058.github.io/calculadora-ernesto/mercado/" 16 "02-mercado.png" "Mercado en Safari — el panel del mercado QvaPay con sus datos en vivo."
+          foto "https://ernesto5058.github.io/calculadora-ernesto/negocio/" 10 "03-negocio.png" "La paginita en Safari — la tarjeta pública del negocio."
+          foto "https://mi-mercado-ernesto.lovable.app" 18 "04-mi-mercado.png" "Mi Mercado (Lovable) en Safari — el conversor alimentado por los datos del vigía."
+          ls -la ojo-ios/capturas/
+
+      - name: Generar el índice (Pages)
+        if: always()
+        run: |
+          python3 - <<'PYEOF'
+          import os, datetime
+          out = "ojo-ios"
+          os.makedirs(out + "/capturas", exist_ok=True)
+          def leer(p, defecto=""):
+              try: return open(os.path.join(out, p), encoding="utf-8").read().strip()
+              except Exception: return defecto
+          disp = leer("dispositivo.txt", "Dispositivo simulado: (sin registrar)")
+          datos = dict(l.split(": ", 1) for l in disp.splitlines() if ": " in l)
+          nombre = datos.get("Dispositivo simulado", "iPhone simulado")
+          ios = datos.get("iOS del simulador", "—")
+          caps = []
+          for linea in leer("capturas.txt").splitlines():
+              if "|" in linea:
+                  f, c = linea.split("|", 1)
+                  p = os.path.join(out, "capturas", f)
+                  if os.path.exists(p) and os.path.getsize(p) > 20000: caps.append((f, c))
+          veredicto = "VERDE" if len(caps) == 4 else ("PARCIAL" if caps else "ROJO")
+          detalle = (f"Simulador: {nombre} con iOS {ios} (la imagen del runner de GitHub de esta corrida). "
+                     f"Se publican {len(caps)} de 4 fotos. OJO: este NO es el iPhone XR de Ernesto ni su iOS 18.7 — "
+                     "es el iPhone de mentira más nuevo que trae el servidor; sirve para ver Safari y el diseño, no sustituye su teléfono.")
+          try:
+              from zoneinfo import ZoneInfo
+              ahora = datetime.datetime.now(ZoneInfo("America/Havana")).strftime("%d-%m-%Y · %I:%M %p")
+          except Exception:
+              ahora = datetime.datetime.utcnow().strftime("%d-%m-%Y · %H:%M UTC")
+          color = {"VERDE": "#3FB96B", "PARCIAL": "#E8B84B", "ROJO": "#E5534B"}.get(veredicto, "#9AA4B2")
+          figs = "\n".join('<figure><img src="capturas/%s" alt="%s" loading="lazy"><figcaption>%s</figcaption></figure>' % (f, c, c) for f, c in caps)
+          html = """<!DOCTYPE html>
+          <html lang="es"><head><meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1">
+          <title>Ojo iOS — las webs de Ernesto en Safari</title>
+          <style>
+            :root{--bg:#0B0E13;--card:#12161F;--borde:#232B3A;--txt:#EDF1F7;--mut:#9AA4B2;--oro1:#F5D67B;--oro2:#E8B84B;--oro3:#C9962E}
+            *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--txt);font-family:-apple-system,'Segoe UI',Roboto,sans-serif}
+            .envoltura{max-width:560px;margin:0 auto;padding:20px 16px 48px}
+            h1{font-size:24px;margin:0 0 4px} h1 .oro{background:linear-gradient(120deg,var(--oro1),var(--oro2),var(--oro3));-webkit-background-clip:text;background-clip:text;color:transparent}
+            .mut{color:var(--mut);font-size:14px;line-height:1.45}
+            .sello{display:inline-block;margin:14px 0 6px;padding:6px 14px;border-radius:999px;font-weight:700;letter-spacing:.04em;border:1px solid %s;color:%s}
+            figure{margin:22px 0;background:var(--card);border:1px solid var(--borde);border-radius:16px;overflow:hidden}
+            figure img{width:100%%;display:block}
+            figcaption{padding:12px 14px;font-size:14px;color:var(--mut);line-height:1.45}
+            .pie{margin-top:28px;font-size:13px;color:var(--mut);line-height:1.5}
+          </style></head><body><div class="envoltura">
+          <h1>Ojo iOS · <span class="oro">Safari en un iPhone simulado</span></h1>
+          <div class="mut">Fotos automáticas de cada web en el Safari de un iPhone simulado. %s (hora de Cuba).</div>
+          <div class="sello">%s</div>
+          <div class="mut">%s</div>
+          %s
+          <div class="pie">Alcance honesto: «Mi Negocio» se fotografía solo hasta su puerta — el código del dueño no viaja a ningún robot. Y este iPhone es de mentira: trae el iOS de la imagen del servidor de GitHub, no el 18.7 del XR de Ernesto; la prueba final sigue siendo su teléfono de verdad.</div>
+          </div></body></html>""" % (ahora, color, color, veredicto, detalle, figs)
+          open(os.path.join(out, "index.html"), "w", encoding="utf-8").write(html)
+          open(os.path.join(out, "veredicto.txt"), "w", encoding="utf-8").write(veredicto + "\n")
+          open(os.path.join(out, "detalle.txt"), "w", encoding="utf-8").write(detalle + "\n")
+          print("índice generado:", len(caps), "capturas · veredicto", veredicto)
+          PYEOF
+
+      - name: Publicar las fotos en Pages (carpeta ojo-ios/)
+        if: always()
+        run: |
+          git config user.name "Ojo iOS (Actions)"
+          git config user.email "actions@users.noreply.github.com"
+          git add ojo-ios
+          git commit -m "Ojo iOS: Safari en el iPhone simulado (${{ steps.sim.outputs.nombre }} · iOS ${{ steps.sim.outputs.ios }})" || echo "sin cambios que publicar"
+          for i in 1 2 3; do
+            git pull --rebase origin main && git push origin HEAD:main && break || sleep 6
+          done
+
+      - name: Subir las fotos como artifact de la corrida
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ojo-ios
+          path: ojo-ios
+          if-no-files-found: ignore
