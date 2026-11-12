@@ -1,0 +1,44 @@
+# Secretos/códigos vigentes en archivos de datos PÚBLICOS (Inspector
+# Ola 1, transversal 1 y chequeo eterno (b); Mi Trabajo E-1,
+# Mi Negocio E-4): los códigos de los buscadores vivían como llaves
+# de datos.json y cualquiera podía suplantarlos.
+rules:
+  - id: proyecto-codigos-en-datos-publicos
+    languages: [generic]
+    severity: WARNING
+    paths:
+      include:
+        - "**/buscadores/datos.json"
+        - "**/datos/*.json"
+      exclude:
+        - "**/.semgrep/casos/**"
+    message: >-
+      Clave con forma de código de acceso (XXXX-XXX) como llave de un
+      archivo de datos PÚBLICO. Ningún archivo público contiene
+      códigos ni secretos vigentes (chequeo eterno (b)); la validación
+      vive en el servidor.
+    metadata:
+      category: security
+      technology: [proyecto, inspector]
+    patterns:
+      - pattern-regex: '"[A-Z]{2,}[A-Z0-9]*-[A-Z0-9]{2,}"\s*:'
+
+  - id: proyecto-secreto-en-datos-publicos
+    languages: [generic]
+    severity: WARNING
+    paths:
+      include:
+        - "**/buscadores/datos.json"
+        - "**/datos/*.json"
+      exclude:
+        - "**/.semgrep/casos/**"
+    message: >-
+      Campo de secreto (codigo/clave/token/secreto/password/api_key)
+      con valor literal en un archivo de datos público. Los secretos
+      no viven en datos servidos por Pages (Inspector Ola 1,
+      transversal 1; chequeo eterno (b)).
+    metadata:
+      category: security
+      technology: [proyecto, inspector]
+    patterns:
+      - pattern-regex: '(?i)"(codigo|clave|secreto|secret|token|password|api[_-]?key)"\s*:\s*"[^"\s]{4,}"'
