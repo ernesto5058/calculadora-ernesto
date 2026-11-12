@@ -125,97 +125,18 @@ end;
 $function$;
 
 -- ---------------------------------------------------------------------
--- Puerta: public.enviar_mensaje — mismo cuerpo vivo, con la
--- validación de adjuntos delegada a adj_normalizar() y adj_bytes
--- siempre calculado en el servidor.
+-- Puerta: public.enviar_mensaje — endurecida en esta misma tanda.
+-- Su definición canónica NUEVA vive en
+-- supabase/sql/puertas-minegocio-vivas-2026-11-12.sql (snapshot
+-- actualizado en la misma tanda; E7 del banco de puertas prohíbe
+-- dos CREATE de la misma puerta en el repo). El cambio exacto:
+--   · declara v_adj_datos/v_adj_mime y, si hay adjunto, hace
+--     select o_datos, o_mime, o_bytes into ... from
+--     public.adj_normalizar(p_adj_tipo, p_adj_mime, p_adj_datos);
+--   · el INSERT guarda v_adj_datos (forma canónica), v_adj_mime
+--     (validado) y v_bytes (calculado en el servidor; p_adj_tam
+--     ya no se cree). El resto del cuerpo es idéntico al vivo.
 -- ---------------------------------------------------------------------
-CREATE OR REPLACE FUNCTION public.enviar_mensaje(p_de text, p_para text, p_texto text, p_clave text, p_adj_tipo text DEFAULT NULL::text, p_adj_nombre text DEFAULT NULL::text, p_adj_mime text DEFAULT NULL::text, p_adj_datos text DEFAULT NULL::text, p_adj_tam integer DEFAULT NULL::integer, p_resp_de bigint DEFAULT NULL::bigint, p_op_id text DEFAULT NULL::text)
- RETURNS jsonb
- LANGUAGE plpgsql
- SECURITY DEFINER
- SET search_path TO 'public'
-AS $function$
-declare
-  v_texto     text;
-  v_id        bigint;
-  v_bytes     bigint;
-  v_adj_datos text;
-  v_adj_mime  text;
-  v_rde       text;
-  v_rpara     text;
-  v_rtexto    text;
-begin
-  perform public.chat_identidad(p_de, p_clave);
-  perform public.chat_exigir_activo(p_de);
-
-  if p_para is distinct from 'ADMIN'
-     and not exists (select 1 from public.usuarios where codigo = p_para) then
-    raise exception 'destino no valido';
-  end if;
-
-  -- LOCAL-FIRST: si esta operación ya entró, se devuelve su id.
-  if p_op_id is not null then
-    select id into v_id from public.mensajes where op_id = p_op_id;
-    if v_id is not null then
-      return jsonb_build_object('ok', true, 'id', v_id, 'duplicado', true);
-    end if;
-  end if;
-
-  v_texto := left(btrim(coalesce(p_texto, '')), 500);
-
-  if p_adj_datos is not null and p_adj_datos <> '' then
-    if p_adj_tipo is null or p_adj_tipo not in ('foto', 'archivo', 'voz') then
-      raise exception 'adjunto no valido';
-    end if;
-    -- TANDA 6 (E-3): validación de servidor — formato estricto,
-    -- mime de lista blanca coherente con el tipo, firma mágica y
-    -- tamaño real. Devuelve la forma canónica que se guarda.
-    select o_datos, o_mime, o_bytes
-      into v_adj_datos, v_adj_mime, v_bytes
-      from public.adj_normalizar(p_adj_tipo, p_adj_mime, p_adj_datos);
-  else
-    if v_texto = '' then
-      raise exception 'mensaje vacio';
-    end if;
-    v_bytes := null;
-  end if;
-
-  if p_resp_de is not null then
-    select de, para, left(texto, 120)
-      into v_rde, v_rpara, v_rtexto
-      from public.mensajes
-     where id = p_resp_de and borrado = false
-       and ((de = p_de and para = p_para) or (de = p_para and para = p_de));
-    if v_rde is null then
-      raise exception 'mensaje citado no valido';
-    end if;
-  end if;
-
-  perform public.barrer_temporales();
-
-  begin
-    insert into public.mensajes
-      (de, para, texto, adj_tipo, adj_nombre, adj_mime, adj_bytes, adj_datos,
-       resp_de, resp_autor, resp_texto, op_id)
-    values (
-      p_de, p_para, v_texto,
-      case when v_bytes is null then null else p_adj_tipo end,
-      case when v_bytes is null then null else left(coalesce(p_adj_nombre, 'archivo'), 120) end,
-      case when v_bytes is null then null else v_adj_mime end,
-      case when v_bytes is null then null else v_bytes end,
-      case when v_bytes is null then null else v_adj_datos end,
-      p_resp_de, v_rde, v_rtexto, p_op_id
-    )
-    returning id into v_id;
-  exception when unique_violation then
-    -- Dos subidas del mismo op_id a la vez: gana la que ya entró.
-    select id into v_id from public.mensajes where op_id = p_op_id;
-    return jsonb_build_object('ok', true, 'id', v_id, 'duplicado', true);
-  end;
-
-  return jsonb_build_object('ok', true, 'id', v_id);
-end;
-$function$;
 
 -- ---------------------------------------------------------------------
 -- Puerta: public.registrar_reporte — mismo cuerpo vivo, con la
