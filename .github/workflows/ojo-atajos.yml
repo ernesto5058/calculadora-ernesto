@@ -1,0 +1,346 @@
+name: Ojo Atajos — Laboratorio del Máster
+
+# LABORATORIO DE ATAJOS (orden de Ernesto 2026-11-12: «métete adentro»):
+# el iPhone de Ernesto deja de ser el probador. Este flujo corre en el MISMO
+# runner macOS del Ojo iOS e importa el atajo en la app Atajos del Mac
+# anfitrión, lo abre en el editor (foto), barre sus parámetros ya importado
+# (desde la base de datos local de Atajos) y corre su espina contra el
+# cerebro real (los latidos se leen después en Supabase: maximo_pings /
+# maximo_latidos, ventana marcada en marcas.txt del artefacto).
+# Pieza bajo prueba PRINCIPAL: la referencia fijada del Máster v4.1 en
+# atajos/lab/maximo-v41-referencia.shortcut (sha256 cf3740d0…, la versión
+# cuya pancarta «Elige un valor para cada parámetro de la acción» cazó
+# Ernesto en su editor — If de enTxt sin operando). El publicado vivo se
+# descarga además en cada corrida y se registra su sha: si difiere de la
+# referencia, también se intenta su importación y su barrido.
+# La evidencia vive SOLO en el artefacto de la corrida (sin push a Pages:
+# el ruleset «Puerta de main» bloquea los push de Actions, GH013).
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ojo-atajos
+  cancel-in-progress: false
+
+jobs:
+  lab-atajos:
+    name: Importar, validar y correr el Máster en el Mac
+    runs-on: macos-latest
+    timeout-minutes: 50
+    steps:
+      - name: Descargar el repo
+        uses: actions/checkout@v4
+
+      - name: Preparar el laboratorio
+        run: |
+          set +e
+          mkdir -p lab-atajos
+          exec > >(tee -a lab-atajos/00-preparacion.log) 2>&1
+          echo "== fecha UTC del runner: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          sw_vers
+          uname -a
+          echo "T_INICIO $(date -u +%Y-%m-%dT%H:%M:%SZ)" | tee lab-atajos/marcas.txt
+          cp atajos/lab/maximo-v41-referencia.shortcut lab-atajos/probar-v41.shortcut
+          curl -sL --max-time 60 "https://ernesto5058.github.io/calculadora-ernesto/atajos/maximo.shortcut" -o lab-atajos/probar-vivo.shortcut
+          echo "-- sha256 de las piezas:"
+          shasum -a 256 lab-atajos/probar-v41.shortcut lab-atajos/probar-vivo.shortcut
+          SHA_V41=$(shasum -a 256 lab-atajos/probar-v41.shortcut | awk '{print $1}')
+          SHA_VIVO=$(shasum -a 256 lab-atajos/probar-vivo.shortcut | awk '{print $1}')
+          echo "SHA_V41=$SHA_V41" >> lab-atajos/marcas.txt
+          echo "SHA_VIVO=$SHA_VIVO" >> lab-atajos/marcas.txt
+          if [ "$SHA_V41" = "$SHA_VIVO" ]; then echo "VIVO_ES_V41 si" >> lab-atajos/marcas.txt; else echo "VIVO_ES_V41 no" >> lab-atajos/marcas.txt; fi
+          which shortcuts; shortcuts help 2>&1 | head -20
+          echo "== atajos ANTES de tocar nada:"
+          shortcuts list 2>&1 | tee lab-atajos/01-lista-antes.txt
+          ls -la ~/Library/Shortcuts/ 2>&1 | head
+
+      - name: Importar la referencia v4.1 en la app Atajos del Mac
+        run: |
+          set +e
+          exec > >(tee -a lab-atajos/02-importacion.log) 2>&1
+          echo "== abriendo la pieza en la app Atajos: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          open -a Shortcuts "$GITHUB_WORKSPACE/lab-atajos/probar-v41.shortcut"
+          echo "open salio con codigo $?"
+          sleep 12
+          screencapture -x lab-atajos/02-hoja-importacion.png 2>&1
+          ls -la lab-atajos/*.png
+          cat > /tmp/clic.scpt <<'EOF'
+          tell application "System Events"
+            tell process "Shortcuts"
+              set salida to ""
+              repeat with w in windows
+                repeat with b in (buttons of w)
+                  set salida to salida & "boton-ventana: " & (name of b) & linefeed
+                end repeat
+                repeat with s in sheets of w
+                  repeat with b in (buttons of s)
+                    set salida to salida & "boton-hoja: " & (name of b) & linefeed
+                  end repeat
+                end repeat
+              end repeat
+              return salida
+            end tell
+          end tell
+          EOF
+          ( osascript /tmp/clic.scpt > lab-atajos/02-botones.txt 2>&1 & echo $! > /tmp/osa.pid )
+          sleep 20; kill $(cat /tmp/osa.pid) 2>/dev/null
+          echo "-- botones vistos:"; cat lab-atajos/02-botones.txt
+          cat > /tmp/clic2.scpt <<'EOF'
+          tell application "System Events"
+            tell process "Shortcuts"
+              repeat with w in windows
+                repeat with s in sheets of w
+                  repeat with b in (buttons of s)
+                    if (name of b) contains "Add" or (name of b) contains "Añadir" or (name of b) contains "Anadir" then
+                      click b
+                      return "CLIC en hoja: " & (name of b)
+                    end if
+                  end repeat
+                end repeat
+                repeat with b in (buttons of w)
+                  if (name of b) contains "Add" or (name of b) contains "Añadir" or (name of b) contains "Anadir" then
+                    click b
+                    return "CLIC en ventana: " & (name of b)
+                  end if
+                end repeat
+              end repeat
+              return "sin boton de anadir a la vista"
+            end tell
+          end tell
+          EOF
+          ( osascript /tmp/clic2.scpt > lab-atajos/02-clic.txt 2>&1 & echo $! > /tmp/osa.pid )
+          sleep 20; kill $(cat /tmp/osa.pid) 2>/dev/null
+          echo "-- resultado del clic:"; cat lab-atajos/02-clic.txt
+          sleep 8
+          screencapture -x lab-atajos/02-tras-importar.png 2>&1
+          echo "== lista DESPUES del intento de importacion:"
+          shortcuts list 2>&1 | tee lab-atajos/02-lista-despues.txt
+          grep -i "maximo" lab-atajos/02-lista-despues.txt > lab-atajos/nombre-atajo.txt
+          echo "-- nombre detectado:"; cat lab-atajos/nombre-atajo.txt
+
+      - name: Abrir en el editor y fotografiar (caza de la pancarta)
+        run: |
+          set +e
+          exec > >(tee -a lab-atajos/03-editor.log) 2>&1
+          NOMBRE=$(head -1 lab-atajos/nombre-atajo.txt | sed 's/\r//')
+          if [ -z "$NOMBRE" ]; then echo "SIN NOMBRE: la importacion no dejo el atajo en la lista; el editor no se puede abrir."; exit 0; fi
+          ENC=$(python3 -c "import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1]))" "$NOMBRE")
+          echo "== abriendo en el editor: shortcuts://open-shortcut?name=$ENC"
+          open "shortcuts://open-shortcut?name=$ENC"
+          echo "open-editor salio con codigo $?"
+          sleep 12
+          screencapture -x lab-atajos/03-editor-top.png 2>&1
+          cat > /tmp/scroll.scpt <<'EOF'
+          tell application "System Events"
+            tell process "Shortcuts" to set frontmost to true
+            delay 1
+            key code 121
+            delay 1
+            key code 121
+            return "pagedown x2 enviado"
+          end tell
+          EOF
+          for n in 1 2 3; do
+            ( osascript /tmp/scroll.scpt >> lab-atajos/03-scroll.log 2>&1 & echo $! > /tmp/osa.pid )
+            sleep 8; kill $(cat /tmp/osa.pid) 2>/dev/null
+            screencapture -x "lab-atajos/03-editor-scroll$n.png" 2>&1
+          done
+          ls -la lab-atajos/*.png
+
+      - name: Barrido estático de parámetros (desde la base de Atajos del Mac)
+        run: |
+          set +e
+          exec > >(tee -a lab-atajos/04-barrido.log) 2>&1
+          echo "== buscando la base local de Atajos:"
+          find ~/Library -name "*.sqlite" \( -path "*Shortcuts*" -o -path "*WorkflowKit*" -o -path "*workflow*" \) 2>/dev/null | tee lab-atajos/04-bases.txt
+          DB=$(head -1 lab-atajos/04-bases.txt)
+          if [ -z "$DB" ]; then echo "SIN BASE: no se encontro Shortcuts.sqlite; el barrido profundo no es posible en esta imagen."; exit 0; fi
+          echo "base: $DB"
+          sqlite3 "$DB" ".tables" 2>&1 | tee -a lab-atajos/04-barrido.log
+          sqlite3 "$DB" "SELECT name FROM sqlite_master WHERE type='table';" 2>&1
+          sqlite3 "$DB" "PRAGMA table_info(ZSHORTCUT);" 2>&1 | head -40
+          mkdir -p lab-atajos/blobs
+          sqlite3 "$DB" "SELECT Z_PK, ZNAME FROM ZSHORTCUT;" 2>&1 | tee lab-atajos/04-filas.txt
+          python3 - "$DB" <<'PYEOF'
+          import sqlite3, sys, os
+          db = sys.argv[1]
+          con = sqlite3.connect(db)
+          cur = con.cursor()
+          tablas = [r[0] for r in cur.execute("SELECT name FROM sqlite_master WHERE type='table'")]
+          print("tablas:", tablas)
+          if "ZSHORTCUT" not in tablas:
+              print("SIN ZSHORTCUT"); sys.exit(0)
+          cols = [r[1] for r in cur.execute("PRAGMA table_info(ZSHORTCUT)")]
+          print("columnas ZSHORTCUT:", cols)
+          ncol = next((c for c in cols if "NAME" in c.upper()), None)
+          acol = next((c for c in cols if "ACTION" in c.upper()), None)
+          print("col nombre:", ncol, "· col acciones:", acol)
+          if not acol:
+              print("SIN COLUMNA DE ACCIONES"); sys.exit(0)
+          for row in cur.execute(f"SELECT {ncol}, {acol} FROM ZSHORTCUT"):
+              nombre, blob = row
+              if blob:
+                  dest = os.path.join("lab-atajos/blobs", (str(nombre) or "sin-nombre").replace("/", "_") + ".bplist")
+                  open(dest, "wb").write(blob)
+                  print("blob guardado:", dest, len(blob), "bytes")
+          PYEOF
+          ls -la lab-atajos/blobs/
+          cat > lab-atajos/barrido.py <<'PYEOF'
+          import plistlib, sys, os, json
+          def texto_de(v, prof=0):
+              if prof > 6: return ""
+              if isinstance(v, str): return v
+              if isinstance(v, dict):
+                  partes = []
+                  for k in ("string", "VariableName", "WFTokenString"):
+                      if k in v: partes.append(texto_de(v[k], prof + 1))
+                  if "Value" in v: partes.append(texto_de(v["Value"], prof + 1))
+                  return " ".join(p for p in partes if p)
+              return ""
+          def barrer(ruta):
+              print(f"### BARRIDO de {ruta}")
+              raw = open(ruta, "rb").read()
+              try:
+                  pl = plistlib.loads(raw)
+              except Exception as e:
+                  print("no parsea como plist:", e); return
+              if isinstance(pl, dict):
+                  acts = pl.get("WFWorkflowActions") or pl.get("actions") or []
+              else:
+                  acts = pl
+              print(f"acciones totales: {len(acts)}")
+              malos = []
+              for i, a in enumerate(acts):
+                  if not isinstance(a, dict): continue
+                  ident = a.get("WFWorkflowActionIdentifier", "")
+                  params = a.get("WFWorkflowActionParameters", {}) or {}
+                  if ident == "is.workflow.actions.conditional" and params.get("WFControlFlowMode", 0) == 0:
+                      entrada = params.get("WFInput")
+                      varname = texto_de(params.get("WFInputVariable") or entrada or {})
+                      crudo = json.dumps(entrada, default=str) if entrada is not None else "AUSENTE"
+                      vacio = entrada is None or texto_de(entrada).strip() == ""
+                      marca = "OPERANDO VACIO <<<" if vacio else "ok"
+                      print(f"If #{i}: condicion={params.get('WFCondition')} sujeto='{varname[:40]}' operando={crudo[:120]} -> {marca}")
+                      if vacio: malos.append(i)
+                  s = json.dumps(params, default=str)
+                  if "enTxt" in s:
+                      print(f"accion #{i} ({ident}) MENCIONA enTxt: {s[:300]}")
+              print(f"condicionales con operando vacio: {malos if malos else 'NINGUNO'}")
+          for ruta in sys.argv[1:]:
+              barrer(ruta)
+          PYEOF
+          python3 lab-atajos/barrido.py lab-atajos/blobs/*.bplist 2>&1 | tee lab-atajos/04-barrido.txt
+
+      - name: Correr la espina contra el cerebro real
+        run: |
+          set +e
+          exec > >(tee -a lab-atajos/05-corrida.log) 2>&1
+          NOMBRE=$(head -1 lab-atajos/nombre-atajo.txt | sed 's/\r//')
+          if [ -z "$NOMBRE" ]; then echo "SIN NOMBRE: no hay atajo importado que correr."; exit 0; fi
+          echo "T0_RUN $(date -u +%Y-%m-%dT%H:%M:%SZ)" | tee -a lab-atajos/marcas.txt
+          echo "== corriendo: shortcuts run \"$NOMBRE\""
+          shortcuts run "$NOMBRE" > lab-atajos/05-stdout.txt 2> lab-atajos/05-stderr.txt &
+          RPID=$!
+          for i in $(seq 1 90); do sleep 2; kill -0 $RPID 2>/dev/null || break; done
+          if kill -0 $RPID 2>/dev/null; then
+            echo "TIMEOUT: la corrida seguia viva a los 180 s; se mata." | tee -a lab-atajos/05-corrida.log
+            kill $RPID 2>/dev/null; sleep 2; kill -9 $RPID 2>/dev/null
+            echo "timeout-180s" > lab-atajos/05-resultado.txt
+          else
+            wait $RPID; echo "codigo de salida: $?" | tee lab-atajos/05-resultado.txt
+          fi
+          echo "T1_RUN $(date -u +%Y-%m-%dT%H:%M:%SZ)" | tee -a lab-atajos/marcas.txt
+          echo "-- stdout:"; cat lab-atajos/05-stdout.txt
+          echo "-- stderr:"; cat lab-atajos/05-stderr.txt
+          screencapture -x lab-atajos/05-tras-correr.png 2>&1
+
+      - name: Simulador iPhone — ¿existe Atajos dentro?
+        run: |
+          set +e
+          exec > >(tee -a lab-atajos/06-simulador.log) 2>&1
+          python3 - <<'PYEOF'
+          import json, subprocess, re, os
+          def run(*a):
+              return subprocess.run(a, capture_output=True, text=True).stdout
+          devs = json.loads(run("xcrun", "simctl", "list", "devices", "available", "--json"))
+          mejor = None
+          for runtime, lista in devs.get("devices", {}).items():
+              m = re.search(r"iOS-(\d+)-(\d+)", runtime)
+              if not m: continue
+              ver = (int(m.group(1)), int(m.group(2)))
+              for d in lista:
+                  if "iPhone" in d.get("name", "") and d.get("isAvailable", True):
+                      if mejor is None or ver > mejor[0]: mejor = (ver, runtime, d)
+          if mejor is None:
+              print("SIN IPHONE SIMULADO"); raise SystemExit(0)
+          ver, runtime, d = mejor
+          open("lab-atajos/sim-udid.txt", "w").write(d["udid"])
+          print("simulador:", d["name"], "· iOS", f"{ver[0]}.{ver[1]}", "·", d["udid"])
+          PYEOF
+          UDID=$(cat lab-atajos/sim-udid.txt 2>/dev/null)
+          if [ -z "$UDID" ]; then echo "sin UDID; se salta el simulador."; exit 0; fi
+          xcrun simctl boot "$UDID" 2>&1 || true
+          xcrun simctl bootstatus "$UDID" -b 2>&1 | tail -2
+          echo "== apps del simulador que casan con atajos/workflow:"
+          xcrun simctl listapps "$UDID" 2>/dev/null | grep -iE "workflow|shortcut" | tee lab-atajos/06-apps.txt
+          echo "== intento de lanzar Atajos (com.apple.workflow):"
+          xcrun simctl launch "$UDID" com.apple.workflow 2>&1 | tee lab-atajos/06-launch.txt
+          sleep 5
+          xcrun simctl io "$UDID" screenshot lab-atajos/06-sim-atajos.png 2>&1
+          echo "== intento de abrir el esquema shortcuts:// :"
+          xcrun simctl openurl "$UDID" "shortcuts://" 2>&1
+          sleep 4
+          echo "== intento de importar por URL (import-shortcut con la URL de Pages):"
+          xcrun simctl openurl "$UDID" "shortcuts://import-shortcut?url=https%3A%2F%2Fernesto5058.github.io%2Fcalculadora-ernesto%2Fatajos%2Fmaximo.shortcut&name=maximo" 2>&1 | tee lab-atajos/06-import-url.txt
+          sleep 6
+          xcrun simctl io "$UDID" screenshot lab-atajos/06-sim-import.png 2>&1
+          ls -la lab-atajos/*.png
+
+      - name: Resumen del laboratorio
+        if: always()
+        run: |
+          set +e
+          python3 - <<'PYEOF'
+          import os
+          L = "lab-atajos"
+          def leer(p, d=""):
+              try: return open(os.path.join(L, p), encoding="utf-8", errors="replace").read()
+              except Exception: return d
+          def tiene(p): return os.path.exists(os.path.join(L, p))
+          marcas = leer("marcas.txt")
+          antes = leer("01-lista-antes.txt"); despues = leer("02-lista-despues.txt")
+          imp = "NO" if despues.strip() in ("", antes.strip()) else "SI (la lista cambio)"
+          if any("maximo" in l.lower() for l in despues.splitlines()): imp = "SI (maximo aparece en shortcuts list)"
+          barrido = leer("04-barrido.txt")
+          if "OPERANDO VACIO" in barrido: bver = "REPRODUCE el parametro vacio (ver 04-barrido.txt)"
+          elif "NINGUNO" in barrido: bver = "barrido hecho: ningun condicional sin operando"
+          elif tiene("04-barrido.txt"): bver = "barrido parcial (ver 04-barrido.txt)"
+          else: bver = "SIN barrido (base no encontrada o sin blob)"
+          corrida = leer("05-resultado.txt", "sin resultado").strip()
+          stderr = leer("05-stderr.txt").strip().splitlines()
+          sim = leer("06-apps.txt").strip()
+          fotos = sorted(f for f in os.listdir(L) if f.endswith(".png"))
+          out = []
+          out.append("RESUMEN DEL LABORATORIO DE ATAJOS")
+          out.append(marcas.strip())
+          out.append(f"IMPORTACION en la app Atajos del Mac: {imp}")
+          out.append(f"BARRIDO de parametros: {bver}")
+          out.append(f"CORRIDA de la espina (shortcuts run): {corrida}")
+          if stderr: out.append("stderr de la corrida: " + " | ".join(stderr[:4]))
+          out.append(f"SIMULADOR — apps de atajos a la vista: {sim if sim else 'ninguna linea caso (ver 06-simulador.log)'}")
+          out.append(f"FOTOS de evidencia: {', '.join(fotos) if fotos else 'ninguna'}")
+          open(os.path.join(L, "resumen.txt"), "w", encoding="utf-8").write("\n".join(out) + "\n")
+          print("\n".join(out))
+          PYEOF
+
+      - name: Subir la evidencia como artefacto de la corrida
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lab-atajos
+          path: lab-atajos
+          if-no-files-found: warn
