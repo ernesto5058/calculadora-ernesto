@@ -33,7 +33,7 @@ const fuente = new Map([
 const SIN = [];
 for (const [t, d] of [["corte", "corte"], ["pelado", "corte"], ["pelarse", "corte"], ["pelo", "corte"], ["cabello", "corte"], ["lavadora", "lavadora_hys"], ["hys", "lavadora_hys"], ["bateria", "bateria_lifepo4"], ["lifepo4", "bateria_lifepo4"], ["litio", "bateria_lifepo4"]])
   SIN.push({ termino: t, tipo: "producto", destino: d });
-for (const [t, d] of [["saldo", "saldo"], ["recarga", "saldo"], ["recargas", "saldo"], ["precio", "precio"], ["cuesta", "precio"], ["vale", "precio"], ["horario", "horario"], ["hora", "horario"], ["abren", "horario"], ["direccion", "ubicacion"], ["ubicacion", "ubicacion"], ["micro", "ubicacion"], ["cita", "cita"], ["turno", "cita"], ["reservar", "cita"], ["domicilio", "domicilio"], ["casa", "domicilio"], ["garantia", "garantia"], ["pago", "pago"], ["transferencia", "pago"], ["efectivo", "pago"], ["telefono", "contacto"], ["contacto", "contacto"], ["llamar", "contacto"], ["whatsapp", "contacto"], ["humano", "humano"], ["persona", "humano"], ["dueno", "humano"], ["ernesto", "humano"]])
+for (const [t, d] of [["saldo", "saldo"], ["recarga", "saldo"], ["recargas", "saldo"], ["precio", "precio"], ["cuesta", "precio"], ["vale", "precio"], ["horario", "horario"], ["hora", "horario"], ["abren", "horario"], ["cierran", "horario"], ["apertura", "horario"], ["cierre", "horario"], ["haces", "capacidades"], ["sirves", "capacidades"], ["ayudar", "capacidades"], ["direccion", "ubicacion"], ["ubicacion", "ubicacion"], ["micro", "ubicacion"], ["cita", "cita"], ["turno", "cita"], ["reservar", "cita"], ["domicilio", "domicilio"], ["casa", "domicilio"], ["garantia", "garantia"], ["pago", "pago"], ["transferencia", "pago"], ["efectivo", "pago"], ["telefono", "contacto"], ["contacto", "contacto"], ["llamar", "contacto"], ["whatsapp", "contacto"], ["humano", "humano"], ["persona", "humano"], ["dueno", "humano"], ["ernesto", "humano"]])
   SIN.push({ termino: t, tipo: "intencion", destino: d });
 
 function faq(id, pregunta, intencion, tipo, extra = {}) {
@@ -47,13 +47,14 @@ const FAQS = [
   faq("f-lav", "¿A cómo la lavadora?", "precio", "dato", { dato: "precio_lavadora", patrones: ["a como la lavadora", "precio de la lavadora hys", "cuanto cuesta la lavadora"] }),
   faq("f-bat", "¿A cómo la batería?", "precio", "dato", { dato: "precio_bateria", patrones: ["a como la bateria", "precio de la bateria lifepo4"] }),
   faq("f-saldo", "¿Compras saldo? ¿A cómo?", "saldo", "dato", { dato: "tarifa_saldo", patrones: ["compras saldo", "a como compras el saldo", "cuanto pagas por el saldo", "a como pagas las recargas"] }),
-  faq("f-hor", "¿Cuál es el horario?", "horario", "dato", { dato: "horario", patrones: ["cual es el horario", "a que hora abren", "hasta que hora estan"] }),
+  faq("f-hor", "¿Cuál es el horario?", "horario", "dato", { dato: "horario", patrones: ["cual es el horario", "a que hora abren", "hasta que hora estan", "horario de la barberia", "cuando cierran", "cuando abren", "a que hora cierran", "hora de apertura", "hora de cierre", "horario de atencion"] }),
   faq("f-ubi", "¿Dónde estás ubicado?", "ubicacion", "dato", { dato: "ubicacion", patrones: ["donde estas ubicado", "direccion", "en que parte de santiago"] }),
   faq("f-dom", "¿Haces domicilio?", "domicilio", "dato", { dato: "domicilio", patrones: ["haces domicilio", "vienen a la casa"] }),
   faq("f-pago", "¿Cómo puedo pagar?", "pago", "dato", { dato: "formas_pago", patrones: ["como puedo pagar", "aceptas transferencia"] }),
   faq("f-gar", "¿La lavadora tiene garantía?", "garantia", "dato", { dato: "garantia_lavadora", patrones: ["la lavadora tiene garantia", "cuanto de garantia tiene la lavadora"] }),
   faq("f-con", "¿Cómo contacto a Ernesto?", "contacto", "dato", { dato: "contacto", patrones: ["como contacto a ernesto", "numero de telefono"] }),
   faq("f-ide", "¿Quién eres?", "identidad", "dato", { dato: "identidad", patrones: ["quien eres", "eres ernesto"] }),
+  faq("f-cap", "¿Qué puedes hacer?", "capacidades", "texto", { texto: "Puedo ayudarte con esto 👇\n· 📱 Comprar saldo: precios y cómo se paga\n· 🔋 Baterías y la lavadora: precios y disponibilidad\n· 💈 Barbería: horario y citas\n· 📍 La ubicación del negocio\nLo demás se lo paso a Ernesto.", patrones: ["qué haces", "qué puedes hacer", "para qué sirves", "qué sabes hacer", "en qué me puedes ayudar"] }),
   faq("f-slv", "¿Tienes lavadoras?", "stock", "dato", { dato: "stock_lavadora", patrones: ["tienes lavadoras", "te quedan lavadoras hys"] }),
   faq("f-sbt", "¿Tienes baterías?", "stock", "dato", { dato: "stock_bateria", patrones: ["tienes baterias", "te quedan baterias de litio"] }),
   faq("f-sal", "Saludo", "saludo", "texto", { texto: "¡Hola! 👋 Soy el asistente virtual de Ernesto.", patrones: [] }),
@@ -219,7 +220,11 @@ const BASES = [
   ["precio de la lavadora HYS", "f-lav"], ["¿a cómo la batería?", "f-bat"],
   ["¿compras saldo?", "f-saldo"], ["¿a cómo compras el saldo?", "f-saldo"],
   ["¿cuánto pagas por las recargas?", "f-saldo"], ["¿cuál es el horario?", "f-hor"],
-  ["¿a qué hora abren?", "f-hor"], ["¿dónde estás ubicado?", "f-ubi"],
+  ["¿a qué hora abren?", "f-hor"], ["¿cuándo cierran?", "f-hor"],
+  ["¿cuál es el horario de la barbería?", "f-hor"],
+  ["¿qué haces?", "f-cap"], ["¿qué puedes hacer?", "f-cap"],
+  ["¿para qué sirves?", "f-cap"], ["¿qué sabes hacer?", "f-cap"],
+  ["¿en qué me puedes ayudar?", "f-cap"], ["¿dónde estás ubicado?", "f-ubi"],
   ["¿haces domicilio?", "f-dom"], ["¿cómo puedo pagar?", "f-pago"],
   ["¿aceptas transferencia?", "f-pago"], ["¿la lavadora tiene garantía?", "f-gar"],
   ["¿cómo contacto a Ernesto?", "f-con"], ["¿quién eres?", "f-ide"],
@@ -280,6 +285,39 @@ ok(cobertura >= 0.8, "ARNÉS cobertura ≥ 80 %");
   // Conversación 3: compra caliente avisa sin bloquear la respuesta
   const r3 = O("quiero comprar la lavadora, ¿a cómo está?");
   ok(r3.accion === "responder" && r3.aviso_lead === true, "SIM-3 intención de compra: responde Y marca aviso");
+}
+
+/* ============ v1.1 — comandos, dueño, suave, capacidades ============ */
+{
+  const r = O("/start");
+  ok(r.accion === "comando" && /asistente virtual/.test(r.respuesta) && !/te lo confirma/.test(r.respuesta), "CMD-1 /start de cliente: saludo completo, jamás el no-sé");
+  const r2 = O("/ayuda");
+  ok(r2.accion === "comando" && /Te ayudo con/.test(r2.respuesta), "CMD-2 /ayuda: la misma capa de comandos");
+  const r3 = O("/precios");
+  ok(r3.accion === "comando" && r3.respuesta.includes("400") && r3.respuesta.includes("250"), "CMD-3 /precios: compone los datos vivos verificados");
+  const r4 = O("/horario");
+  ok(r4.accion === "comando" && /9:00 a\. m\./.test(r4.respuesta), "CMD-4 /horario: dato vivo por comando");
+  const r5 = O("/ubicacion");
+  ok(r5.accion === "comando" && r5.respuesta.includes("Micro 10"), "CMD-5 /ubicacion: dato vivo por comando");
+  const r6 = O("/cita");
+  ok(r6.accion === "cita_paso" && /nombre/.test(r6.respuesta), "CMD-6 /cita: arranca el flujo de citas");
+  const D = { ...DATOS, esDueno: true };
+  const rd = L.orquestar(D, conv(), "/start", AHORA);
+  ok(rd.accion === "comando" && /Hola, Ernesto/.test(rd.respuesta) && /VISTA DE CLIENTE/.test(rd.respuesta), "DUEÑO-1 /start del dueño: saludo por nombre + vista de cliente");
+  const ri = L.orquestar(D, conv(), "Cómo sabes que soy Ernesto y no un cliente cualquiera?", AHORA);
+  ok(ri.accion === "identidad" && /registrada como la del dueño/.test(ri.respuesta), "DUEÑO-2 su pregunta exacta de identidad: explicación por diseño");
+  const rc = O("Cómo sabes que soy Ernesto y no un cliente cualquiera?");
+  ok(rc.accion === "identidad" && !/registrada como la del dueño/.test(rc.respuesta) && /asistente virtual/.test(rc.respuesta), "DUEÑO-3 un cliente recibe la identidad pública, sin la explicación del dueño");
+  const rs = O("¿a cómo está tu salida hoy?");
+  ok(rs.accion === "escalar" && /dueño del negocio/.test(rs.respuesta), "SUAVE-1 el escalado real usa la fórmula neutra «dueño del negocio»");
+  const rn = O("¿hacen parrilladas los domingos?");
+  ok(rn.accion === "no_se" && rn.respuesta === L.FRASE_NO_SE && /dueño del negocio/.test(rn.respuesta) && !/confirma Ernesto/.test(rn.respuesta), "SUAVE-2 lo desconocido: no-sé suave, nunca «confirma Ernesto»");
+  for (const [txt, nombre] of [["¿cuál es el horario de la barbería?", "horario completo"], ["¿a qué hora abren?", "abren"], ["¿cuándo cierran?", "cierran"]]) {
+    const rh = O(txt);
+    ok(rh.accion === "responder" && rh.faq_id === "f-hor", "HOR " + nombre + ": la FAQ de horario responde (regresión de Ernesto)");
+  }
+  const rcap = O("¿qué puedes hacer?");
+  ok(rcap.accion === "responder" && rcap.faq_id === "f-cap" && /paso a Ernesto/.test(rcap.respuesta), "CAP-1 capacidades en lenguaje natural: lista + pase a Ernesto");
 }
 
 console.log("\nprueba-agente-v1: " + pass + " PASS · " + fail + " FAIL");
