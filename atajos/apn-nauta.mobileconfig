@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadContent</key>
+	<array>
+		<dict>
+			<key>APNs</key>
+			<array>
+				<dict>
+					<key>AllowedProtocolMask</key>
+					<integer>1</integer>
+					<key>AuthenticationType</key>
+					<string>CHAP</string>
+					<key>Name</key>
+					<string>nauta</string>
+					<key>Password</key>
+					<string></string>
+					<key>Username</key>
+					<string></string>
+				</dict>
+			</array>
+			<key>PayloadDescription</key>
+			<string>Fija el APN de datos móviles de Cubacel (nauta, sin usuario ni contraseña) como perfil del sistema. Sobrevive al Restablecer ajustes de red. No cambia la señal ni la velocidad.</string>
+			<key>PayloadDisplayName</key>
+			<string>APN Cubacel — nauta</string>
+			<key>PayloadIdentifier</key>
+			<string>com.apple.cellular.91000CE3-1100-4BD1-B37B-20032A68682D</string>
+			<key>PayloadType</key>
+			<string>com.apple.cellular</string>
+			<key>PayloadUUID</key>
+			<string>91000CE3-1100-4BD1-B37B-20032A68682D</string>
+			<key>PayloadVersion</key>
+			<integer>1</integer>
+		</dict>
+	</array>
+	<key>PayloadDescription</key>
+	<string>Deja el APN «nauta» de Cubacel fijado por perfil, para que un Restablecer ajustes de red nunca lo deje sin datos. Sin proxy y sin credenciales. Se puede eliminar cuando quieras en Ajustes &gt; General &gt; VPN y gestión de dispositivos.</string>
+	<key>PayloadDisplayName</key>
+	<string>APN Cubacel — nauta (Máximo)</string>
+	<key>PayloadIdentifier</key>
+	<string>org.ernesto5058.apn-nauta</string>
+	<key>PayloadOrganization</key>
+	<string>Máximo — asistente de Ernesto</string>
+	<key>PayloadRemovalDisallowed</key>
+	<false/>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadUUID</key>
+	<string>53D3A138-1620-4580-A944-544AF2C1A443</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+</dict>
+</plist>
