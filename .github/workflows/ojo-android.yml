@@ -218,6 +218,12 @@ jobs:
                   if gone_text "Tu código personal" 25 && wait_text "Reportar" 10; then
                     shot "03-entrada.png" "Dentro: la primera pantalla tras entrar con la cuenta de prueba"
                     dumpw; cp /tmp/w.xml "$GITHUB_WORKSPACE/dump-entrada.xml" 2>/dev/null || true
+                    # Arnés v1.9: el árbol de accesibilidad del WebView tarda
+                    # minutos en poblarse en este emulador (las pestañas
+                    # nacen con bounds [0,0]: corridas v1.6/v1.7). Se espera
+                    # a que las SEIS tengan bounds reales antes del tour.
+                    for i in $(seq 1 18); do dumpw; if python3 ojo/arbol.py; then break; fi; sleep 10; done
+                    dumpw; cp /tmp/w.xml "$GITHUB_WORKSPACE/dump-tour.xml" 2>/dev/null || true
                     ir_pantalla "Reportar" 1 "Reportar una búsqueda" "04-reportar.png" "Pestaña Reportar: reportar un trato de saldo o transferencia"
                     ir_pantalla "Mi panel" 2 "TOTAL GANADO" "05-mi-panel.png" "Pestaña Mi panel: sus tratos, su comisión y su bono"
                     ir_pantalla "Chat" 3 "¿Para qué es esta app?" "06-chat.png" "Pestaña Chat: la conversación con Ernesto"
@@ -257,6 +263,23 @@ jobs:
           echo "$DET $EXTRA" > "$OUT/detalle.txt"
           echo "Veredicto: $VERED — $DET $EXTRA"
           SHEOF
+          cat > ojo/arbol.py <<'PYEOF3'
+          import re, sys
+          # ¿Tienen las SEIS pestañas un nodo con bounds de área real?
+          try: xml = open("/tmp/w.xml", encoding="utf-8", errors="ignore").read()
+          except Exception: sys.exit(1)
+          labels = ["Calculadora", "Reportar", "Mi panel", "Chat", "Textos", "Mi perfil"]
+          ok = {}
+          for tag in re.findall(r"<node [^>]*>", xml):
+              attrs = dict(re.findall(r'([\w-]+)="([^"]*)"', tag))
+              t = attrs.get("text","") or attrs.get("content-desc","")
+              if t not in labels: continue
+              m = re.match(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]", attrs.get("bounds","") or "")
+              if not m: continue
+              x1,y1,x2,y2 = map(int, m.groups())
+              if x2-x1 > 0 and y2-y1 > 0: ok[t] = True
+          sys.exit(0 if len(ok) == len(labels) else 1)
+          PYEOF3
           chmod +x ojo/recorrido.sh ojo/tap.py
           ls -la ojo/
 
@@ -357,4 +380,5 @@ jobs:
             ojo-android
             logcat.txt
             dump-entrada.xml
+            dump-tour.xml
           if-no-files-found: ignore
