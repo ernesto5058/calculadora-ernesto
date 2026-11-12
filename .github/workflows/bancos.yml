@@ -117,3 +117,6 @@ jobs:
 
       - name: Banco Agente Propio v1 — matcher, grounding, citas y aprendizaje (66 chequeos)
         run: node bancos/prueba-agente-v1.mjs
+
+      - name: Banco Sentry de la casa — escrubado y no-op sin DSN (fila 40)
+        run: node sentry-staging/prueba-sentry-casa.mjs
