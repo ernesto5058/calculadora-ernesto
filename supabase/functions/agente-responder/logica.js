@@ -2007,6 +2007,47 @@ const SRC_PROD_CATALOGO = "lavadora|lavadoras|hys|bateria|baterias|lifepo4|litio
 const RE_CONFIRMA_CITA = /\bconfirmad[oa]s?\b|\bqueda(n)? anotad[oa]s?\b|\bquedo anotad[oa]s?\b|\bqueda(n)? reservad[oa]s?\b|\bconfirmo (tu |la |una )?(citas?|turnos?|reservas?)\b|\b(citas?|turnos?|reservas?) (queda|esta|quedo) (confirmada|anotada|reservada|lista)\b/;
 const RE_TE_ESPERAMOS_CITA = /\bte esperamos\b/;
 const RE_DOMINIO_CITA = /\b(citas?|turnos?|reservas?)\b/;
+/* v2.6 — confirma_cita AMPLIADO (PF-25 y sus hermanas, batería
+   promptfoo 2026-11-12): la frase exacta de PF-25 ya caía en
+   RE_CONFIRMA_CITA desde v2.5, pero las formas hermanas pasaban:
+   ejecutar la reserva en primera persona («te agendo», «te anoto»,
+   «te reservo», «te confirmo»), el participio cumplido sin la
+   palabra «confirmada» («quedó reservado tu turno», «tu cita quedó
+   agendada») y la cita dada por hecha con día/hora («nos vemos
+   mañana a las 10», «te esperamos mañana»). Informar NO casa:
+   «para confirmarla necesito…», «la cita la confirma Ernesto»,
+   «puedes agendar tu cita…» (infinitivo) y el «nos vemos» de
+   despedida sin día/hora siguen pasando. */
+const RE_CITA_TE_VERBO = /\bte (lo |la )?(agendo|anoto|reservo|apunto|registro|confirmo)\b/g;
+/* El «te + verbo» en PREGUNTA («¿Te anoto una cita?») es una
+   OFERTA que invita al flujo determinista — no una confirmación —
+   y sigue pasando (banco CEREBRO-1); en afirmación («Te anoto
+   para el sábado») ejecuta la reserva de palabra y se veta.
+   OJO: normalizarLigero BORRA los signos, así que la pregunta se
+   detecta sobre esta variante que los conserva. */
+function normalizarConSignos(txt) {
+  return quitarAcentos(String(txt ?? "").toLowerCase()).replace(/\s+/g, " ").trim();
+}
+function teVerboAfirmativo(lig) {
+  for (const m of lig.matchAll(RE_CITA_TE_VERBO)) {
+    const antes = lig.slice(0, m.index);
+    const ini = Math.max(antes.lastIndexOf("."), antes.lastIndexOf("!"),
+                         antes.lastIndexOf("?")) + 1;
+    if (lig.slice(ini, m.index).includes("¿")) continue;
+    const resto = lig.slice(m.index);
+    const fin = resto.search(/[.!?]/);
+    if (fin >= 0 && resto[fin] === "?") continue;
+    return true;
+  }
+  return false;
+}
+const PART_CITA = "agendad|anotad|reservad|apuntad";
+const RE_CITA_PART_A = new RegExp("\\b(citas?|turnos?|reservas?)\\b[^.]{0,40}\\b(" + PART_CITA + ")[oa]s?\\b");
+const RE_CITA_PART_B = new RegExp("\\b(" + PART_CITA + ")[oa]s?\\b[^.]{0,40}\\b(citas?|turnos?|reservas?)\\b");
+const RE_CITA_QUEDO_PART = new RegExp("\\bqued(o|a|aron)\\b[^.]{0,30}\\b(" + PART_CITA + ")[oa]s?\\b|\\b(" + PART_CITA + ")[oa]s?\\b[^.]{0,30}\\bqued(o|a|aron)\\b");
+const RE_CITA_CUANDO = /\b(manana|pasado manana|hoy|esta tarde|esta noche|a las|a la|el (lunes|martes|miercoles|jueves|viernes|sabado|domingo)\b|este (lunes|martes|miercoles|jueves|viernes|sabado|domingo)\b)/;
+const RE_NOS_VEMOS = /\bnos vemos\b/;
+const RE_YA_TODO_LISTO = /\bya esta todo listo\b/;
 const RE_AFIRMA_STOCK_A = new RegExp("\\b(hay|quedan|queda|disponible|disponibles)\\b.{0,40}\\b(" + SRC_PROD_CATALOGO + ")\\b");
 const RE_AFIRMA_STOCK_B = new RegExp("\\b(" + SRC_PROD_CATALOGO + ")\\b.{0,40}\\b(disponible|disponibles|hay|quedan|queda)\\b");
 const RE_NIEGA_CATALOGO_A = new RegExp("\\b(no hay|no quedan|no queda|no tenemos)\\b.{0,50}\\b(" + SRC_PROD_CATALOGO + ")\\b");
@@ -2041,9 +2082,18 @@ export function validarRespuestaCerebro(texto, fuentesValores, prohibidas) {
     return { ok: false, motivo: "promete_accion" };
   }
   // (a) confirmación de cita/reserva: confirmad*, «queda anotada»
-  // afirmativo, «te esperamos» en contexto de cita.
-  if (RE_CONFIRMA_CITA.test(ligVeto) ||
-      (RE_TE_ESPERAMOS_CITA.test(ligVeto) && RE_DOMINIO_CITA.test(ligVeto))) {
+  // afirmativo, «te esperamos» en contexto de cita — y desde v2.6
+  // las formas hermanas de PF-25: ejecutar la reserva («te
+  // agendo»), el participio cumplido («quedó reservado») y dar la
+  // cita por hecha con día/hora («nos vemos mañana»). El veto cae
+  // al «no sé» honesto de siempre (index.ts): jamás silencio, y la
+  // confirmación real sigue naciendo SOLO de la puerta de citas.
+  if (RE_CONFIRMA_CITA.test(ligVeto) || teVerboAfirmativo(normalizarConSignos(t)) ||
+      RE_CITA_PART_A.test(ligVeto) || RE_CITA_PART_B.test(ligVeto) ||
+      RE_CITA_QUEDO_PART.test(ligVeto) || RE_YA_TODO_LISTO.test(ligVeto) ||
+      (RE_TE_ESPERAMOS_CITA.test(ligVeto) &&
+        (RE_DOMINIO_CITA.test(ligVeto) || RE_CITA_CUANDO.test(ligVeto))) ||
+      (RE_NOS_VEMOS.test(ligVeto) && RE_CITA_CUANDO.test(ligVeto))) {
     return { ok: false, motivo: "confirma_cita" };
   }
   // (b) negar el catálogo real («no hay/no quedan» de lo que SÍ se
