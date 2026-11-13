@@ -1,6 +1,6 @@
 "use strict";
 /*__SENTRY_CASA__*/
-var APP_VERSION = "1.6.0";
+var APP_VERSION = "1.6.1";
 /* Tarifa de respaldo (E-7, Tanda Nº6): SOLO se usa si nunca llegó ni
    datos.json ni la tarifa viva, y mientras manda ella la app lo dice
    a la vista («RESPALDO» + su origen en tarifaText/pintaFrescura).
@@ -831,9 +831,12 @@ function leerTarifaViva(){
   });
 }
 /* ===== v1.6.0: TARIFA VIVA (la del mercado, con su frescura) =====
-   La puerta tarifa_viva_buscador devuelve SOLO lo del buscador:
-   sus dos patas (ingreso por recarga y libro), la frescura de la
-   foto del mercado y si hay un cambio grande esperando al dueño.
+   v1.6.1: TARIFA VIVA INTELIGENTE — la tarifa se ajusta sola en el
+   servidor, con reglas (dos fotos pa saltos grandes, límites de
+   velocidad, piso de margen); ya no hay propuestas esperando al
+   dueño. La puerta tarifa_viva_buscador devuelve SOLO lo del
+   buscador: sus dos patas (ingreso por recarga y libro), la
+   frescura de la foto del mercado y el último ajuste real.
    Jamás trae la salida ni datos de Ernesto ni de otro buscador.
    La tarjeta vive sobre las pestañas: se ve al usar la app, en
    cualquier pantalla. REGLA DE ORO (escrita en la tarjeta): lo
@@ -854,6 +857,23 @@ function pctEstrellas(){
   if (typeof DINERO !== "undefined" && DINERO && DINERO.estrellas)
     return { s: Number(DINERO.estrellas.pct_saldo), t: Number(DINERO.estrellas.pct_transferencia) };
   return { s: Number(T.pctSaldo), t: Number(T.pctTransf) };
+}
+/* v1.6.1: el último ajuste REAL de la tarifa (la inteligencia lo
+   aplica sola en el servidor; aquí solo se cuenta, con su hora).
+   Sustituye al aviso de propuesta del régimen viejo. */
+function ultimoAjusteTV(){
+  var u = TARIFA_VIVA_B && TARIFA_VIVA_B.ultimo_ajuste;
+  if (!u || u.ingreso_nuevo === null || u.ingreso_nuevo === undefined) return "";
+  var cuando = "";
+  try {
+    var d = new Date(u.en), hoy = new Date();
+    var ayer = new Date(Date.now() - 86400000);
+    var dia = d.toDateString() === hoy.toDateString() ? "hoy"
+      : d.toDateString() === ayer.toDateString() ? "ayer"
+      : d.getDate() + "/" + (d.getMonth() + 1);
+    cuando = " · " + dia + " a las " + d.toLocaleTimeString("es", { hour: "numeric", minute: "2-digit" });
+  } catch(e){}
+  return '<div style="margin-top:8px">Último ajuste: la tarifa se ajustó a <b>' + fmt(Number(u.ingreso_nuevo)) + "</b> por recarga" + esc(cuando) + ".</div>";
 }
 function pintarTarifaViva(){
   var box = $("tvBox"); if (!box) return;
@@ -886,7 +906,7 @@ function pintarTarifaViva(){
     + '<div class="tv3-hair"></div>'
     + '<div class="tv3-row"><span>Transferencia · el QUSD hoy</span><b class="tv3-b">' + fmt(T.libroRef) + "</b></div>"
     + '<div style="font-size:12.5px;color:#9AA0AA;margin-top:4px">Tu parte: el ' + esc(pe.t) + "% de la ganancia (tratos al " + esc(T.pisoTransf) + "% o más).</div>"
-    + (TARIFA_VIVA_B && TARIFA_VIVA_B.hay_propuesta_pendiente ? '<div style="margin-top:8px">Ojo: hay un cambio grande de tarifa esperando la aprobación de Ernesto — puede moverse pronto.</div>' : "")
+    + ultimoAjusteTV()
     + '<div class="tv3-hair"></div><small>Esto es la estimación de ahora: tu pago se calcula con la tarifa del momento en que Ernesto cierre tu trato, y esa foto queda guardada con el trato en tu panel.</small>';
   box.style.display = "block";
 }
