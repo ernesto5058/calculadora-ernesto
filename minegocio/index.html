@@ -303,7 +303,7 @@ label { display:block; font:600 11px var(--fuente); letter-spacing:.07em; text-t
 #pgContabilidad .contaH4 { font:600 15px var(--fuente); margin:var(--e-4) 0 var(--e-1); }
 #pgContabilidad .contaHist { display:flex; justify-content:space-between; gap:var(--e-3); flex-wrap:wrap; padding:var(--e-2) 0; border-bottom:1px solid var(--linea); font:var(--t-sub); color:var(--txt-2); }
 #pgContabilidad .contaHistDer { color:var(--txt-3); }
-</style><script>window.SENTRY_CASA={app:"minegocio",version:"v19",dsn:"https://1454ae292cfdb8e358e88ec3d1fc1547@o4512419765354496.ingest.us.sentry.io/4512419769876480"};</script>
+</style><script>window.SENTRY_CASA={app:"minegocio",version:"v20",dsn:"https://1454ae292cfdb8e358e88ec3d1fc1547@o4512419765354496.ingest.us.sentry.io/4512419769876480"};</script>
 <script defer crossorigin="anonymous" integrity="sha384-48iagrZwMa6wkDoJKNyCk4jgMHcOcsBK/DzZAJInl1ZhtunellJDCRNZuomfHefF" src="https://browser.sentry-cdn.com/8.38.0/bundle.min.js"></script>
 </head><body>
 <div id="app">
@@ -561,7 +561,10 @@ var PUERTAS = {
   borrarMensaje: "borrar_mensaje",
   reaccionar: "reaccionar",
   fijarMensaje: "fijar_mensaje",
-  guardarTemporal: "guardar_temporal"
+  guardarTemporal: "guardar_temporal",
+  tarifaVivaEstado: "tarifa_viva_estado",
+  tarifaVivaResolver: "tarifa_viva_resolver",
+  fotoTarifa: "admin_foto_tarifa_reporte"
 };
 var DATOS_JSON_URL = "../buscadores/datos.json";
 var MERCADO_URL = "../datos/ultimo.json";
@@ -614,7 +617,7 @@ var PCT_ESQUEMA = { pctSaldo: 25, pctTransf: 20, pisoTransf: 25 };
 function fotoVacia(){ return { reportes: [], ayudas: [], usuarios: [], datos: null, cuando: "", publicar: [], publicados: {}, borrados: [], tarifaPanel: null, mercado: null, perfiles: {} }; }
 function estadoVacio(){
   return { codigo: "", foto: fotoVacia(), calc: JSON.parse(JSON.stringify(CALC_DEF)),
-    cola: [], sellos: {}, tarifaViva: null, tarifaVivaEn: "", publicarPendiente: null, calcSync: null, calcEditEn: null };
+    cola: [], sellos: {}, tarifaViva: null, tarifaVivaEn: "", publicarPendiente: null, calcSync: null, calcEditEn: null, tarifaVivaMotor: null };
 }
 var state = estadoVacio();
 function cargarEstado(){
@@ -1031,7 +1034,21 @@ function encolar(accion){
 function ejecutarAccion(a){
   var cod = state.codigo;
   switch (a.tipo) {
-    case "aprobar": return rpc("aprobar", { p_codigo: cod, p_id: a.id, p_comision: a.comision });
+    case "aprobar": {
+      var pAp = rpc("aprobar", { p_codigo: cod, p_id: a.id, p_comision: a.comision });
+      /* v20: la foto de tarifa del cierre se escribe en el servidor
+         como efecto lateral del éxito — FUERA del camino crítico
+         del despacho: la aprobación se asienta con su promesa de
+         siempre y la foto viaja detrás, protegida (si la puerta
+         falta o la red parpadea, la foto local del item sigue
+         llegando al panel; jamás retiene ni tumba la cola). */
+      if (a.ref360 != null) {
+        pAp.then(function(){
+          rpc("fotoTarifa", { p_codigo: cod, p_id: a.id, p_ref360: a.ref360, p_ref_libro: a.refLibro }).catch(function(){});
+        }, function(){});
+      }
+      return pAp;
+    }
     case "rechazar": return rpc("rechazar", { p_codigo: cod, p_id: a.id, p_motivo: a.motivo || "" });
     case "ayudaVista": return rpc("ayudaVista", { p_codigo: cod, p_id: a.id });
     case "activo": return rpc("usuarioActivo", { p_codigo: cod, p_codigo_usuario: a.codigoUsuario, p_activo: a.activo });
@@ -1851,7 +1868,7 @@ function cargarTodo(silencioso){
     pintarTodo();
     cargarPresencia();
     cargarPerfiles();
-    leerTarifaViva();
+    leerTarifaViva(); leerTarifaVivaMotor();
     latidoAdmin();
     return despacharCola().then(function(){ barridoPublicarAtrasados(); return true; });
   }).catch(function(e){
@@ -1898,6 +1915,133 @@ function leerTarifaViva(){
       pintarTarifa(); pintarInicioSiVisible();
     }
   }).catch(function(){});
+}
+/* ===== TARIFA VIVA DEL MERCADO (v20) =====
+   El motor del servidor (tarifa_viva_evaluar, pg_cron cada 5 min)
+   deriva la tarifa de cada foto fresca: si el ingreso por recarga
+   se mueve ≤2% la aplica solo; si se mueve más, la deja como
+   propuesta pendiente y AQUÍ se decide. Esta pantalla solo LEE el
+   estado del motor (tarifa_viva_estado) y resuelve la propuesta
+   (tarifa_viva_resolver, puerta de dueño). La salida jamás la
+   mueve el motor: sale de la fila viva, como siempre.
+   REGLA DE ORO (visible en la tarjeta): lo que se VE es la
+   estimación viva; lo que PAGA cada trato es la foto de tarifa de
+   su cierre (las vueltas la congelan en el servidor; los reportes,
+   con admin_foto_tarifa_reporte al aprobar). */
+function leerTarifaVivaMotor(){
+  rpc("tarifaVivaEstado", {}).then(function(r){
+    if (r && r.ok) { state.tarifaVivaMotor = r; guardar(); pintarTarifa(); }
+  }).catch(function(){});
+}
+/* El semáforo del motor: verde = foto fresca y tarifa al día ·
+   ámbar = foto vieja (la tarifa queda de respaldo, no se toca) ·
+   rojo = propuesta grande esperando la decisión de Ernesto. */
+function semaforoTV(){
+  var m = state.tarifaVivaMotor;
+  if (!m || !m.foto) return { color: "var(--ambar)", fondo: "var(--ambar-suave)", txt: "Sin fotos del mercado todavía: la tarifa queda como está." };
+  if (m.motor && m.motor.propuesta) return { color: "var(--rojo)", fondo: "var(--rojo-suave)", txt: "Propuesta grande en espera: tu decisión manda." };
+  var edad = Number(m.foto.edad_min);
+  if (m.foto.fresca && isFinite(edad) && edad <= 20) return { color: "var(--verde)", fondo: "var(--verde-suave)", txt: "Foto fresca: la tarifa viva está al día con el mercado." };
+  return { color: "var(--ambar)", fondo: "var(--ambar-suave)", txt: "Foto vieja: la tarifa queda de respaldo y no se toca hasta que llegue una fresca." };
+}
+function resolverPropuestaTV(accion){
+  rpc("tarifaVivaResolver", { p_codigo: state.codigo, p_accion: accion }).then(function(r){
+    if (r && r.ok) {
+      toast(accion === "aplicar" ? "✅ Propuesta aplicada: la tarifa viva ya es la del mercado" : "Propuesta descartada: la tarifa sigue como estaba");
+      leerTarifaViva(); leerTarifaVivaMotor();
+    } else {
+      toast("No había propuesta pendiente que resolver.", false);
+      leerTarifaVivaMotor();
+    }
+  }).catch(function(e){
+    toast(e && e.faltaPuerta ? "🧩 " + TXT_FALTA_ACTIVAR : "Falló la red al resolver la propuesta: inténtalo de nuevo.", false);
+  });
+}
+/* Simulador con la tarifa viva: él gana X · tú ganas Y (la misma
+   matemática de sugerencia() — saldo por excedente, transferencia
+   por la ganancia de la vuelta — con los % de la tarifa). */
+var simTVTipo = "saldo";
+function simTVCalcular(){
+  var t = tarifa(); if (!t) return;
+  var out = $("simRes"); if (!out) return;
+  if (simTVTipo === "saldo") {
+    var pr = parseFloat(($("simPrecio") || {}).value) || 0;
+    var ct = parseFloat(($("simCant") || {}).value) || 0;
+    var exc = (Number(t.ingresoRef360) - pr) * ct;
+    if (pr <= 0 || ct <= 0) { out.innerHTML = "Escribe el precio y las recargas pa simular."; return; }
+    if (exc <= 0) { out.innerHTML = "A ese precio no hay excedente: <b>él gana 0 · tú ganas 0</b>."; return; }
+    var elS = Math.round(exc * Number(t.pctSaldo || 25)) / 100;
+    out.innerHTML = "Excedente total " + fmt(exc) + " CUP → <b>él gana " + fmt(elS) + " · tú ganas " + fmt(exc - elS) + "</b> (su " + t.pctSaldo + "% del excedente).";
+  } else {
+    var ef = parseFloat(($("simEf") || {}).value) || 0;
+    var pc = parseFloat(($("simPct") || {}).value) || 0;
+    if (ef <= 0 || pc <= 0) { out.innerHTML = "Escribe el efectivo y el % pa simular."; return; }
+    var gan = (ef * (1 + pc / 100) / Number(t.libroRef)) * Number(t.salidaRef) - ef;
+    if (gan <= 0) { out.innerHTML = "Esa vuelta no deja ganancia con la tarifa de ahora: <b>él gana 0 · tú ganas 0</b>."; return; }
+    var elT = Math.round(gan * Number(t.pctTransf || 20)) / 100;
+    out.innerHTML = "La vuelta gana " + fmt(gan) + " CUP → <b>él gana " + fmt(elT) + " · tú ganas " + fmt(gan - elT) + "</b> (su " + t.pctTransf + "% de la ganancia).";
+  }
+}
+function tarjetaTarifaVivaHTML(){
+  var m = state.tarifaVivaMotor;
+  var t = tarifa();
+  var sem = semaforoTV();
+  var h = '<div class="card"><h3><span class="secIco">' + icono("tarifa") + '</span>Tarifa viva del mercado</h3>';
+  h += '<div class="kv" style="background:' + sem.fondo + ';border-radius:10px;padding:8px 10px"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:' + sem.color + ';margin-right:8px"></span><b>' + esc(sem.txt) + "</b></div>";
+  if (!m) {
+    h += '<div class="mut" style="margin-top:8px">Leyendo el estado del motor… (si no hay conexión, la tarifa de abajo manda como siempre).</div>';
+  } else if (m.foto) {
+    var f = m.foto;
+    h += '<div class="kv" style="margin-top:8px">Mercado de la última foto (hace ' + esc(String(f.edad_min)) + ' min): el saldo se vende a <b>' + fmt(Number(f.nivel20 != null ? f.nivel20 : f.promedio_venta)) + '</b> por QUSD (nivel de 20) · el QUSD por transferencia a <b>' + fmt(Number(f.bankcup_promedio)) + "</b> CUP.</div>";
+    h += '<div class="kv">Con ese mercado y TU salida (' + fmt(Number(t ? t.salidaRef : 0)) + '), la recarga de 360 rinde <b>' + fmt(Number(t ? t.ingresoRef360 : 0)) + '</b> y el libro queda en <b>' + fmt(Number(t ? t.libroRef : 0)) + '</b>. El motor revisa cada foto: movimientos de hasta ±2% los aplica solo; los grandes te esperan aquí.</div>';
+    var p = m.motor && m.motor.propuesta;
+    if (p) {
+      h += '<div class="kv" style="margin-top:8px"><span class="pill pBad">PROPUESTA EN ESPERA</span></div>'
+        + '<div class="kv">El mercado pide mover la tarifa más del 2%: el ingreso por recarga pasaría de <b>' + fmt(Number(t ? t.ingresoRef360 : 0)) + '</b> a <b>' + fmt(Number(p.ingreso_nuevo)) + '</b> (' + (Number(p.delta_pct) > 0 ? "+" : "") + fmt(Number(p.delta_pct)) + '%) y el libro a <b>' + fmt(Number(p.libro_nuevo)) + '</b>. La tarifa vigente NO se ha tocado.</div>'
+        + '<div class="fila" style="gap:8px;margin-top:8px"><button class="bGold" id="tvAplicar">Aplicar propuesta</button><button class="bGhost" id="tvDescartar">Descartar</button></div>';
+    }
+    var hist = (m.motor && m.motor.historial) || [];
+    if (hist.length) {
+      h += '<div class="mut" style="margin-top:10px">Últimos movimientos del motor:</div>' + hist.map(function(x){
+        var que = x.decision === "aplicada" ? "aplicó " + fmt(Number(x.ingreso_nuevo)) + " por recarga"
+          : x.decision === "propuesta" ? "propuso " + fmt(Number(x.ingreso_nuevo)) + " (" + esc(x.estado) + ")"
+          : x.decision === "foto_vieja" ? "foto vieja: no tocó nada" : "sin cambio";
+        return '<div class="kv">' + esc(String(x.creado_en || "").replace("T", " ").slice(0, 16)) + " · " + que + "</div>";
+      }).join("");
+    }
+  }
+  h += '<div class="ayuda" style="margin-top:10px"><b>Regla de oro:</b> lo que ves aquí es la estimación viva del mercado. Lo que PAGA cada trato es la tarifa del momento en que se cierra — esa foto queda guardada con el trato y no cambia aunque el mercado se mueva después.</div>';
+  /* Simulador */
+  h += '<div class="kv" style="margin-top:12px"><b>Simulador con la tarifa viva</b></div>'
+    + '<div class="fila" style="gap:8px;margin-top:6px"><button class="bGhost bMini" id="simTipoS">Saldo</button><button class="bGhost bMini" id="simTipoT">Transferencia</button></div>'
+    + '<div id="simSaldoBox">'
+    + '<label for="simPrecio">Precio por recarga (CUP)</label><input id="simPrecio" type="text" inputmode="decimal" value="1000">'
+    + '<label for="simCant">Recargas</label><input id="simCant" type="text" inputmode="numeric" value="1">'
+    + "</div>"
+    + '<div id="simTransfBox" style="display:none">'
+    + '<label for="simEf">Efectivo del trato (CUP)</label><input id="simEf" type="text" inputmode="decimal" value="10000">'
+    + '<label for="simPct">Trato al (%)</label><input id="simPct" type="text" inputmode="decimal" value="30">'
+    + "</div>"
+    + '<div class="kv" id="simRes" style="margin-top:8px"></div>';
+  h += "</div>";
+  return h;
+}
+function enlazarTarjetaTV(el){
+  var bA = $("tvAplicar"); if (bA) bA.addEventListener("click", function(){ resolverPropuestaTV("aplicar"); });
+  var bD = $("tvDescartar"); if (bD) bD.addEventListener("click", function(){ resolverPropuestaTV("descartar"); });
+  var bS = $("simTipoS"), bT = $("simTipoT");
+  function pintaTipos(){
+    if (bS) bS.className = "bMini " + (simTVTipo === "saldo" ? "bGold" : "bGhost");
+    if (bT) bT.className = "bMini " + (simTVTipo === "transferencia" ? "bGold" : "bGhost");
+    var bs = $("simSaldoBox"), bt = $("simTransfBox");
+    if (bs) bs.style.display = simTVTipo === "saldo" ? "" : "none";
+    if (bt) bt.style.display = simTVTipo === "transferencia" ? "" : "none";
+    simTVCalcular();
+  }
+  if (bS) bS.addEventListener("click", function(){ simTVTipo = "saldo"; pintaTipos(); });
+  if (bT) bT.addEventListener("click", function(){ simTVTipo = "transferencia"; pintaTipos(); });
+  ["simPrecio", "simCant", "simEf", "simPct"].forEach(function(id){ var i = $(id); if (i) i.addEventListener("input", simTVCalcular); });
+  pintaTipos();
 }
 /* Latido de Ernesto: con el SQL v1.3.1 queda la fila 'ADMIN' en
    presencia (la app del buscador muestra si Ernesto está en línea).
@@ -2302,8 +2446,13 @@ function buscarReporte(id){ return state.foto.reportes.filter(function(x){ retur
 function decidirReporte(id, aprobar, comision, motivo){
   var r = buscarReporte(id); if (!r) return;
   comision = Math.round((Number(comision) || 0) * 100) / 100;
+  /* v20 · TARIFA VIVA: la foto de tarifa de ESTE cierre viaja con la
+     decisión (la tarifa con la que se calculó la comisión): la ve el
+     buscador en su panel junto al trato y queda escrita en el
+     servidor al despachar (admin_foto_tarifa_reporte). */
+  var tDec = aprobar ? tarifa() : null;
   var accion = aprobar
-    ? { tipo: "aprobar", id: id, comision: comision, cuando: new Date().toISOString() }
+    ? { tipo: "aprobar", id: id, comision: comision, ref360: tDec ? Number(tDec.ingresoRef360) : null, refLibro: tDec ? Number(tDec.libroRef) : null, cuando: new Date().toISOString() }
     : { tipo: "rechazar", id: id, motivo: motivo || "", cuando: new Date().toISOString() };
   /* aplica local y encola: vale igual con red que sin red */
   r.estado = aprobar ? "aprobado" : "rechazado";
@@ -2313,7 +2462,7 @@ function decidirReporte(id, aprobar, comision, motivo){
     var cod = resolverDeReporte(r);
     /* v7: el trato entra SIEMPRE en la cola; sin código queda
        retenido con su nombre (antes se perdía en silencio). */
-    var item = { codigo: cod, nombre: r.nombre || r.buscador || "", concepto: conceptoDe(r), comision: Number(comision) || 0, fecha: r.creado, tipo: r.tipo || "", recargas: r.tipo === "saldo" ? Math.floor(Number(r.cantidad) || 0) : 0, monto: r.tipo === "transferencia" ? efectivoDe(r) : 0 };
+    var item = { codigo: cod, nombre: r.nombre || r.buscador || "", concepto: conceptoDe(r), comision: Number(comision) || 0, fecha: r.creado, tipo: r.tipo || "", recargas: r.tipo === "saldo" ? Math.floor(Number(r.cantidad) || 0) : 0, monto: r.tipo === "transferencia" ? efectivoDe(r) : 0, ref360: tDec ? Number(tDec.ingresoRef360) : null, refLibro: tDec ? Number(tDec.libroRef) : null };
     if (!cod) { item.retenido = true; retenidoNuevo = true; }
     state.foto.publicar.push(item);
   } else r.motivo = motivo || "";
@@ -3335,11 +3484,13 @@ function mapaBuscadores(base){
        ubique (fechaCorta «13 nov» no la parsea), y la línea de
        pagado cuando el reporte de la foto ya la trae. Sin duplicar
        lo que el historial ya lleva. */
-    var emitido = { fecha: fechaDMY(tr.fecha), concepto: tr.concepto, nota: tr.concepto, tipo: tr.tipo || "", recargas: Math.floor(Number(tr.recargas) || 0), monto: Number(tr.monto) || 0, comision: Number(tr.comision) };
+    var emitido = { fecha: fechaDMY(tr.fecha), concepto: tr.concepto, nota: tr.concepto, tipo: tr.tipo || "", recargas: Math.floor(Number(tr.recargas) || 0), monto: Number(tr.monto) || 0, comision: Number(tr.comision), ref360: tr.ref360 != null ? Number(tr.ref360) : null, refLibro: tr.refLibro != null ? Number(tr.refLibro) : null };
     var repP = (state.foto.reportes || []).filter(function(r){
       return r.estado === "aprobado" && resolverDeReporte(r) === tr.codigo && Number(r.comision) === Number(tr.comision) && conceptoDe(r) === tr.concepto;
     })[0];
     if (repP && repP.comision_pagada_en) { emitido.estado = "pagado"; emitido.pagado_en = fechaDMY(repP.comision_pagada_en); }
+    if (emitido.ref360 == null && repP && repP.tarifa_ref360 != null) emitido.ref360 = Number(repP.tarifa_ref360);
+    if (emitido.refLibro == null && repP && repP.tarifa_ref_libro != null) emitido.refLibro = Number(repP.tarifa_ref_libro);
     var yaEsta = map[tr.codigo].tratos.some(function(t){ return t && t.fecha === emitido.fecha && t.concepto === emitido.concepto && Number(t.comision) === emitido.comision; });
     if (!yaEsta) map[tr.codigo].tratos.push(emitido);
   });
@@ -3507,7 +3658,7 @@ function barridoPublicarAtrasados(){
       return p && p.codigo === cod && p.concepto === conceptoDe(r) && Number(p.comision) === Number(r.comision);
     });
     if (enCola) return;
-    state.foto.publicar.push({ codigo: cod, nombre: r.nombre || r.buscador || "", concepto: conceptoDe(r), comision: Number(r.comision) || 0, fecha: r.creado, tipo: r.tipo || "", recargas: r.tipo === "saldo" ? Math.floor(Number(r.cantidad) || 0) : 0, monto: r.tipo === "transferencia" ? efectivoDe(r) : 0 });
+    state.foto.publicar.push({ codigo: cod, nombre: r.nombre || r.buscador || "", concepto: conceptoDe(r), comision: Number(r.comision) || 0, fecha: r.creado, tipo: r.tipo || "", recargas: r.tipo === "saldo" ? Math.floor(Number(r.cantidad) || 0) : 0, monto: r.tipo === "transferencia" ? efectivoDe(r) : 0, ref360: r.tarifa_ref360 != null ? Number(r.tarifa_ref360) : null, refLibro: r.tarifa_ref_libro != null ? Number(r.tarifa_ref_libro) : null });
     cambio = true;
   });
   if (cambio) guardar();
@@ -3568,6 +3719,7 @@ registrarModulo({
       return;
     }
     var h = (!online ? '<div class="offBanner" style="display:block">' + selloTexto("tarifa") + ". Puedes dejar la tarifa preparada: quedará en cola.</div>" : "");
+    h += tarjetaTarifaVivaHTML();
     h += '<div class="card"><h3>Tarifa para los buscadores</h3>'
       + '<label for="tf_ing">Ingreso por recarga de 360 (CUP)</label><input id="tf_ing" type="text" inputmode="decimal" value="' + fmt(Number(t.ingresoRef360)) + '">'
       + '<div class="ayuda">Cuánto te rinde una recarga de 360 vendida donde calculas.</div>'
@@ -3601,6 +3753,7 @@ registrarModulo({
       state.foto.publicar.splice(ix, 1); guardar(); pintarTodo();
       toast("✖ Trato de «" + (p.nombre || "Sin nombre") + "» quitado de la cola.");
     }); });
+    enlazarTarjetaTV(el);
     var bp = $("tfPub"); if (bp) bp.addEventListener("click", publicarAhora);
     var br = $("tfRespaldo"); if (br) br.addEventListener("click", mostrarJsonRespaldo);
   }
@@ -3705,14 +3858,14 @@ function intentarEntrar(){
    controllerchange recarga la app UNA sola vez (marca en
    sessionStorage por versión: sin bucles). MN_VERSION se sube
    junto con el CACHE de sw.js. */
-var MN_VERSION = "v19";
+var MN_VERSION = "v20";
 /* Sello VISIBLE de compilación (punto 6): Ernesto quejándose con
    razón — «no sé si se actualizó o no». Una sola constante que
    sube con cada publicación; se ve en Inicio y en la hoja ℹ️ del
    chat. Formato: «Mi Negocio · versión 2026-11-11 HH:MM · caché v6»
    (fecha Y HORA de la publicación, para distinguir dos subidas
    del mismo día). La hora es la de Cuba (CST) al compilar. */
-var MN_COMPILACION = "2026-11-13 12:48";
+var MN_COMPILACION = "2026-11-13 16:40";
 function selloVersion(){ return "Mi Negocio · versión " + MN_COMPILACION + " · caché " + MN_VERSION; }
 var regSW = null;
 var swConControladorAlArrancar = false;
