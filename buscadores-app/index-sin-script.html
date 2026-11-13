@@ -306,7 +306,7 @@
   .chatAvatar { background: var(--dorado); color: #FFFFFF; border-color: var(--dorado); }
   .versionTxt { background: var(--bg-0); font-size: 15px; }
   input[type=file] { font-size: 16px; min-height: 48px; }
-</style><script>window.SENTRY_CASA={app:"mitrabajo",version:"1.5.9",dsn:"https://c55f15054776babcf29ee7023c77f250@o4512419765354496.ingest.us.sentry.io/4512419773087744"};</script>
+</style><script>window.SENTRY_CASA={app:"mitrabajo",version:"1.6.0",dsn:"https://c55f15054776babcf29ee7023c77f250@o4512419765354496.ingest.us.sentry.io/4512419773087744"};</script>
 <script defer crossorigin="anonymous" integrity="sha384-48iagrZwMa6wkDoJKNyCk4jgMHcOcsBK/DzZAJInl1ZhtunellJDCRNZuomfHefF" src="https://browser.sentry-cdn.com/8.38.0/bundle.min.js"></script>
 </head>
 <body>
@@ -351,6 +351,8 @@
       <button class="actBtn" id="btnAct" type="button"><svg class="ic" aria-hidden="true"><use href="#i-refresh"/></svg> Actualizar</button>
     </div>
   </div>
+
+  <div class="tarifa" id="tvBox" style="display:none"></div>
 
   <div class="warn" id="bootWarn" style="display:none"></div>
 
@@ -436,12 +438,14 @@
         <input type="number" id="r_precio" inputmode="decimal" placeholder="Ej: 950">
         <label>¿Cuántas recargas de 360 tiene?</label>
         <input type="number" id="r_cant" inputmode="numeric" value="1">
+        <div class="ok" id="r_est_s"></div>
       </div>
       <div id="r_box_t" class="hide">
         <label>Efectivo que entrega la persona (CUP)</label>
         <input type="number" id="r_ef" inputmode="decimal" placeholder="Ej: 5000">
         <label>¿Al cuánto es el trato? (%)</label>
         <input type="number" id="r_pct" inputmode="decimal" placeholder="Ej: 30">
+        <div class="ok" id="r_est_t"></div>
       </div>
       <label>Teléfono del vendedor / de la persona</label>
       <input type="tel" id="r_tel" inputmode="tel" placeholder="Ej: 51234567">
@@ -545,6 +549,11 @@
           <div class="lab">TOTAL GANADO</div>
           <div class="num" id="p_total">$0.00</div>
           <div class="lab" id="p_name"></div>
+        </div>
+        <div class="total">
+          <div class="lab">HOY HAS GANADO</div>
+          <div class="num" id="p_hoy">$0.00</div>
+          <div class="lab">de tus tratos confirmados de hoy</div>
         </div>
         <label><svg class="ic mini" aria-hidden="true"><use href="#i-gift"/></svg> Bono de saldo: <span id="p_bs_lab"></span></label>
         <div class="bar"><div id="p_bs_bar"></div></div>
