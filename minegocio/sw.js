@@ -8,7 +8,7 @@
    fallback leía una caché que nadie escribía); sin red se sirve
    esa última copia cacheada, además de la foto en localStorage
    que guarda la propia app. */
-var CACHE = "minegocio-v18";
+var CACHE = "minegocio-v19";
 var CASCARON = [
   "./",
   "./index.html",
