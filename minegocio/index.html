@@ -303,7 +303,7 @@ label { display:block; font:600 11px var(--fuente); letter-spacing:.07em; text-t
 #pgContabilidad .contaH4 { font:600 15px var(--fuente); margin:var(--e-4) 0 var(--e-1); }
 #pgContabilidad .contaHist { display:flex; justify-content:space-between; gap:var(--e-3); flex-wrap:wrap; padding:var(--e-2) 0; border-bottom:1px solid var(--linea); font:var(--t-sub); color:var(--txt-2); }
 #pgContabilidad .contaHistDer { color:var(--txt-3); }
-</style><script>window.SENTRY_CASA={app:"minegocio",version:"v15",dsn:"https://1454ae292cfdb8e358e88ec3d1fc1547@o4512419765354496.ingest.us.sentry.io/4512419769876480"};</script>
+</style><script>window.SENTRY_CASA={app:"minegocio",version:"v16",dsn:"https://1454ae292cfdb8e358e88ec3d1fc1547@o4512419765354496.ingest.us.sentry.io/4512419769876480"};</script>
 <script defer crossorigin="anonymous" integrity="sha384-48iagrZwMa6wkDoJKNyCk4jgMHcOcsBK/DzZAJInl1ZhtunellJDCRNZuomfHefF" src="https://browser.sentry-cdn.com/8.38.0/bundle.min.js"></script>
 </head><body>
 <div id="app">
@@ -632,6 +632,12 @@ function cargarEstado(){
       state = base;
     }
   } catch(e){}
+  /* Puente de forma también sobre la foto guardada: fotos viejas
+     (con la fila cruda) pintan bien desde el primer arranque. */
+  if (state && state.foto) {
+    (state.foto.reportes || []).forEach(normFilaReporte);
+    (state.foto.ayudas || []).forEach(normFilaAyuda);
+  }
   repararPublicar();
   normalizarCola();
 }
@@ -1467,6 +1473,8 @@ function arrancarLocalFirst(){
       return BDL.trae("config", "foto").then(function(f){
         if (f && f.valor && ((f.valor.reportes || []).length || f.valor.cuando)) {
           state.foto = Object.assign(fotoVacia(), f.valor);
+          (state.foto.reportes || []).forEach(normFilaReporte);
+          (state.foto.ayudas || []).forEach(normFilaAyuda);
           guardar(); pintarTodo();
         }
       });
@@ -1721,6 +1729,30 @@ function alistarMedios(el){
   }
 }
 
+/* ===== PUENTE DE FORMA: fila cruda de la tabla → forma corta =====
+   Las puertas admin_reportes/admin_ayudas devuelven la fila CRUDA
+   (SETOF: creado_en, telefono_vendedor, buscador) y TODA la app lee
+   la forma corta (creado, telefono, codigo, nombre) — la que trae
+   admin_usuarios, construida a mano. Sin este puente, las fechas
+   llegaban «undefined» y cada filtro por fecha (mes/semana/hoy de
+   Contabilidad, el orden y las tarjetas de la Bandeja, «reportó
+   hoy») dejaba fuera TODOS los tratos con el servidor sano: la
+   Contabilidad marcó 0 con el trato de Briku aprobado y pagado
+   (caza del 2026-11-13). Se aliasa SOLO lo que falta, en las tres
+   entradas de la foto (carga fresca, localStorage e IDB); lo que ya
+   venga en forma corta no se toca y los campos crudos quedan. */
+function normFilaReporte(r){
+  if (!r || typeof r !== "object") return;
+  if (r.creado == null && r.creado_en != null) r.creado = r.creado_en;
+  if (r.telefono == null && r.telefono_vendedor != null) r.telefono = r.telefono_vendedor;
+  if (r.codigo == null && r.buscador != null) r.codigo = r.buscador;
+  if (!r.nombre && r.buscador != null) { var n = nombreDe(r.buscador); if (n) r.nombre = n; }
+}
+function normFilaAyuda(a){
+  if (!a || typeof a !== "object") return;
+  if (a.creado == null && a.creado_en != null) a.creado = a.creado_en;
+}
+
 /* ===== CARGA DE DATOS + PRESENCIA ===== */
 function cargarTodo(silencioso){
   var codigo = state.codigo;
@@ -1766,6 +1798,10 @@ function cargarTodo(silencioso){
     state.foto.ayudas = Array.isArray(res[1]) ? res[1] : [];
     state.foto.usuarios = Array.isArray(res[2]) ? res[2] : [];
     state.foto.borrados = state.foto.borrados.filter(function(cod){ return !state.foto.usuarios.some(function(u){ return u.codigo === cod; }); });
+    /* Puente de forma (ver normFilaReporte): la foto fresca entra
+       ya en la forma corta que leen Bandeja y Contabilidad. */
+    state.foto.reportes.forEach(normFilaReporte);
+    state.foto.ayudas.forEach(normFilaAyuda);
     if (res[3]) { datosLive = normalizarDatos(res[3]); state.foto.datos = datosLive; }
     state.foto.cuando = horaFoto();
     state.sellos.bandeja = new Date().toISOString();
@@ -3504,14 +3540,14 @@ function intentarEntrar(){
    controllerchange recarga la app UNA sola vez (marca en
    sessionStorage por versión: sin bucles). MN_VERSION se sube
    junto con el CACHE de sw.js. */
-var MN_VERSION = "v15";
+var MN_VERSION = "v16";
 /* Sello VISIBLE de compilación (punto 6): Ernesto quejándose con
    razón — «no sé si se actualizó o no». Una sola constante que
    sube con cada publicación; se ve en Inicio y en la hoja ℹ️ del
    chat. Formato: «Mi Negocio · versión 2026-11-11 HH:MM · caché v6»
    (fecha Y HORA de la publicación, para distinguir dos subidas
    del mismo día). La hora es la de Cuba (CST) al compilar. */
-var MN_COMPILACION = "2026-11-12 11:49";
+var MN_COMPILACION = "2026-11-13 11:06";
 function selloVersion(){ return "Mi Negocio · versión " + MN_COMPILACION + " · caché " + MN_VERSION; }
 var regSW = null;
 var swConControladorAlArrancar = false;
