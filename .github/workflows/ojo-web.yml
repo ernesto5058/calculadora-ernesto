@@ -50,7 +50,7 @@ jobs:
 
           const sitios = [
             { id: 'minegocio', url: 'https://ernesto5058.github.io/calculadora-ernesto/minegocio/',
-              marcador: 'Tu código de administrador', espera: 4000,
+              marcador: 'TU CÓDIGO DE ADMINISTRADOR', espera: 4000,
               fotos: [ { archivo: '01-minegocio-puerta.png', bajar: 0,
                          pie: 'Mi Negocio — SOLO la puerta: el código del dueño no viaja a ningún robot. La carga y la puerta ya cazan errores reales.' } ] },
             { id: 'mercado', url: 'https://ernesto5058.github.io/calculadora-ernesto/mercado/',
