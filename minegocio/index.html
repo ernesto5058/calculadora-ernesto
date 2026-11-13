@@ -323,7 +323,7 @@ label { display:block; font:600 11px var(--fuente); letter-spacing:.07em; text-t
 #pgContabilidad .contaH4 { font:600 15px var(--fuente); margin:var(--e-4) 0 var(--e-1); }
 #pgContabilidad .contaHist { display:flex; justify-content:space-between; gap:var(--e-3); flex-wrap:wrap; padding:var(--e-2) 0; border-bottom:1px solid var(--linea); font:var(--t-sub); color:var(--txt-2); }
 #pgContabilidad .contaHistDer { color:var(--txt-3); }
-</style><script>window.SENTRY_CASA={app:"minegocio",version:"v20",dsn:"https://1454ae292cfdb8e358e88ec3d1fc1547@o4512419765354496.ingest.us.sentry.io/4512419769876480"};</script>
+</style><script>window.SENTRY_CASA={app:"minegocio",version:"v21",dsn:"https://1454ae292cfdb8e358e88ec3d1fc1547@o4512419765354496.ingest.us.sentry.io/4512419769876480"};</script>
 <script defer crossorigin="anonymous" integrity="sha384-48iagrZwMa6wkDoJKNyCk4jgMHcOcsBK/DzZAJInl1ZhtunellJDCRNZuomfHefF" src="https://browser.sentry-cdn.com/8.38.0/bundle.min.js"></script>
 </head><body>
 <div id="app">
@@ -583,7 +583,7 @@ var PUERTAS = {
   fijarMensaje: "fijar_mensaje",
   guardarTemporal: "guardar_temporal",
   tarifaVivaEstado: "tarifa_viva_estado",
-  tarifaVivaResolver: "tarifa_viva_resolver",
+  tarifaVivaInteligencia: "tarifa_viva_inteligencia",
   fotoTarifa: "admin_foto_tarifa_reporte"
 };
 var DATOS_JSON_URL = "../buscadores/datos.json";
@@ -1936,14 +1936,18 @@ function leerTarifaViva(){
     }
   }).catch(function(){});
 }
-/* ===== TARIFA VIVA DEL MERCADO (v20) =====
+/* ===== TARIFA VIVA INTELIGENTE (v21) =====
    El motor del servidor (tarifa_viva_evaluar, pg_cron cada 5 min)
-   deriva la tarifa de cada foto fresca: si el ingreso por recarga
-   se mueve ≤2% la aplica solo; si se mueve más, la deja como
-   propuesta pendiente y AQUÍ se decide. Esta pantalla solo LEE el
-   estado del motor (tarifa_viva_estado) y resuelve la propuesta
-   (tarifa_viva_resolver, puerta de dueño). La salida jamás la
-   mueve el motor: sale de la fila viva, como siempre.
+   decide SOLO, con reglas duras: foto fresca o nada · la tasa se
+   suaviza con las últimas fotos (recencia × profundidad) · saltos
+   ≤2% se aplican con una foto; mayores exigen DOS fotos frescas
+   en la misma dirección · límites de velocidad ±4%/hora y ±8%/día
+   · piso de margen = el costo (jamás por debajo) · la salida
+   jamás la toca. Ya no hay propuestas: cada decisión queda en el
+   historial con su PORQUÉ en palabras. Esta pantalla LEE el
+   estado (tarifa_viva_estado) y trae el interruptor de la
+   inteligencia (tarifa_viva_inteligencia, puerta de dueño): si
+   Ernesto fija la tarifa a mano, la inteligencia se pausa sola.
    REGLA DE ORO (visible en la tarjeta): lo que se VE es la
    estimación viva; lo que PAGA cada trato es la foto de tarifa de
    su cierre (las vueltas la congelan en el servidor; los reportes,
@@ -1953,34 +1957,47 @@ function leerTarifaVivaMotor(){
     if (r && r.ok) { state.tarifaVivaMotor = r; guardar(); pintarTarifa(); }
   }).catch(function(){});
 }
-/* El semáforo del motor: verde = foto fresca y tarifa al día ·
-   ámbar = foto vieja (la tarifa queda de respaldo, no se toca) ·
-   rojo = propuesta grande esperando la decisión de Ernesto. */
+/* El semáforo de la inteligencia: verde = foto fresca y tarifa al
+   día · ámbar «Confirmando» = un salto grande ya tiene su primera
+   lectura y espera la segunda · ámbar «Respaldo» = foto vieja (no
+   se toca nada) · dorado «En pausa» = Ernesto fijó la tarifa a
+   mano y la inteligencia respeta su número. */
 function semaforoTV(){
   var m = state.tarifaVivaMotor;
   /* v3: cada estado trae su píldora (punto + etiqueta corta) en los
      colores de la muestra; txt sigue siendo la frase completa. */
+  var P_AMBAR = "background:rgba(246,212,124,.12);color:#F6D47C;border-color:rgba(246,212,124,.30)";
+  var P_VERDE = "background:rgba(87,217,146,.12);color:#57D992;border-color:rgba(87,217,146,.25)";
   if (!m || !m.foto) return { color: "var(--ambar)", fondo: "var(--ambar-suave)", txt: "Sin fotos del mercado todavía: la tarifa queda como está.",
-    pill: "Sin fotos", pillCss: "background:rgba(246,212,124,.12);color:#F6D47C;border-color:rgba(246,212,124,.30)" };
-  if (m.motor && m.motor.propuesta) return { color: "var(--rojo)", fondo: "var(--rojo-suave)", txt: "Propuesta grande en espera: tu decisión manda.",
-    pill: "Propuesta en espera", pillCss: "background:rgba(255,122,107,.12);color:#FF7A6B;border-color:rgba(255,122,107,.30)" };
+    pill: "Sin fotos", pillCss: P_AMBAR };
+  var intl = m.inteligencia || {};
+  if (intl.activa === false) return { color: "var(--ambar)", fondo: "var(--ambar-suave)", txt: "La inteligencia está en pausa: la tarifa es la que fijaste tú. Actívala cuando quieras que vuelva a seguir al mercado sola.",
+    pill: "En pausa", pillCss: P_AMBAR };
   var edad = Number(m.foto.edad_min);
-  if (m.foto.fresca && isFinite(edad) && edad <= 20) return { color: "var(--verde)", fondo: "var(--verde-suave)", txt: "Foto fresca: la tarifa viva está al día con el mercado.",
-    pill: "En vivo", pillCss: "background:rgba(87,217,146,.12);color:#57D992;border-color:rgba(87,217,146,.25)" };
+  if (m.foto.fresca && isFinite(edad) && edad <= 20) {
+    if (intl.confirmacion) return { color: "var(--ambar)", fondo: "var(--ambar-suave)", txt: "Salto grande detectado (" + fmt(Number(intl.confirmacion.delta_pct)) + "%): la primera foto ya lo apuntó. Si la próxima foto fresca va en la misma dirección, la inteligencia lo aplica sola.",
+      pill: "Confirmando", pillCss: P_AMBAR };
+    return { color: "var(--verde)", fondo: "var(--verde-suave)", txt: "Foto fresca: la tarifa inteligente está al día con el mercado.",
+      pill: "En vivo", pillCss: P_VERDE };
+  }
   return { color: "var(--ambar)", fondo: "var(--ambar-suave)", txt: "Foto vieja: la tarifa queda de respaldo y no se toca hasta que llegue una fresca.",
-    pill: "Respaldo", pillCss: "background:rgba(246,212,124,.12);color:#F6D47C;border-color:rgba(246,212,124,.30)" };
+    pill: "Respaldo", pillCss: P_AMBAR };
 }
-function resolverPropuestaTV(accion){
-  rpc("tarifaVivaResolver", { p_codigo: state.codigo, p_accion: accion }).then(function(r){
+/* El interruptor de la inteligencia (puerta de dueño). Al apagarla
+   la tarifa queda como está; al encenderla, el motor vuelve a
+   evaluar cada foto fresca con sus reglas. */
+function interruptorTV(activa){
+  rpc("tarifaVivaInteligencia", { p_codigo: state.codigo, p_activa: activa }).then(function(r){
     if (r && r.ok) {
-      toast(accion === "aplicar" ? "✅ Propuesta aplicada: la tarifa viva ya es la del mercado" : "Propuesta descartada: la tarifa sigue como estaba");
+      toast(activa ? "🧠 Inteligencia de tarifa ACTIVADA: vuelve a seguir al mercado sola, con sus reglas."
+                   : "⏸ Inteligencia en pausa: la tarifa queda como está hasta que la actives.");
       leerTarifaViva(); leerTarifaVivaMotor();
     } else {
-      toast("No había propuesta pendiente que resolver.", false);
+      toast("La puerta no respondió: inténtalo de nuevo.", false);
       leerTarifaVivaMotor();
     }
   }).catch(function(e){
-    toast(e && e.faltaPuerta ? "🧩 " + TXT_FALTA_ACTIVAR : "Falló la red al resolver la propuesta: inténtalo de nuevo.", false);
+    toast(e && e.faltaPuerta ? "🧩 " + TXT_FALTA_ACTIVAR : "Falló la red con el interruptor: inténtalo de nuevo.", false);
   });
 }
 /* Simulador con la tarifa viva: él gana X · tú ganas Y (la misma
@@ -2036,25 +2053,39 @@ function tarjetaTarifaVivaHTML(){
       + '<div class="tv3-row" style="margin-top:8px"><span class="tv3-small">Saldo ETECSA · venta (nivel de 20)</span><b class="tv3-b">≈ ' + fmt(Number(f.nivel20 != null ? f.nivel20 : f.promedio_venta)) + '</b></div>'
       + '<div class="tv3-hair"></div>'
       + '<div class="tv3-row"><span class="tv3-small">QUSD por transferencia · BANK_CUP</span><b class="tv3-b">≈ ' + fmt(Number(f.bankcup_promedio)) + "</b></div>";
-    var p = m.motor && m.motor.propuesta;
-    if (p) {
-      h += '<div class="tv3-prop"><span class="pill pBad">PROPUESTA EN ESPERA</span>'
-        + '<div class="kv" style="margin-top:8px">El mercado pide mover la tarifa más del 2%: el ingreso por recarga pasaría de <b>' + fmt(Number(t ? t.ingresoRef360 : 0)) + '</b> a <b>' + fmt(Number(p.ingreso_nuevo)) + '</b> (' + (Number(p.delta_pct) > 0 ? "+" : "") + fmt(Number(p.delta_pct)) + '%) y el libro a <b>' + fmt(Number(p.libro_nuevo)) + '</b>. La tarifa vigente NO se ha tocado.</div>'
-        + '<div class="fila" style="gap:8px;margin-top:10px"><button class="tv3-btn" id="tvAplicar">Aplicar propuesta</button><button class="bGhost" id="tvDescartar">Descartar</button></div></div>';
+    var intl = m.inteligencia || {};
+    var um = intl.ultimo_movimiento;
+    if (um) {
+      h += '<div class="tv3-lbl tv3-lbl-gold" style="margin-top:14px">Último movimiento</div>'
+        + '<div class="tv3-row" style="margin-top:6px"><span class="tv3-small">' + esc(String(um.creado_en || "").replace("T", " ").slice(0, 16)) + '</span>'
+        + '<b class="tv3-b">' + (um.decision === "manual" ? "la fijaste tú en " : "aplicó ") + fmt(Number(um.ingreso_nuevo)) + " por recarga</b></div>"
+        + (um.porque ? '<div class="tv3-small" style="margin-top:5px">' + esc(um.porque) + "</div>" : "");
     }
-    var hist = (m.motor && m.motor.historial) || [];
+    var ud = intl.ultima_decision;
+    if (ud && ud.porque && (!um || ud.creado_en !== um.creado_en) && ud.decision !== "aplicada" && ud.decision !== "manual") {
+      h += '<div class="tv3-small" style="margin-top:9px"><b style="color:var(--txt-1)">Ahora:</b> ' + esc(ud.porque) + "</div>";
+    }
+    var hist = intl.historial || [];
     if (hist.length) {
-      h += '<div class="tv3-lbl" style="margin-top:14px">Últimos movimientos del motor</div>' + hist.map(function(x){
+      h += '<div class="tv3-lbl" style="margin-top:14px">Historial de la inteligencia</div>' + hist.map(function(x){
         var que = x.decision === "aplicada" ? "aplicó " + fmt(Number(x.ingreso_nuevo)) + " por recarga"
-          : x.decision === "propuesta" ? "propuso " + fmt(Number(x.ingreso_nuevo)) + " (" + esc(x.estado) + ")"
-          : x.decision === "foto_vieja" ? "foto vieja: no tocó nada" : "sin cambio";
-        return '<div class="tv3-hair"></div><div class="tv3-row"><span class="tv3-small">' + esc(String(x.creado_en || "").replace("T", " ").slice(0, 16)) + '</span><span class="tv3-small" style="color:var(--txt-1)">' + que + "</span></div>";
+          : x.decision === "manual" ? "la fijaste tú en " + fmt(Number(x.ingreso_nuevo))
+          : x.decision === "esperando_confirmacion" ? "salto detectado: esperando la 2ª foto"
+          : x.decision === "limite_velocidad" ? "frenado por el límite de velocidad"
+          : x.decision === "foto_vieja" ? "foto vieja: no tocó nada"
+          : x.decision === "pausa_manual" ? "en pausa: no tocó nada" : "sin cambio";
+        return '<div class="tv3-hair"></div><div class="tv3-row"><span class="tv3-small">' + esc(String(x.creado_en || "").replace("T", " ").slice(0, 16)) + '</span><span class="tv3-small" style="color:var(--txt-1);text-align:right">' + que + "</span></div>"
+          + (x.porque ? '<div class="tv3-small" style="margin-top:3px">' + esc(x.porque) + "</div>" : "");
       }).join("");
     }
   }
+  var intl2 = (m && m.inteligencia) || {};
+  var activa = intl2.activa !== false;
   h += '<div class="tv3-hair" style="margin-top:14px"></div>'
-    + '<div class="tv3-row"><span><b style="font-size:13.5px">Tu freno</b><br><span class="tv3-small">Auto-ajuste hasta ±2% · saltos mayores te piden un toque</span></span>'
-    + '<span class="tv3-pill" style="background:rgba(246,212,124,.12);color:#F6D47C;border-color:rgba(246,212,124,.30)">Activo</span></div>'
+    + '<div class="tv3-row"><span><b style="font-size:13.5px">Inteligencia de tarifa</b><br><span class="tv3-small">Se ajusta sola con fotos frescas: saltos de hasta ±' + fmt(Number(intl2.umbral_pct != null ? intl2.umbral_pct : 2)) + '% de una vez; los mayores, con dos fotos en la misma dirección. Nunca pasa de ±' + fmt(Number(intl2.vel_hora_pct != null ? intl2.vel_hora_pct : 4)) + '%/hora ni ±' + fmt(Number(intl2.vel_dia_pct != null ? intl2.vel_dia_pct : 8)) + '%/día, y jamás baja del costo (' + fmt(Number(intl2.costo_ref != null ? intl2.costo_ref : 1000)) + '). Tu salida nunca la toca. Si fijas la tarifa a mano, se pausa sola.</span></span></div>'
+    + '<div style="margin-top:10px">' + (activa
+        ? '<button class="bGhost" id="tvIntelBtn">Pausar inteligencia</button>'
+        : '<button class="tv3-btn" id="tvIntelBtn">Activar inteligencia</button>') + "</div>"
     + '<div class="ayuda" style="margin-top:12px"><b>Regla de oro:</b> lo que ves aquí es la estimación viva del mercado. Lo que PAGA cada trato es la tarifa del momento en que se cierra — esa foto queda guardada con el trato y no cambia aunque el mercado se mueva después.</div>';
   /* Simulador */
   h += '<div class="tv3-lbl" style="margin-top:16px">Simulador con la tarifa viva</div>'
@@ -2072,8 +2103,11 @@ function tarjetaTarifaVivaHTML(){
   return h;
 }
 function enlazarTarjetaTV(el){
-  var bA = $("tvAplicar"); if (bA) bA.addEventListener("click", function(){ resolverPropuestaTV("aplicar"); });
-  var bD = $("tvDescartar"); if (bD) bD.addEventListener("click", function(){ resolverPropuestaTV("descartar"); });
+  var bI = $("tvIntelBtn");
+  if (bI) bI.addEventListener("click", function(){
+    var activa = state.tarifaVivaMotor && state.tarifaVivaMotor.inteligencia && state.tarifaVivaMotor.inteligencia.activa !== false;
+    interruptorTV(!activa);
+  });
   var bS = $("simTipoS"), bT = $("simTipoT");
   function pintaTipos(){
     if (bS) bS.className = "bMini " + (simTVTipo === "saldo" ? "bGold" : "bGhost");
@@ -3903,14 +3937,14 @@ function intentarEntrar(){
    controllerchange recarga la app UNA sola vez (marca en
    sessionStorage por versión: sin bucles). MN_VERSION se sube
    junto con el CACHE de sw.js. */
-var MN_VERSION = "v20";
+var MN_VERSION = "v21";
 /* Sello VISIBLE de compilación (punto 6): Ernesto quejándose con
    razón — «no sé si se actualizó o no». Una sola constante que
    sube con cada publicación; se ve en Inicio y en la hoja ℹ️ del
    chat. Formato: «Mi Negocio · versión 2026-11-11 HH:MM · caché v6»
    (fecha Y HORA de la publicación, para distinguir dos subidas
    del mismo día). La hora es la de Cuba (CST) al compilar. */
-var MN_COMPILACION = "2026-11-13 16:40";
+var MN_COMPILACION = "2026-11-13 17:45";
 function selloVersion(){ return "Mi Negocio · versión " + MN_COMPILACION + " · caché " + MN_VERSION; }
 var regSW = null;
 var swConControladorAlArrancar = false;
