@@ -870,12 +870,24 @@ function pintarTarifaViva(){
   }
   var exc = T.ingresoRef360 - 1000;
   var ej = exc > 0 ? Math.round(exc * pe.s * 100) / 10000 : 0;
-  box.innerHTML = "<b>TARIFA VIVA</b> · " + esc(fuente) + esc(frescaTxt) +
-    "<br>Saldo: por cada recarga de 360, la referencia de venta es <b>" + fmt(T.ingresoRef360) + "</b>." +
-    (exc > 0 ? " Ej.: a 1,000, el excedente es " + fmtN(exc) + " y tu parte ≈ <b>" + fmt(ej) + "</b> (tu " + esc(pe.s) + "%)." : " A 1,000 no hay excedente hoy.") +
-    "<br>Transferencia: el QUSD se valora hoy a <b>" + fmt(T.libroRef) + "</b> por QUSD · tu parte: el <b>" + esc(pe.t) + "%</b> de la ganancia (tratos al " + esc(T.pisoTransf) + "% o más)." +
-    (TARIFA_VIVA_B && TARIFA_VIVA_B.hay_propuesta_pendiente ? "<br>Ojo: hay un cambio grande de tarifa esperando la aprobación de Ernesto — puede moverse pronto." : "") +
-    "<br><small>Esto es la estimación de ahora: tu pago se calcula con la tarifa del momento en que Ernesto cierre tu trato, y esa foto queda guardada con el trato en tu panel.</small>";
+  /* v3 (muestra-minegocio-v3): tarjeta oscura premium — héroe con la
+     referencia en degradado dorado, píldora «en vivo» con punto y
+     filas con hairline; las frases (y la frontera) no cambian. */
+  var vieja = !(TARIFA_VIVA_B && TARIFA_VIVA_B.fresca);
+  box.innerHTML = '<div class="tv3-row"><b>TARIFA VIVA</b><span class="tv3-pill' + (vieja ? " vieja" : "") + '"><span class="tv3-dot"></span>' + (vieja ? "Foto vieja" : "En vivo") + "</span></div>"
+    + '<div style="font-size:12.5px;color:#9AA0AA;margin-top:5px">' + esc(fuente) + esc(frescaTxt) + "</div>"
+    + '<div class="tv3-lbl tv3-lbl-gold" style="margin-top:12px">Referencia por recarga de 360</div>'
+    + '<div class="tv3-hero">' + fmt(T.ingresoRef360) + "</div>"
+    + '<div class="tv3-hair"></div>'
+    + (exc > 0
+        ? '<div class="tv3-row"><span>Si reportas un trato ahora, ganas</span><b class="tv3-b tv3-green">≈ ' + fmt(ej) + " / recarga</b></div>"
+          + '<div style="font-size:12.5px;color:#9AA0AA;margin-top:4px">A 1,000 por recarga: el excedente es ' + fmtN(exc) + " y tu parte es el " + esc(pe.s) + "%.</div>"
+        : '<div class="tv3-row"><span>A 1,000 no hay excedente hoy.</span></div>')
+    + '<div class="tv3-hair"></div>'
+    + '<div class="tv3-row"><span>Transferencia · el QUSD hoy</span><b class="tv3-b">' + fmt(T.libroRef) + "</b></div>"
+    + '<div style="font-size:12.5px;color:#9AA0AA;margin-top:4px">Tu parte: el ' + esc(pe.t) + "% de la ganancia (tratos al " + esc(T.pisoTransf) + "% o más).</div>"
+    + (TARIFA_VIVA_B && TARIFA_VIVA_B.hay_propuesta_pendiente ? '<div style="margin-top:8px">Ojo: hay un cambio grande de tarifa esperando la aprobación de Ernesto — puede moverse pronto.</div>' : "")
+    + '<div class="tv3-hair"></div><small>Esto es la estimación de ahora: tu pago se calcula con la tarifa del momento en que Ernesto cierre tu trato, y esa foto queda guardada con el trato en tu panel.</small>';
   box.style.display = "block";
 }
 /* Estimado EN el formulario de reporte, antes de enviar: con la
