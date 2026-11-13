@@ -24,7 +24,7 @@ function sleep(ms){ return new Promise(r => setTimeout(r, ms)); }
 
 /* ===== Estático ===== */
 ok(/var APP_VERSION = "1\.6\.0"/.test(html), "V1 APP_VERSION 1.6.0 en el build ensamblado");
-ok(sw.includes('CACHE = "mitrabajo-v29"'), "V2 el SW sube a mitrabajo-v29 (v28 + el restyle v3 de la tarjeta viva)");
+ok(sw.includes('CACHE = "mitrabajo-v30"'), "V2 el SW sube a mitrabajo-v30 (v29 + nowrap en la fila de ganancia de la tarjeta viva)");
 ok(datos.versionApp === "1.5.6", "V3 datos.json sigue anunciando la APK 1.5.6 (web-only)");
 ok(html.includes('version:"1.6.0"'), "V4 SENTRY_CASA con version 1.6.0");
 ok(html.includes('id="tvBox"') && html.includes('id="r_est_s"') && html.includes('id="r_est_t"') && html.includes('id="p_hoy"'),
