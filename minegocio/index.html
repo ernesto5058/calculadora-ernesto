@@ -303,7 +303,7 @@ label { display:block; font:600 11px var(--fuente); letter-spacing:.07em; text-t
 #pgContabilidad .contaH4 { font:600 15px var(--fuente); margin:var(--e-4) 0 var(--e-1); }
 #pgContabilidad .contaHist { display:flex; justify-content:space-between; gap:var(--e-3); flex-wrap:wrap; padding:var(--e-2) 0; border-bottom:1px solid var(--linea); font:var(--t-sub); color:var(--txt-2); }
 #pgContabilidad .contaHistDer { color:var(--txt-3); }
-</style><script>window.SENTRY_CASA={app:"minegocio",version:"v18",dsn:"https://1454ae292cfdb8e358e88ec3d1fc1547@o4512419765354496.ingest.us.sentry.io/4512419769876480"};</script>
+</style><script>window.SENTRY_CASA={app:"minegocio",version:"v19",dsn:"https://1454ae292cfdb8e358e88ec3d1fc1547@o4512419765354496.ingest.us.sentry.io/4512419769876480"};</script>
 <script defer crossorigin="anonymous" integrity="sha384-48iagrZwMa6wkDoJKNyCk4jgMHcOcsBK/DzZAJInl1ZhtunellJDCRNZuomfHefF" src="https://browser.sentry-cdn.com/8.38.0/bundle.min.js"></script>
 </head><body>
 <div id="app">
@@ -338,6 +338,7 @@ label { display:block; font:600 11px var(--fuente); letter-spacing:.07em; text-t
   <div id="pgActividad" style="display:none"></div>
   <div id="pgTextos" style="display:none"></div>
   <div id="pgContabilidad" style="display:none"></div>
+  <div id="pgDinero" style="display:none"></div>
   <div id="pgChat" style="display:none"></div>
   <button class="bGhost" id="btnSalir">Salir de Mi Negocio</button>
 </div>
@@ -739,7 +740,8 @@ var ICONOS = {
   reloj: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>',
   galeria: '<svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>',
   camara: '<svg viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>',
-  doc: '<svg viewBox="0 0 24 24"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M13 2v7h7"/></svg>'
+  doc: '<svg viewBox="0 0 24 24"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M13 2v7h7"/></svg>',
+  dinero: '<svg viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M6 12h.01"/><path d="M18 12h.01"/></svg>'
 };
 function icono(n){ return ICONOS[n] || ""; }
 /* Palomitas del chat (DISENO-PRO §6): SVG de trazo fino + el nombre
@@ -3703,14 +3705,14 @@ function intentarEntrar(){
    controllerchange recarga la app UNA sola vez (marca en
    sessionStorage por versión: sin bucles). MN_VERSION se sube
    junto con el CACHE de sw.js. */
-var MN_VERSION = "v18";
+var MN_VERSION = "v19";
 /* Sello VISIBLE de compilación (punto 6): Ernesto quejándose con
    razón — «no sé si se actualizó o no». Una sola constante que
    sube con cada publicación; se ve en Inicio y en la hoja ℹ️ del
    chat. Formato: «Mi Negocio · versión 2026-11-11 HH:MM · caché v6»
    (fecha Y HORA de la publicación, para distinguir dos subidas
    del mismo día). La hora es la de Cuba (CST) al compilar. */
-var MN_COMPILACION = "2026-11-13 12:38";
+var MN_COMPILACION = "2026-11-13 12:48";
 function selloVersion(){ return "Mi Negocio · versión " + MN_COMPILACION + " · caché " + MN_VERSION; }
 var regSW = null;
 var swConControladorAlArrancar = false;
@@ -4677,6 +4679,160 @@ registrarModulo({
     });
   },
   alMostrar: function(){ var m = modulo("Contabilidad"); if (m) m.render(); }
+});
+
+/* ===== MÓDULO MI DINERO (v19) =====
+   La foto viva del capital de Ernesto leída SOLO de las puertas
+   dinero_ existentes (dinero_leer_estado; dinero_ganancias viene
+   dentro de su foto de dueño y solo se pide aparte si faltara).
+   Todo en ENTEROS sin coma (regla del sistema: el dinero se lee
+   en billetes). Lo que el libro no sabe se pinta «—», jamás una
+   estimación. La red se toca solo al mostrar la pestaña o al
+   tocar Actualizar: render() pinta la última foto buena. */
+PUERTAS.dineroEstado = "dinero_leer_estado";
+PUERTAS.dineroGanancias = "dinero_ganancias";
+var dineroFotoMN = null, dineroErrorMN = "", dineroCargandoMN = false, dineroLeidoEnMN = 0;
+function fmtE(n){
+  if (n === null || n === undefined || n === "" || isNaN(Number(n))) return "—";
+  var v = Math.round(Number(n));
+  return (v < 0 ? "−" : "") + String(Math.abs(v)).replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+}
+function fmtEstrella(n){
+  if (n === null || n === undefined || isNaN(Number(n))) return "—";
+  return String(Math.round(Number(n) * 10) / 10);
+}
+function cupoBilletes(capital, porciento){
+  if (capital === null || capital === undefined || porciento === null || porciento === undefined) return null;
+  return Math.floor(Number(capital) * Number(porciento) / 100 / 500) * 500;
+}
+function cargarDineroMN(){
+  if (dineroCargandoMN || !state.codigo) return;
+  dineroCargandoMN = true;
+  pintarDineroMN();
+  rpc("dineroEstado", { p_codigo: state.codigo, p_prueba: false }).then(function(est){
+    dineroCargandoMN = false;
+    if (!est || est.rol !== "ernesto") { dineroErrorMN = "La puerta del dinero no devolvió tu foto de dueño."; pintarDineroMN(); return; }
+    var guardarFoto = function(){
+      dineroFotoMN = est; dineroErrorMN = ""; dineroLeidoEnMN = Date.now(); pintarDineroMN();
+    };
+    if (est.ganancias) { guardarFoto(); return; }
+    rpc("dineroGanancias", { p_prueba: false }).then(function(g){ est.ganancias = g || null; guardarFoto(); }, function(){ guardarFoto(); });
+  }).catch(function(e){
+    dineroCargandoMN = false;
+    dineroErrorMN = (e && e.faltaPuerta) ? TXT_FALTA_ACTIVAR : "Sin lectura del libro por ahora (¿conexión?). Tu última foto queda guardada.";
+    pintarDineroMN();
+  });
+}
+function pintarDineroMN(){ var m = modulo("Dinero"); if (m) m.render(); }
+registrarModulo({
+  id: "Dinero", tab: "Mi dinero", icono: "dinero",
+  render: function(){
+    var el = $("pgDinero"); if (!el) return;
+    var ICO_D = '<span class="secIco">' + icono("dinero") + '</span>';
+    var h = '<div class="sub">Tu capital y el que tienen tus buscadores, leídos del libro del dinero. Aquí nunca escribes un número: todo se calcula de los movimientos.</div>';
+    var est = dineroFotoMN;
+    if (!est) {
+      h += '<div class="card"><h3>' + ICO_D + 'Mi dinero</h3>'
+        + (dineroCargandoMN
+            ? '<div class="kv">Leyendo el libro…</div>'
+            : '<div class="kv"><b>' + esc(dineroErrorMN || "Todavía no se leyó el libro.") + '</b></div>'
+              + '<div class="fila" style="margin-top:8px"><button class="bGold bMini" id="dnLeer">Leer mi dinero</button></div>')
+        + '</div>';
+      el.innerHTML = h;
+      var bl = $("dnLeer"); if (bl) bl.addEventListener("click", cargarDineroMN);
+      return;
+    }
+    var cap = (est.capital_total === null || est.capital_total === undefined) ? null : Number(est.capital_total);
+    var fondo = Number(est.saldo_fondo || 0), inv = Number(est.saldo_ernesto_inversion || 0);
+    var gasto = Number(est.saldo_gasto || 0), invent = Number(est.saldo_inventario || 0);
+    var enMano = fondo + inv;
+    var entregas = est.entregas || [];
+    var enCalle = entregas.reduce(function(s, e){ return s + Math.max(0, Number(e.pendiente || 0)); }, 0);
+    var trabajando = enCalle + invent, parado = enMano;
+    var pctT = (cap && cap > 0) ? Math.max(0, Math.min(100, Math.round(trabajando / cap * 100))) : 0;
+    /* --- Foto del capital por estado --- */
+    h += '<div class="card heroe"><h3>' + ICO_D + 'Mi dinero</h3>'
+      + '<div class="contaKpis">'
+      + '<div class="cell heroe"><div class="v">' + fmtE(cap) + '</div><div class="k">CAPITAL TOTAL · CUP</div></div>'
+      + '<div class="cell"><div class="v">' + fmtE(enCalle) + '</div><div class="k">EN LA CALLE (BUSCADORES) · CUP</div></div>'
+      + '<div class="cell"><div class="v">' + fmtE(enMano) + '</div><div class="k">EN TU MANO · CUP</div></div>'
+      + '<div class="cell"><div class="v">' + fmtE(invent) + '</div><div class="k">HECHO EN SALDO · CUP</div></div>'
+      + '</div>'
+      + '<div class="kv">En tu mano: fondo <b>' + fmtE(fondo) + '</b> + tu inversión <b>' + fmtE(inv) + '</b> · Tu gasto: <b>' + fmtE(gasto) + '</b> CUP</div>'
+      + (est.cuadre ? '<div class="kv">' + (est.cuadre.ok
+          ? '<span class="pill pOk">EL LIBRO CUADRA</span> total del libro ' + fmtE(est.cuadre.total_libro) + ' CUP'
+          : '<span class="pill pPend">EL LIBRO NO CUADRA</span> avísale a Máximo antes de mover dinero') + '</div>' : '')
+      + '<div style="display:flex;height:14px;border-radius:7px;overflow:hidden;margin:10px 0 6px;background:#2A3448">'
+      + '<div style="width:' + pctT + '%;background:linear-gradient(145deg,#8A6D1F,#4A380A)"></div></div>'
+      + '<div class="kv">Trabajando: <b>' + fmtE(trabajando) + ' CUP</b> · Parado: <b>' + fmtE(parado) + ' CUP</b></div>'
+      + '<div class="ayuda">Trabajando = el capital que está en la calle con tus buscadores más el saldo hecho (inventario). Parado = el que está quieto en tu mano (fondo + tu inversión). Tu gasto va aparte.</div>'
+      + '<div class="mut">Leído del libro a las ' + horaDe(new Date(dineroLeidoEnMN).toISOString()) + '.</div>'
+      + '<div class="fila" style="margin-top:8px"><button class="bGold bMini" id="dnAct">Actualizar</button></div>'
+      + '</div>';
+    /* --- La cuenta de cada buscador --- */
+    var porCod = {}, ordenCod = [];
+    function aseguraCod(cod){
+      if (!cod) return null;
+      if (!porCod[cod]) { porCod[cod] = { cod: cod, porciento: null, recibido: 0, volvio: 0, queda: 0, est: null, gan: null, vueltas: 0, capVueltas: 0 }; ordenCod.push(porCod[cod]); }
+      return porCod[cod];
+    }
+    (est.asignaciones || []).forEach(function(a){ var x = aseguraCod(a.buscador); if (x) x.porciento = a.porciento; });
+    entregas.forEach(function(e){
+      var x = aseguraCod(e.buscador); if (!x) return;
+      var m = Number(e.monto || 0), p = Math.max(0, Number(e.pendiente || 0));
+      x.recibido += m; x.queda += p; x.volvio += Math.max(0, m - p);
+    });
+    (est.estrellas || []).forEach(function(s){ var x = aseguraCod(s.buscador); if (x) x.est = s; });
+    (((est.ganancias || {}).por_buscador) || []).forEach(function(g){ var x = aseguraCod(g.buscador); if (x) x.gan = g; });
+    (est.vueltas_abiertas || []).forEach(function(v){ var x = aseguraCod(v.buscador); if (x) { x.vueltas++; x.capVueltas += Number(v.capital || 0); } });
+    ordenCod.forEach(function(x){
+      var cupo = cupoBilletes(cap, x.porciento);
+      h += '<div class="card"><h3>' + ICO_D + esc(nombreDe(x.cod) || x.cod)
+        + (x.est ? ' <span class="pill pOk">' + fmtEstrella(x.est.estrellas) + '★</span>' : '')
+        + '</h3>'
+        + '<div class="kv">Cupo: <b>' + fmtE(cupo) + ' CUP</b>' + (x.porciento !== null && x.porciento !== undefined ? ' (' + esc(String(x.porciento)) + '% del capital, cerrado en billetes)' : '') + '</div>'
+        + '<div class="kv">Recibió: <b>' + fmtE(x.recibido) + '</b> · Ya volvió: <b>' + fmtE(x.volvio) + '</b> · Le queda en su mano: <b>' + fmtE(x.queda) + '</b> CUP</div>'
+        + (x.est ? '<div class="kv">Cobra: <b>' + esc(String(x.est.pct_saldo)) + '%</b> saldo · <b>' + esc(String(x.est.pct_transferencia)) + '%</b> transferencia · ' + esc(String(x.est.conteo_ganadoras)) + ' vueltas ganadoras</div>' : '')
+        + (x.vueltas ? '<div class="kv">Vueltas abiertas: <b>' + x.vueltas + '</b> · capital en vueltas: <b>' + fmtE(x.capVueltas) + '</b> CUP</div>' : '')
+        + (x.gan ? '<div class="kv"><b>Él ganó ' + fmtE(x.gan.acumulado.comision) + ' · Tú ganaste ' + fmtE(x.gan.acumulado.ganancia_ernesto) + ' de él</b> (acumulado)</div>'
+                  + ((Number(x.gan.semana.comision) || Number(x.gan.semana.ganancia_ernesto)) ? '<div class="kv">Esta semana: él ' + fmtE(x.gan.semana.comision) + ' · tú ' + fmtE(x.gan.semana.ganancia_ernesto) + ' CUP</div>' : '')
+                 : '<div class="kv">Ganancias en pareja: — (el libro aún no cierra vueltas de este buscador)</div>')
+        + '</div>';
+    });
+    if (!ordenCod.length) h += '<div class="card"><div class="kv">El libro todavía no trae buscadores con asignación.</div></div>';
+    /* --- Devoluciones esperando su «Recibido» --- */
+    var devs = est.devoluciones_pendientes || [];
+    if (devs.length) {
+      h += '<div class="card"><h3>' + ICO_D + 'Devoluciones por confirmar</h3>'
+        + devs.map(function(dv){
+            return '<div class="kv"><b>' + esc(nombreDe(dv.buscador) || dv.buscador) + '</b> · ' + fmtE(dv.monto) + ' CUP · ' + esc(dv.medio || "") + ' — esperando que la marques «Recibido»</div>';
+          }).join("")
+        + '<div class="ayuda">Una devolución solo vale cuando tú la marcas «Recibido»: hasta ese momento el capital sigue contado en la mano del buscador.</div></div>';
+    }
+    /* --- Ventas recientes del libro --- */
+    var ventas = est.ventas_recientes || [];
+    if (ventas.length) {
+      h += '<div class="card"><h3>' + ICO_D + 'Ventas recientes</h3>'
+        + ventas.slice(0, 5).map(function(v){
+            return '<div class="kv">' + esc(v.fuente || "") + ' · ' + esc(v.tipo || "") + ' · <b>' + fmtE(v.monto) + ' CUP</b>' + (v.contraparte ? ' · ' + esc(v.contraparte) : '') + '</div>';
+          }).join("") + '</div>';
+    }
+    /* --- Las reglas del sistema, escritas en la pantalla --- */
+    h += '<div class="card"><h3>' + ICO_D + 'Las reglas de este dinero</h3>'
+      + '<div class="kv">· El capital vuelve <b>hecho</b>: en saldo o en transferencia, no en efectivo suelto.</div>'
+      + '<div class="kv">· Una devolución vale cuando <b>tú la marcas «Recibido»</b>; antes, sigue en la mano del buscador.</div>'
+      + '<div class="kv">· Los saldos se <b>calculan</b> del libro de movimientos: nadie escribe un saldo a mano.</div>'
+      + '<div class="kv">· <b>Nada se borra</b>: cada movimiento queda anotado en el libro.</div>'
+      + '<div class="kv">· Lo que se reparte va <b>cerrado en billetes</b> (múltiplos de 500); la diferencia queda en tu parte.</div>'
+      + '<div class="kv">· La comisión nace <b>solo de ganancia positiva</b> y se paga al registrarse la devolución en especie, al por ciento de las estrellas del buscador.</div>'
+      + '</div>';
+    el.innerHTML = h;
+    var ba = $("dnAct"); if (ba) ba.addEventListener("click", cargarDineroMN);
+  },
+  alMostrar: function(){
+    if (!dineroFotoMN || (Date.now() - dineroLeidoEnMN > 60000)) cargarDineroMN();
+    else pintarDineroMN();
+  }
 });
 
 /* Al tocar una notificación, el SW avisa a qué pestaña ir. */
