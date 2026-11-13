@@ -1,6 +1,6 @@
 "use strict";
 /*__SENTRY_CASA__*/
-var APP_VERSION = "1.5.7";
+var APP_VERSION = "1.5.8";
 /* Tarifa de respaldo (E-7, Tanda Nº6): SOLO se usa si nunca llegó ni
    datos.json ni la tarifa viva, y mientras manda ella la app lo dice
    a la vista («RESPALDO» + su origen en tarifaText/pintaFrescura).
@@ -242,8 +242,8 @@ function renderPanel(){
   var total = 0, recSaldo = 0, nTransf = 0, html = "";
   (b.tratos || []).forEach(function(tr){
     total += tr.comision || 0;
-    if (tr.tipo === "saldo") recSaldo += tr.recargas || 0;
-    if (tr.tipo === "transferencia") nTransf += 1;
+    if (tr.tipo === "saldo") recSaldo += Math.floor(Number(tr.recargas) || 0); /* REGLA DE BONOS 2026-11-13: solo recargas COMPLETAS de 360 */
+    if (tr.tipo === "transferencia" && (Number(tr.monto) || 0) >= 5000) nTransf += 1; /* REGLA DE BONOS 2026-11-13: transf solo cuenta desde 5.000 CUP */
     html += '<div class="trato"><span class="f">' + esc(tr.fecha) + "</span><span>" +
       (tr.tipo === "saldo" ? ico("i-phone", "mini") + " " : ico("i-bank", "mini") + " ") + (esc(tr.nota || "")) + '</span><span class="c">' + fmt(tr.comision || 0) + "</span></div>";
   });
@@ -1306,12 +1306,12 @@ function renderPanel(){
   var sRec = 0, sTra = 0;
   (b.tratos || []).forEach(function(tr){
     total += tr.comision || 0;
-    if (tr.tipo === "saldo") recSaldo += tr.recargas || 0;
-    if (tr.tipo === "transferencia") nTransf += 1;
+    if (tr.tipo === "saldo") recSaldo += Math.floor(Number(tr.recargas) || 0); /* REGLA DE BONOS 2026-11-13: solo recargas COMPLETAS de 360 */
+    if (tr.tipo === "transferencia" && (Number(tr.monto) || 0) >= 5000) nTransf += 1; /* REGLA DE BONOS 2026-11-13: transf solo cuenta desde 5.000 CUP */
     var ms = fechaTratoMs(tr.fecha);
     if (!isNaN(ms) && ms >= lunes.getTime() && ms <= domingo.getTime()) {
-      if (tr.tipo === "saldo") sRec += tr.recargas || 0;
-      if (tr.tipo === "transferencia") sTra += 1;
+      if (tr.tipo === "saldo") sRec += Math.floor(Number(tr.recargas) || 0); /* REGLA DE BONOS 2026-11-13: solo recargas COMPLETAS de 360 */
+      if (tr.tipo === "transferencia" && (Number(tr.monto) || 0) >= 5000) sTra += 1; /* REGLA DE BONOS 2026-11-13: transf solo cuenta desde 5.000 CUP */
     }
     html += '<div class="trato"><span class="f">' + esc(tr.fecha) + "</span><span>" +
       (tr.tipo === "saldo" ? ico("i-phone", "mini") + " " : ico("i-bank", "mini") + " ") + (esc(tr.nota || "")) +
