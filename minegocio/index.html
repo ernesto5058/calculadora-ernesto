@@ -251,6 +251,26 @@ label { display:block; font:600 11px var(--fuente); letter-spacing:.07em; text-t
 .visorImgWrap { flex:1; display:flex; align-items:center; justify-content:center; overflow:auto; padding:6px; }
 .visorImg { max-width:100%; max-height:100%; object-fit:contain; border-radius:8px; }
 .offBanner { background:var(--ambar-suave); border:1px solid rgba(240,185,11,.35); color:#F7DC8F; border-radius:var(--r-md); padding:var(--e-3); font:var(--t-sub); margin-bottom:var(--e-3); display:none; }
+/* TARIFA VIVA · dirección de arte v3 (muestra-minegocio-v3, orden de
+   Ernesto 2026-11-13): SOLO esta tarjeta — cristal oscuro, hairline,
+   dorado SOLO en degradado, número héroe tabular, píldora con punto
+   y ganancias en tarjetas gemelas como las de la muestra. */
+.tv3 { background:linear-gradient(165deg, rgba(246,212,124,.12), rgba(255,255,255,.03) 60%); border:1px solid rgba(246,212,124,.22); border-radius:22px; }
+.tv3-lbl { font-size:10.5px; letter-spacing:.14em; text-transform:uppercase; color:var(--txt-2); font-weight:600; }
+.tv3-lbl-gold { color:#D8BC72; }
+.tv3-hero { font-size:40px; font-weight:800; letter-spacing:-.02em; line-height:1; font-variant-numeric:tabular-nums; background:linear-gradient(100deg,#F6D47C,#C08A2D); -webkit-background-clip:text; background-clip:text; color:transparent; }
+.tv3-pill { display:inline-flex; align-items:center; gap:6px; font-size:11px; font-weight:700; padding:5px 10px; border-radius:999px; border:1px solid; white-space:nowrap; }
+.tv3-dot { width:7px; height:7px; border-radius:50%; background:currentColor; box-shadow:0 0 8px currentColor; flex:none; }
+.tv3-hair { height:1px; background:rgba(255,255,255,.09); margin:9px 0; }
+.tv3-row { display:flex; align-items:center; justify-content:space-between; gap:10px; }
+.tv3-small { font-size:12.5px; color:var(--txt-2); line-height:1.45; }
+.tv3-b { font-variant-numeric:tabular-nums; font-weight:700; color:var(--txt-1); }
+.tv3-gain { display:flex; gap:10px; }
+.tv3-gain > div { flex:1; background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.09); border-radius:16px; padding:11px 13px; }
+.tv3-gain .n { font-size:16.5px; font-weight:700; font-variant-numeric:tabular-nums; margin-top:3px; color:var(--txt-1); }
+.tv3-gold { background:linear-gradient(100deg,#F6D47C,#C08A2D); -webkit-background-clip:text; background-clip:text; color:transparent; }
+.tv3-prop { background:rgba(255,122,107,.08); border:1px solid rgba(255,122,107,.30); border-radius:16px; padding:12px 13px; margin-top:12px; }
+.tv3-btn { background:linear-gradient(100deg,#F6D47C,#C08A2D); color:#191204; font-weight:800; font-size:14px; border:none; border-radius:15px; padding:12px 18px; cursor:pointer; box-shadow:0 10px 24px rgba(192,138,45,.35); }
 .logoMN { width:64px; height:64px; border-radius:var(--r-lg); background:var(--dorado-suave); border:1px solid var(--dorado-borde); color:var(--dorado); font-size:24px; font-weight:800; letter-spacing:.04em; display:flex; align-items:center; justify-content:center; margin:10px auto 12px; box-shadow:none; }
 /* ===== CONTABILIDAD PRO (v7) ===== */
 #pgContabilidad .contaUna { margin:0 0 var(--e-3); }
@@ -1938,11 +1958,17 @@ function leerTarifaVivaMotor(){
    rojo = propuesta grande esperando la decisión de Ernesto. */
 function semaforoTV(){
   var m = state.tarifaVivaMotor;
-  if (!m || !m.foto) return { color: "var(--ambar)", fondo: "var(--ambar-suave)", txt: "Sin fotos del mercado todavía: la tarifa queda como está." };
-  if (m.motor && m.motor.propuesta) return { color: "var(--rojo)", fondo: "var(--rojo-suave)", txt: "Propuesta grande en espera: tu decisión manda." };
+  /* v3: cada estado trae su píldora (punto + etiqueta corta) en los
+     colores de la muestra; txt sigue siendo la frase completa. */
+  if (!m || !m.foto) return { color: "var(--ambar)", fondo: "var(--ambar-suave)", txt: "Sin fotos del mercado todavía: la tarifa queda como está.",
+    pill: "Sin fotos", pillCss: "background:rgba(246,212,124,.12);color:#F6D47C;border-color:rgba(246,212,124,.30)" };
+  if (m.motor && m.motor.propuesta) return { color: "var(--rojo)", fondo: "var(--rojo-suave)", txt: "Propuesta grande en espera: tu decisión manda.",
+    pill: "Propuesta en espera", pillCss: "background:rgba(255,122,107,.12);color:#FF7A6B;border-color:rgba(255,122,107,.30)" };
   var edad = Number(m.foto.edad_min);
-  if (m.foto.fresca && isFinite(edad) && edad <= 20) return { color: "var(--verde)", fondo: "var(--verde-suave)", txt: "Foto fresca: la tarifa viva está al día con el mercado." };
-  return { color: "var(--ambar)", fondo: "var(--ambar-suave)", txt: "Foto vieja: la tarifa queda de respaldo y no se toca hasta que llegue una fresca." };
+  if (m.foto.fresca && isFinite(edad) && edad <= 20) return { color: "var(--verde)", fondo: "var(--verde-suave)", txt: "Foto fresca: la tarifa viva está al día con el mercado.",
+    pill: "En vivo", pillCss: "background:rgba(87,217,146,.12);color:#57D992;border-color:rgba(87,217,146,.25)" };
+  return { color: "var(--ambar)", fondo: "var(--ambar-suave)", txt: "Foto vieja: la tarifa queda de respaldo y no se toca hasta que llegue una fresca.",
+    pill: "Respaldo", pillCss: "background:rgba(246,212,124,.12);color:#F6D47C;border-color:rgba(246,212,124,.30)" };
 }
 function resolverPropuestaTV(accion){
   rpc("tarifaVivaResolver", { p_codigo: state.codigo, p_accion: accion }).then(function(r){
@@ -1961,6 +1987,13 @@ function resolverPropuestaTV(accion){
    matemática de sugerencia() — saldo por excedente, transferencia
    por la ganancia de la vuelta — con los % de la tarifa). */
 var simTVTipo = "saldo";
+/* v3: el resultado del simulador son las tarjetas gemelas de la
+   muestra — él en claro, tú en degradado dorado. */
+function simGemelas(el, tu, nota){
+  return '<div class="tv3-gain"><div><div class="tv3-lbl">Él gana</div><div class="n">' + fmt(el) + '</div></div>'
+    + '<div><div class="tv3-lbl tv3-lbl-gold">Tú ganas</div><div class="n tv3-gold">' + fmt(tu) + "</div></div></div>"
+    + (nota ? '<div class="tv3-small" style="margin-top:8px">' + nota + "</div>" : "");
+}
 function simTVCalcular(){
   var t = tarifa(); if (!t) return;
   var out = $("simRes"); if (!out) return;
@@ -1968,52 +2001,64 @@ function simTVCalcular(){
     var pr = parseFloat(($("simPrecio") || {}).value) || 0;
     var ct = parseFloat(($("simCant") || {}).value) || 0;
     var exc = (Number(t.ingresoRef360) - pr) * ct;
-    if (pr <= 0 || ct <= 0) { out.innerHTML = "Escribe el precio y las recargas pa simular."; return; }
-    if (exc <= 0) { out.innerHTML = "A ese precio no hay excedente: <b>él gana 0 · tú ganas 0</b>."; return; }
+    if (pr <= 0 || ct <= 0) { out.innerHTML = '<div class="tv3-small">Escribe el precio y las recargas pa simular.</div>'; return; }
+    if (exc <= 0) { out.innerHTML = simGemelas(0, 0, "A ese precio no hay excedente con la tarifa de ahora."); return; }
     var elS = Math.round(exc * Number(t.pctSaldo || 25)) / 100;
-    out.innerHTML = "Excedente total " + fmt(exc) + " CUP → <b>él gana " + fmt(elS) + " · tú ganas " + fmt(exc - elS) + "</b> (su " + t.pctSaldo + "% del excedente).";
+    out.innerHTML = simGemelas(elS, exc - elS, "Excedente total " + fmt(exc) + " CUP · su " + t.pctSaldo + "% del excedente pa él.");
   } else {
     var ef = parseFloat(($("simEf") || {}).value) || 0;
     var pc = parseFloat(($("simPct") || {}).value) || 0;
-    if (ef <= 0 || pc <= 0) { out.innerHTML = "Escribe el efectivo y el % pa simular."; return; }
+    if (ef <= 0 || pc <= 0) { out.innerHTML = '<div class="tv3-small">Escribe el efectivo y el % pa simular.</div>'; return; }
     var gan = (ef * (1 + pc / 100) / Number(t.libroRef)) * Number(t.salidaRef) - ef;
-    if (gan <= 0) { out.innerHTML = "Esa vuelta no deja ganancia con la tarifa de ahora: <b>él gana 0 · tú ganas 0</b>."; return; }
+    if (gan <= 0) { out.innerHTML = simGemelas(0, 0, "Esa vuelta no deja ganancia con la tarifa de ahora."); return; }
     var elT = Math.round(gan * Number(t.pctTransf || 20)) / 100;
-    out.innerHTML = "La vuelta gana " + fmt(gan) + " CUP → <b>él gana " + fmt(elT) + " · tú ganas " + fmt(gan - elT) + "</b> (su " + t.pctTransf + "% de la ganancia).";
+    out.innerHTML = simGemelas(elT, gan - elT, "La vuelta gana " + fmt(gan) + " CUP · su " + t.pctTransf + "% de la ganancia pa él.");
   }
 }
 function tarjetaTarifaVivaHTML(){
   var m = state.tarifaVivaMotor;
   var t = tarifa();
   var sem = semaforoTV();
-  var h = '<div class="card"><h3><span class="secIco">' + icono("tarifa") + '</span>Tarifa viva del mercado</h3>';
-  h += '<div class="kv" style="background:' + sem.fondo + ';border-radius:10px;padding:8px 10px"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:' + sem.color + ';margin-right:8px"></span><b>' + esc(sem.txt) + "</b></div>";
+  /* v3 (muestra-minegocio-v3): héroe con la referencia en degradado
+     dorado, píldora de estado con punto, filas de mercado con
+     hairline, propuesta en su bloque y simulador en gemelas. */
+  var h = '<div class="card tv3"><div class="tv3-row"><span class="tv3-lbl" style="font-size:12px;color:var(--txt-1)">Tarifa viva del mercado</span>'
+    + '<span class="tv3-pill" style="' + sem.pillCss + '"><span class="tv3-dot"></span>' + esc(sem.pill) + "</span></div>";
+  h += '<div class="tv3-small" style="margin-top:6px">' + esc(sem.txt) + "</div>";
   if (!m) {
-    h += '<div class="mut" style="margin-top:8px">Leyendo el estado del motor… (si no hay conexión, la tarifa de abajo manda como siempre).</div>';
+    h += '<div class="tv3-small" style="margin-top:8px">Leyendo el estado del motor… (si no hay conexión, la tarifa de abajo manda como siempre).</div>';
   } else if (m.foto) {
     var f = m.foto;
-    h += '<div class="kv" style="margin-top:8px">Mercado de la última foto (hace ' + esc(String(f.edad_min)) + ' min): el saldo se vende a <b>' + fmt(Number(f.nivel20 != null ? f.nivel20 : f.promedio_venta)) + '</b> por QUSD (nivel de 20) · el QUSD por transferencia a <b>' + fmt(Number(f.bankcup_promedio)) + "</b> CUP.</div>";
-    h += '<div class="kv">Con ese mercado y TU salida (' + fmt(Number(t ? t.salidaRef : 0)) + '), la recarga de 360 rinde <b>' + fmt(Number(t ? t.ingresoRef360 : 0)) + '</b> y el libro queda en <b>' + fmt(Number(t ? t.libroRef : 0)) + '</b>. El motor revisa cada foto: movimientos de hasta ±2% los aplica solo; los grandes te esperan aquí.</div>';
+    h += '<div class="tv3-lbl tv3-lbl-gold" style="margin-top:14px">Referencia por recarga de 360</div>'
+      + '<div class="tv3-row" style="justify-content:flex-start;align-items:baseline;gap:8px;margin-top:5px"><span class="tv3-hero">' + fmt(Number(t ? t.ingresoRef360 : 0)) + '</span><span style="font-weight:700;color:var(--txt-2)">CUP</span></div>'
+      + '<div class="tv3-small">Libro por QUSD: <b class="tv3-b">' + fmt(Number(t ? t.libroRef : 0)) + '</b> · tu salida: <b class="tv3-b">' + fmt(Number(t ? t.salidaRef : 0)) + "</b></div>"
+      + '<div class="tv3-lbl" style="margin-top:14px">El mercado ahora · foto de hace ' + esc(String(f.edad_min)) + ' min</div>'
+      + '<div class="tv3-row" style="margin-top:8px"><span class="tv3-small">Saldo ETECSA · venta (nivel de 20)</span><b class="tv3-b">≈ ' + fmt(Number(f.nivel20 != null ? f.nivel20 : f.promedio_venta)) + '</b></div>'
+      + '<div class="tv3-hair"></div>'
+      + '<div class="tv3-row"><span class="tv3-small">QUSD por transferencia · BANK_CUP</span><b class="tv3-b">≈ ' + fmt(Number(f.bankcup_promedio)) + "</b></div>";
     var p = m.motor && m.motor.propuesta;
     if (p) {
-      h += '<div class="kv" style="margin-top:8px"><span class="pill pBad">PROPUESTA EN ESPERA</span></div>'
-        + '<div class="kv">El mercado pide mover la tarifa más del 2%: el ingreso por recarga pasaría de <b>' + fmt(Number(t ? t.ingresoRef360 : 0)) + '</b> a <b>' + fmt(Number(p.ingreso_nuevo)) + '</b> (' + (Number(p.delta_pct) > 0 ? "+" : "") + fmt(Number(p.delta_pct)) + '%) y el libro a <b>' + fmt(Number(p.libro_nuevo)) + '</b>. La tarifa vigente NO se ha tocado.</div>'
-        + '<div class="fila" style="gap:8px;margin-top:8px"><button class="bGold" id="tvAplicar">Aplicar propuesta</button><button class="bGhost" id="tvDescartar">Descartar</button></div>';
+      h += '<div class="tv3-prop"><span class="pill pBad">PROPUESTA EN ESPERA</span>'
+        + '<div class="kv" style="margin-top:8px">El mercado pide mover la tarifa más del 2%: el ingreso por recarga pasaría de <b>' + fmt(Number(t ? t.ingresoRef360 : 0)) + '</b> a <b>' + fmt(Number(p.ingreso_nuevo)) + '</b> (' + (Number(p.delta_pct) > 0 ? "+" : "") + fmt(Number(p.delta_pct)) + '%) y el libro a <b>' + fmt(Number(p.libro_nuevo)) + '</b>. La tarifa vigente NO se ha tocado.</div>'
+        + '<div class="fila" style="gap:8px;margin-top:10px"><button class="tv3-btn" id="tvAplicar">Aplicar propuesta</button><button class="bGhost" id="tvDescartar">Descartar</button></div></div>';
     }
     var hist = (m.motor && m.motor.historial) || [];
     if (hist.length) {
-      h += '<div class="mut" style="margin-top:10px">Últimos movimientos del motor:</div>' + hist.map(function(x){
+      h += '<div class="tv3-lbl" style="margin-top:14px">Últimos movimientos del motor</div>' + hist.map(function(x){
         var que = x.decision === "aplicada" ? "aplicó " + fmt(Number(x.ingreso_nuevo)) + " por recarga"
           : x.decision === "propuesta" ? "propuso " + fmt(Number(x.ingreso_nuevo)) + " (" + esc(x.estado) + ")"
           : x.decision === "foto_vieja" ? "foto vieja: no tocó nada" : "sin cambio";
-        return '<div class="kv">' + esc(String(x.creado_en || "").replace("T", " ").slice(0, 16)) + " · " + que + "</div>";
+        return '<div class="tv3-hair"></div><div class="tv3-row"><span class="tv3-small">' + esc(String(x.creado_en || "").replace("T", " ").slice(0, 16)) + '</span><span class="tv3-small" style="color:var(--txt-1)">' + que + "</span></div>";
       }).join("");
     }
   }
-  h += '<div class="ayuda" style="margin-top:10px"><b>Regla de oro:</b> lo que ves aquí es la estimación viva del mercado. Lo que PAGA cada trato es la tarifa del momento en que se cierra — esa foto queda guardada con el trato y no cambia aunque el mercado se mueva después.</div>';
+  h += '<div class="tv3-hair" style="margin-top:14px"></div>'
+    + '<div class="tv3-row"><span><b style="font-size:13.5px">Tu freno</b><br><span class="tv3-small">Auto-ajuste hasta ±2% · saltos mayores te piden un toque</span></span>'
+    + '<span class="tv3-pill" style="background:rgba(246,212,124,.12);color:#F6D47C;border-color:rgba(246,212,124,.30)">Activo</span></div>'
+    + '<div class="ayuda" style="margin-top:12px"><b>Regla de oro:</b> lo que ves aquí es la estimación viva del mercado. Lo que PAGA cada trato es la tarifa del momento en que se cierra — esa foto queda guardada con el trato y no cambia aunque el mercado se mueva después.</div>';
   /* Simulador */
-  h += '<div class="kv" style="margin-top:12px"><b>Simulador con la tarifa viva</b></div>'
-    + '<div class="fila" style="gap:8px;margin-top:6px"><button class="bGhost bMini" id="simTipoS">Saldo</button><button class="bGhost bMini" id="simTipoT">Transferencia</button></div>'
+  h += '<div class="tv3-lbl" style="margin-top:16px">Simulador con la tarifa viva</div>'
+    + '<div class="fila" style="gap:8px;margin-top:8px"><button class="bGhost bMini" id="simTipoS">Saldo</button><button class="bGhost bMini" id="simTipoT">Transferencia</button></div>'
     + '<div id="simSaldoBox">'
     + '<label for="simPrecio">Precio por recarga (CUP)</label><input id="simPrecio" type="text" inputmode="decimal" value="1000">'
     + '<label for="simCant">Recargas</label><input id="simCant" type="text" inputmode="numeric" value="1">'
@@ -2022,7 +2067,7 @@ function tarjetaTarifaVivaHTML(){
     + '<label for="simEf">Efectivo del trato (CUP)</label><input id="simEf" type="text" inputmode="decimal" value="10000">'
     + '<label for="simPct">Trato al (%)</label><input id="simPct" type="text" inputmode="decimal" value="30">'
     + "</div>"
-    + '<div class="kv" id="simRes" style="margin-top:8px"></div>';
+    + '<div id="simRes" style="margin-top:10px"></div>';
   h += "</div>";
   return h;
 }
