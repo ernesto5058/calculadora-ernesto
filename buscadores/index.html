@@ -54,6 +54,27 @@
   .sub { color: var(--txt-2); font-size: 15px; margin-top: 4px; }
   .tarifa { margin: 12px 0 4px; background: var(--bg-1); border: 1px solid var(--borde); border-radius: var(--r-lg); padding: 16px; font-size: 15px; color: var(--txt-2); line-height: 1.55; box-shadow: var(--sombra-1); }
   .tarifa b { color: var(--dorado); }
+  /* TARIFA VIVA · dirección de arte v3 (muestra-minegocio-v3, orden de
+     Ernesto 2026-11-13): SOLO las piezas nuevas de la tarifa viva —
+     tarjeta oscura premium de cristal sobre la cara clara, héroe en
+     degradado dorado, píldora «en vivo» con punto, filas hairline. */
+  #tvBox { background: linear-gradient(165deg, rgba(246,212,124,.14), rgba(255,255,255,.03) 60%), #0A0C10; border: 1px solid rgba(246,212,124,.28); border-radius: 22px; color: #F4F5F7; box-shadow: 0 18px 40px rgba(10,12,16,.28); }
+  #tvBox b { color: #F4F5F7; }
+  #tvBox .tv3-lbl { font-size: 10.5px; letter-spacing: .14em; text-transform: uppercase; color: #9AA0AA; font-weight: 600; }
+  #tvBox .tv3-lbl-gold { color: #D8BC72; }
+  #tvBox .tv3-hero { font-size: 38px; font-weight: 800; letter-spacing: -.02em; line-height: 1.05; font-variant-numeric: tabular-nums; background: linear-gradient(100deg,#F6D47C,#C08A2D); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  #tvBox .tv3-pill { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 700; padding: 5px 10px; border-radius: 999px; background: rgba(87,217,146,.12); color: #57D992; border: 1px solid rgba(87,217,146,.25); white-space: nowrap; }
+  #tvBox .tv3-pill.vieja { background: rgba(246,212,124,.12); color: #F6D47C; border-color: rgba(246,212,124,.30); }
+  #tvBox .tv3-dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; box-shadow: 0 0 8px currentColor; flex: none; }
+  #tvBox .tv3-hair { height: 1px; background: rgba(255,255,255,.09); margin: 10px 0; }
+  #tvBox .tv3-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  #tvBox .tv3-b { font-variant-numeric: tabular-nums; font-weight: 700; color: #F4F5F7; }
+  #tvBox .tv3-green { color: #57D992; }
+  #tvBox small { color: #9AA0AA; }
+  #r_est_s, #r_est_t { background: linear-gradient(165deg, rgba(246,212,124,.16), rgba(246,212,124,.05)); border: 1px solid rgba(192,138,45,.35); border-radius: 14px; padding: 10px 12px; }
+  .total.hoy { background: #0A0C10; border: 1px solid rgba(246,212,124,.28); border-radius: 16px; padding: 12px; }
+  .total.hoy .lab { color: #D8BC72; }
+  .total.hoy .num { background: linear-gradient(100deg,#F6D47C,#C08A2D); -webkit-background-clip: text; background-clip: text; color: transparent; }
   .freshRow { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 8px; }
   #freshTxt { color: var(--txt-3); font-size: 12px; min-width: 0; overflow-wrap: anywhere; }
   .actBtn { background: var(--bg-2); color: var(--dorado); border: 1px solid var(--borde-fuerte); border-radius: var(--r-md); min-height: 56px; padding: 10px 18px; font-weight: 700; font-size: 15px; cursor: pointer; flex: none; display: inline-flex; align-items: center; gap: 6px; }
@@ -550,7 +571,7 @@
           <div class="num" id="p_total">$0.00</div>
           <div class="lab" id="p_name"></div>
         </div>
-        <div class="total">
+        <div class="total hoy">
           <div class="lab">HOY HAS GANADO</div>
           <div class="num" id="p_hoy">$0.00</div>
           <div class="lab">de tus tratos confirmados de hoy</div>
@@ -1689,12 +1710,24 @@ function pintarTarifaViva(){
   }
   var exc = T.ingresoRef360 - 1000;
   var ej = exc > 0 ? Math.round(exc * pe.s * 100) / 10000 : 0;
-  box.innerHTML = "<b>TARIFA VIVA</b> · " + esc(fuente) + esc(frescaTxt) +
-    "<br>Saldo: por cada recarga de 360, la referencia de venta es <b>" + fmt(T.ingresoRef360) + "</b>." +
-    (exc > 0 ? " Ej.: a 1,000, el excedente es " + fmtN(exc) + " y tu parte ≈ <b>" + fmt(ej) + "</b> (tu " + esc(pe.s) + "%)." : " A 1,000 no hay excedente hoy.") +
-    "<br>Transferencia: el QUSD se valora hoy a <b>" + fmt(T.libroRef) + "</b> por QUSD · tu parte: el <b>" + esc(pe.t) + "%</b> de la ganancia (tratos al " + esc(T.pisoTransf) + "% o más)." +
-    (TARIFA_VIVA_B && TARIFA_VIVA_B.hay_propuesta_pendiente ? "<br>Ojo: hay un cambio grande de tarifa esperando la aprobación de Ernesto — puede moverse pronto." : "") +
-    "<br><small>Esto es la estimación de ahora: tu pago se calcula con la tarifa del momento en que Ernesto cierre tu trato, y esa foto queda guardada con el trato en tu panel.</small>";
+  /* v3 (muestra-minegocio-v3): tarjeta oscura premium — héroe con la
+     referencia en degradado dorado, píldora «en vivo» con punto y
+     filas con hairline; las frases (y la frontera) no cambian. */
+  var vieja = !(TARIFA_VIVA_B && TARIFA_VIVA_B.fresca);
+  box.innerHTML = '<div class="tv3-row"><b>TARIFA VIVA</b><span class="tv3-pill' + (vieja ? " vieja" : "") + '"><span class="tv3-dot"></span>' + (vieja ? "Foto vieja" : "En vivo") + "</span></div>"
+    + '<div style="font-size:12.5px;color:#9AA0AA;margin-top:5px">' + esc(fuente) + esc(frescaTxt) + "</div>"
+    + '<div class="tv3-lbl tv3-lbl-gold" style="margin-top:12px">Referencia por recarga de 360</div>'
+    + '<div class="tv3-hero">' + fmt(T.ingresoRef360) + "</div>"
+    + '<div class="tv3-hair"></div>'
+    + (exc > 0
+        ? '<div class="tv3-row"><span>Si reportas un trato ahora, ganas</span><b class="tv3-b tv3-green">≈ ' + fmt(ej) + " / recarga</b></div>"
+          + '<div style="font-size:12.5px;color:#9AA0AA;margin-top:4px">A 1,000 por recarga: el excedente es ' + fmtN(exc) + " y tu parte es el " + esc(pe.s) + "%.</div>"
+        : '<div class="tv3-row"><span>A 1,000 no hay excedente hoy.</span></div>')
+    + '<div class="tv3-hair"></div>'
+    + '<div class="tv3-row"><span>Transferencia · el QUSD hoy</span><b class="tv3-b">' + fmt(T.libroRef) + "</b></div>"
+    + '<div style="font-size:12.5px;color:#9AA0AA;margin-top:4px">Tu parte: el ' + esc(pe.t) + "% de la ganancia (tratos al " + esc(T.pisoTransf) + "% o más).</div>"
+    + (TARIFA_VIVA_B && TARIFA_VIVA_B.hay_propuesta_pendiente ? '<div style="margin-top:8px">Ojo: hay un cambio grande de tarifa esperando la aprobación de Ernesto — puede moverse pronto.</div>' : "")
+    + '<div class="tv3-hair"></div><small>Esto es la estimación de ahora: tu pago se calcula con la tarifa del momento en que Ernesto cierre tu trato, y esa foto queda guardada con el trato en tu panel.</small>';
   box.style.display = "block";
 }
 /* Estimado EN el formulario de reporte, antes de enviar: con la
