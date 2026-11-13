@@ -161,7 +161,17 @@ function crear(extra){
         case "mercado_fijar_costo":
           if (R.costoGate) return R.costoGate.promise;
           return R.costoOk ? json({ ok: true }) : rechaza("404");
-        case "admin_publicar_tratos": return json({ ok: true });
+        case "admin_publicar_tratos":
+          /* El mock hace de servidor con memoria: lo publicado
+             QUEDA en R.panelServidor (la puerta REEMPLAZA por
+             buscador) y leer_panel lo devuelve — contrato real. */
+          (body.p_tratos || []).forEach(function(e){ if (e && e.codigo) { R.panelServidor = R.panelServidor || {}; R.panelServidor[e.codigo] = { nombre: e.nombre, tratos: JSON.parse(JSON.stringify(e.tratos || [])) }; } });
+          return json({ ok: true });
+        case "leer_panel": {
+          if (R.panelFalla) return rechaza("panel ilegible");
+          const srvP = (R.panelServidor || {})[body.p_codigo];
+          return json({ ok: true, nombre: (srvP && srvP.nombre) || "", tratos: (srvP && srvP.tratos) || [] });
+        }
         case "leer_tarifa":
           if (!R.tarifaVivaOk) return rechaza("404");
           if (R.tarifaVivaFila) return json(Object.assign({ ok: true }, R.tarifaVivaFila));
@@ -466,7 +476,7 @@ function pestaña(w, nombre){ [...w.document.querySelectorAll(".tab")].forEach(t
 /* ===== 10. SERVICE WORKER: scope y caché propios ===== */
 {
   const sw = fs.readFileSync(REPO + "minegocio/sw.js", "utf8");
-  ok(sw.includes('CACHE = "minegocio-v18"'), "MN-50 SW con caché propio minegocio-v18 (la versión vigente en minegocio-src/sw.js; el banco decía v15 y quedó atrás del fuente)");
+  ok(sw.includes('CACHE = "minegocio-v19"'), "MN-50 SW con caché propio minegocio-v19 (la versión vigente en minegocio-src/sw.js; el banco decía v15 y quedó atrás del fuente)");
   ok(sw.includes("SKIP_WAITING") && sw.includes('addEventListener("message"'), "MN-50b el SW acepta SKIP_WAITING por mensaje (forzar activación desde la app)");
   ok(!sw.includes("mitrabajo"), "MN-51 el SW de Mi Negocio no toca el de Mi Trabajo");
   const mf = JSON.parse(fs.readFileSync(REPO + "minegocio/manifest.webmanifest", "utf8"));
@@ -527,7 +537,7 @@ function pestaña(w, nombre){ [...w.document.querySelectorAll(".tab")].forEach(t
   ok(d.getElementById("bannerVer").style.display === "block" && d.getElementById("bannerVer").textContent.includes("Nueva versión lista"), "R2-2 SW nuevo instalado con controlador → aviso «Nueva versión lista» visible");
   w.__swReg.__controllerchange();
   await sleep(60);
-  ok(("" + w.sessionStorage.getItem("mnRecarga_v17")) === "1", "R2-3 controllerchange marca la recarga única de la v17 (sin bucles)");
+  ok(("" + w.sessionStorage.getItem("mnRecarga_v18")) === "1", "R2-3 controllerchange marca la recarga única de la v18 (sin bucles)");
   const antes = w.__fakeReg.actualizaciones;
   click(d.getElementById("btnAct"));
   await sleep(120);
@@ -624,11 +634,11 @@ function pestaña(w, nombre){ [...w.document.querySelectorAll(".tab")].forEach(t
   ok(chat.querySelectorAll("[data-vplay]").length === 3 && chat.querySelectorAll(".vozOnda i").length === 72, "R2-25 cada reproductor trae su ▶ circular y su onda de 24 picos");
   ok(typeof w.mejorMimeVoz === "function" && typeof w.hashParChat === "function" && typeof w.rtTimbre === "function", "R2-26 existen mejorMimeVoz, hashParChat y rtTimbre");
   ok(w.hashParChat("ADMIN", "BUSC-1") === w.hashParChat("BUSC-1", "ADMIN") && w.hashParChat("ADMIN", "BUSC-1") !== w.hashParChat("ADMIN", "BUSC-2"), "R2-27 el canal del timbre es el mismo para la pareja en ambos sentidos y distinto por pareja");
-  ok(w.selloVersion() === "Mi Negocio · versión 2026-11-13 12:15 · caché v17", "R2-28 sello de versión exacto: «" + w.selloVersion() + "»");
+  ok(w.selloVersion() === "Mi Negocio · versión 2026-11-13 12:38 · caché v18", "R2-28 sello de versión exacto: «" + w.selloVersion() + "»");
   ok(chat.textContent.includes("cada 3 s"), "R2-29 la ayuda del chat dice el refresco nuevo de 3 s (ya no 15 s)");
   pestaña(w, "Inicio");
   await sleep(120);
-  ok(d.getElementById("pgInicio").textContent.includes("Mi Negocio · versión 2026-11-13 12:15 · caché v17"), "R2-30 el sello de versión se ve en Inicio");
+  ok(d.getElementById("pgInicio").textContent.includes("Mi Negocio · versión 2026-11-13 12:38 · caché v18"), "R2-30 el sello de versión se ve en Inicio");
   w.close();
   R.chatMsgs = [];
 }
@@ -805,7 +815,7 @@ function pestaña(w, nombre){ [...w.document.querySelectorAll(".tab")].forEach(t
   await sleep(350);
   const d = w.document;
   ok(w.PUERTAS.marcarPrueba === "admin_marcar_prueba", "F1-1 la puerta nueva está registrada: PUERTAS.marcarPrueba = admin_marcar_prueba");
-  ok(w.MN_VERSION === "v17", "F1-2 MN_VERSION subió a v17");
+  ok(w.MN_VERSION === "v18", "F1-2 MN_VERSION subió a v18");
   /* Funciones puras con las fórmulas del servidor (tarifa del banco: 1098.68 / 1069.38 / 950) */
   ok(cerca(w.contaGananciaBruta({ tipo: "saldo", precio: 1000, cantidad: 100 }), 9868) && cerca(w.contaNeta({ tipo: "saldo", precio: 1000, cantidad: 100, comision: 2467 }), 7401), "F1-3 saldo r1: bruta 9868 · neta 7401 (comisión GUARDADA, no recalculada)");
   /* NOTA (desviación de la espec, verificada con la fórmula): la
@@ -1500,6 +1510,125 @@ function pestaña(w, nombre){ [...w.document.querySelectorAll(".tab")].forEach(t
   ok(cuentaBonoTransf === 1, "F1D-4 con la regla aplicada sobre lo publicado: bono de transferencia = 1 de los 2 tratos");
   w.close();
   R.reportes = []; R.usuarios = [];
+}
+
+/* ===== 24. PUBLICACIÓN AUTOMÁTICA (v18 · orden de Ernesto) =====
+   Al marcar «Ya pagué» con éxito, el trato se publica SOLO en el
+   panel del buscador (sin tocar Tarifa → Publicar ahora); al abrir
+   la app, el barrido publica los aprobados+pagados atrasados.
+   GUARDIA ANTI-BORRADO: antes de escribir se fusiona contra el
+   panel real del servidor (leer_panel): una foto local vieja o
+   incompleta JAMÁS borra historial, y si la lectura del servidor
+   falla no se publica nada. El mock de arriba modela el servidor
+   con memoria (R.panelServidor). */
+{
+  const hoyISO = new Date().toISOString();
+  const filaPend = function(id){
+    return { id: id, buscador: "BUSCA-001", tipo: "saldo", precio: 1000, porc: null, cantidad: 14,
+      telefono_vendedor: "50154748", nota: null, estado: "pendiente", comision: null, motivo: null,
+      creado_en: hoyISO, resuelto_en: null, comision_pagada_en: null, editado: false,
+      editado_en: null, adj_tipo: null, adj_nombre: null, adj_mime: null, adj_datos: null,
+      adj_bytes: null, op_id: "op-" + id, actualizado_en: hoyISO, prueba: false };
+  };
+  const preAuto = function(){
+    return { codigo: adminValido, foto: { reportes: [], ayudas: [], usuarios: [], datos: null, cuando: "", publicar: [], publicados: {}, borrados: [], tarifaPanel: null, mercado: null }, calc: { saldo: { salida: 950, costo: 1040, tasa: 320, saldo: 3600 }, transf: { efectivo: 5000, porc: 30, libro: 1130, salida: 950 }, busc: { precio: 0, tasaVenta: 0, efectivo: 0, porc: 0, libro: 0, salida: 0 } }, cola: [], sellos: {}, tarifaViva: null, tarifaVivaEn: "", publicarPendiente: null };
+  };
+  const nPub = function(){ return llamadas.filter(function(u){ return u === "rpc:admin_publicar_tratos"; }).length; };
+  R.chat = true; R.tarifaVivaOk = true; R.panelFalla = false;
+  R.usuarios = [ { codigo: "BUSCA-001", nombre: "Busca Uno", activo: true, bloqueado: false } ];
+  R.ayudas = [];
+
+  /* F2-1 · pagar -> panel sin toque manual */
+  R.panelServidor = {};
+  R.reportes = [ filaPend("auto1") ];
+  {
+    const { w } = crear({ preState: preAuto() });
+    await sleep(350);
+    w.decidirReporte("auto1", true, 345.38);
+    await sleep(150);
+    w.marcarPagado(w.state.foto.reportes[0]);
+    await sleep(500);
+    ok(nPub() === 1, "F2-1 al pagar, el trato se publica SOLO una vez (sin tocar «Publicar ahora»): " + nPub());
+    const cuerpo = ultimosCuerpos["admin_publicar_tratos"] || {};
+    const ent = (cuerpo.p_tratos || []).filter(function(e){ return e.codigo === "BUSCA-001"; })[0];
+    const t = ent && ent.tratos && ent.tratos[0];
+    ok(!!t && t.comision === 345.38 && t.estado === "pagado" && t.recargas === 14, "F2-1 el panel recibe el trato con su línea de pagado");
+    ok((w.state.foto.publicar || []).filter(function(x){ return !!x.codigo; }).length === 0, "F2-1 la cola de publicación queda vacía tras el auto-publicado");
+    ok(((w.state.foto.publicados || {})["BUSCA-001"] || []).length === 1, "F2-1 el historial local (foto.publicados) siembra el trato publicado");
+    w.close();
+  }
+
+  /* F2-2 · el segundo trato ACUMULA contra el panel del servidor */
+  R.panelServidor = { "BUSCA-001": { nombre: "Busca Uno", tratos: [ { fecha: "1/11/2026", concepto: "Saldo · 7 recarga(s) a 1000.00 CUP", nota: "Saldo · 7 recarga(s) a 1000.00 CUP", tipo: "saldo", recargas: 7, monto: 0, comision: 100 } ] } };
+  R.reportes = [ filaPend("auto2") ];
+  {
+    const { w } = crear({ preState: preAuto() });
+    await sleep(350);
+    w.decidirReporte("auto2", true, 345.38);
+    await sleep(150);
+    w.marcarPagado(w.state.foto.reportes[0]);
+    await sleep(500);
+    const srv = (R.panelServidor["BUSCA-001"] || {}).tratos || [];
+    const suma = srv.reduce(function(s, x){ return s + (x.comision || 0); }, 0);
+    const recs = srv.reduce(function(s, x){ return s + (x.tipo === "saldo" ? (x.recargas || 0) : 0); }, 0);
+    ok(srv.length === 2 && Math.abs(suma - 445.38) < 0.001 && recs === 21, "F2-2 la publicación automática es ACUMULATIVA contra el servidor: 445.38 · 21 recargas");
+    w.close();
+  }
+
+  /* F2-3 · foto local VACÍA + panel del servidor con historial:
+     el barrido al abrir sintetiza el item del aprobado+pagado y
+     publica la fusión (el historial del servidor NO se borra) */
+  R.panelServidor = { "BUSCA-001": { nombre: "Busca Uno", tratos: [
+    { fecha: "2/11/2026", concepto: "Saldo · 7 recarga(s) a 1000.00 CUP", nota: "Saldo · 7 recarga(s) a 1000.00 CUP", tipo: "saldo", recargas: 7, monto: 0, comision: 100 },
+    { fecha: "3/11/2026", concepto: "Transferencia · 8000 CUP", nota: "Transferencia · 8000 CUP", tipo: "transferencia", recargas: 0, monto: 8000, comision: 50 } ] } };
+  R.reportes = [
+    { id: "auto3", buscador: "BUSCA-001", tipo: "saldo", precio: 1000, porc: null, cantidad: 14,
+      telefono_vendedor: "50154748", nota: null, estado: "aprobado", comision: 345.38, motivo: null,
+      creado_en: hoyISO, resuelto_en: hoyISO, comision_pagada_en: hoyISO, editado: false,
+      editado_en: null, adj_tipo: null, adj_nombre: null, adj_mime: null, adj_datos: null,
+      adj_bytes: null, op_id: "op-auto3", actualizado_en: hoyISO, prueba: false }
+  ];
+  let estadoF3 = null;
+  {
+    const { w } = crear({ preState: preAuto() });
+    await sleep(700);
+    ok(nPub() >= 1, "F2-3 el barrido al abrir publica el atrasado sin tocar ningún botón");
+    const srv = (R.panelServidor["BUSCA-001"] || {}).tratos || [];
+    ok(srv.length === 3, "F2-3 la fusión conserva el historial del servidor (2) y suma el atrasado (1) = 3");
+    ok(((w.state.foto.publicados || {})["BUSCA-001"] || []).length === 3, "F2-3 foto.publicados queda sembrado con la fusión completa");
+    estadoF3 = JSON.parse(w.localStorage.getItem("minegocio_v1"));
+    w.close();
+  }
+
+  /* F2-4 · reabrir NO duplica: ni una escritura más */
+  {
+    const { w } = crear({ preState: estadoF3 });
+    await sleep(700);
+    ok(nPub() === 0, "F2-4 al reabrir, el barrido no vuelve a publicar lo ya publicado");
+    const srv = (R.panelServidor["BUSCA-001"] || {}).tratos || [];
+    const claves = srv.map(function(t){ return t.fecha + "|" + t.concepto + "|" + t.comision; });
+    ok(srv.length === 3 && new Set(claves).size === 3, "F2-4 el panel del servidor sigue con 3 tratos, sin duplicados");
+    w.close();
+  }
+
+  /* F2-5 · GUARDIA: si leer_panel falla, no se publica NADA y la
+     cola/aviso quedan vivos */
+  R.panelServidor = {};
+  R.panelFalla = true;
+  R.reportes = [ filaPend("auto5") ];
+  {
+    const { w } = crear({ preState: preAuto() });
+    await sleep(350);
+    w.decidirReporte("auto5", true, 345.38);
+    await sleep(150);
+    w.marcarPagado(w.state.foto.reportes[0]);
+    await sleep(500);
+    ok(nPub() === 0, "F2-5 con el panel ilegible NO se escribe nada en el servidor");
+    ok((w.state.foto.publicar || []).filter(function(x){ return !!x.codigo; }).length === 1, "F2-5 el trato sigue en la cola: la Bandeja seguirá avisando");
+    w.close();
+  }
+  R.panelFalla = false;
+  R.reportes = []; R.usuarios = []; R.panelServidor = {};
 }
 
 console.log("\nBANCO MI NEGOCIO: " + pass + " PASS · " + fail + " FAIL");
