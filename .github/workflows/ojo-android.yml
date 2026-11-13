@@ -36,7 +36,7 @@ jobs:
     timeout-minutes: 60
     steps:
       - name: Descargar el repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Resolver la versión y descargar la APK del release
         id: apk
