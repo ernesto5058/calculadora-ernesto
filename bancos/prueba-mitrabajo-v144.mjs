@@ -34,6 +34,14 @@ function crear(pub){
       const err = (msg, st) => Promise.resolve({ ok: false, status: st || 400, text: () => Promise.resolve(JSON.stringify({ message: msg })), json: () => Promise.resolve({ message: msg }) });
       const red = () => Promise.reject(new TypeError("Failed to fetch"));
       if (u.includes("datos.json")) return MODO === "caida" ? red() : json(JSON.parse(JSON.stringify(datos)));
+      if (u.includes("textos-generar")) {
+        let body = {}; try { body = JSON.parse(opts?.body || "{}"); } catch(e){}
+        cuerpos["textos_" + (body.accion || "?")] = body; llamadas.push("fn:textos-" + (body.accion || "?"));
+        if (MODO === "caida") return red();
+        if (body.accion === "catalogo") return json({ ok: true, items: [ { clave: "saldo", nombre: "Compro saldo", tipo: "saldo" }, { clave: "transferencia", nombre: "Transferencia", tipo: "transferencia" } ], telefono: "51231558", zona: "Micro 10, distrito José Martí, Santiago de Cuba" });
+        if (body.accion === "generar") return json({ ok: true, versiones: [ { enfoque: "directo", texto: "TEXTO IA " + body.clave + (body.cantidad ? " cantidad " + body.cantidad : "") + " tel 51231558 Micro 10" } ], avisos: [] });
+        return err("400", 400);
+      }
       if (u.includes("/rpc/")) {
         const fn = u.split("/rpc/")[1].split("?")[0];
         let body = {}; try { body = JSON.parse(opts?.body || "{}"); } catch(e){}
@@ -169,56 +177,52 @@ const sinEsp = s => String(s || "").replace(/\s+/g, "");
   w.close();
 }
 
-/* ===== T: Textos inteligente — el anuncio de Ernesto, desde su configuración ===== */
+/* ===== T: Textos Ola Nueva 2 — el anuncio nace del motor IA (textos-generar) ===== */
 {
   MODO = "ok";
   const w = crear(); const d = w.document;
   await sleep(700);
   w.showView("Textos");
-  d.getElementById("tx_saldo").click();
-  await sleep(200);
-  const out = d.getElementById("tx_out").textContent;
-  const outPlano = sinEsp(out);
-  ok(outPlano.includes("1000X2000") && outPlano.includes("2000X4000") && outPlano.includes("3000X6000") && outPlano.includes("4000X8000") && outPlano.includes("5000X10000"), "T1 la tabla sale calculada de la tasa configurada (al 2: 1000×2000 … 5000×10000)");
-  ok(out.includes("Más de 5000") && out.includes("2.2") && out.includes("720"), "T2 línea de más de 5000 al 2.2 y recargas a 720, de la configuración");
-  ok(out.includes("51231558") && out.includes("Micro 10") && /domicilio/i.test(out), "T3 el texto sale COMPLETO: teléfono + zona + domicilio de los datos públicos (sin huecos)");
-  ok(!out.includes("⚠️") && !/Falta (la zona|tu teléfono)/.test(out), "T4 ningún aviso de «falta…»: el catálogo nunca genera con huecos");
-  ok(!/1098|1069/.test(outPlano) && !/comisi/i.test(out), "T5 NO-FILTRACIÓN: ni ingreso/libro internos ni comisiones en el anuncio");
-  /* rotación: dos generaciones seguidas difieren */
-  const v1 = w.TX_ULT[0].texto;
-  d.getElementById("tx_saldo").click();
-  await sleep(200);
-  ok(w.TX_ULT[0].texto !== v1, "T6 dos generaciones seguidas NUNCA entregan la misma versión");
-  /* transferencia al mismo nivel, completa, con su fuente pública (piso de la tarifa) */
-  d.getElementById("tx_transf").click();
-  await sleep(200);
-  const outT = d.getElementById("tx_out").textContent;
-  ok(/transferencia/i.test(outT) && outT.includes("51231558") && outT.includes("Micro 10") && outT.includes("25%"), "T7 transferencia completa: qué se cambia, al piso público de la tarifa (25%), teléfono y zona");
-  /* cantidad inteligente */
+  await sleep(400);
+  const chips = [...d.querySelectorAll("#tx_cat .chip")];
+  ok(chips.length === 2 && chips[0].textContent.includes("Compro saldo") && chips[1].textContent.includes("Transferencia"), "T1 el selector se pinta desde el catálogo del motor (saldo + transferencia)");
+  ok(!!w.localStorage.getItem("busc_textos_catalogo_v1"), "T2 el catálogo queda cacheado (busc_textos_catalogo_v1)");
+  ok(!d.getElementById("tx_cant_box").classList.contains("hide") && !d.getElementById("tx_cant_saldo").disabled, "T3 con saldo elegido, la cantidad se ve y está habilitada");
+  d.getElementById("tx_generar").click();
+  await sleep(400);
+  ok(d.getElementById("tx_out").textContent.includes("TEXTO IA saldo"), "T4 el texto pintado nace del motor IA, no de plantillas locales");
+  const g1 = cuerpos["textos_generar"] || {};
+  ok(g1.tono === "humanizado" && g1.destino === "wa" && g1.emojis === "muchos" && g1.mayus === true && g1.tamano === "completo", "T5 estilo fijo PRO en la llamada (humanizado/wa/muchos/mayus/completo)");
+  ok(!("cantidad" in g1), "T6 sin cantidad escrita NO viaja cantidad");
+  ok(!!w.localStorage.getItem("busc_textos_paquete_v1"), "T7 el éxito guarda el paquete de respaldo (busc_textos_paquete_v1)");
   d.getElementById("tx_cant_saldo").value = "720";
-  d.getElementById("tx_saldo").click();
-  await sleep(200);
-  const outC = d.getElementById("tx_out").textContent;
-  ok(outC.includes("720") && sinEsp(outC).includes("1440"), "T8 cantidad escrita -> equivalencia calculada con la tasa (720 de saldo = 1 440 CUP al 2)");
-  /* nada del modelo ajeno ni de productos */
-  const todo = out + outT + outC + d.body.textContent;
-  ok(!todo.includes("59134219") && !todo.includes("Plaza de la Revolución") && !/al 2\.5|al 2\.7/.test(todo), "T9 JAMÁS los datos del anuncio modelo ajeno (2.5/2.7/59134219/Plaza)");
-  ok(!/Batería|LiFePO4|Lavadora|barbería/i.test(todo), "T10 la app del buscador no menciona productos en venta ni la batería");
-  /* v1.4.5 (directiva 14:39): el formulario libre se ELIMINÓ entero */
+  d.getElementById("tx_generar").click();
+  await sleep(400);
+  ok((cuerpos["textos_generar"] || {}).cantidad === 720, "T8 con cantidad en saldo viaja cantidad=720: la equivalencia la calcula el SERVIDOR");
+  [...d.querySelectorAll("#tx_cat .chip")][1].click();
+  await sleep(150);
+  ok(d.getElementById("tx_cant_box").classList.contains("hide") && d.getElementById("tx_cant_saldo").disabled, "T9 en transferencia la cantidad se oculta y se deshabilita");
+  d.getElementById("tx_generar").click();
+  await sleep(400);
+  const g3 = cuerpos["textos_generar"] || {};
+  ok(g3.clave === "transferencia" && !("cantidad" in g3), "T10 en transferencia NO viaja cantidad aunque el input conserve un valor");
   ok(!d.getElementById("tx_tipo") && !d.getElementById("tx_gen") && !d.getElementById("tx_moneda") && !d.getElementById("tx_prod"), "T11 el formulario genérico NO existe en el DOM (ni tipo, ni generar, ni moneda, ni producto)");
-  const btnsTx = ["tx_saldo", "tx_recarga", "tx_transf"].map(id => d.getElementById(id));
-  ok(btnsTx.every(b => !!b) && btnsTx[0].textContent.includes("Compro saldo") && btnsTx[1].textContent.includes("Recarga y cambio") && btnsTx[2].textContent.includes("Transferencia"), "T12 Textos queda SOLO con los 3 botones inteligentes (Compro saldo · Recarga y cambio · Transferencia)");
-  ok(!d.querySelector("[data-txtipo]") && !d.getElementById("tx_tel") && !d.getElementById("tx_zona"), "T13 ni chips del formulario ni campos de teléfono/zona propios: el teléfono sale del bloque público, jamás del perfil local");
+  ok(!d.getElementById("tx_saldo") && !d.getElementById("tx_recarga") && !d.getElementById("tx_transf") && !!d.getElementById("tx_generar"), "T12 los 3 botones amputados murieron: queda «Generar textos» + el selector de catálogo");
+  ok(!d.querySelector("[data-txtipo]") && !d.getElementById("tx_tel") && !d.getElementById("tx_zona"), "T13 ni chips del formulario ni campos de teléfono/zona propios");
+  ok(typeof w.textoComproSaldoPRO === "undefined" && typeof w.textoTransferenciaPRO === "undefined" && typeof w.publicoCfg === "undefined", "T14 las plantillas locales y publicoCfg ya no existen en la ventana");
   w.close();
-  /* la tabla obedece a la CONFIGURACIÓN: tasas distintas -> tabla distinta */
-  const w2 = crear({ telefono: "51231558", zona: "Micro 10, distrito José Martí, Santiago de Cuba", domicilio: "Domicilio gratis en Santiago de Cuba", saldo: { tasa: 3, tasaAlta: 3.3, desdeAlta: 5000, recarga: 800 } });
-  const d2 = w2.document;
+  /* Respaldo offline: sin red, sale el último paquete con aviso honesto */
+  const w2 = crear(); const d2 = w2.document;
   await sleep(700);
+  w2.localStorage.setItem("busc_textos_paquete_v1", JSON.stringify({ clave: "saldo", versiones: [{ enfoque: "directo", texto: "PAQUETE GUARDADO" }], cuando: new Date().toISOString() }));
+  MODO = "caida";
   w2.showView("Textos");
-  d2.getElementById("tx_saldo").click();
-  await sleep(200);
-  const out2 = sinEsp(d2.getElementById("tx_out").textContent);
-  ok(out2.includes("1000X3000") && out2.includes("5000X15000") && d2.getElementById("tx_out").textContent.includes("800"), "T14 con otra configuración (al 3, recargas 800) la tabla cambia sola: nada fijado en código");
+  await sleep(300);
+  d2.getElementById("tx_generar").click();
+  await sleep(500);
+  const outOff = d2.getElementById("tx_out").textContent;
+  ok(outOff.includes("PAQUETE GUARDADO") && outOff.includes("Sin conexión: último paquete generado el"), "T15 sin conexión se muestra el último paquete generado, con su aviso honesto y su fecha");
+  MODO = "ok";
   w2.close();
 }
 
