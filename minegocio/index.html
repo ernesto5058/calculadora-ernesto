@@ -303,7 +303,7 @@ label { display:block; font:600 11px var(--fuente); letter-spacing:.07em; text-t
 #pgContabilidad .contaH4 { font:600 15px var(--fuente); margin:var(--e-4) 0 var(--e-1); }
 #pgContabilidad .contaHist { display:flex; justify-content:space-between; gap:var(--e-3); flex-wrap:wrap; padding:var(--e-2) 0; border-bottom:1px solid var(--linea); font:var(--t-sub); color:var(--txt-2); }
 #pgContabilidad .contaHistDer { color:var(--txt-3); }
-</style><script>window.SENTRY_CASA={app:"minegocio",version:"v17",dsn:"https://1454ae292cfdb8e358e88ec3d1fc1547@o4512419765354496.ingest.us.sentry.io/4512419769876480"};</script>
+</style><script>window.SENTRY_CASA={app:"minegocio",version:"v18",dsn:"https://1454ae292cfdb8e358e88ec3d1fc1547@o4512419765354496.ingest.us.sentry.io/4512419769876480"};</script>
 <script defer crossorigin="anonymous" integrity="sha384-48iagrZwMa6wkDoJKNyCk4jgMHcOcsBK/DzZAJInl1ZhtunellJDCRNZuomfHefF" src="https://browser.sentry-cdn.com/8.38.0/bundle.min.js"></script>
 </head><body>
 <div id="app">
@@ -1103,6 +1103,7 @@ function despacharCola(){
   despachando = true;
   var hechos = 0;
   var huboVisible = false;
+  var huboPagado = false;
   var chain = Promise.resolve();
   var copia = state.cola.slice();
   copia.forEach(function(a){
@@ -1114,6 +1115,7 @@ function despacharCola(){
       a.estado = "enviando"; guardar();
       return ejecutarAccion(a).then(function(){
         hechos++;
+        if (a.tipo === "pagado") huboPagado = true;
         if (a.tipo !== "calcTarifa") huboVisible = true;
         var i = state.cola.indexOf(a); if (i >= 0) state.cola.splice(i, 1);
         if (a.tipo === "publicar") {
@@ -1142,6 +1144,10 @@ function despacharCola(){
        propósito (es automática, no una acción que Ernesto mandó):
        refresca igual, pero sin el toast de la cola. */
     if (huboVisible) toast("📤 Cola despachada: " + hechos + " acción(es) ya están en el sistema");
+    /* v18: un «Ya pagué» despachado con éxito enciende SOLO el
+       panel del buscador (publicación automática, ver el bloque
+       PUBLICACIÓN AUTOMÁTICA DE TRATOS). */
+    if (huboPagado) publicarTratosAuto("pago");
     if (hechos > 0) { pintarCalcSync(); cargarTodo(true); }
     return hechos;
   });
@@ -1845,7 +1851,7 @@ function cargarTodo(silencioso){
     cargarPerfiles();
     leerTarifaViva();
     latidoAdmin();
-    return despacharCola().then(function(){ return true; });
+    return despacharCola().then(function(){ barridoPublicarAtrasados(); return true; });
   }).catch(function(e){
     online = false;
     if (e && e.faltaPuerta) puertasBase = false;
@@ -2395,9 +2401,9 @@ registrarModulo({
     var reps = todosReps.filter(function(r){ return !r.prueba; });
     var nPruebas = todosReps.length - reps.length;
     var h = (!online ? '<div class="offBanner" style="display:block">' + selloTexto("bandeja") + ". Las decisiones que tomes aquí quedan en cola y salen solas.</div>" : "");
-    h += '<div class="sub">Reportes pendientes de los buscadores. Aprobar deja la comisión lista para publicarla con Tarifa → Publicar ahora.</div>';
+    h += '<div class="sub">Reportes pendientes de los buscadores. Aprobar deja la comisión lista: al marcarla pagada, el trato se publica solo en el panel del buscador.</div>';
     var sinPubMN = (state.foto.publicar || []).filter(function(x){ return !!x.codigo; }).length;
-    if (sinPubMN) h += '<div class="offBanner" style="display:block">Tienes <b>' + sinPubMN + ' trato(s) aprobado(s) sin publicar</b>: el buscador todavía no lo ve en su panel. Publícalo en Tarifa → Publicar ahora.</div>';
+    if (sinPubMN) h += '<div class="offBanner" style="display:block">Tienes <b>' + sinPubMN + ' trato(s) aprobado(s) sin publicar</b>: los pagados se publican solos al abrir la app y al pagar; si alguno queda, publícalo en Tarifa → Publicar ahora.</div>';
     if (!reps.length) h += '<div class="card"><div class="mut">No hay reportes todavía.</div></div>';
     reps.forEach(function(r){ h += tarjetaReporte(r); });
     if (nPruebas > 0) h += '<div class="mut" style="margin:4px 0 10px">' + nPruebas + ' reportes marcados como prueba (ocultos de la Bandeja y de las cuentas).</div>';
@@ -3410,6 +3416,108 @@ function publicarAhora(){
       ]);
     });
 }
+/* ===== PUBLICACIÓN AUTOMÁTICA DE TRATOS (v18) =====
+   Orden de Ernesto (2026-11-13): publicar deja de ser un paso
+   manual. Dos disparos: (1) al despacharse un «Ya pagué» con éxito
+   (gancho en despacharCola) y (2) el barrido al abrir la app, que
+   sintetiza los items de los aprobados+pagados que aún no están
+   en el panel (p. ej. aprobados por otra vía) y publica.
+   GUARDIA ANTI-BORRADO: la puerta admin_publicar_tratos REEMPLAZA
+   el panel de cada buscador con lo que recibe; antes de escribir,
+   el panel real del servidor (leer_panel) se FUSIONA con la lista
+   local (historial foto.publicados + cola): lo que el servidor ya
+   tiene jamás se pierde por una foto local vieja o incompleta.
+   Si alguna lectura del servidor falla, NO se publica nada y la
+   Bandeja sigue avisando (foto.publicar intacta). El botón
+   «Publicar ahora» queda como respaldo manual de siempre.
+   La publicación automática NO toca la tarifa (eso sigue siendo
+   del botón manual): aquí solo viajan los tratos. */
+var autoPubEnCurso = false;
+function claveTratoPub(t){
+  return (t && t.fecha) + "|" + (t && t.concepto) + "|" + Number(t && t.comision);
+}
+function fusionarConServidor(cod, locales){
+  return rpc("leerPanel", { p_codigo: cod }).then(function(r){
+    if (!r || r.ok === false || !Array.isArray(r.tratos)) throw new Error("panel ilegible");
+    var fusion = r.tratos.slice();
+    (locales || []).forEach(function(t){
+      if (!t) return;
+      var hallado = null;
+      fusion.forEach(function(s){ if (!hallado && claveTratoPub(s) === claveTratoPub(t)) hallado = s; });
+      if (!hallado) fusion.push(t);
+      else if (t.estado === "pagado" && hallado.estado !== "pagado") {
+        fusion[fusion.indexOf(hallado)] = Object.assign({}, hallado, { estado: "pagado", pagado_en: t.pagado_en || hallado.pagado_en });
+      }
+    });
+    return { servidor: r.tratos, fusion: fusion };
+  });
+}
+function publicarTratosAuto(motivo){
+  if (autoPubEnCurso || !online || !state.codigo) return Promise.resolve(false);
+  var lista = listaPublicar();
+  var conTratos = lista.filter(function(e){ return e && e.codigo && (e.tratos || []).length; });
+  if (!conTratos.length) return Promise.resolve(false);
+  autoPubEnCurso = true;
+  return Promise.all(conTratos.map(function(e){
+    return fusionarConServidor(e.codigo, e.tratos).then(function(f){ return { e: e, f: f }; });
+  })).then(function(res){
+    var aPublicar = [];
+    res.forEach(function(x){
+      var srv = x.f.servidor, fus = x.f.fusion;
+      var cambio = fus.length !== srv.length || fus.some(function(t, i){
+        return claveTratoPub(t) !== claveTratoPub(srv[i]) || (t.estado === "pagado") !== (srv[i].estado === "pagado");
+      });
+      if (cambio) aPublicar.push({ codigo: x.e.codigo, nombre: x.e.nombre, tratos: fus });
+    });
+    if (!aPublicar.length) { autoPubEnCurso = false; return false; }
+    return rpc("publicarTratos", { p_codigo: state.codigo, p_tratos: aPublicar }).then(function(){
+      aPublicar.forEach(function(e){ state.foto.publicados[e.codigo] = (e.tratos || []).slice(); });
+      var tocados = {};
+      res.forEach(function(x){ tocados[x.e.codigo] = true; });
+      state.foto.publicar = (state.foto.publicar || []).filter(function(x){ return !x.codigo || !tocados[x.codigo]; });
+      guardar(); pintarTodo();
+      autoPubEnCurso = false;
+      toast("📡 Publicado solo: los tratos ya están en el panel de tus buscadores");
+      return true;
+    });
+  }).catch(function(){
+    /* Fusión insegura o red caída: no se toca nada; la cola y el
+       aviso de la Bandeja quedan como estaban. */
+    autoPubEnCurso = false;
+    return false;
+  });
+}
+/* Barrido al abrir (y en cada foto fresca): los aprobados+pagados
+   que no están en el panel ni en la cola reciben su item —la misma
+   forma que nace en decidirReporte— y lo pagado que la cola tenga
+   sale solo. Los aprobados SIN pagar no se publican desde aquí:
+   salen por el gancho del pago o por el botón manual. */
+function barridoPublicarAtrasados(){
+  if (!online || !state.codigo) return;
+  var cambio = false;
+  (state.foto.reportes || []).forEach(function(r){
+    if (r.estado !== "aprobado" || !r.comision_pagada_en || r.prueba) return;
+    var cod = resolverDeReporte(r); if (!cod) return;
+    var clave = fechaDMY(r.creado) + "|" + conceptoDe(r) + "|" + Number(r.comision);
+    var pubs = (state.foto.publicados && state.foto.publicados[cod]) || [];
+    if (pubs.some(function(t){ return claveTratoPub(t) === clave; })) return;
+    var enCola = (state.foto.publicar || []).some(function(p){
+      return p && p.codigo === cod && p.concepto === conceptoDe(r) && Number(p.comision) === Number(r.comision);
+    });
+    if (enCola) return;
+    state.foto.publicar.push({ codigo: cod, nombre: r.nombre || r.buscador || "", concepto: conceptoDe(r), comision: Number(r.comision) || 0, fecha: r.creado, tipo: r.tipo || "", recargas: r.tipo === "saldo" ? Math.floor(Number(r.cantidad) || 0) : 0, monto: r.tipo === "transferencia" ? efectivoDe(r) : 0 });
+    cambio = true;
+  });
+  if (cambio) guardar();
+  var hayPagados = cambio || (state.foto.publicar || []).some(function(p){
+    if (!p.codigo) return false;
+    return (state.foto.reportes || []).some(function(r){
+      return r.estado === "aprobado" && !!r.comision_pagada_en && resolverDeReporte(r) === p.codigo
+        && conceptoDe(r) === p.concepto && Number(r.comision) === Number(p.comision);
+    });
+  });
+  if (hayPagados) publicarTratosAuto("barrido");
+}
 function mostrarJsonRespaldo(){
   var t0 = tarifa();
   if (!t0 && !state.foto.tarifaPanel) { toast("Sin tarifa real todavía: no se puede generar el respaldo hasta leer la tarifa viva.", false); return; }
@@ -3471,7 +3579,7 @@ registrarModulo({
       + '<button class="bGold" id="tfPub">Publicar ahora</button>'
       + (state.publicarPendiente ? '<div class="kv" style="margin-top:8px"><span class="pill pCola">PENDIENTE DE ENVIAR</span> la última tarifa espera conexión o activación.</div>' : "")
       + '<button class="bGhost" id="tfRespaldo">Respaldo: generar datos.json</button>'
-      + '<div class="ayuda">Publicar ahora manda la tarifa y los tratos aprobados a las apps de tus buscadores. El respaldo genera el datos.json de siempre, por si prefieres el camino del repo.</div>'
+      + '<div class="ayuda">Publicar ahora manda la tarifa y los tratos aprobados a las apps de tus buscadores. Los tratos ya se publican solos al pagar la comisión y al abrir la app: este botón queda como respaldo manual (y es el que manda la tarifa). El respaldo genera el datos.json de siempre, por si prefieres el camino del repo.</div>'
       + '<div class="ayuda">Tratos aprobados esperando publicación: <b>' + state.foto.publicar.filter(function(x){ return !!x.codigo; }).length + "</b></div></div>";
     var retMN = state.foto.publicar.map(function(p, ix){ return { p: p, ix: ix }; }).filter(function(x){ return !x.p.codigo; });
     if (retMN.length) {
@@ -3595,14 +3703,14 @@ function intentarEntrar(){
    controllerchange recarga la app UNA sola vez (marca en
    sessionStorage por versión: sin bucles). MN_VERSION se sube
    junto con el CACHE de sw.js. */
-var MN_VERSION = "v17";
+var MN_VERSION = "v18";
 /* Sello VISIBLE de compilación (punto 6): Ernesto quejándose con
    razón — «no sé si se actualizó o no». Una sola constante que
    sube con cada publicación; se ve en Inicio y en la hoja ℹ️ del
    chat. Formato: «Mi Negocio · versión 2026-11-11 HH:MM · caché v6»
    (fecha Y HORA de la publicación, para distinguir dos subidas
    del mismo día). La hora es la de Cuba (CST) al compilar. */
-var MN_COMPILACION = "2026-11-13 12:15";
+var MN_COMPILACION = "2026-11-13 12:38";
 function selloVersion(){ return "Mi Negocio · versión " + MN_COMPILACION + " · caché " + MN_VERSION; }
 var regSW = null;
 var swConControladorAlArrancar = false;
