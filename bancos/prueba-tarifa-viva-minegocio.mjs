@@ -102,17 +102,18 @@ const fmt2 = n => (Math.round(n * 100) / 100).toFixed(2);
   ok(pg.textContent.includes("Regla de oro"), "A4 la regla de oro va escrita en la tarjeta");
   ok(!w.document.getElementById("tvAplicar"), "A5 sin propuesta no hay botón de aplicar");
   const res = w.document.getElementById("simRes");
-  ok(res && res.textContent.includes("él gana " + fmt2(24.67)), "A6 simulador saldo 1 recarga: él gana 24.67 (vino: " + (res && res.textContent) + ")");
+  ok(res && res.textContent.includes("Él gana") && res.textContent.includes(fmt2(24.67)) && res.textContent.includes("Tú ganas"),
+     "A6 simulador saldo 1 recarga en gemelas v3: él 24.67 (vino: " + (res && res.textContent) + ")");
   input(w.document.getElementById("simCant"), "14");
   await sleep(60);
-  ok(res.textContent.includes("él gana 345.38") && res.textContent.includes("tú ganas 1036.14"),
+  ok(res.textContent.includes("345.38") && res.textContent.includes("1036.14") && res.textContent.includes("Tú ganas"),
      "A7 ancla del trato real: 14 a 1000 → él 345.38 · tú 1036.14 (vino: " + res.textContent + ")");
   click(w.document.getElementById("simTipoT")); await sleep(60);
   input(w.document.getElementById("simEf"), "5000"); input(w.document.getElementById("simPct"), "30");
   await sleep(60);
   const gan = (5000 * 1.3 / 1069.38) * 950 - 5000, elT = Math.round(gan * 20) / 100;
-  ok(res.textContent.includes("él gana " + fmt2(elT)) && res.textContent.includes("tú ganas " + fmt2(gan - elT)),
-     "A8 simulador transferencia: él " + fmt2(elT) + " · tú " + fmt2(gan - elT) + " (vino: " + res.textContent + ")");
+  ok(res.textContent.includes(fmt2(elT)) && res.textContent.includes(fmt2(gan - elT)),
+     "A8 simulador transferencia en gemelas: él " + fmt2(elT) + " · tú " + fmt2(gan - elT) + " (vino: " + res.textContent + ")");
   w.close();
 }
 /* ===== B · propuesta grande ===== */
