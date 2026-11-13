@@ -1,6 +1,6 @@
 "use strict";
 /*__SENTRY_CASA__*/
-var APP_VERSION = "1.5.9";
+var APP_VERSION = "1.6.0";
 /* Tarifa de respaldo (E-7, Tanda Nº6): SOLO se usa si nunca llegó ni
    datos.json ni la tarifa viva, y mientras manda ella la app lo dice
    a la vista («RESPALDO» + su origen en tarifaText/pintaFrescura).
@@ -309,6 +309,7 @@ function applyData(d, fresca){
   $("tarifaTxt").innerHTML = tarifaText();
   pintaFrescura();
   calcSaldo(); calcTransf();
+  pintarTarifaViva(); estReporte();
   if (SESION) renderPanel();   /* v1.5.2: el JSON ya no expulsa a nadie; la revocación vive SOLO en refrescarTodo (respuesta definitiva del servidor) */
   if (TARIFA_VIVA) aplicarTarifaViva();   // v1.3.0: un datos.json tardío nunca pisa la tarifa viva
 }
@@ -815,6 +816,7 @@ function aplicarTarifaViva(){
   try { $("tarifaTxt").innerHTML = tarifaText(); } catch(e){}
   pintaFrescura();
   calcSaldo(); calcTransf();
+  pintarTarifaViva(); estReporte();
   if (SESION) renderPanel();
 }
 function leerTarifaViva(){
@@ -828,6 +830,84 @@ function leerTarifaViva(){
     }
   });
 }
+/* ===== v1.6.0: TARIFA VIVA (la del mercado, con su frescura) =====
+   La puerta tarifa_viva_buscador devuelve SOLO lo del buscador:
+   sus dos patas (ingreso por recarga y libro), la frescura de la
+   foto del mercado y si hay un cambio grande esperando al dueño.
+   Jamás trae la salida ni datos de Ernesto ni de otro buscador.
+   La tarjeta vive sobre las pestañas: se ve al usar la app, en
+   cualquier pantalla. REGLA DE ORO (escrita en la tarjeta): lo
+   que se VE es la estimación viva; lo que PAGA es la tarifa del
+   momento en que Ernesto cierra el trato, y esa foto queda
+   guardada con el trato en el panel. */
+var TARIFA_VIVA_B = null;
+function leerTarifaVivaBuscador(){
+  rpcChat("tarifa_viva_buscador", {}).then(function(r){
+    if (r && r.ok) { TARIFA_VIVA_B = r; pintarTarifaViva(); }
+  }).catch(function(){});
+}
+/* v1.6.0: TU % de estrellas manda en lo nuevo de la tarifa viva.
+   T.pctSaldo puede quedar pisado por la tarifa del servidor según
+   el orden de llegada (carrera vieja de la casa); la puerta del
+   capital (dinero_leer_estado) trae TUS estrellas sin ambigüedad. */
+function pctEstrellas(){
+  if (typeof DINERO !== "undefined" && DINERO && DINERO.estrellas)
+    return { s: Number(DINERO.estrellas.pct_saldo), t: Number(DINERO.estrellas.pct_transferencia) };
+  return { s: Number(T.pctSaldo), t: Number(T.pctTransf) };
+}
+function pintarTarifaViva(){
+  var box = $("tvBox"); if (!box) return;
+  var pe = pctEstrellas();
+  var fuente = TARIFA_FUENTE === "viva" ? "Tarifa en vivo"
+    : TARIFA_FUENTE === "publicada" ? "Tarifa publicada (la viva no respondió)"
+    : "⚠ RESPALDO sin conexión: puede estar vieja";
+  var frescaTxt = "";
+  if (TARIFA_VIVA_B && TARIFA_VIVA_B.edad_min !== null && TARIFA_VIVA_B.edad_min !== undefined) {
+    var ed = Number(TARIFA_VIVA_B.edad_min);
+    frescaTxt = (TARIFA_VIVA_B.fresca && ed <= 20)
+      ? " · mercado de hace " + (ed < 1 ? "menos de 1" : Math.round(ed)) + " min"
+      : " · la última foto del mercado es vieja (hace " + Math.round(ed) + " min): manda la tarifa guardada";
+  }
+  var exc = T.ingresoRef360 - 1000;
+  var ej = exc > 0 ? Math.round(exc * pe.s * 100) / 10000 : 0;
+  box.innerHTML = "<b>TARIFA VIVA</b> · " + esc(fuente) + esc(frescaTxt) +
+    "<br>Saldo: por cada recarga de 360, la referencia de venta es <b>" + fmt(T.ingresoRef360) + "</b>." +
+    (exc > 0 ? " Ej.: a 1,000, el excedente es " + fmtN(exc) + " y tu parte ≈ <b>" + fmt(ej) + "</b> (tu " + esc(pe.s) + "%)." : " A 1,000 no hay excedente hoy.") +
+    "<br>Transferencia: el QUSD se valora hoy a <b>" + fmt(T.libroRef) + "</b> por QUSD · tu parte: el <b>" + esc(pe.t) + "%</b> de la ganancia (tratos al " + esc(T.pisoTransf) + "% o más)." +
+    (TARIFA_VIVA_B && TARIFA_VIVA_B.hay_propuesta_pendiente ? "<br>Ojo: hay un cambio grande de tarifa esperando la aprobación de Ernesto — puede moverse pronto." : "") +
+    "<br><small>Esto es la estimación de ahora: tu pago se calcula con la tarifa del momento en que Ernesto cierre tu trato, y esa foto queda guardada con el trato en tu panel.</small>";
+  box.style.display = "block";
+}
+/* Estimado EN el formulario de reporte, antes de enviar: con la
+   tarifa de ahora (y TU % de estrellas, que ya manda en T). */
+function estReporte(){
+  var es = $("r_est_s"), et = $("r_est_t");
+  if (es) {
+    var pr = num("r_precio"), ct = num("r_cant") || 1;
+    if (pr !== null && pr > 0) {
+      var r = comisionSaldo(pr, ct);
+      var feeS = r.exc > 0 ? r.exc * (pctEstrellas().s / 100) * ct : 0;   /* v1.6.0: con TUS estrellas */
+      es.style.display = "block";
+      es.innerHTML = r.exc > 0
+        ? "Con la tarifa de ahora ganas ≈ <b>" + fmt(feeS) + "</b> si Ernesto confirma este trato.<br><small>Estimación viva: tu pago se calcula con la tarifa del momento en que Ernesto lo cierre.</small>"
+        : "A ese precio no hay excedente con la tarifa de ahora: ganarías <b>$0.00</b>. Negocia más bajo.";
+    } else es.style.display = "none";
+  }
+  if (et) {
+    var ef = num("r_ef"), pc = num("r_pct");
+    if (ef !== null && ef > 0 && pc !== null) {
+      et.style.display = "block";
+      if (pc < T.pisoTransf) et.innerHTML = "Ese trato no se acepta: el mínimo es al " + T.pisoTransf + "%. Negocia más alto.";
+      else {
+        var r2 = comisionTransf(ef, pc);
+        var feeT = Math.max(0, r2.ganancia) * (pctEstrellas().t / 100);   /* v1.6.0: con TUS estrellas */
+        et.innerHTML = r2.ganancia > 0
+          ? "Con la tarifa de ahora ganas ≈ <b>" + fmt(feeT) + "</b> cuando la vuelta cierre.<br><small>Estimación viva: manda la tarifa del cierre.</small>"
+          : "Con la tarifa de ahora esa vuelta no deja ganancia: ganarías <b>$0.00</b>.";
+      }
+    } else et.style.display = "none";
+  }
+}
 var panelCargando = false;
 function leerPanelVivo(){
   if (!SESION || panelCargando) return;
@@ -837,7 +917,7 @@ function leerPanelVivo(){
     if (r && r.ok) { PANEL_VIVO = { nombre: r.nombre || "", tratos: r.tratos || [] }; panelCacheSet(PANEL_VIVO); renderPanel(); }
   });
 }
-function cargarVivo(){ leerTarifaViva(); leerPanelVivo(); cargarDinero(); }
+function cargarVivo(){ leerTarifaViva(); leerPanelVivo(); cargarDinero(); leerTarifaVivaBuscador(); }
 
 /* ===== v1.5.6: MI CUPO + ESTRELLAS (Libro del Dinero) =====
    dinero_leer_estado con SU codigo devuelve SOLO lo suyo: su nivel
@@ -854,7 +934,7 @@ function cargarDinero(){
       if (!d || d.rol !== "buscador") return;
       DINERO = d;
       if (d.estrellas) { T.pctSaldo = Number(d.estrellas.pct_saldo); T.pctTransf = Number(d.estrellas.pct_transferencia); }
-      pintarCupo();
+      pintarCupo(); pintarTarifaViva(); estReporte();
     }).catch(function(){});
 }
 function pintarCupo(){
@@ -912,6 +992,7 @@ function refrescarTodo(){
 
 /* ===== Eventos ===== */
 ["s_precio","s_cant"].forEach(function(id){ $(id).addEventListener("input", calcSaldo); });
+["r_precio","r_cant","r_ef","r_pct"].forEach(function(id){ $(id).addEventListener("input", estReporte); });
 ["t_ef","t_pct"].forEach(function(id){ $(id).addEventListener("input", function(){ if (id === "t_pct") $("t_rng").value = $("t_pct").value || 0; calcTransf(); }); });
 $("t_rng").addEventListener("input", function(){ $("t_pct").value = $("t_rng").value; calcTransf(); });
 document.querySelectorAll(".chip[data-p]").forEach(function(ch){ ch.addEventListener("click", function(){ $("s_precio").value = ch.getAttribute("data-p"); calcSaldo(); }); });
@@ -921,7 +1002,7 @@ function showView(v){
     $("tab" + x).classList.toggle("on", x === v);
     $("view" + x).classList.toggle("hide", x !== v);
   });
-  if (v === "Rep") renderOutbox();
+  if (v === "Rep") { renderOutbox(); estReporte(); }
   if (v === "Panel") renderPanel();
   if (v === "Ayuda") chatCargar();   // al leer, el propio hilo apaga el distintivo (leer marca leído)
 }
@@ -1303,12 +1384,13 @@ function renderPanel(){
   var ahora = new Date(); ahora.setHours(0, 0, 0, 0);
   var lunes = new Date(ahora); lunes.setDate(ahora.getDate() - ((ahora.getDay() + 6) % 7));
   var domingo = new Date(lunes); domingo.setDate(lunes.getDate() + 6); domingo.setHours(23, 59, 59, 999);
-  var sRec = 0, sTra = 0;
+  var sRec = 0, sTra = 0, hoyTotal = 0;
   (b.tratos || []).forEach(function(tr){
     total += tr.comision || 0;
     if (tr.tipo === "saldo") recSaldo += Math.floor(Number(tr.recargas) || 0); /* REGLA DE BONOS 2026-11-13: solo recargas COMPLETAS de 360 */
     if (tr.tipo === "transferencia" && (Number(tr.monto) || 0) >= 5000) nTransf += 1; /* REGLA DE BONOS 2026-11-13: transf solo cuenta desde 5.000 CUP */
     var ms = fechaTratoMs(tr.fecha);
+    if (!isNaN(ms) && ms >= ahora.getTime() && ms < ahora.getTime() + 86400000) hoyTotal += Number(tr.comision) || 0;   /* v1.6.0: HOY HAS GANADO */
     if (!isNaN(ms) && ms >= lunes.getTime() && ms <= domingo.getTime()) {
       if (tr.tipo === "saldo") sRec += Math.floor(Number(tr.recargas) || 0); /* REGLA DE BONOS 2026-11-13: solo recargas COMPLETAS de 360 */
       if (tr.tipo === "transferencia" && (Number(tr.monto) || 0) >= 5000) sTra += 1; /* REGLA DE BONOS 2026-11-13: transf solo cuenta desde 5.000 CUP */
@@ -1316,10 +1398,13 @@ function renderPanel(){
     html += '<div class="trato"><span class="f">' + esc(tr.fecha) + "</span><span>" +
       (tr.tipo === "saldo" ? ico("i-phone", "mini") + " " : ico("i-bank", "mini") + " ") + (esc(tr.nota || "")) +
       (tr.estado === "pagado" ? '<br><small>' + ico("i-check", "mini") + ' Comisión pagada' + (tr.pagado_en ? " el " + esc(tr.pagado_en) : "") + "</small>" : "") +
+      (tr.tipo === "saldo" && tr.ref360 ? '<br><small>Tarifa de este trato: ' + fmtN(Number(tr.ref360)) + " por recarga</small>" : "") +
+      (tr.tipo === "transferencia" && tr.refLibro ? '<br><small>Libro de este trato: ' + fmtN(Number(tr.refLibro)) + " por QUSD</small>" : "") +
       '</span><span class="c">' + fmt(tr.comision || 0) + "</span></div>";
   });
   if (!html) html = '<div class="trato"><span>Aún no tienes tratos confirmados. ¡A buscar!</span></div>';
   $("p_total").textContent = fmt(total);
+  var hoyEl = $("p_hoy"); if (hoyEl) hoyEl.textContent = fmt(hoyTotal);
   $("p_name").textContent = b.nombre ? ("de " + b.nombre) : "";
   $("p_tratos").innerHTML = html;
   var bsM = T.bonoSaldoMeta, btM = T.bonoTransfMeta;
