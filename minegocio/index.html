@@ -303,7 +303,7 @@ label { display:block; font:600 11px var(--fuente); letter-spacing:.07em; text-t
 #pgContabilidad .contaH4 { font:600 15px var(--fuente); margin:var(--e-4) 0 var(--e-1); }
 #pgContabilidad .contaHist { display:flex; justify-content:space-between; gap:var(--e-3); flex-wrap:wrap; padding:var(--e-2) 0; border-bottom:1px solid var(--linea); font:var(--t-sub); color:var(--txt-2); }
 #pgContabilidad .contaHistDer { color:var(--txt-3); }
-</style><script>window.SENTRY_CASA={app:"minegocio",version:"v16",dsn:"https://1454ae292cfdb8e358e88ec3d1fc1547@o4512419765354496.ingest.us.sentry.io/4512419769876480"};</script>
+</style><script>window.SENTRY_CASA={app:"minegocio",version:"v17",dsn:"https://1454ae292cfdb8e358e88ec3d1fc1547@o4512419765354496.ingest.us.sentry.io/4512419769876480"};</script>
 <script defer crossorigin="anonymous" integrity="sha384-48iagrZwMa6wkDoJKNyCk4jgMHcOcsBK/DzZAJInl1ZhtunellJDCRNZuomfHefF" src="https://browser.sentry-cdn.com/8.38.0/bundle.min.js"></script>
 </head><body>
 <div id="app">
@@ -610,7 +610,7 @@ var CALC_DEF = {
    ESQUEMA v2 de buscadores (25/20/25), que no son una tarifa: se usan
    como último respaldo de porcentajes cuando aún no hay tarifa. */
 var PCT_ESQUEMA = { pctSaldo: 25, pctTransf: 20, pisoTransf: 25 };
-function fotoVacia(){ return { reportes: [], ayudas: [], usuarios: [], datos: null, cuando: "", publicar: [], borrados: [], tarifaPanel: null, mercado: null, perfiles: {} }; }
+function fotoVacia(){ return { reportes: [], ayudas: [], usuarios: [], datos: null, cuando: "", publicar: [], publicados: {}, borrados: [], tarifaPanel: null, mercado: null, perfiles: {} }; }
 function estadoVacio(){
   return { codigo: "", foto: fotoVacia(), calc: JSON.parse(JSON.stringify(CALC_DEF)),
     cola: [], sellos: {}, tarifaViva: null, tarifaVivaEn: "", publicarPendiente: null, calcSync: null, calcEditEn: null };
@@ -625,6 +625,7 @@ function cargarEstado(){
       Object.keys(base).forEach(function(k){ if (s[k] !== undefined) base[k] = s[k]; });
       if (!base.foto) base.foto = fotoVacia();
       ["reportes","ayudas","usuarios","publicar","borrados"].forEach(function(k){ if (!Array.isArray(base.foto[k])) base.foto[k] = []; });
+      if (!base.foto.publicados || typeof base.foto.publicados !== "object" || Array.isArray(base.foto.publicados)) base.foto.publicados = {};
       if (!base.foto.perfiles || typeof base.foto.perfiles !== "object") base.foto.perfiles = {};
       if (!Array.isArray(base.cola)) base.cola = [];
       if (!base.calc) base.calc = JSON.parse(JSON.stringify(CALC_DEF));
@@ -666,6 +667,7 @@ function fmt(n){ if (n === null || n === undefined || isNaN(n)) return "—"; re
 function esc(s){ return String(s === null || s === undefined ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;"); }
 function r2(n){ return Math.round(n * 100) / 100; }
 function numPos(v){ var n = Number(v); return (isFinite(n) && n > 0) ? n : null; }
+function fechaDMY(iso){ var d = new Date(iso); if (isNaN(d)) return ""; return d.getDate() + "/" + (d.getMonth() + 1) + "/" + d.getFullYear(); }
 function fechaCorta(iso){ return iso ? String(iso).slice(0, 10) : ""; }
 /* v7: hora como en WhatsApp («3:08 p. m.») y separadores de fecha. */
 function hora12(iso){
@@ -978,6 +980,25 @@ function resolverDeReporte(r){
 /* v7: reparación de la cola al arrancar y tras cada carga fresca. */
 function repararPublicar(){
   var cambio = false;
+  /* v17 (cadena del panel): un item viejo puede venir sin tipo,
+     recargas ni fecha (nació de la fila cruda antes del puente de
+     forma) o retenido sin código: se repara contra el reporte
+     aprobado de la foto que le corresponde (mismo concepto y misma
+     comisión). Sin esto, el panel del buscador lo contaría en 0
+     aunque se publicara. */
+  (state.foto.publicar || []).forEach(function(p){
+    if (p.tipo && p.fecha) return;
+    var rep = (state.foto.reportes || []).filter(function(r){
+      return r.estado === "aprobado" && Number(r.comision) === Number(p.comision) && conceptoDe(r) === p.concepto;
+    })[0];
+    if (!rep) return;
+    if (!p.codigo) { var codR = resolverDeReporte(rep); if (codR) { p.codigo = codR; delete p.retenido; } }
+    if (!p.tipo) p.tipo = rep.tipo || "";
+    if (p.recargas == null) p.recargas = rep.tipo === "saldo" ? Math.floor(Number(rep.cantidad) || 0) : 0;
+    if (p.monto == null) p.monto = rep.tipo === "transferencia" ? efectivoDe(rep) : 0;
+    if (!p.fecha) p.fecha = rep.creado;
+    cambio = true;
+  });
   (state.foto.publicar || []).forEach(function(p){
     if (!p.codigo) {
       var cod = p.nombre ? codigoDe(p.nombre) : null;
@@ -1095,7 +1116,12 @@ function despacharCola(){
         hechos++;
         if (a.tipo !== "calcTarifa") huboVisible = true;
         var i = state.cola.indexOf(a); if (i >= 0) state.cola.splice(i, 1);
-        if (a.tipo === "publicar") state.publicarPendiente = null;
+        if (a.tipo === "publicar") {
+          state.publicarPendiente = null;
+          state.foto.publicados = {};
+          ((a.payload && a.payload.lista) || []).forEach(function(e){ if (e && e.codigo) state.foto.publicados[e.codigo] = (e.tratos || []).slice(); });
+          state.foto.publicar = (state.foto.publicar || []).filter(function(x){ return !x.codigo; });
+        }
         guardar();
       }).catch(function(e){
         a.intentos = (a.intentos || 0) + 1;
@@ -2279,7 +2305,7 @@ function decidirReporte(id, aprobar, comision, motivo){
     var cod = resolverDeReporte(r);
     /* v7: el trato entra SIEMPRE en la cola; sin código queda
        retenido con su nombre (antes se perdía en silencio). */
-    var item = { codigo: cod, nombre: r.nombre || r.buscador || "", concepto: conceptoDe(r), comision: Number(comision) || 0, fecha: r.creado };
+    var item = { codigo: cod, nombre: r.nombre || r.buscador || "", concepto: conceptoDe(r), comision: Number(comision) || 0, fecha: r.creado, tipo: r.tipo || "", recargas: r.tipo === "saldo" ? Math.floor(Number(r.cantidad) || 0) : 0, monto: r.tipo === "transferencia" ? efectivoDe(r) : 0 };
     if (!cod) { item.retenido = true; retenidoNuevo = true; }
     state.foto.publicar.push(item);
   } else r.motivo = motivo || "";
@@ -2370,6 +2396,8 @@ registrarModulo({
     var nPruebas = todosReps.length - reps.length;
     var h = (!online ? '<div class="offBanner" style="display:block">' + selloTexto("bandeja") + ". Las decisiones que tomes aquí quedan en cola y salen solas.</div>" : "");
     h += '<div class="sub">Reportes pendientes de los buscadores. Aprobar deja la comisión lista para publicarla con Tarifa → Publicar ahora.</div>';
+    var sinPubMN = (state.foto.publicar || []).filter(function(x){ return !!x.codigo; }).length;
+    if (sinPubMN) h += '<div class="offBanner" style="display:block">Tienes <b>' + sinPubMN + ' trato(s) aprobado(s) sin publicar</b>: el buscador todavía no lo ve en su panel. Publícalo en Tarifa → Publicar ahora.</div>';
     if (!reps.length) h += '<div class="card"><div class="mut">No hay reportes todavía.</div></div>';
     reps.forEach(function(r){ h += tarjetaReporte(r); });
     if (nPruebas > 0) h += '<div class="mut" style="margin:4px 0 10px">' + nPruebas + ' reportes marcados como prueba (ocultos de la Bandeja y de las cuentas).</div>';
@@ -3274,6 +3302,17 @@ function mapaBuscadores(base){
     if (!map[u.codigo]) map[u.codigo] = { codigo: u.codigo, nombre: u.nombre, tratos: [] };
     else map[u.codigo].nombre = u.nombre;
   });
+  /* v17 (cadena del panel): la puerta REEMPLAZA los tratos de cada
+     buscador con lo que recibe, y el datos.json público ya no trae
+     historial (E-4): sin esta siembra, la SEGUNDA publicación
+     borraría del panel todo lo publicado antes. El historial sale
+     de foto.publicados (lo que este teléfono ya publicó bien). */
+  var pubsMN = state.foto.publicados || {};
+  Object.keys(pubsMN).forEach(function(cod){
+    if (state.foto.borrados.indexOf(cod) >= 0) return;
+    if (!map[cod]) map[cod] = { codigo: cod, nombre: nombreDe(cod) || cod, tratos: [] };
+    (pubsMN[cod] || []).forEach(function(t){ if (t) map[cod].tratos.push(t); });
+  });
   ultRetenidosMN = [];
   state.foto.publicar.forEach(function(tr){
     /* v7: el trato sin código ya no contamina el paquete (antes
@@ -3282,7 +3321,19 @@ function mapaBuscadores(base){
     if (!tr.codigo) { ultRetenidosMN.push(tr); return; }
     if (state.foto.borrados.indexOf(tr.codigo) >= 0) return;
     if (!map[tr.codigo]) map[tr.codigo] = { codigo: tr.codigo, nombre: tr.nombre, tratos: [] };
-    map[tr.codigo].tratos.push({ fecha: fechaCorta(tr.fecha), concepto: tr.concepto, comision: Number(tr.comision) });
+    /* v17: la forma que el panel de Mi Trabajo lee de verdad
+       (renderPanel): tipo/recargas pa los bonos y la semana, nota
+       pa la etiqueta, fecha d/m/yyyy pa que su lector de semana la
+       ubique (fechaCorta «13 nov» no la parsea), y la línea de
+       pagado cuando el reporte de la foto ya la trae. Sin duplicar
+       lo que el historial ya lleva. */
+    var emitido = { fecha: fechaDMY(tr.fecha), concepto: tr.concepto, nota: tr.concepto, tipo: tr.tipo || "", recargas: Math.floor(Number(tr.recargas) || 0), monto: Number(tr.monto) || 0, comision: Number(tr.comision) };
+    var repP = (state.foto.reportes || []).filter(function(r){
+      return r.estado === "aprobado" && resolverDeReporte(r) === tr.codigo && Number(r.comision) === Number(tr.comision) && conceptoDe(r) === tr.concepto;
+    })[0];
+    if (repP && repP.comision_pagada_en) { emitido.estado = "pagado"; emitido.pagado_en = fechaDMY(repP.comision_pagada_en); }
+    var yaEsta = map[tr.codigo].tratos.some(function(t){ return t && t.fecha === emitido.fecha && t.concepto === emitido.concepto && Number(t.comision) === emitido.comision; });
+    if (!yaEsta) map[tr.codigo].tratos.push(emitido);
   });
   return map;
 }
@@ -3338,6 +3389,10 @@ function publicarAhora(){
          retenidos se quedan en la cola con su nombre. */
       var quedan = (state.foto.publicar || []).filter(function(x){ return !x.codigo; });
       state.foto.publicar = quedan;
+      /* v17: lo publicado queda como historial local (foto.publicados):
+         la próxima publicación lo reenvía entero (la puerta reemplaza). */
+      state.foto.publicados = {};
+      (payload.lista || []).forEach(function(e){ if (e && e.codigo) state.foto.publicados[e.codigo] = (e.tratos || []).slice(); });
       state.tarifaViva = { ingresoRef360: p.ingresoRef360, libroRef: p.libroRef, salidaRef: p.salidaRef, pctSaldo: p.pctSaldo, pctTransf: p.pctTransf, pisoTransf: p.pisoTransf };
       state.sellos.tarifa = new Date().toISOString();
       guardar(); pintarTodo();
@@ -3540,14 +3595,14 @@ function intentarEntrar(){
    controllerchange recarga la app UNA sola vez (marca en
    sessionStorage por versión: sin bucles). MN_VERSION se sube
    junto con el CACHE de sw.js. */
-var MN_VERSION = "v16";
+var MN_VERSION = "v17";
 /* Sello VISIBLE de compilación (punto 6): Ernesto quejándose con
    razón — «no sé si se actualizó o no». Una sola constante que
    sube con cada publicación; se ve en Inicio y en la hoja ℹ️ del
    chat. Formato: «Mi Negocio · versión 2026-11-11 HH:MM · caché v6»
    (fecha Y HORA de la publicación, para distinguir dos subidas
    del mismo día). La hora es la de Cuba (CST) al compilar. */
-var MN_COMPILACION = "2026-11-13 11:06";
+var MN_COMPILACION = "2026-11-13 12:15";
 function selloVersion(){ return "Mi Negocio · versión " + MN_COMPILACION + " · caché " + MN_VERSION; }
 var regSW = null;
 var swConControladorAlArrancar = false;
