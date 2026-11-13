@@ -172,6 +172,11 @@ function crear(extra){
           const srvP = (R.panelServidor || {})[body.p_codigo];
           return json({ ok: true, nombre: (srvP && srvP.nombre) || "", tratos: (srvP && srvP.tratos) || [] });
         }
+        case "dinero_leer_estado":
+          if (R.dineroFalla) return rechaza("dinero caído");
+          return json(R.dineroEstado || null);
+        case "dinero_ganancias":
+          return json(R.dineroGanancias || { por_buscador: [], total: { hoy: { comision: 0, ganancia_ernesto: 0 }, semana: { comision: 0, ganancia_ernesto: 0 }, acumulado: { comision: 0, ganancia_ernesto: 0 } } });
         case "leer_tarifa":
           if (!R.tarifaVivaOk) return rechaza("404");
           if (R.tarifaVivaFila) return json(Object.assign({ ok: true }, R.tarifaVivaFila));
@@ -468,15 +473,15 @@ function pestaña(w, nombre){ [...w.document.querySelectorAll(".tab")].forEach(t
   const { w } = crear({ preState: { codigo: adminValido, foto: { reportes: [], ayudas: [], usuarios: [], datos: datosPublicados, cuando: "", publicar: [], borrados: [], tarifaPanel: null, mercado: null }, cola: [], sellos: {}, tarifaViva: null, tarifaVivaEn: "", publicarPendiente: null } });
   await sleep(150);
   const tabs = [...w.document.querySelectorAll(".tab")].map(t => t.textContent);
-  ok(tabs.length === 10, "MN-48 diez pestañas registradas: 6 originales + Cierre/Actividad/Textos + Contabilidad (Fase 1) (" + tabs.join(" | ") + ")");
-  ok(tabs.some(t => t.includes("Inicio")) && tabs.some(t => t.includes("Calculadora")) && tabs.some(t => t.includes("Bandeja")) && tabs.some(t => t.includes("Equipo")) && tabs.some(t => t.includes("Tarifa")) && tabs.some(t => t.includes("Mercado")) && tabs.some(t => t.includes("Cierre")) && tabs.some(t => t.includes("Actividad")) && tabs.some(t => t.includes("Textos")) && tabs.some(t => t.includes("Contabilidad")), "MN-49 las 10 pestañas exactas (las 9 del paquete + Contabilidad), ninguna otra inventada");
+  ok(tabs.length === 11, "MN-48 once pestañas registradas: 6 originales + Cierre/Actividad/Textos + Contabilidad (Fase 1) + Mi dinero (v19) (" + tabs.join(" | ") + ")");
+  ok(tabs.some(t => t.includes("Inicio")) && tabs.some(t => t.includes("Calculadora")) && tabs.some(t => t.includes("Bandeja")) && tabs.some(t => t.includes("Equipo")) && tabs.some(t => t.includes("Tarifa")) && tabs.some(t => t.includes("Mercado")) && tabs.some(t => t.includes("Cierre")) && tabs.some(t => t.includes("Actividad")) && tabs.some(t => t.includes("Textos")) && tabs.some(t => t.includes("Contabilidad")) && tabs.some(t => t.includes("Mi dinero")), "MN-49 las 11 pestañas exactas (las 9 del paquete + Contabilidad + Mi dinero), ninguna otra inventada");
   w.close();
 }
 
 /* ===== 10. SERVICE WORKER: scope y caché propios ===== */
 {
   const sw = fs.readFileSync(REPO + "minegocio/sw.js", "utf8");
-  ok(sw.includes('CACHE = "minegocio-v19"'), "MN-50 SW con caché propio minegocio-v19 (la versión vigente en minegocio-src/sw.js; el banco decía v15 y quedó atrás del fuente)");
+  ok(sw.includes('CACHE = "minegocio-v20"'), "MN-50 SW con caché propio minegocio-v20 (la versión vigente en minegocio-src/sw.js; el banco decía v15 y quedó atrás del fuente)");
   ok(sw.includes("SKIP_WAITING") && sw.includes('addEventListener("message"'), "MN-50b el SW acepta SKIP_WAITING por mensaje (forzar activación desde la app)");
   ok(!sw.includes("mitrabajo"), "MN-51 el SW de Mi Negocio no toca el de Mi Trabajo");
   const mf = JSON.parse(fs.readFileSync(REPO + "minegocio/manifest.webmanifest", "utf8"));
@@ -537,7 +542,7 @@ function pestaña(w, nombre){ [...w.document.querySelectorAll(".tab")].forEach(t
   ok(d.getElementById("bannerVer").style.display === "block" && d.getElementById("bannerVer").textContent.includes("Nueva versión lista"), "R2-2 SW nuevo instalado con controlador → aviso «Nueva versión lista» visible");
   w.__swReg.__controllerchange();
   await sleep(60);
-  ok(("" + w.sessionStorage.getItem("mnRecarga_v18")) === "1", "R2-3 controllerchange marca la recarga única de la v18 (sin bucles)");
+  ok(("" + w.sessionStorage.getItem("mnRecarga_v19")) === "1", "R2-3 controllerchange marca la recarga única de la v19 (sin bucles)");
   const antes = w.__fakeReg.actualizaciones;
   click(d.getElementById("btnAct"));
   await sleep(120);
@@ -634,11 +639,11 @@ function pestaña(w, nombre){ [...w.document.querySelectorAll(".tab")].forEach(t
   ok(chat.querySelectorAll("[data-vplay]").length === 3 && chat.querySelectorAll(".vozOnda i").length === 72, "R2-25 cada reproductor trae su ▶ circular y su onda de 24 picos");
   ok(typeof w.mejorMimeVoz === "function" && typeof w.hashParChat === "function" && typeof w.rtTimbre === "function", "R2-26 existen mejorMimeVoz, hashParChat y rtTimbre");
   ok(w.hashParChat("ADMIN", "BUSC-1") === w.hashParChat("BUSC-1", "ADMIN") && w.hashParChat("ADMIN", "BUSC-1") !== w.hashParChat("ADMIN", "BUSC-2"), "R2-27 el canal del timbre es el mismo para la pareja en ambos sentidos y distinto por pareja");
-  ok(w.selloVersion() === "Mi Negocio · versión 2026-11-13 12:38 · caché v18", "R2-28 sello de versión exacto: «" + w.selloVersion() + "»");
+  ok(w.selloVersion() === "Mi Negocio · versión 2026-11-13 12:48 · caché v19", "R2-28 sello de versión exacto: «" + w.selloVersion() + "»");
   ok(chat.textContent.includes("cada 3 s"), "R2-29 la ayuda del chat dice el refresco nuevo de 3 s (ya no 15 s)");
   pestaña(w, "Inicio");
   await sleep(120);
-  ok(d.getElementById("pgInicio").textContent.includes("Mi Negocio · versión 2026-11-13 12:38 · caché v18"), "R2-30 el sello de versión se ve en Inicio");
+  ok(d.getElementById("pgInicio").textContent.includes("Mi Negocio · versión 2026-11-13 12:48 · caché v19"), "R2-30 el sello de versión se ve en Inicio");
   w.close();
   R.chatMsgs = [];
 }
@@ -815,7 +820,7 @@ function pestaña(w, nombre){ [...w.document.querySelectorAll(".tab")].forEach(t
   await sleep(350);
   const d = w.document;
   ok(w.PUERTAS.marcarPrueba === "admin_marcar_prueba", "F1-1 la puerta nueva está registrada: PUERTAS.marcarPrueba = admin_marcar_prueba");
-  ok(w.MN_VERSION === "v18", "F1-2 MN_VERSION subió a v18");
+  ok(w.MN_VERSION === "v19", "F1-2 MN_VERSION subió a v19");
   /* Funciones puras con las fórmulas del servidor (tarifa del banco: 1098.68 / 1069.38 / 950) */
   ok(cerca(w.contaGananciaBruta({ tipo: "saldo", precio: 1000, cantidad: 100 }), 9868) && cerca(w.contaNeta({ tipo: "saldo", precio: 1000, cantidad: 100, comision: 2467 }), 7401), "F1-3 saldo r1: bruta 9868 · neta 7401 (comisión GUARDADA, no recalculada)");
   /* NOTA (desviación de la espec, verificada con la fórmula): la
@@ -1016,7 +1021,7 @@ function pestaña(w, nombre){ [...w.document.querySelectorAll(".tab")].forEach(t
   await sleep(250);
   const d = w.document;
   const tabs22 = [...d.querySelectorAll(".tab")];
-  ok(tabs22.length === 10 && tabs22.every(t => !!t.querySelector("svg")), "F3-1 las 10 pestañas llevan icono SVG de trazo fino (cero emojis estructurales en la navegación)");
+  ok(tabs22.length === 11 && tabs22.every(t => !!t.querySelector("svg")), "F3-1 las 11 pestañas llevan icono SVG de trazo fino (cero emojis estructurales en la navegación)");
   ok(!!d.getElementById("pgCierre") && !!d.getElementById("pgActividad") && !!d.getElementById("pgTextos"), "F3-2 existen #pgCierre, #pgActividad y #pgTextos (en la v7 faltaban en el HTML y esas pestañas abrían en blanco)");
   pestaña(w, "Calculadora");
   await sleep(80);
@@ -1629,6 +1634,66 @@ function pestaña(w, nombre){ [...w.document.querySelectorAll(".tab")].forEach(t
   }
   R.panelFalla = false;
   R.reportes = []; R.usuarios = []; R.panelServidor = {};
+}
+
+/* ===== 25. PANTALLA «MI DINERO» (v19) =====
+   La foto del capital sale SOLO de dinero_leer_estado (con la
+   forma viva de su rama de dueño: capital + saldos + asignaciones
+   + estrellas + ganancias + entregas + cuadre), en ENTEROS sin
+   coma. Lo que la puerta no trae se pinta «—»; si la puerta cae,
+   la pantalla lo dice y no inventa ni un número. */
+{
+  const hoyISO = new Date().toISOString();
+  R.chat = true; R.tarifaVivaOk = true; R.dineroFalla = false;
+  R.usuarios = [ { codigo: "BUSC-1", nombre: "Busc Uno", activo: true }, { codigo: "BUSC-2", nombre: "Busc Dos", activo: true } ];
+  R.ayudas = []; R.reportes = [];
+  R.dineroEstado = {
+    rol: "ernesto", capital_total: 42700,
+    saldo_fondo: 29000, saldo_gasto: 4000, saldo_ernesto_inversion: 9700, saldo_inventario: 0,
+    asignaciones: [ { buscador: "BUSC-1", porciento: 35 }, { buscador: "BUSC-2", porciento: 35 } ],
+    estrellas: [
+      { buscador: "BUSC-1", estrellas: 4.9, conteo_ganadoras: 75, fijada_manual: true, pct_saldo: 32, pct_transferencia: 26 },
+      { buscador: "BUSC-2", estrellas: 4.9, conteo_ganadoras: 75, fijada_manual: true, pct_saldo: 32, pct_transferencia: 26 } ],
+    ganancias: { por_buscador: [
+        { buscador: "BUSC-1", hoy: { comision: 0, ganancia_ernesto: 0 }, semana: { comision: 0, ganancia_ernesto: 0 }, acumulado: { comision: 1838, ganancia_ernesto: 5517 } },
+        { buscador: "BUSC-2", hoy: { comision: 0, ganancia_ernesto: 0 }, semana: { comision: 0, ganancia_ernesto: 0 }, acumulado: { comision: 0, ganancia_ernesto: 0 } } ],
+      total: { hoy: { comision: 0, ganancia_ernesto: 0 }, semana: { comision: 0, ganancia_ernesto: 0 }, acumulado: { comision: 1838, ganancia_ernesto: 5517 } } },
+    entregas: [
+      { id: "e1", buscador: "BUSC-1", monto: 14500, pendiente: 14500, bolsillo: "fondo", estado: "en_calle", entregado_en: hoyISO },
+      { id: "e2", buscador: "BUSC-2", monto: 14500, pendiente: 9000, bolsillo: "fondo", estado: "en_calle", entregado_en: hoyISO } ],
+    vueltas_abiertas: [], devoluciones_pendientes: [], ventas_recientes: [],
+    cuadre: { ok: true, total_libro: 42700, esperado: 42700, capital: 42700, gastos: 4000 }
+  };
+  const preDinero = { codigo: adminValido, foto: { reportes: [], ayudas: [], usuarios: [], datos: null, cuando: "", publicar: [], publicados: {}, borrados: [], tarifaPanel: null, mercado: null }, calc: { saldo: { salida: 950, costo: 1040, tasa: 320, saldo: 3600 }, transf: { efectivo: 5000, porc: 30, libro: 1130, salida: 950 }, busc: { precio: 0, tasaVenta: 0, efectivo: 0, porc: 0, libro: 0, salida: 0 } }, cola: [], sellos: {}, tarifaViva: null, tarifaVivaEn: "", publicarPendiente: null };
+  const { w } = crear({ preState: preDinero });
+  await sleep(350);
+  const d = w.document;
+  pestaña(w, "Mi dinero");
+  await sleep(450);
+  const txtD = d.getElementById("pgDinero").textContent;
+  ok(llamadas.includes("rpc:dinero_leer_estado"), "F4-1 la pantalla lee la puerta dinero_leer_estado (ninguna fuente inventada)");
+  ok(txtD.includes("42.700") && !txtD.includes("42700.00") && !txtD.includes("42,700"), "F4-2 capital total en ENTEROS sin coma: 42.700");
+  ok((txtD.split("14.500").length - 1) >= 2 && txtD.includes("35%"), "F4-3 cupo de billetes por buscador: 14.500 (35% de 42700, cerrado a múltiplo de 500)");
+  ok(txtD.includes("4.9★") && txtD.includes("32%") && txtD.includes("26%"), "F4-4 estrellas del arranque: 4.9★ cobrando 32/26");
+  ok(txtD.includes("Él ganó 1.838") && txtD.includes("Tú ganaste 5.517"), "F4-5 la pareja de ganancias va junta: «Él ganó X · Tú ganaste Y de él»");
+  ok(txtD.includes("Ya volvió") && txtD.includes("5.500") && txtD.includes("9.000"), "F4-6 cuenta por buscador: recibió / ya volvió (14500-9000=5.500) / le queda (9.000)");
+  ok(txtD.includes("Trabajando") && txtD.includes("23.500") && txtD.includes("38.700"), "F4-7 medidor: trabajando = en la calle 23.500 + inventario 0 · parado = en tu mano 38.700");
+  ok(txtD.includes("EL LIBRO CUADRA"), "F4-8 el cuadre del libro se muestra en la pantalla");
+  ok(txtD.includes("«Recibido»") && txtD.includes("se calculan") && txtD.includes("hecho"), "F4-9 las reglas del sistema están escritas en la pantalla (vuelve hecho · vale al marcar Recibido · saldos calculados)");
+  w.close();
+
+  /* Honestidad: puerta caída -> la pantalla lo dice y no pinta
+     ni un solo número del capital */
+  R.dineroFalla = true;
+  const v2 = crear({ preState: preDinero });
+  await sleep(350);
+  pestaña(v2.w, "Mi dinero");
+  await sleep(450);
+  const txtF = v2.w.document.getElementById("pgDinero").textContent;
+  ok((txtF.includes("Sin lectura del libro") || txtF.includes("Falta activar el paquete")) && !txtF.includes("42.700"), "F4-10 sin puerta no hay números: la pantalla lo dice en vez de estimar");
+  v2.w.close();
+  R.dineroFalla = false; R.dineroEstado = null;
+  R.reportes = []; R.usuarios = [];
 }
 
 console.log("\nBANCO MI NEGOCIO: " + pass + " PASS · " + fail + " FAIL");
