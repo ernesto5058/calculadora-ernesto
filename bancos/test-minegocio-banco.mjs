@@ -91,6 +91,23 @@ function crear(extra){
     function rechaza(msg, st){ return Promise.resolve({ ok: false, status: st || 404, text: () => Promise.resolve(JSON.stringify({ message: msg || "404" })), json: () => Promise.resolve({ message: msg || "404" }) }); }
     function sinRed(){ const e = new Error("Failed to fetch"); e.message = "Failed to fetch"; return Promise.reject(e); }
     if (extra && extra.sinRed && (u.includes("supabase") || u.includes("datos.json") || u.includes("ultimo.json"))) return sinRed();
+    if (u.includes("/functions/v1/textos-generar")) {
+      let body = {}; try { body = JSON.parse(opts && opts.body || "{}"); } catch(e){}
+      llamadas.push("fn:textos-generar:" + (body.accion || ""));
+      ultimosCuerpos["textos-generar"] = body;
+      const jsonF = v => Promise.resolve({ ok: true, status: 200, text: () => Promise.resolve(JSON.stringify(v)), json: () => Promise.resolve(v) });
+      if (body.accion === "catalogo") return jsonF(R.textosCatalogoResp || { ok: true, items: [
+        { clave: "saldo", nombre: "Saldo", tipo: "saldo" },
+        { clave: "transferencia", nombre: "Transferencia", tipo: "transferencia" },
+        { clave: "bateria", nombre: "Batería LiFePO4 12.8V 100Ah", tipo: "producto", precio_al_privado: true, estado: "activo" }
+      ], telefono: "51231558", zona: "Micro 10, distrito José Martí, Santiago de Cuba" });
+      if (body.accion === "generar") return jsonF(R.textosGenerarResp || { ok: true, versiones: [
+        { enfoque: "directo", texto: "TEXTO IA " + body.clave + " · llama al 51231558" },
+        { enfoque: "vendedor", texto: "TEXTO IA vendedor " + body.clave },
+        { enfoque: "humanizado", texto: "TEXTO IA humanizado " + body.clave }
+      ], avisos: [] });
+      return jsonF({ ok: false, error: "acción desconocida" });
+    }
     if (u.includes("/rpc/")) {
       const fn = u.split("/rpc/")[1].split("?")[0];
       let body = {}; try { body = JSON.parse(opts && opts.body || "{}"); } catch(e){}
@@ -449,7 +466,7 @@ function pestaña(w, nombre){ [...w.document.querySelectorAll(".tab")].forEach(t
 /* ===== 10. SERVICE WORKER: scope y caché propios ===== */
 {
   const sw = fs.readFileSync(REPO + "minegocio/sw.js", "utf8");
-  ok(sw.includes('CACHE = "minegocio-v15"'), "MN-50 SW con caché propio minegocio-v15 (v15 Sentry de la casa (TOP 2): errores de producción al panel con escrubado; v14 Tanda Inspector Nº6: SW honesto que SÍ cachea datos, push que abre en su pestaña y renovación VAPID; v13 Tanda Inspector Nº2: tarifa única viva, publicar contra la forma viva, adjuntos sin XSS; v12 Chat PRO: compositor fuera del repintado, hilo incremental, hoja de adjuntos nueva y Textos con modo real; v11 tanda foto+texto: puerta única sin gemelas y editor WhatsApp; v10 tanda 3 errores; v9 botón «Enviar su enlace» en Equipo; v8 rediseño PRO de toda la app; v7 rediseño Contabilidad, v6 Fase 1, v5 local-first, v4 ronda 2, v3 ronda 1)");
+  ok(sw.includes('CACHE = "minegocio-v17"'), "MN-50 SW con caché propio minegocio-v17 (la versión vigente en minegocio-src/sw.js; el banco decía v15 y quedó atrás del fuente)");
   ok(sw.includes("SKIP_WAITING") && sw.includes('addEventListener("message"'), "MN-50b el SW acepta SKIP_WAITING por mensaje (forzar activación desde la app)");
   ok(!sw.includes("mitrabajo"), "MN-51 el SW de Mi Negocio no toca el de Mi Trabajo");
   const mf = JSON.parse(fs.readFileSync(REPO + "minegocio/manifest.webmanifest", "utf8"));
@@ -480,29 +497,15 @@ function pestaña(w, nombre){ [...w.document.querySelectorAll(".tab")].forEach(t
   const resp = JSON.stringify(w.respaldoSinCodigos());
   ok(!resp.includes(adminValido) && !resp.includes("BUSC-1"), "MN-59 el respaldo NO contiene ningún código (ni admin ni de buscadores)");
   ok(resp.includes("Busc Uno"), "MN-60 el respaldo sí trae nombres y tratos");
-  /* Motor de textos */
+  /* Motor de textos SLIM (Ola Nueva 2): la generación por plantillas
+     murió — todo texto sale de la Edge Function «textos-generar». */
   const M = w.TextosMotor;
   ok(!!M, "MN-61 el motor de textos compartido está inyectado");
-  let combos = 0;
-  for (const tono of ["humanizado", "comercial", "formal", "directo"]) for (const em of ["muchos", "pocos", "ninguno"]) {
-    const r = M.generar({ tipo: "vendo", producto: "Batería", precio: 125000, moneda: "CUP", telefono: "51234567", zona: "Micro 9", estilo: { tono, emojis: em, tamano: "completo", whatsapp: true }, quien: "BUSC-1" });
-    if (r.versiones.length === 3) combos++;
-  }
-  ok(combos === 12, "MN-62 motor: 4 tonos × 3 niveles de emoji generan 3 versiones (" + combos + "/12)");
-  const rp = M.generar({ tipo: "vendo", producto: "Batería", privado: true, telefono: "51234567", estilo: { tono: "directo", emojis: "pocos", tamano: "corto" }, quien: "BUSC-1" });
-  ok(!/125|\d{3,}/.test(rp.versiones[0].texto.replace(/51234567/g, "")), "MN-63 precio por privado: ninguna cifra inventada en el texto");
-  const rst = M.generar({ tipo: "vendo", producto: "Batería", precio: 100, moneda: "CUP", estilo: { tono: "directo", emojis: "pocos", tamano: "corto" }, quien: "BUSC-1" });
-  ok(rst.avisos.length > 0, "MN-64 sin teléfono: el motor avisa en vez de inventar");
-  const rm = M.generar({ tipo: "vendo", producto: "Batería", precio: 125000, moneda: "CUP", telefono: "1", estilo: { tono: "comercial", emojis: "pocos", tamano: "completo" }, quien: "BUSC-1" });
-  ok(rm.versiones.some(v => v.texto.includes("125 000")), "MN-65 miles con espacio: «125 000»");
-  const va = M.generar({ tipo: "vendo", producto: "Lavadora", precio: 10, moneda: "CUP", telefono: "1", estilo: { tono: "humanizado", emojis: "pocos", tamano: "completo" }, quien: "BUSC-A" });
-  const vb = M.generar({ tipo: "vendo", producto: "Lavadora", precio: 10, moneda: "CUP", telefono: "1", estilo: { tono: "humanizado", emojis: "pocos", tamano: "completo" }, quien: "BUSC-B" });
-  ok(va.versiones[0].texto !== vb.versiones[0].texto, "MN-66 variación por semilla: dos trabajadores, textos distintos");
+  ok(typeof M.miles === "function" && M.miles(125000) === "125 000", "MN-62 motor slim: miles con espacio («125 000»)");
+  ok(typeof M.generar === "undefined" && typeof M.textoRapidoSaldo === "undefined" && typeof M.textoRapidoTransf === "undefined" && typeof M.textoRapidoProducto === "undefined", "MN-63 motor slim: SIN generar ni textoRapido* (las plantillas desaparecieron del sistema)");
   let hist = []; for (let i = 0; i < 35; i++) hist = M.historialPush(hist, { titulo: "t" + i });
   ok(hist.length === 30, "MN-67 historial del generador con tope de 30");
-  const rapido = M.textoRapidoSaldo({ precioCompraRecarga: 913, telefono: "51234567", zona: "Micro 9", condicionesSaldo: "Efectivo" }, { tono: "directo", emojis: "pocos", tamano: "corto" }, "BUSC-1");
-  const txtRapido = rapido.versiones.map(v => v.texto).join(" ");
-  ok(txtRapido.includes("913") && !txtRapido.includes("1 099") && !/comisi/i.test(txtRapido), "MN-68 NO-FILTRACIÓN: el texto rápido no trae ingreso interno ni comisiones");
+  ok(!/ingresoRef360[^;\n]{0,60}0\.9/.test(html) && !html.includes("textoRapido"), "MN-68 el index construido NO contiene la fórmula del 980 (ingresoRef360 × 0.9) ni llamadas textoRapido*");
   ok(w.estadoPush() === "sin-soporte" || w.estadoPush() === "pedir", "MN-69 estadoPush responde sin romperse en un navegador sin push (" + w.estadoPush() + ")");
   const sw = fs.readFileSync(REPO + "minegocio/sw.js", "utf8");
   ok(sw.includes('addEventListener("push"') && sw.includes("notificationclick"), "MN-70 SW con handlers push + notificationclick");
@@ -524,7 +527,7 @@ function pestaña(w, nombre){ [...w.document.querySelectorAll(".tab")].forEach(t
   ok(d.getElementById("bannerVer").style.display === "block" && d.getElementById("bannerVer").textContent.includes("Nueva versión lista"), "R2-2 SW nuevo instalado con controlador → aviso «Nueva versión lista» visible");
   w.__swReg.__controllerchange();
   await sleep(60);
-  ok(("" + w.sessionStorage.getItem("mnRecarga_v15")) === "1", "R2-3 controllerchange marca la recarga única de la v15 (sin bucles)");
+  ok(("" + w.sessionStorage.getItem("mnRecarga_v16")) === "1", "R2-3 controllerchange marca la recarga única de la v16 (sin bucles)");
   const antes = w.__fakeReg.actualizaciones;
   click(d.getElementById("btnAct"));
   await sleep(120);
@@ -621,11 +624,11 @@ function pestaña(w, nombre){ [...w.document.querySelectorAll(".tab")].forEach(t
   ok(chat.querySelectorAll("[data-vplay]").length === 3 && chat.querySelectorAll(".vozOnda i").length === 72, "R2-25 cada reproductor trae su ▶ circular y su onda de 24 picos");
   ok(typeof w.mejorMimeVoz === "function" && typeof w.hashParChat === "function" && typeof w.rtTimbre === "function", "R2-26 existen mejorMimeVoz, hashParChat y rtTimbre");
   ok(w.hashParChat("ADMIN", "BUSC-1") === w.hashParChat("BUSC-1", "ADMIN") && w.hashParChat("ADMIN", "BUSC-1") !== w.hashParChat("ADMIN", "BUSC-2"), "R2-27 el canal del timbre es el mismo para la pareja en ambos sentidos y distinto por pareja");
-  ok(w.selloVersion() === "Mi Negocio · versión 2026-11-12 11:49 · caché v15", "R2-28 sello de versión exacto: «" + w.selloVersion() + "»");
+  ok(w.selloVersion() === "Mi Negocio · versión 2026-11-13 11:06 · caché v16", "R2-28 sello de versión exacto: «" + w.selloVersion() + "»");
   ok(chat.textContent.includes("cada 3 s"), "R2-29 la ayuda del chat dice el refresco nuevo de 3 s (ya no 15 s)");
   pestaña(w, "Inicio");
   await sleep(120);
-  ok(d.getElementById("pgInicio").textContent.includes("Mi Negocio · versión 2026-11-12 11:49 · caché v15"), "R2-30 el sello de versión se ve en Inicio");
+  ok(d.getElementById("pgInicio").textContent.includes("Mi Negocio · versión 2026-11-13 11:06 · caché v16"), "R2-30 el sello de versión se ve en Inicio");
   w.close();
   R.chatMsgs = [];
 }
@@ -802,7 +805,7 @@ function pestaña(w, nombre){ [...w.document.querySelectorAll(".tab")].forEach(t
   await sleep(350);
   const d = w.document;
   ok(w.PUERTAS.marcarPrueba === "admin_marcar_prueba", "F1-1 la puerta nueva está registrada: PUERTAS.marcarPrueba = admin_marcar_prueba");
-  ok(w.MN_VERSION === "v15", "F1-2 MN_VERSION subió a v15");
+  ok(w.MN_VERSION === "v16", "F1-2 MN_VERSION subió a v16");
   /* Funciones puras con las fórmulas del servidor (tarifa del banco: 1098.68 / 1069.38 / 950) */
   ok(cerca(w.contaGananciaBruta({ tipo: "saldo", precio: 1000, cantidad: 100 }), 9868) && cerca(w.contaNeta({ tipo: "saldo", precio: 1000, cantidad: 100, comision: 2467 }), 7401), "F1-3 saldo r1: bruta 9868 · neta 7401 (comisión GUARDADA, no recalculada)");
   /* NOTA (desviación de la espec, verificada con la fórmula): la
@@ -1026,9 +1029,9 @@ function pestaña(w, nombre){ [...w.document.querySelectorAll(".tab")].forEach(t
   ok([...pgC.querySelectorAll("h3")].length === 3 && !titulosC.includes("📱") && !titulosC.includes("🏦") && !titulosC.includes("🤝"), "F3-5 las 3 secciones de la calculadora con títulos sin emojis");
   ok(pgC.querySelectorAll(".chips.unaFila").length >= 3, "F3-6 los presets van en filas de chips de UNA sola fila deslizable (.chips.unaFila)");
   pestaña(w, "Textos");
-  await sleep(80);
-  const selsTx = ["txEmojis", "txTono", "txTam", "txDest", "txpMoneda"].map(id => d.getElementById(id));
-  ok(selsTx.every(s => !!s && s.classList.contains("selOculto")) && d.querySelectorAll(".chipsSel").length === 5, "F3-7 Textos v10: quedan SOLO los selects de Estilo y la moneda del producto (5), ocultos tras sus chips — el formulario de oferta viejo (txTipo/txMoneda/txProd…) se amputó");
+  await sleep(200);
+  const selsTx = ["txEmojis", "txTono", "txTam", "txDest", "txClave"].map(id => d.getElementById(id));
+  ok(selsTx.every(s => !!s && s.classList.contains("selOculto")) && d.querySelectorAll(".chipsSel").length === 5, "F3-7 Textos PRO: quedan SOLO el selector de producto y los 4 de Estilo (5), ocultos tras sus chips — fuera botones de plantillas y formulario de producto (txp*)");
   const chipCom = d.querySelector('.chipsSel[data-sel="txTono"] .chip[data-v="comercial"]');
   click(chipCom);
   await sleep(30);
@@ -1141,28 +1144,24 @@ function pestaña(w, nombre){ [...w.document.querySelectorAll(".tab")].forEach(t
   const d = w.document;
   pestaña(w, "Textos");
   await sleep(80);
-  ok(!!d.getElementById("txSaldo") && !!d.getElementById("txTransf") && !!d.getElementById("txProdBtn"), "TX-1 Textos v10: los TRES botones inteligentes (saldo · transferencia · producto) y ningún otro camino");
-  ok(["txGen", "txProd", "txPrecio", "txMoneda", "txTipo", "txCant", "txDet", "txCond", "txPrivado"].every(id => !d.getElementById(id)), "TX-2 el formulario manual viejo NO existe (sin txGen/txProd/txPrecio/txMoneda/txTipo/txCant/txDet/txCond/txPrivado)");
-  ok(d.getElementById("txTel").value === "51231558" && d.getElementById("txZona").value.includes("Micro 10"), "TX-3 «Tus datos de anuncio» nacen con SU teléfono (51231558) y SU zona: los botones ya no leen de un formulario");
-  click(d.getElementById("txSaldo"));
-  await sleep(60);
-  const outSaldo = d.getElementById("txOut").textContent;
-  ok(outSaldo.includes("51231558") && !/comisi/i.test(outSaldo), "TX-4 el texto de saldo sale con su teléfono y sin ningún número interno");
-  click(d.getElementById("txProdBtn"));
-  await sleep(30);
-  ok(d.getElementById("txProdForm").style.display !== "none", "TX-5 «Texto de producto» abre SOLO los datos mínimos del producto");
-  input(d.getElementById("txpNombre"), "Batería LiFePO4 12.8V 100Ah");
-  input(d.getElementById("txpGarantia"), "6 meses");
-  click(d.getElementById("txpGen"));
-  await sleep(60);
-  const outProd = d.getElementById("txOut").textContent;
-  ok(outProd.includes("SE VENDE BATERÍA LIFEPO4") && outProd.includes("Precio por privado") && outProd.includes("📍 Micro 10, distrito José Martí, Santiago de Cuba") && outProd.includes("51231558"), "TX-6 el texto de producto ES su plantilla de Facebook (gancho · baterías por privado · 📍 su zona · su teléfono)");
-  ok(typeof w.TextosMotor.textoRapidoProducto === "function", "TX-7 el motor compartido trae textoRapidoProducto: la plantilla vive en el motor (una sola fuente para las dos apps)");
-  input(d.getElementById("txpPrecio"), "250");
-  click(d.querySelector('.chipsSel[data-sel="txpMoneda"] .chip[data-v="USD"]'));
-  click(d.getElementById("txpGen"));
-  await sleep(60);
-  ok(d.getElementById("txOut").textContent.includes("250 USD"), "TX-8 con precio y moneda, el texto de producto lleva «250 USD» (en SU app sus monedas se quedan)");
+  ok(!!d.getElementById("txClave") && !!d.getElementById("txGenerar") && !!d.getElementById("txCatChips"), "TX-1 Textos PRO: UN selector de producto (chips) + botón «Generar textos», sin botones de plantillas");
+  ok(["txSaldo", "txTransf", "txProdBtn", "txProdForm", "txpGen", "txpNombre", "txpPrecio", "txGen", "txProd", "txPrecio", "txMoneda", "txTipo", "txCant", "txDet", "txCond", "txPrivado"].every(id => !d.getElementById(id)), "TX-2 fuera los 3 botones de plantillas y el formulario de producto (txp*)");
+  ok(d.getElementById("txTel").value === "51231558" && d.getElementById("txZona").value.includes("Micro 10"), "TX-3 «Tus datos de anuncio» se conservan con SU teléfono (51231558) y SU zona");
+  await sleep(150);
+  const chipsCat = [...d.querySelectorAll('#txCatChips .chip')].map(c => c.getAttribute("data-v"));
+  ok(chipsCat[0] === "saldo" && chipsCat[1] === "transferencia" && chipsCat.includes("bateria"), "TX-4 el selector trae primero saldo y transferencia y luego TODO el catálogo vivo (" + chipsCat.join(",") + ")");
+  ok(llamadas.includes("fn:textos-generar:catalogo"), "TX-5 el catálogo se cargó de la Edge Function textos-generar (accion catalogo)");
+  const catCache = JSON.parse(w.localStorage.getItem("minegocio_textos_catalogo_v1") || "null");
+  ok(!!catCache && catCache.items.length === 3, "TX-6 el catálogo queda en caché local (minegocio_textos_catalogo_v1) pa pintar sin conexión");
+  ok(html.includes("textos-generar") && html.includes("minegocio_textos_paquete_v1"), "TX-7 el index llama a textos-generar y trae el respaldo de paquete sin conexión");
+  click(d.getElementById("txGenerar"));
+  await sleep(120);
+  const cuerpoGen = ultimosCuerpos["textos-generar"] || {};
+  ok(cuerpoGen.accion === "generar" && cuerpoGen.clave === "saldo" && cuerpoGen.codigo === adminValido && cuerpoGen.telefono === "51231558", "TX-8 «Generar textos» llama al motor con la clave elegida, su código y el override de teléfono del dueño");
+  const outGen = d.getElementById("txOut").textContent;
+  ok(outGen.includes("TEXTO IA saldo") && outGen.includes("51231558"), "TX-9 las versiones de la IA se pintan con Copiar/WhatsApp (salen en txOut)");
+  const paq = JSON.parse(w.localStorage.getItem("minegocio_textos_paquete_v1") || "null");
+  ok(!!paq && paq.clave === "saldo" && paq.versiones.length === 3 && !!paq.cuando, "TX-10 cada generación exitosa guarda el paquete (minegocio_textos_paquete_v1) pa el modo sin conexión");
   w.close();
 }
 {
@@ -1352,6 +1351,48 @@ function pestaña(w, nombre){ [...w.document.querySelectorAll(".tab")].forEach(t
   ok(html.includes("sub.unsubscribe().then(function(){ return suscribirPush(reg); })"), "T6-6 E-12: activarPush da de baja la suscripción de clave vieja y re-suscribe con la actual");
   ok(html.includes("tabDePush") && html.includes('new URLSearchParams(location.search).get("tab")'), "T6-7 E-11: la app lee ?tab= al arrancar y lo aplica en entrar()");
   w.close();
+}
+
+/* ===== 21. FORMA CRUDA REAL (caza 2026-11-13: la Contabilidad en 0) =====
+   admin_reportes/admin_ayudas devuelven la fila CRUDA de la tabla
+   (SETOF: creado_en, telefono_vendedor, buscador, prueba) y la app
+   lee la forma corta (creado, telefono, codigo, nombre). Los bloques
+   anteriores sembraban la forma corta y el banco quedaba verde con
+   la app rota en producción — la misma clase del E-2. Este bloque
+   siembra UNA fila cruda idéntica a la real de Briku (saldo, 14
+   recargas a 1000, comisión 345.38 ya pagada) y exige que el puente
+   de forma la deje contando en Contabilidad. Sin el puente, cae. */
+{
+  const hoyISO = new Date().toISOString();
+  R.chat = true; R.tarifaVivaOk = true;
+  R.usuarios = [ { codigo: "BUSCA-001", nombre: "Busca Uno", activo: true, bloqueado: false } ];
+  R.ayudas = [];
+  R.reportes = [
+    { id: "cruda1", buscador: "BUSCA-001", tipo: "saldo", precio: 1000, porc: null, cantidad: 14,
+      telefono_vendedor: "50154748", nota: null, estado: "aprobado", comision: 345.38, motivo: null,
+      creado_en: hoyISO, resuelto_en: hoyISO, comision_pagada_en: hoyISO, editado: false,
+      editado_en: null, adj_tipo: null, adj_nombre: null, adj_mime: null, adj_datos: null,
+      adj_bytes: null, op_id: "op-cruda-1", actualizado_en: hoyISO, prueba: false }
+  ];
+  const preCruda = { codigo: adminValido, foto: { reportes: [], ayudas: [], usuarios: [], datos: null, cuando: "", publicar: [], borrados: [], tarifaPanel: null, mercado: null }, calc: { saldo: { salida: 950, costo: 1040, tasa: 320, saldo: 3600 }, transf: { efectivo: 5000, porc: 30, libro: 1130, salida: 950 }, busc: { precio: 0, tasaVenta: 0, efectivo: 0, porc: 0, libro: 0, salida: 0 } }, cola: [], sellos: {}, tarifaViva: null, tarifaVivaEn: "", publicarPendiente: null };
+  const { w } = crear({ preState: preCruda });
+  await sleep(350);
+  const d = w.document;
+  const fila = w.state.foto.reportes[0];
+  ok(!!fila && fila.creado === hoyISO && fila.telefono === "50154748" && fila.codigo === "BUSCA-001" && fila.nombre === "Busca Uno", "F1B-1 la fila cruda entra aliasada: creado/telefono/codigo/nombre en forma corta");
+  ok(w.hoyReporto("BUSCA-001") === true, "F1B-2 «reportó hoy» lee la fecha aliasada (antes: siempre NO)");
+  pestaña(w, "Contabilidad");
+  await sleep(80);
+  const txtC = d.getElementById("pgContabilidad").textContent;
+  ok(txtC.includes("de 1 tratos aprobados"), "F1B-3 Panel: «de 1 tratos aprobados de este mes» (antes: 0 con el trato aprobado y pagado)");
+  const celdasC = [...d.querySelectorAll("#pgContabilidad .cell .v")].map(e => e.textContent.trim());
+  ok(celdasC.includes("1036.14"), "F1B-4 Panel: ganancia del mes = 1036.14 ((1098.68-1000)x14 - 345.38) [" + celdasC.join(" | ") + "]");
+  ok(txtC.includes("1 tratos · Ganancia total:") && txtC.includes("1036.14"), "F1B-5 Libro (mes): 1 trato contado con su ganancia");
+  pestaña(w, "Bandeja");
+  await sleep(60);
+  ok(d.getElementById("pgBandeja").textContent.includes("Busca Uno"), "F1B-6 Bandeja: la tarjeta trae el nombre del buscador (antes: «Sin nombre»)");
+  w.close();
+  R.reportes = []; R.usuarios = [];
 }
 
 console.log("\nBANCO MI NEGOCIO: " + pass + " PASS · " + fail + " FAIL");
