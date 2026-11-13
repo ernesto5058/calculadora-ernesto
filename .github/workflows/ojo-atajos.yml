@@ -348,7 +348,7 @@ jobs:
 
       - name: Subir la evidencia como artefacto de la corrida
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: lab-atajos
           path: lab-atajos

@@ -37,7 +37,7 @@ jobs:
 
       - name: Subir informe
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: semgrep-resultados
           path: semgrep-resultados.json
