@@ -466,7 +466,7 @@ function pestaña(w, nombre){ [...w.document.querySelectorAll(".tab")].forEach(t
 /* ===== 10. SERVICE WORKER: scope y caché propios ===== */
 {
   const sw = fs.readFileSync(REPO + "minegocio/sw.js", "utf8");
-  ok(sw.includes('CACHE = "minegocio-v17"'), "MN-50 SW con caché propio minegocio-v17 (la versión vigente en minegocio-src/sw.js; el banco decía v15 y quedó atrás del fuente)");
+  ok(sw.includes('CACHE = "minegocio-v18"'), "MN-50 SW con caché propio minegocio-v18 (la versión vigente en minegocio-src/sw.js; el banco decía v15 y quedó atrás del fuente)");
   ok(sw.includes("SKIP_WAITING") && sw.includes('addEventListener("message"'), "MN-50b el SW acepta SKIP_WAITING por mensaje (forzar activación desde la app)");
   ok(!sw.includes("mitrabajo"), "MN-51 el SW de Mi Negocio no toca el de Mi Trabajo");
   const mf = JSON.parse(fs.readFileSync(REPO + "minegocio/manifest.webmanifest", "utf8"));
@@ -527,7 +527,7 @@ function pestaña(w, nombre){ [...w.document.querySelectorAll(".tab")].forEach(t
   ok(d.getElementById("bannerVer").style.display === "block" && d.getElementById("bannerVer").textContent.includes("Nueva versión lista"), "R2-2 SW nuevo instalado con controlador → aviso «Nueva versión lista» visible");
   w.__swReg.__controllerchange();
   await sleep(60);
-  ok(("" + w.sessionStorage.getItem("mnRecarga_v16")) === "1", "R2-3 controllerchange marca la recarga única de la v16 (sin bucles)");
+  ok(("" + w.sessionStorage.getItem("mnRecarga_v17")) === "1", "R2-3 controllerchange marca la recarga única de la v17 (sin bucles)");
   const antes = w.__fakeReg.actualizaciones;
   click(d.getElementById("btnAct"));
   await sleep(120);
@@ -624,11 +624,11 @@ function pestaña(w, nombre){ [...w.document.querySelectorAll(".tab")].forEach(t
   ok(chat.querySelectorAll("[data-vplay]").length === 3 && chat.querySelectorAll(".vozOnda i").length === 72, "R2-25 cada reproductor trae su ▶ circular y su onda de 24 picos");
   ok(typeof w.mejorMimeVoz === "function" && typeof w.hashParChat === "function" && typeof w.rtTimbre === "function", "R2-26 existen mejorMimeVoz, hashParChat y rtTimbre");
   ok(w.hashParChat("ADMIN", "BUSC-1") === w.hashParChat("BUSC-1", "ADMIN") && w.hashParChat("ADMIN", "BUSC-1") !== w.hashParChat("ADMIN", "BUSC-2"), "R2-27 el canal del timbre es el mismo para la pareja en ambos sentidos y distinto por pareja");
-  ok(w.selloVersion() === "Mi Negocio · versión 2026-11-13 11:06 · caché v16", "R2-28 sello de versión exacto: «" + w.selloVersion() + "»");
+  ok(w.selloVersion() === "Mi Negocio · versión 2026-11-13 12:15 · caché v17", "R2-28 sello de versión exacto: «" + w.selloVersion() + "»");
   ok(chat.textContent.includes("cada 3 s"), "R2-29 la ayuda del chat dice el refresco nuevo de 3 s (ya no 15 s)");
   pestaña(w, "Inicio");
   await sleep(120);
-  ok(d.getElementById("pgInicio").textContent.includes("Mi Negocio · versión 2026-11-13 11:06 · caché v16"), "R2-30 el sello de versión se ve en Inicio");
+  ok(d.getElementById("pgInicio").textContent.includes("Mi Negocio · versión 2026-11-13 12:15 · caché v17"), "R2-30 el sello de versión se ve en Inicio");
   w.close();
   R.chatMsgs = [];
 }
@@ -805,7 +805,7 @@ function pestaña(w, nombre){ [...w.document.querySelectorAll(".tab")].forEach(t
   await sleep(350);
   const d = w.document;
   ok(w.PUERTAS.marcarPrueba === "admin_marcar_prueba", "F1-1 la puerta nueva está registrada: PUERTAS.marcarPrueba = admin_marcar_prueba");
-  ok(w.MN_VERSION === "v16", "F1-2 MN_VERSION subió a v16");
+  ok(w.MN_VERSION === "v17", "F1-2 MN_VERSION subió a v17");
   /* Funciones puras con las fórmulas del servidor (tarifa del banco: 1098.68 / 1069.38 / 950) */
   ok(cerca(w.contaGananciaBruta({ tipo: "saldo", precio: 1000, cantidad: 100 }), 9868) && cerca(w.contaNeta({ tipo: "saldo", precio: 1000, cantidad: 100, comision: 2467 }), 7401), "F1-3 saldo r1: bruta 9868 · neta 7401 (comisión GUARDADA, no recalculada)");
   /* NOTA (desviación de la espec, verificada con la fórmula): la
@@ -1391,6 +1391,113 @@ function pestaña(w, nombre){ [...w.document.querySelectorAll(".tab")].forEach(t
   pestaña(w, "Bandeja");
   await sleep(60);
   ok(d.getElementById("pgBandeja").textContent.includes("Busca Uno"), "F1B-6 Bandeja: la tarjeta trae el nombre del buscador (antes: «Sin nombre»)");
+  w.close();
+  R.reportes = []; R.usuarios = [];
+}
+
+/* ===== 22. CADENA DEL PANEL (inspección 2026-11-13: Briku veía 0) =====
+   El panel del buscador (Mi Trabajo · renderPanel) lee de paneles
+   los tratos que ESTA app publica, y lee OTRA forma: tipo/recargas
+   pa los bonos y la semana, nota pa la etiqueta, fecha d/m/yyyy pa
+   ubicarla en la semana, comision pa el total. La app publicaba
+   {fecha corta, concepto, comision}: aunque Ernesto publicara, el
+   panel contaba 0 en bonos/semana y la fila salía sin etiqueta.
+   Y la puerta REEMPLAZA: sin historial local, la 2ª publicación
+   borraba la 1ª. Este bloque caza las tres cosas. */
+{
+  const hoyISO = new Date().toISOString();
+  R.chat = true; R.tarifaVivaOk = true;
+  R.usuarios = [ { codigo: "BUSCA-001", nombre: "Busca Uno", activo: true, bloqueado: false } ];
+  R.ayudas = [];
+  R.reportes = [
+    { id: "cruda2", buscador: "BUSCA-001", tipo: "saldo", precio: 1000, porc: null, cantidad: 14,
+      telefono_vendedor: "50154748", nota: null, estado: "pendiente", comision: null, motivo: null,
+      creado_en: hoyISO, resuelto_en: null, comision_pagada_en: null, editado: false,
+      editado_en: null, adj_tipo: null, adj_nombre: null, adj_mime: null, adj_datos: null,
+      adj_bytes: null, op_id: "op-cruda-2", actualizado_en: hoyISO, prueba: false }
+  ];
+  const preP = { codigo: adminValido, foto: { reportes: [], ayudas: [], usuarios: [], datos: null, cuando: "", publicar: [], publicados: {}, borrados: [], tarifaPanel: null, mercado: null }, calc: { saldo: { salida: 950, costo: 1040, tasa: 320, saldo: 3600 }, transf: { efectivo: 5000, porc: 30, libro: 1130, salida: 950 }, busc: { precio: 0, tasaVenta: 0, efectivo: 0, porc: 0, libro: 0, salida: 0 } }, cola: [], sellos: {}, tarifaViva: null, tarifaVivaEn: "", publicarPendiente: null };
+  const { w } = crear({ preState: preP });
+  await sleep(350);
+  w.decidirReporte("cruda2", true, 345.38);
+  await sleep(60);
+  const item = (w.state.foto.publicar || [])[0];
+  ok(!!item && item.codigo === "BUSCA-001" && item.tipo === "saldo" && item.recargas === 14 && item.fecha === hoyISO, "F1C-1 el item de publicación nace completo: codigo/tipo/recargas/fecha real");
+  const repFoto = w.state.foto.reportes[0];
+  w.marcarPagado(repFoto);
+  await sleep(60);
+  const lista = w.listaPublicar();
+  const ent = lista.filter(function(e){ return e.codigo === "BUSCA-001"; })[0];
+  const t = ent && ent.tratos && ent.tratos[0];
+  ok(!!t && t.comision === 345.38 && t.tipo === "saldo" && t.recargas === 14 && t.nota === t.concepto && /Saldo/.test(t.nota), "F1C-2 el trato publicado lleva la forma del panel: comision/tipo/recargas/nota");
+  ok(!!t && /^\d{1,2}\/\d{1,2}\/\d{4}$/.test(t.fecha), "F1C-3 la fecha publicada es d/m/yyyy (la que el lector de semana del panel parsea): " + (t && t.fecha));
+  ok(!!t && t.estado === "pagado" && t.pagado_en === t.fecha, "F1C-4 el trato publicado lleva su línea de pagado");
+  w.state.foto.publicados = { "BUSCA-001": [ { fecha: "1/11/2026", concepto: "Saldo · 7 recarga(s) a 1000.00 CUP", nota: "Saldo · 7 recarga(s) a 1000.00 CUP", tipo: "saldo", recargas: 7, comision: 100 } ] };
+  const lista2 = w.listaPublicar();
+  const ent2 = lista2.filter(function(e){ return e.codigo === "BUSCA-001"; })[0];
+  ok(!!ent2 && ent2.tratos.length === 2, "F1C-5 la publicación es ACUMULATIVA: historial + cola (la puerta reemplaza; sin esto la 2ª borraba la 1ª)");
+  const suma = ent2.tratos.reduce(function(s, x){ return s + (x.comision || 0); }, 0);
+  const recs = ent2.tratos.reduce(function(s, x){ return s + (x.tipo === "saldo" ? (x.recargas || 0) : 0); }, 0);
+  ok(Math.abs(suma - 445.38) < 0.001 && recs === 21, "F1C-6 la matemática del panel con lo publicado: TOTAL 445.38 · 21 recargas (lo que renderPanel sumaría)");
+  w.close();
+
+  /* El item VIEJO de la cola (sin tipo/recargas/fecha, como el que
+     quedó en el teléfono de Ernesto) se repara solo contra la foto. */
+  R.reportes = [
+    { id: "cruda3", buscador: "BUSCA-001", tipo: "saldo", precio: 1000, porc: null, cantidad: 14,
+      telefono_vendedor: "50154748", nota: null, estado: "aprobado", comision: 345.38, motivo: null,
+      creado_en: hoyISO, resuelto_en: hoyISO, comision_pagada_en: hoyISO, editado: false,
+      editado_en: null, adj_tipo: null, adj_nombre: null, adj_mime: null, adj_datos: null,
+      adj_bytes: null, op_id: "op-cruda-3", actualizado_en: hoyISO, prueba: false }
+  ];
+  const preViejo = JSON.parse(JSON.stringify(preP));
+  preViejo.foto.publicar = [ { nombre: "Busca Uno", concepto: "Saldo · 14 recarga(s) a 1000.00 CUP", comision: 345.38 } ];
+  const v2 = crear({ preState: preViejo });
+  await sleep(350);
+  const iv = (v2.w.state.foto.publicar || [])[0];
+  ok(!!iv && iv.codigo === "BUSCA-001" && iv.tipo === "saldo" && iv.recargas === 14 && iv.fecha === hoyISO, "F1C-7 el item viejo de la cola se repara solo: codigo/tipo/recargas/fecha desde el reporte");
+  v2.w.close();
+  R.reportes = []; R.usuarios = [];
+}
+
+/* ===== 23. REGLA DE CONTEO DE BONOS (orden de Ernesto 2026-11-13) =====
+   Saldo: solo recargas COMPLETAS de 360 (la fracción no suma).
+   Transferencia: solo tratos de 5.000 CUP o más cuentan pa el bono
+   (los menores cobran su comisión normal pero no cuentan). El
+   publicador emite recargas ya completas y el monto del trato; el
+   panel (Mi Trabajo renderPanel) aplica la misma regla al contar. */
+{
+  const hoyISO = new Date().toISOString();
+  R.chat = true; R.tarifaVivaOk = true;
+  R.usuarios = [ { codigo: "BUSCA-001", nombre: "Busca Uno", activo: true, bloqueado: false } ];
+  R.ayudas = [];
+  const filaCruda = function(id, tipo, cantidad, porc){
+    return { id: id, buscador: "BUSCA-001", tipo: tipo, precio: tipo === "saldo" ? 1000 : null, porc: porc, cantidad: cantidad,
+      telefono_vendedor: "50154748", nota: null, estado: "pendiente", comision: null, motivo: null,
+      creado_en: hoyISO, resuelto_en: null, comision_pagada_en: null, editado: false,
+      editado_en: null, adj_tipo: null, adj_nombre: null, adj_mime: null, adj_datos: null,
+      adj_bytes: null, op_id: "op-" + id, actualizado_en: hoyISO, prueba: false };
+  };
+  R.reportes = [ filaCruda("frac1", "saldo", 13.5, null), filaCruda("trchica", "transferencia", 3000, 30), filaCruda("trgrande", "transferencia", 8000, 30) ];
+  const preB = { codigo: adminValido, foto: { reportes: [], ayudas: [], usuarios: [], datos: null, cuando: "", publicar: [], publicados: {}, borrados: [], tarifaPanel: null, mercado: null }, calc: { saldo: { salida: 950, costo: 1040, tasa: 320, saldo: 3600 }, transf: { efectivo: 5000, porc: 30, libro: 1130, salida: 950 }, busc: { precio: 0, tasaVenta: 0, efectivo: 0, porc: 0, libro: 0, salida: 0 } }, cola: [], sellos: {}, tarifaViva: null, tarifaVivaEn: "", publicarPendiente: null };
+  const { w } = crear({ preState: preB });
+  await sleep(350);
+  w.decidirReporte("frac1", true, 300);
+  w.decidirReporte("trchica", true, 200);
+  w.decidirReporte("trgrande", true, 700);
+  await sleep(60);
+  const items = w.state.foto.publicar || [];
+  const iFrac = items.filter(function(x){ return x.tipo === "saldo"; })[0];
+  ok(!!iFrac && iFrac.recargas === 13, "F1D-1 fracción de recarga NO suma: 13.5 recargas -> el item lleva 13 completas");
+  const lista = w.listaPublicar();
+  const ent = lista.filter(function(e){ return e.codigo === "BUSCA-001"; })[0];
+  const tFrac = ent.tratos.filter(function(x){ return x.tipo === "saldo"; })[0];
+  ok(!!tFrac && tFrac.recargas === 13, "F1D-2 lo publicado lleva las 13 recargas completas (el panel suma 13, no 13.5)");
+  const tChica = ent.tratos.filter(function(x){ return x.tipo === "transferencia" && x.monto === 3000; })[0];
+  const tGrande = ent.tratos.filter(function(x){ return x.tipo === "transferencia" && x.monto === 8000; })[0];
+  ok(!!tChica && !!tGrande, "F1D-3 los tratos de transferencia publican su MONTO (3000 y 8000): el panel cuenta solo el de >= 5000");
+  const cuentaBonoTransf = ent.tratos.filter(function(x){ return x.tipo === "transferencia" && (Number(x.monto) || 0) >= 5000; }).length;
+  ok(cuentaBonoTransf === 1, "F1D-4 con la regla aplicada sobre lo publicado: bono de transferencia = 1 de los 2 tratos");
   w.close();
   R.reportes = []; R.usuarios = [];
 }
