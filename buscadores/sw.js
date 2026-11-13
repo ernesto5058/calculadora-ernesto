@@ -1,7 +1,7 @@
 /* Mi Trabajo — Buscadores · service worker
    La app (pantalla) se guarda en el teléfono: funciona sin internet.
    Los datos (datos.json) se buscan frescos primero; sin conexión se usa la última copia. */
-var CACHE = "mitrabajo-v24";
+var CACHE = "mitrabajo-v25";
 var SHELL = ["./", "./index.html", "./manifest.webmanifest", "./tema-pro.css", "./icon-192.png", "./icon-512.png"];
 
 self.addEventListener("install", function (e) {
@@ -13,6 +13,14 @@ self.addEventListener("activate", function (e) {
   }).then(function () { return self.clients.claim(); }));
 });
 self.addEventListener("fetch", function (e) {
+  /* v1.5.7 (tanda PRO): la API va DIRECTA a la red, sin pasar por este
+     handler. El handler solo existe pa la pantalla y datos.json (GET del
+     mismo origen): la Cache Storage es GET-only y en WebKit un POST
+     cruzado (las puertas RPC de Supabase) moría en silencio al pasar por
+     caches.match/put — la tarifa viva «no respondía» en el iPhone con el
+     servidor sano (los GET entraban; los POST, no). */
+  if (e.request.method !== "GET") return;
+  if (e.request.url.indexOf("supabase.co") !== -1) return;
   var url = e.request.url;
   if (url.indexOf("datos.json") !== -1) {
     // Datos: fresco primero, copia guardada si no hay internet
