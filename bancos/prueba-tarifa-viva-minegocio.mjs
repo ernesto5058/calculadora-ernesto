@@ -1,13 +1,14 @@
-// Banco TARIFA VIVA — Mi Negocio v20 (2026-11-13). CHEQUEOS fila 72.
-// La tarjeta «Tarifa viva del mercado» de la pestaña Tarifa:
-//   A) semáforo VERDE con foto fresca + el simulador «él gana X ·
-//      tú ganas Y» con la matemática de la casa (el caso ancla es el
-//      trato real de hoy: 14 recargas a 1000 con ingreso 1098.68 →
-//      él 345.38 · tú 1036.14);
-//   B) propuesta grande (>2%): se muestra SIN tocar la vigente y
-//      Aplicar/Descartar llaman tarifa_viva_resolver con el código
-//      de la sesión;
-//   C) foto vieja: semáforo ÁMBAR, sin botones de propuesta;
+// Banco TARIFA VIVA INTELIGENTE — Mi Negocio v21 (2026-11-13).
+// CHEQUEOS filas 72 y 76. La tarjeta «Tarifa viva del mercado»:
+//   A) semáforo VERDE «En vivo» con foto fresca + el último
+//      movimiento con su PORQUÉ + el simulador «él gana X ·
+//      tú ganas Y» (ancla: el trato real de hoy, 14 a 1000 con
+//      ingreso 1098.68 → él 345.38 · tú 1036.14);
+//   B) la inteligencia: «Confirmando» con la confirmación armada;
+//      el interruptor llama tarifa_viva_inteligencia con el código
+//      de la sesión (pausar y reactivar); en pausa la tarjeta lo
+//      dice y ofrece «Activar inteligencia»;
+//   C) foto vieja: semáforo ÁMBAR «Respaldo»;
 //   D) la puerta del motor caída NO tumba la pantalla de Tarifa;
 //   E) la FOTO del cierre: al aprobar, la tarifa del momento viaja
 //      con la decisión (item del panel + puerta
@@ -25,15 +26,27 @@ let llamadas = [], cuerpos = {};
 let R = {};
 const TARIFA_OK = { ok: true, ingreso_ref360: 1098.68, libro_ref: 1069.38, salida_ref: 950,
   comision_saldo: 25, comision_transf: 20, piso_transf: 25, actualizado: "2026-11-13 15:00" };
+const PORQUE_MOV = "Foto fresca dentro de la banda (±2%): se aplica. Tasa suavizada 303.39 (de 3 foto(s), ponderada por recencia y profundidad) con tu salida 950: el ingreso por recarga pasa de 1091.42 a 1098.68. Margen por recarga: 98.68 (buscador a 32%: 31.58 · Ernesto: 67.10).";
 function tvEstado(variante){
+  const mov = { creado_en: "2026-11-13T19:56:00Z", decision: "aplicada", ingreso_viejo: 1091.42,
+    ingreso_nuevo: 1098.68, libro_nuevo: 1111.74, delta_pct: 0.66, porque: PORQUE_MOV };
   const base = { ok: true,
     tarifa: { ingreso_ref360: 1098.68, libro_ref: 1069.38, salida_ref: 950, comision_saldo: 25,
       comision_transf: 20, piso_transf: 25, actualizado: "2026-11-13T15:00:00Z", actualizado_por: "MERCADO" },
     foto: { id: "foto-1", recibida_en: "2026-11-13T19:55:00Z", origen_en: "2026-11-13T19:50:00Z",
-      fresca: true, edad_min: 5, nivel20: 303.388, promedio_venta: 300.16, bankcup_promedio: 1111.74 },
-    motor: { ultima_decision: "aplicada", ultima_en: "2026-11-13T19:56:00Z", propuesta: null, historial: [
-      { creado_en: "2026-11-13T19:56:00Z", decision: "aplicada", estado: "—", ingreso_viejo: 1091.42, ingreso_nuevo: 1098.68, libro_nuevo: 1111.74, delta_pct: 0.66 } ] } };
-  if (variante === "propuesta") base.motor.propuesta = { id: "prop-1", ingreso_nuevo: 1310.40, libro_nuevo: 1150.00, delta_pct: 19.27, creado_en: "2026-11-13T19:56:00Z", foto_en: "2026-11-13T19:55:00Z" };
+      fresca: true, edad_min: 5, nivel20: 303.388, promedio_venta: 300.16, bankcup_promedio: 1111.74, count_sell: 60 },
+    inteligencia: { activa: true, umbral_pct: 2, vel_hora_pct: 4, vel_dia_pct: 8, costo_ref: 1000,
+      comision_busq_pct: 32, confirmacion: null, ultimo_movimiento: mov,
+      ultima_decision: { creado_en: mov.creado_en, decision: "aplicada", porque: PORQUE_MOV },
+      historial: [ Object.assign({ estado: "—" }, mov) ] } };
+  if (variante === "confirmando") {
+    base.inteligencia.confirmacion = { direccion: -1, delta_pct: -3.18, desde: "2026-11-13T19:56:00Z" };
+    base.inteligencia.ultima_decision = { creado_en: "2026-11-13T20:11:00Z", decision: "esperando_confirmacion",
+      porque: "Salto de -3.18% (más del 2%): primera lectura, con la tasa suavizada 313.35 de 3 foto(s) fresca(s). Falta una segunda foto fresca en la misma dirección pa confirmarlo: no se tocó nada." };
+    base.inteligencia.historial.unshift({ creado_en: "2026-11-13T20:11:00Z", decision: "esperando_confirmacion", estado: "—",
+      ingreso_viejo: 1098.68, ingreso_nuevo: 1063.72, libro_nuevo: 1112.00, delta_pct: -3.18, porque: base.inteligencia.ultima_decision.porque });
+  }
+  if (variante === "pausada") base.inteligencia.activa = false;
   if (variante === "vieja") { base.foto.fresca = false; base.foto.edad_min = 55; }
   return base;
 }
@@ -61,7 +74,7 @@ function crear(variante){
             case "admin_usuarios": return json([{ codigo: "BUSC-1", nombre: "Busc Uno", activo: true }]);
             case "leer_tarifa": return json(TARIFA_OK);
             case "tarifa_viva_estado": return R.tvCaida ? rechaza("404") : json(tvEstado(variante));
-            case "tarifa_viva_resolver": return json({ ok: true, accion: body.p_accion });
+            case "tarifa_viva_inteligencia": return json({ ok: true, activa: body.p_activa });
             case "admin_aprobar": case "admin_rechazar": case "admin_marcar_pagado": return json({ ok: true });
             case "admin_foto_tarifa_reporte": return json({ ok: true });
             case "admin_publicar_tratos": return json({ ok: true });
@@ -100,7 +113,11 @@ const fmt2 = n => (Math.round(n * 100) / 100).toFixed(2);
   ok(pg.textContent.includes("Foto fresca"), "A2 semáforo verde con foto fresca");
   ok(pg.textContent.includes("303.39"), "A3 la tarjeta muestra el nivel de venta de la foto (303.39)");
   ok(pg.textContent.includes("Regla de oro"), "A4 la regla de oro va escrita en la tarjeta");
-  ok(!w.document.getElementById("tvAplicar"), "A5 sin propuesta no hay botón de aplicar");
+  ok(!w.document.getElementById("tvAplicar"), "A5 el régimen de propuestas murió: no hay botón de aplicar");
+  const bI = w.document.getElementById("tvIntelBtn");
+  ok(bI && bI.textContent.includes("Pausar inteligencia"), "A5b la inteligencia activa ofrece «Pausar inteligencia»");
+  ok(pg.textContent.includes("Último movimiento") && pg.textContent.includes("Margen por recarga: 98.68"),
+     "A5c el último movimiento se muestra CON su porqué en palabras");
   const res = w.document.getElementById("simRes");
   ok(res && res.textContent.includes("Él gana") && res.textContent.includes(fmt2(24.67)) && res.textContent.includes("Tú ganas"),
      "A6 simulador saldo 1 recarga en gemelas v3: él 24.67 (vino: " + (res && res.textContent) + ")");
@@ -116,25 +133,29 @@ const fmt2 = n => (Math.round(n * 100) / 100).toFixed(2);
      "A8 simulador transferencia en gemelas: él " + fmt2(elT) + " · tú " + fmt2(gan - elT) + " (vino: " + res.textContent + ")");
   w.close();
 }
-/* ===== B · propuesta grande ===== */
+/* ===== B · la inteligencia: confirmando, pausa y reactivación ===== */
 {
   R = {};
-  const { w } = crear("propuesta");
+  const { w } = crear("confirmando");
   await sleep(450);
   pestaña(w, "Tarifa"); await sleep(150);
   const pg = w.document.getElementById("pgTarifa");
-  ok(pg.textContent.includes("PROPUESTA EN ESPERA"), "B1 la propuesta se anuncia sin tocar la vigente");
-  ok(pg.textContent.includes("1310.40"), "B2 la propuesta muestra su ingreso (1310.40)");
-  ok(pg.textContent.includes("Propuesta grande en espera"), "B3 semáforo rojo con propuesta");
-  click(w.document.getElementById("tvAplicar")); await sleep(200);
-  ok(cuerpos["tarifa_viva_resolver"] && cuerpos["tarifa_viva_resolver"].p_accion === "aplicar"
-     && cuerpos["tarifa_viva_resolver"].p_codigo === ADMIN, "B4 Aplicar → resolver(aplicar) con el código de la sesión");
+  ok(pg.textContent.includes("Confirmando"), "B1 con la confirmación armada, la píldora dice «Confirmando»");
+  ok(pg.textContent.includes("Salto grande detectado"), "B2 la tarjeta explica el salto y la segunda lectura");
+  ok(pg.textContent.includes("esperando la 2ª foto"), "B3 el historial cuenta la espera con su motivo");
+  click(w.document.getElementById("tvIntelBtn")); await sleep(200);
+  ok(cuerpos["tarifa_viva_inteligencia"] && cuerpos["tarifa_viva_inteligencia"].p_activa === false
+     && cuerpos["tarifa_viva_inteligencia"].p_codigo === ADMIN, "B4 Pausar → inteligencia(false) con el código de la sesión");
   w.close();
-  const otra = crear("propuesta");
+  const otra = crear("pausada");
   await sleep(450);
   pestaña(otra.w, "Tarifa"); await sleep(150);
-  click(otra.w.document.getElementById("tvDescartar")); await sleep(200);
-  ok(cuerpos["tarifa_viva_resolver"] && cuerpos["tarifa_viva_resolver"].p_accion === "descartar", "B5 Descartar → resolver(descartar)");
+  const pg2 = otra.w.document.getElementById("pgTarifa");
+  ok(pg2.textContent.includes("En pausa"), "B5 con la inteligencia apagada la píldora dice «En pausa»");
+  const bA = otra.w.document.getElementById("tvIntelBtn");
+  ok(bA && bA.textContent.includes("Activar inteligencia"), "B6 en pausa el botón ofrece «Activar inteligencia»");
+  click(bA); await sleep(200);
+  ok(cuerpos["tarifa_viva_inteligencia"] && cuerpos["tarifa_viva_inteligencia"].p_activa === true, "B7 Activar → inteligencia(true)");
   otra.w.close();
 }
 /* ===== C · foto vieja ===== */
@@ -144,7 +165,7 @@ const fmt2 = n => (Math.round(n * 100) / 100).toFixed(2);
   await sleep(450);
   pestaña(w, "Tarifa"); await sleep(150);
   ok(w.document.getElementById("pgTarifa").textContent.includes("Foto vieja"), "C1 semáforo ámbar con foto vieja");
-  ok(!w.document.getElementById("tvAplicar"), "C2 con foto vieja no hay botones de propuesta");
+  ok(w.document.getElementById("pgTarifa").textContent.includes("Respaldo"), "C2 la píldora dice «Respaldo» con foto vieja");
   w.close();
 }
 /* ===== D · puerta del motor caída ===== */
