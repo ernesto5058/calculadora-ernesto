@@ -75,26 +75,31 @@ const calc = (nivel20, promVenta, bankcup, salida, vigente, libro) =>
   const b = await calc(300, null, 1111, 0, 1098.68, 1069.38);
   ok(b.j.ok === false, "C6 sin salida vigente → ok:false");
 }
-/* C7 · la puerta del buscador: sus dos patas y NADA del dueño. */
+/* C7 · la puerta del buscador: sus dos patas y NADA del dueño.
+   v21 (inteligente): sin rastro del régimen de propuestas; trae el
+   último ajuste real de su tarifa. */
 {
   const { status, j } = await rpc("tarifa_viva_buscador");
   ok(status === 200 && j && j.ok === true, "C7 tarifa_viva_buscador responde ok");
   ok(j && j.ingreso_ref360 > 0 && j.libro_ref > 0, "C7 trae ingreso y libro vigentes");
   ok(j && !("salida_ref" in j), "C7 FRONTERA: la puerta del buscador NO trae salida_ref");
-  ok(j && typeof j.hay_propuesta_pendiente === "boolean" && !("propuesta" in j),
-     "C7 solo dice SI hay propuesta — jamás sus valores");
+  ok(j && !("hay_propuesta_pendiente" in j) && !("propuesta" in j),
+     "C7 el régimen de propuestas desapareció de la puerta");
+  ok(j && "ultimo_ajuste" in j && (j.ultimo_ajuste === null || Number(j.ultimo_ajuste.ingreso_nuevo) > 0),
+     "C7 trae el último ajuste real (o null si nunca hubo)");
 }
-/* C8 · la puerta del dueño: forma completa (tarifa + foto + motor). */
+/* C8 · la puerta del dueño: forma completa (tarifa + foto + inteligencia). */
 {
   const { status, j } = await rpc("tarifa_viva_estado");
   ok(status === 200 && j && j.ok === true, "C8 tarifa_viva_estado responde ok");
   ok(j && j.tarifa && j.tarifa.ingreso_ref360 > 0 && "salida_ref" in j.tarifa, "C8 el dueño sí ve su tarifa entera");
-  ok(j && j.motor && "propuesta" in j.motor && Array.isArray(j.motor.historial), "C8 motor con propuesta e historial");
+  ok(j && j.inteligencia && typeof j.inteligencia.activa === "boolean" && Array.isArray(j.inteligencia.historial),
+     "C8 la inteligencia trae su estado, su historial y sus motivos");
 }
-/* C9 · resolver sin ser el dueño: error controlado, sin escritura. */
+/* C9 · el interruptor sin ser el dueño: error controlado, sin escritura. */
 {
-  const { status, j } = await rpc("tarifa_viva_resolver", { p_codigo: "CODIGO-MALO", p_accion: "aplicar" });
-  ok(status === 400 && j && /codigo admin no valido/.test(j.message || ""), "C9 resolver con código malo → error controlado (" + status + ")");
+  const { status, j } = await rpc("tarifa_viva_inteligencia", { p_codigo: "CODIGO-MALO", p_activa: false });
+  ok(status === 400 && j && /codigo admin no valido/.test(j.message || ""), "C9 interruptor con código malo → error controlado (" + status + ")");
 }
 /* C10 · el motor NO se puede disparar desde fuera: escribe. */
 {
