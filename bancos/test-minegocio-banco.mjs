@@ -481,7 +481,7 @@ function pestaña(w, nombre){ [...w.document.querySelectorAll(".tab")].forEach(t
 /* ===== 10. SERVICE WORKER: scope y caché propios ===== */
 {
   const sw = fs.readFileSync(REPO + "minegocio/sw.js", "utf8");
-  ok(sw.includes('CACHE = "minegocio-v21"'), "MN-50 SW con caché propio minegocio-v21 (la versión vigente en minegocio-src/sw.js; el banco decía v15 y quedó atrás del fuente)");
+  ok(sw.includes('CACHE = "minegocio-v22"'), "MN-50 SW con caché propio minegocio-v22 (v21 + el restyle v3 de la tarjeta de Tarifa viva)");
   ok(sw.includes("SKIP_WAITING") && sw.includes('addEventListener("message"'), "MN-50b el SW acepta SKIP_WAITING por mensaje (forzar activación desde la app)");
   ok(!sw.includes("mitrabajo"), "MN-51 el SW de Mi Negocio no toca el de Mi Trabajo");
   const mf = JSON.parse(fs.readFileSync(REPO + "minegocio/manifest.webmanifest", "utf8"));
