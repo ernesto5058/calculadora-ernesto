@@ -77,6 +77,15 @@ jobs:
       - name: Banco Mi Negocio (223 chequeos)
         run: node bancos/test-minegocio-banco.mjs
 
+      - name: Banco Tarifa Viva — cálculo del servidor y puertas (fila 72)
+        run: node bancos/prueba-tarifa-viva-calculo.mjs
+
+      - name: Banco Tarifa Viva — Mi Negocio v20 (semáforo, propuesta, simulador, foto del cierre)
+        run: node bancos/prueba-tarifa-viva-minegocio.mjs
+
+      - name: Banco Mi Trabajo v1.6.0 — tarifa viva del buscador (fila 72)
+        run: node bancos/prueba-mitrabajo-v160.mjs
+
       - name: Banco Mi Trabajo — contrato de puertas RPC sin sobrecargas
         run: node bancos/prueba-mitrabajo-v144.mjs
 
