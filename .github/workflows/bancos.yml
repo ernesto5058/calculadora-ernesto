@@ -80,11 +80,14 @@ jobs:
       - name: Banco Tarifa Viva — cálculo del servidor y puertas (fila 72)
         run: node bancos/prueba-tarifa-viva-calculo.mjs
 
-      - name: Banco Tarifa Viva — Mi Negocio v20 (semáforo, propuesta, simulador, foto del cierre)
+      - name: Banco Tarifa Viva Inteligente — reglas del motor automático (fila 76)
+        run: node bancos/prueba-tarifa-viva-inteligente.mjs
+
+      - name: Banco Tarifa Viva — Mi Negocio v21 (inteligencia, semáforo, simulador, foto del cierre)
         run: node bancos/prueba-tarifa-viva-minegocio.mjs
 
-      - name: Banco Mi Trabajo v1.6.0 — tarifa viva del buscador (fila 72)
-        run: node bancos/prueba-mitrabajo-v160.mjs
+      - name: Banco Mi Trabajo v1.6.1 — tarifa viva inteligente del buscador (fila 76)
+        run: node bancos/prueba-mitrabajo-v161.mjs
 
       - name: Banco Mi Trabajo — contrato de puertas RPC sin sobrecargas
         run: node bancos/prueba-mitrabajo-v144.mjs
