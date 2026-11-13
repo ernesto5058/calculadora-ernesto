@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kit SideStore — todo en un solo lugar</title>
+<style>
+  :root{
+    --bg:#0B0B10; --card:#15151F; --card2:#1B1B28; --line:rgba(255,255,255,.08);
+    --txt:#F2EFE6; --dim:#A9A698; --oro1:#F6D47C; --oro2:#C08A2D;
+  }
+  *{box-sizing:border-box; margin:0; padding:0}
+  body{background:var(--bg); color:var(--txt); font-family:-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; line-height:1.5; padding:24px 16px 56px}
+  .wrap{max-width:720px; margin:0 auto}
+  h1{font-size:30px; font-weight:800; letter-spacing:.2px}
+  h1 .oro{background:linear-gradient(90deg,var(--oro1),var(--oro2)); -webkit-background-clip:text; background-clip:text; color:transparent}
+  .sub{color:var(--dim); margin-top:6px; font-size:15px}
+  .card{background:var(--card); border:1px solid var(--line); border-radius:16px; padding:18px; margin-top:16px}
+  .pieza{display:flex; gap:14px; align-items:flex-start}
+  .num{flex:0 0 auto; width:34px; height:34px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:800; color:#171204; background:linear-gradient(135deg,var(--oro1),var(--oro2))}
+  .pieza h3{font-size:17px}
+  .pieza p{color:var(--dim); font-size:14px; margin-top:2px}
+  .btn{display:inline-block; margin-top:12px; padding:11px 18px; border-radius:12px; font-weight:700; text-decoration:none; color:#171204; background:linear-gradient(135deg,var(--oro1),var(--oro2))}
+  .btn.ghost{background:var(--card2); color:var(--txt); border:1px solid var(--line)}
+  .meta{margin-top:10px; font-size:12.5px; color:var(--dim)}
+  .sha{font-family:ui-monospace,Menlo,Consolas,monospace; font-size:11px; word-break:break-all; color:#8f8b7d; margin-top:4px}
+  h2{font-size:20px; margin-top:30px}
+  ol.pasos{margin:12px 0 0 20px}
+  ol.pasos li{margin-top:10px}
+  ol.pasos b{color:var(--oro1)}
+  .alerta{border:1px solid rgba(246,212,124,.45); background:rgba(246,212,124,.07); border-radius:16px; padding:16px 18px; margin-top:16px}
+  .alerta h3{color:var(--oro1); font-size:16px}
+  .alerta p{font-size:14.5px; margin-top:4px}
+  .nota{color:var(--dim); font-size:13.5px; margin-top:14px}
+  .tnum{font-variant-numeric:tabular-nums}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Kit <span class="oro">SideStore</span></h1>
+  <p class="sub">Todo lo de la sesión de instalación, descargado de las fuentes <b>oficiales</b> y verificado (tamaño y SHA-256) el 13-nov-2026. Servido desde GitHub: un solo lugar, descarga rápida y sin intermediarios.</p>
+
+  <div class="alerta">
+    <h3>⚠ Regla de oro</h3>
+    <p>En iloader y en SideStore se entra con un <b>Apple ID secundario</b> creado solo pa firmar. <b>Jamás el principal</b>, y la contraseña no se le da a ningún tercero ni a ningún bot: firmar nunca la necesita en manos ajenas.</p>
+  </div>
+
+  <h2>Las piezas (pa la PC Windows prestada)</h2>
+
+  <div class="card"><div class="pieza"><div class="num">1</div><div>
+    <h3>iTunes de Apple (directo)</h3>
+    <p>El instalador de la web de Apple, <b>no</b> el de Microsoft Store: trae los drivers que iloader necesita pa ver el iPhone por USB.</p>
+    <a class="btn" href="https://github.com/ernesto5058/calculadora-ernesto/releases/download/kit-sidestore/iTunes64Setup.exe">Descargar iTunes64Setup.exe</a>
+    <div class="meta">Versión <span class="tnum">12.13.12</span> · <span class="tnum">202.6 MB</span> (202,558,432 B) · Fuente: apple.com</div>
+    <div class="sha">SHA-256: 221a24203f6182b7dc0e18055b1e9338a0c3c992c7fefe6b3be0460caf29db4d</div>
+  </div></div></div>
+
+  <div class="card"><div class="pieza"><div class="num">2</div><div>
+    <h3>iloader (.MSI, el recomendado)</h3>
+    <p>La herramienta oficial de instalación de SideStore: crea el certificado, coloca el archivo de emparejamiento e instala SideStore él solo.</p>
+    <a class="btn" href="https://github.com/ernesto5058/calculadora-ernesto/releases/download/kit-sidestore/iloader-windows-x64.msi">Descargar iloader-windows-x64.msi</a>
+    <div class="meta">Versión <span class="tnum">v2.4.1</span> (28-oct-2026) · <span class="tnum">8.5 MB</span> (8,888,320 B) · Fuente: GitHub nab138/iloader, enlazado por la doc oficial de SideStore</div>
+    <div class="sha">SHA-256: 8bfe528197db1b82f51fbcdb74652f355e7ae025e616e07a10a819d60f7d2691</div>
+  </div></div></div>
+
+  <div class="card"><div class="pieza"><div class="num">3</div><div>
+    <h3>SideStore.ipa</h3>
+    <p>La app que queda en el iPhone y firma/instala los demás .ipa. iloader puede bajarla él mismo; aquí va también por si la PC tiene la red lenta o GitHub bloqueado: se la das a iloader desde el archivo local.</p>
+    <a class="btn" href="https://github.com/ernesto5058/calculadora-ernesto/releases/download/kit-sidestore/SideStore.ipa">Descargar SideStore.ipa</a>
+    <div class="meta">Versión <span class="tnum">0.7.0-alpha</span> (15-sep-2026) · <span class="tnum">26.5 MB</span> (27,770,821 B) · Fuente: GitHub SideStore/SideStore. Es la vigente: la 0.6.4 ya no puede iniciar sesión (error 503 de Apple) y esta lo corrige.</div>
+    <div class="sha">SHA-256: e334f86e6ceeab2e0d886c07611246533f474bb18838cf13ebc09ed1f0d622b5</div>
+  </div></div></div>
+
+  <div class="card"><div class="pieza"><div class="num">4</div><div>
+    <h3>LocalDevVPN (solo App Store)</h3>
+    <p>La VPN local que deja a SideStore trabajar sin PC. No se puede empaquetar: se instala en el iPhone desde la App Store, gratis. Su disponibilidad en la App Store de Cuba se chequea desde el propio teléfono.</p>
+    <a class="btn ghost" href="https://apps.apple.com/app/localdevvpn/id6755608044">Abrir en la App Store</a>
+    <div class="meta">Gratis · Coxson Engineering LLC · Requiere iOS 14+</div>
+  </div></div></div>
+
+  <h2>Guía rápida de la sesión (20–45 min)</h2>
+  <ol class="pasos">
+    <li><b>Instala iTunes</b> con el instalador de aquí arriba (el de Apple, no el de la Store).</li>
+    <li><b>Instala iloader</b> con el .MSI.</li>
+    <li><b>Conecta el iPhone por cable</b> (uno que pase datos), desbloquéalo y toca <b>Confiar</b>; deja el código puesto.</li>
+    <li>Abre <b>iloader</b>, entra con el <b>Apple ID secundario</b>, elige el iPhone marcado <b>(USB)</b> y pulsa <b>Install SideStore (Stable)</b>. iloader hace el resto solo.</li>
+    <li>En el iPhone: <b>Ajustes → General → VPN y gestión de dispositivos → Confiar</b> en tu cuenta; y <b>Ajustes → Privacidad y seguridad → Modo de desarrollador</b> activado (se reinicia).</li>
+    <li>Instala <b>LocalDevVPN</b> desde la App Store, ábrela y toca <b>Connect</b> (permite la configuración VPN con tu código).</li>
+    <li>Abre <b>SideStore</b>, entra con el <b>mismo</b> Apple ID secundario y en <b>My Apps</b> toca el contador <b>«7 DAYS»</b> de SideStore: ese primer refresh cierra la instalación. Después, rutina: <b>Refresh All el día 4–5</b>, siempre con Wi-Fi (los datos móviles no sirven) y LocalDevVPN conectada.</li>
+  </ol>
+
+  <p class="nota">Límites de la cuenta gratis de Apple: máximo <b>3 apps firmadas a la vez contando SideStore</b> (quedan 2 huecos; LiveContainer puede guardar más dentro de un hueco) y ~10 App IDs nuevos por semana. El certificado dura 7 días: por eso la rutina de refresh. Si un día el archivo de emparejamiento caduca, se repite esta misma sesión con iloader y listo.</p>
+  <p class="nota">Descarga alternativa de todo el kit de una vez: <a style="color:var(--oro1)" href="https://github.com/ernesto5058/calculadora-ernesto/releases/tag/kit-sidestore">página del Release «Kit SideStore»</a>.</p>
+</div>
+</body>
+</html>
