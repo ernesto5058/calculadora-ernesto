@@ -89,6 +89,49 @@ export function topVenta(ofertas) {
   return top;
 }
 
+// ¿Es este nivel de la escalera una CIMA SUCIA? Un nivel aislado:
+// su tasa está >3 % por debajo del promedio del libro Y la
+// siguiente tasa está >2 % por encima (hay un hueco hasta el
+// mercado real). Es UNA oferta suelta (regalo, error o cebo), no
+// el mercado: el propio mercado la limpia en minutos (el
+// 2026-11-14 la cima a 279,07 vivió ~2 min con el promedio en
+// 305,23 y la masa del libro en 313+).
+export function esNivelAislado(tasa, siguiente, promedio) {
+  const t = num(tasa), s = num(siguiente), p = num(promedio);
+  if (t === null || p === null) return false;
+  return t < p * 0.97 && (s === null || s > t * 1.02);
+}
+
+// CIMA FIRME del libro de VENTA (2026-11-14): la menor tasa con
+// respaldo real — donde una oferta de Ernesto va a VIVIR. Se
+// camina la escalera desde abajo acumulando USD y saltando los
+// niveles aislados (no anclan ni suman): la cima firme es la
+// primera tasa donde lo acumulado llega a 20 USD, el mismo
+// respaldo que nivel20 exige en el lado de compra («el top solo
+// puede ser un anuncio puesto para engañar»). Sin promedio o sin
+// respaldo acumulado, se declara la primera tasa no aislada; y si
+// todas lo son, la cruda: jamás se inventa una tasa.
+export function cimaVentaFirme(ofertas, promedio) {
+  const niveles = [];
+  for (const o of ofertas || []) {
+    if (!ofertaValida(o)) continue;
+    niveles.push({ tasa: ratioDe(o), usd: usdDeOferta(o) });
+  }
+  if (!niveles.length) return null;
+  niveles.sort((a, b) => a.tasa - b.tasa);
+  const cruda = niveles[0].tasa;
+  if (num(promedio) === null) return Math.round(cruda * 100) / 100;
+  let acum = 0, respaldo = null;
+  for (let i = 0; i < niveles.length; i++) {
+    const sig = i + 1 < niveles.length ? niveles[i + 1].tasa : null;
+    if (esNivelAislado(niveles[i].tasa, sig, promedio)) continue;
+    respaldo = niveles[i].tasa;
+    acum += niveles[i].usd;
+    if (acum >= 20) return Math.round(niveles[i].tasa * 100) / 100;
+  }
+  return Math.round((respaldo ?? cruda) * 100) / 100;
+}
+
 // Frescura con DOS relojes: edad del dato de ORIGEN (updated_at de la
 // fuente) medida al recibirlo. Dato viejo o cacheado => false, y de
 // una foto no fresca NO se concluye nada (Regla 7).
