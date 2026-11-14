@@ -80,7 +80,9 @@ function crearMN(){
 {
   const w = crearMN(); const d = w.document;
   await sleep(700);
-  [...d.querySelectorAll(".tab")].forEach(t => { if (t.textContent.includes("Equipo")) click(t); });
+  /* T1 (v22): Equipo es pantalla hija de la sección Inicio: se entra
+     por irA(), la misma vía pública que usa la app. */
+  w.irA("Equipo");
   await sleep(250);
   click(d.querySelector("[data-chat]"));
   await sleep(500);
@@ -138,7 +140,7 @@ function crearMN(){
   ok(clicsEn.includes("chFileDoc"), "MN-4d la fila «Documento» dispara el selector de documentos");
   /* 5 · D1 en Textos */
   click(d.getElementById("chVolver")); await sleep(150);
-  [...d.querySelectorAll(".tab")].forEach(t => { if (t.textContent.includes("Textos")) click(t); });
+  w.irA("Textos"); /* T1 (v22): Textos es hija de Ajustes; vía irA() */
   await sleep(200);
   w.__scrolls.length = 0;
   click(d.getElementById("txProdBtn")); await sleep(60);
