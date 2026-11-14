@@ -76,7 +76,62 @@ async function smsEntrada(monto, tel) {
   return r;
 }
 
+/* BARRIDO PREVIO (trampa del 2026-11-14, CHEQUEO del banco vivo):
+   una corrida de este banco CORTADA a mitad de su limpieza (proceso
+   matado) deja residuo es_prueba, y como espera_asentar_interna
+   descuenta las entregas en FIFO por entregado_en, el residuo —más
+   viejo que cualquier entrega fresca— se roba el descuento de la
+   corrida siguiente y D1 cae en rojo sin que el servidor tenga la
+   culpa. Antes de medir, el banco barre TODO el residuo es_prueba
+   de su espacio (el mismo espacio que su finally ya asume propio;
+   producción jamás escribe es_prueba) en orden de dependencias,
+   incluidas las tablas que la limpieza original no conocía
+   (dinero_lotes_cierres, pago_premio_detalle, pago_ventas_saldo,
+   sms_ingesta por sms_id). Los bancos de esta familia comparten el
+   espacio FIFO de prueba: corren en serie, nunca en paralelo. */
+async function barrerResiduoPrevio() {
+  const antes = await one(`select
+    (select count(*)::int from public.dinero_entregas where es_prueba) +
+    (select count(*)::int from public.dinero_esperas where es_prueba) +
+    (select count(*)::int from public.dinero_vueltas where es_prueba) +
+    (select count(*)::int from public.dinero_lotes_saldo where es_prueba) +
+    (select count(*)::int from public.sms_eventos where es_prueba) as n`);
+  if (!antes.n) return;
+  const smsResiduo = (await sql(`select distinct sms_id from (
+      select sms_id from public.sms_eventos where es_prueba
+      union select sms_id from public.dinero_lotes_saldo where es_prueba
+      union select sms_id from public.sms_ingesta where es_prueba
+    ) s where sms_id is not null`)).map((r) => r.sms_id);
+  const ids = smsResiduo.length ? smsResiduo.join(",") : "null";
+  const pasos = [
+    `update public.sms_eventos set lote_id = null where es_prueba`,
+    `update public.dinero_esperas set lote_id = null, sms_id = null where es_prueba`,
+    `delete from public.pago_premio_detalle where vuelta_id in (select id from public.dinero_vueltas where es_prueba)`,
+    `delete from public.pago_ventas_saldo where es_prueba`,
+    `delete from public.pago_liquidaciones where es_prueba`,
+    `delete from public.dinero_movimientos where es_prueba`,
+    `delete from public.dinero_devoluciones where es_prueba`,
+    `delete from public.dinero_lotes_cierres where es_prueba`,
+    `delete from public.dinero_vueltas where es_prueba`,
+    `delete from public.dinero_lotes_saldo where es_prueba`,
+    `delete from public.sms_eventos where es_prueba`,
+    `delete from public.sms_ingesta where es_prueba`,
+    `delete from public.dinero_esperas_log where es_prueba`,
+    `delete from public.dinero_esperas where es_prueba`,
+    `delete from public.dinero_entregas where es_prueba`,
+    `delete from public.sms_linea where id in (${ids})`,
+  ];
+  for (const q of pasos) {
+    try { await sql(q); } catch (e) { console.log("BARRIDO aviso:", String(e).slice(0, 160)); }
+  }
+  console.log(`BARRIDO previo: residuo es_prueba retirado (${antes.n} filas núcleo)`);
+}
+
 try {
+  /* Barrido previo: sin esto, el residuo de una corrida cortada se
+     roba el descuento FIFO y D1 cae por culpa ajena (ver arriba). */
+  await barrerResiduoPrevio();
+
   /* Baseline real (cero producción se toca: todo lo de abajo es
      es_prueba y se verifica contra estas cifras al cerrar). */
   const base = await one(`select
@@ -190,8 +245,10 @@ try {
     `delete from public.dinero_movimientos where es_prueba and (referencia in (select id::text from public.dinero_vueltas where espera_id in (${idsEsp})) or referencia in (select id::text from public.sms_linea where id in (${idsSms})))`,
     `delete from public.dinero_devoluciones where es_prueba and vuelta_id in (select id from public.dinero_vueltas where espera_id in (${idsEsp}))`,
     `delete from public.dinero_vueltas where es_prueba and espera_id in (${idsEsp})`,
+    `delete from public.dinero_lotes_cierres where es_prueba and lote_id in (select id from public.dinero_lotes_saldo where es_prueba and sms_id in (${idsSms}))`,
     `delete from public.dinero_lotes_saldo where es_prueba and sms_id in (${idsSms})`,
     `delete from public.sms_eventos where sms_id in (${idsSms})`,
+    `delete from public.sms_ingesta where sms_id in (${idsSms})`,
     `delete from public.sms_ingesta where client_uuid in (${idsUuid})`,
     `delete from public.dinero_esperas_log where es_prueba and espera_id in (${idsEsp})`,
     `delete from public.dinero_esperas where id in (${idsEsp})`,
