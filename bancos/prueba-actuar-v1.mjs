@@ -90,16 +90,23 @@ function depsMock(sobre = {}) {
   ok(iguales, "gananciaActuar ≡ ganancia del Analista en todo el barrido (las copias no se separan)");
   cerca(T.gananciaActuar(319, 925, 1000), 43.89, 0.011, "G(319) con la tarifa viva = +43,89");
 }
-/* equilibradoDe: la doble lectura contra el libro crudo */
+/* equilibradoDe: la doble lectura contra el libro crudo.
+   Desde la TANDA 2026-11-14 el ancla es la CIMA FIRME (niveles
+   con respaldo acumulado de 20 USD, la misma regla de nivel20):
+   los niveles de este bloque llevan 30 USD pa que el de 320
+   tenga respaldo; con 10 USD por nivel el ancla sube al
+   siguiente nivel, que es el comportamiento buscado. */
 {
   const ventas = [
-    { amount: "10", receive: "3279.5" }, { amount: "10", receive: "3200" },
-    { amount: "10", receive: "13000" }, // trampa: fuera
-    { amount: "10", receive: "3100", mine: true }, // propia: fuera
+    { amount: "30", receive: "9838.5" }, { amount: "30", receive: "9600" },
+    { amount: "30", receive: "39000" }, // trampa: fuera
+    { amount: "30", receive: "9300", mine: true }, // propia: fuera
   ];
-  ok(T.equilibradoDe(ventas, 333) === 320, "equilibradoDe = min(topVenta 320, eq−5 328)");
+  ok(T.equilibradoDe(ventas, 333) === 320, "equilibradoDe = min(cima firme 320, eq−5 328)");
   ok(T.equilibradoDe(ventas, 300) === 295, "equilibradoDe capa al equilibrio (300−5)");
   ok(T.equilibradoDe([], 333) === null && T.equilibradoDe(ventas, null) === null, "equilibradoDe sin libro o sin eq -> null");
+  const conSucia = [{ amount: "30", receive: "8370" }, ...ventas]; // 279 aislada
+  ok(T.equilibradoDe(conSucia, 333) === 320, "equilibradoDe: la cima sucia aislada (279) NO arrastra el ancla");
 }
 
 /* Camino feliz: crea UNA oferta con el payload exacto del diseño */
