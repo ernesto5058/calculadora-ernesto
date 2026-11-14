@@ -99,7 +99,14 @@ function crear(variante){
 }
 function click(el){ el.dispatchEvent(new el.ownerDocument.defaultView.MouseEvent("click", { bubbles: true, cancelable: true })); }
 function input(el, v){ el.value = v; el.dispatchEvent(new el.ownerDocument.defaultView.Event("input", { bubbles: true })); }
-function pestaña(w, nombre){ [...w.document.querySelectorAll(".tab")].forEach(t => { if (t.textContent.includes(nombre)) click(t); }); }
+function pestaña(w, nombre){
+  /* T1 (v22): la barra trae solo 4 secciones; si el nombre no es una
+     sección visible, se navega por irA() — igual que en el banco
+     principal (la pantalla sigue existiendo como hija). */
+  let tocada = false;
+  [...w.document.querySelectorAll(".tab")].forEach(t => { if (t.textContent.includes(nombre)) { click(t); tocada = true; } });
+  if (!tocada && typeof w.irA === "function") w.irA(nombre);
+}
 const fmt2 = n => (Math.round(n * 100) / 100).toFixed(2);
 
 /* ===== A · verde + simulador ===== */
