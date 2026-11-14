@@ -103,6 +103,17 @@ jobs:
               return '';
             });
             if (tarjeta) { nota('Tarjeta flotante apartada tras entrar: «' + tarjeta + '».'); await page.waitForTimeout(800); }
+            // Guía de primera vez (v1.7.0): se salta ANTES de fotografiar;
+            // si queda abierta tapa media pantalla en todas las fotos.
+            try {
+              const guia = await page.evaluate(() => {
+                const b = document.getElementById('guiaSaltar');
+                const box = document.getElementById('guiaBox');
+                if (b && box && box.getBoundingClientRect().height > 0) { b.click(); return true; }
+                return false;
+              });
+              if (guia) { nota('Guía de primera vez saltada antes de fotografiar (v1.7.0).'); await page.waitForTimeout(800); }
+            } catch (e) { nota('Guía no apartada: ' + String(e).slice(0, 100)); }
             if (R.entrada) await foto('00-entrada.png', 'Mi Trabajo — así queda la app al entrar con PEUEBA (la pantalla que abre).');
 
             if (R.entrada) {
@@ -120,7 +131,7 @@ jobs:
                   await page.waitForTimeout(2200);
                   if (!(await vistaVisible(vista))) { nota(nombre + ': la vista no quedó visible tras el toque (' + via + ').'); continue; }
                   if (via === 'dom') nota(nombre + ': el toque normal fue interceptado; entró el toque DOM.');
-                  await page.evaluate(() => window.scrollTo(0, 0));
+                  await page.evaluate((v) => { const el = document.getElementById(v); if (el) el.scrollIntoView(); else window.scrollTo(0, 0); }, vista);
                   await page.waitForTimeout(400);
                   await foto(archivo, pie);
                   R.pantallas.push(nombre);
@@ -168,7 +179,7 @@ jobs:
                   await foto('08-reportar-con-editar.png', 'Mi Trabajo · Reportar — la lista con un reporte pendiente y su botón «Editar» (sembrado SOLO en este navegador, con la red bloqueada: nunca salió).');
                   await tocar('[data-edrep]');
                   await page.waitForTimeout(1200);
-                  await page.evaluate(() => window.scrollTo(0, 0));
+                  await page.evaluate(() => { const b = document.getElementById('r_btn'); if (b) b.scrollIntoView(); else window.scrollTo(0, 0); });
                   await page.waitForTimeout(400);
                   const modo = await page.evaluate(() => {
                     const b = document.getElementById('r_btn');
