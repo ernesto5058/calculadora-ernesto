@@ -127,6 +127,9 @@ jobs:
       - name: Banco puerta de acción — barandas del Nivel 1 (43 chequeos)
         run: node bancos/prueba-actuar-v1.mjs
 
+      - name: Banco puerta de subida — base por plantilla (fila 88)
+        run: node bancos/prueba-actuar-puerta.mjs
+
       - name: Banco Bot PRO — Telegram (46 chequeos)
         run: node bancos/test-telegram-pro-banco.mjs
 
