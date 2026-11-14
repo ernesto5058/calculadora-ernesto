@@ -85,6 +85,8 @@ async function avisar(titulo: string, cuerpo: string): Promise<boolean> {
         para: "ADMIN",
         titulo,
         cuerpo,
+        tab: "Avisos",
+        ancla: "avRegistro",
         secreto: AVISOS_SECRET,
       }),
       signal: AbortSignal.timeout(30000),
