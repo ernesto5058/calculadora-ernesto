@@ -327,7 +327,52 @@
   .chatAvatar { background: var(--dorado); color: #FFFFFF; border-color: var(--dorado); }
   .versionTxt { background: var(--bg-0); font-size: 15px; }
   input[type=file] { font-size: 16px; min-height: 48px; }
-</style><script>window.SENTRY_CASA={app:"mitrabajo",version:"1.6.1",dsn:"https://c55f15054776babcf29ee7023c77f250@o4512419765354496.ingest.us.sentry.io/4512419773087744"};</script>
+  /* ===== T3 v1.7.0 — ESPERAS · MI PAGO · GUÍA · HOJA INFERIOR =====
+     Cara de calle intacta: tarjetas blancas, botones enormes, azul
+     de trabajo. La hoja de adjuntos pasa a hoja inferior DE VERDAD
+     (fija al borde inferior, con su fondo oscuro tocable) y la guía
+     marca su paso con el anillo dorado de la casa. */
+  .navCard { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 64px; background: var(--bg-1); border: 1px solid var(--borde-fuerte); border-radius: var(--r-lg); padding: 12px 16px; margin: 0 0 12px; cursor: pointer; text-align: left; color: var(--txt-1); box-shadow: var(--sombra-1); }
+  .navCard:active { transform: scale(.98); }
+  .navCard .nIc { flex: 0 0 auto; width: 46px; height: 46px; border-radius: 50%; background: var(--dorado-suave); color: var(--dorado); display: flex; align-items: center; justify-content: center; }
+  .navCard .nIc .ic { width: 23px; height: 23px; }
+  .navCard .nTx { flex: 1; min-width: 0; }
+  .navCard .nTx b { display: block; font-size: 17px; font-weight: 700; }
+  .navCard .nTx small { color: var(--txt-2); font-size: 13px; line-height: 1.4; display: block; }
+  .navCard .nBadge { flex: 0 0 auto; min-width: 26px; padding: 2px 8px; border-radius: var(--r-pildora); background: var(--ambar-suave); color: var(--ambar); font-size: 13px; font-weight: 700; text-align: center; }
+  .navCard .nChev { flex: 0 0 auto; color: var(--txt-3); }
+  .navCard .nChev svg { transform: scaleX(-1); }
+  .volverBtn { display: inline-flex; align-items: center; gap: 4px; min-height: 48px; padding: 8px 14px 8px 8px; background: var(--bg-1); border: 1px solid var(--borde-fuerte); border-radius: var(--r-pildora); color: var(--dorado-claro); font-size: 15px; font-weight: 700; cursor: pointer; margin-bottom: 12px; }
+  .volverBtn:active { transform: scale(.97); }
+  .espRow { padding: 12px 2px; border-bottom: 1px solid var(--linea); }
+  .espRow:last-child { border-bottom: none; }
+  .espTop { display: flex; justify-content: space-between; gap: 10px; align-items: flex-start; }
+  .espTop b { font-size: 16px; }
+  .espDet { color: var(--txt-2); font-size: 14px; line-height: 1.5; margin-top: 2px; }
+  .stChip { flex: 0 0 auto; font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: var(--r-pildora); }
+  .stChip.esp { background: var(--ambar-suave); color: var(--ambar); }
+  .stChip.okk { background: var(--verde-suave); color: var(--verde); }
+  .stChip.rev { background: rgba(76,195,255,.12); color: var(--mt-azul-claro); }
+  .stChip.no { background: var(--rojo-suave); color: var(--rojo); }
+  .pagoTot { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+  .pagoTot .pt { flex: 1; min-width: 100px; background: var(--bg-0); border: 1px solid var(--borde); border-radius: 14px; padding: 10px 12px; text-align: center; }
+  .pagoTot .pt .n { font-family: var(--fuente-num); font-variant-numeric: tabular-nums; font-size: 22px; font-weight: 700; }
+  .pagoTot .pt .l { color: var(--txt-2); font-size: 12px; line-height: 1.35; }
+  .pagoRow { padding: 12px 2px; border-bottom: 1px solid var(--linea); font-size: 15px; line-height: 1.55; }
+  .pagoRow:last-child { border-bottom: none; }
+  .pagoRow .prF { color: var(--txt-3); font-size: 13px; }
+  .adjScrim { display: none; position: fixed; inset: 0; z-index: 55; background: rgba(10,12,16,.42); }
+  .adjScrim.abierta { display: block; }
+  .adjHojaPRO { position: fixed; left: 0; right: 0; bottom: 0; top: auto; margin: 0 auto; max-width: 560px; z-index: 56; border-radius: 20px 20px 0 0; padding: 10px 10px calc(14px + env(safe-area-inset-bottom)); }
+  #guiaBox { display: none; position: fixed; left: 12px; right: 12px; bottom: calc(96px + env(safe-area-inset-bottom)); z-index: 70; max-width: 536px; margin: 0 auto; background: #FFFFFF; border: 1px solid var(--borde-fuerte); border-radius: 20px; padding: 16px; box-shadow: 0 18px 44px rgba(10,12,16,.30); }
+  #guiaBox.abierta { display: block; animation: adjSubeMT .2s ease-out; }
+  #guiaBox .gPaso { color: var(--txt-3); font-size: 12px; font-weight: 700; letter-spacing: .04em; }
+  #guiaBox .gTxt { font-size: 16px; line-height: 1.5; margin: 6px 0 12px; }
+  #guiaBox .gBtns { display: flex; gap: 8px; }
+  #guiaBox .gBtns .go { margin-top: 0; flex: 1; }
+  .guiaRing { outline: 3px solid rgba(232,184,75,.95) !important; outline-offset: 3px; border-radius: 14px; animation: guiaPulso 1.2s ease-in-out infinite; position: relative; z-index: 65; }
+  @keyframes guiaPulso { 0%,100% { box-shadow: 0 0 0 0 rgba(232,184,75,.45); } 50% { box-shadow: 0 0 0 9px rgba(232,184,75,0); } }
+</style><script>window.SENTRY_CASA={app:"mitrabajo",version:"1.7.0",dsn:"https://c55f15054776babcf29ee7023c77f250@o4512419765354496.ingest.us.sentry.io/4512419773087744"};</script>
 <script defer crossorigin="anonymous" integrity="sha384-48iagrZwMa6wkDoJKNyCk4jgMHcOcsBK/DzZAJInl1ZhtunellJDCRNZuomfHefF" src="https://browser.sentry-cdn.com/8.38.0/bundle.min.js"></script>
 </head>
 <body>
@@ -357,6 +402,8 @@
   <symbol id="i-img" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></symbol>
   <symbol id="i-file" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></symbol>
   <symbol id="i-dl" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></symbol>
+  <symbol id="i-back" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></symbol>
 </svg>
 <div class="wrap" id="appWrap">
   <header>
@@ -497,6 +544,8 @@
       <div class="guiaRow"><span class="gIc">💬</span><div><b>Chat:</b> hablas directo con Ernesto dentro de la app, con fotos si hace falta; sin conexión, el mensaje se guarda y sale solo cuando vuelva.</div></div>
       <div class="guiaRow"><span class="gIc">✍️</span><div><b>Textos:</b> tres botones (Compro saldo · Recarga y cambio · Transferencia) y la app arma el anuncio completo con los datos de Ernesto, listo para copiar o mandar a WhatsApp.</div></div>
       <div class="guiaRow"><span class="gIc">👤</span><div><b>Mi panel:</b> tu semana — tus tratos, tu total ganado y tu bono (cuánto te falta para los 300 CUP).</div></div>
+      <div class="guiaRow"><span class="gIc"><svg class="ic" aria-hidden="true"><use href="#i-clock"/></svg></span><div><b>Mis esperas:</b> desde «Mi panel» — tus vueltas en camino y el parte con tasa para reportar la vuelta que operaste.</div></div>
+      <div class="guiaRow"><span class="gIc"><svg class="ic" aria-hidden="true"><use href="#i-cash"/></svg></span><div><b>Mi pago:</b> desde «Mi panel» — lo que ya tienes asegurado, lo que depende de la venta y lo que ya te pagaron.</div></div>
       <div class="guiaRow"><span class="gIc">🔔</span><div><b>Avisos:</b> acepta el permiso de notificaciones y te enteras al momento cuando Ernesto apruebe tu reporte.</div></div>
       <div class="hint" style="margin-top:12px;margin-bottom:0"><b>Regla simple:</b> todo trato va por la app, y la cuenta final la confirma Ernesto con los números reales.</div>
     </div>
@@ -519,6 +568,7 @@
       <div id="c_hilo" class="hilo hiloWA"><div class="chatVacio">Cargando el chat…</div></div>
       <div class="respBar" id="c_resp"></div>
       <div class="hint" id="c_adj_nom"></div>
+      <div class="adjScrim" id="c_adj_scrim"></div>
       <div class="adjHojaPRO" id="c_adj_hoja">
         <div class="adjHojaTit">Adjuntar<button type="button" class="miniBtn" id="c_adj_cerrar">✕</button></div>
         <button type="button" class="adjFila" id="c_adj_foto"><span class="adjIco"><svg class="ic" aria-hidden="true"><use href="#i-img"/></svg></span><span class="adjTx"><b>Foto o vídeo</b><small>Elige de tu galería</small></span></button>
@@ -552,6 +602,8 @@
       <h2><svg class="ic" aria-hidden="true"><use href="#i-chart"/></svg> Mi panel</h2>
       <div class="hint">Aquí ves tus tratos confirmados, lo que has ganado y cómo vas para tu bono.</div>
       <div class="sesLab">Tu sesión: <b id="p_ses">—</b></div>
+      <button type="button" class="navCard" id="navEsperas"><span class="nIc"><svg class="ic" aria-hidden="true"><use href="#i-clock"/></svg></span><span class="nTx"><b>Mis esperas</b><small>Tus vueltas en camino: qué falta por llegar y lo que ya se asentó. Aquí también mandas el parte de una vuelta nueva.</small></span><span class="nBadge hide" id="navEspBadge">0</span><span class="nChev"><svg class="ic" aria-hidden="true"><use href="#i-back"/></svg></span></button>
+      <button type="button" class="navCard" id="navPago"><span class="nIc"><svg class="ic" aria-hidden="true"><use href="#i-cash"/></svg></span><span class="nTx"><b>Mi pago</b><small id="navPagoTxt">Lo que ya tienes asegurado, lo que depende de la venta y lo que ya te pagaron.</small></span><span class="nChev"><svg class="ic" aria-hidden="true"><use href="#i-back"/></svg></span></button>
       <div class="warn" id="p_warn"></div>
       <div id="p_body" class="hide">
         <div id="p_cupo" class="hide">
@@ -586,6 +638,64 @@
         <div id="p_tratos"></div>
       </div>
       <button class="salir" id="btnSalir" type="button"><svg class="ic mini" aria-hidden="true"><use href="#i-out"/></svg> Salir (cerrar mi sesión)</button>
+    </div>
+  </div>
+
+  <!-- ============ MIS ESPERAS (T3 · v1.7.0) ============ -->
+  <div id="viewEsperas" class="hide">
+    <button type="button" class="volverBtn" id="e_volver"><svg class="ic" aria-hidden="true"><use href="#i-back"/></svg> Mi panel</button>
+    <div class="card">
+      <h2><svg class="ic" aria-hidden="true"><use href="#i-clock"/></svg> Mis esperas</h2>
+      <div class="hint">Cuando operas una vuelta, aquí queda en espera hasta que llega su prueba (el SMS del saldo o la transferencia). Ernesto la ve igual que tú.</div>
+      <div id="e_resumen" class="hint" style="margin-bottom:4px"></div>
+      <div class="warn" id="e_warn"></div>
+      <div id="e_lista"><div class="hint">Cargando tus esperas…</div></div>
+    </div>
+    <div class="card" id="ep_card">
+      <h2><svg class="ic" aria-hidden="true"><use href="#i-send"/></svg> Mandar el parte de una vuelta</h2>
+      <div class="hint">Operaste una vuelta con tu efectivo: mándale el parte a Ernesto con la tasa que pactaste y lo que pagaste. Tu espera nace al momento y el saldo se asienta solo cuando llegue su SMS.</div>
+      <label>¿Qué vuelta operaste?</label>
+      <div class="tiposel">
+        <div class="tab on" id="ep_tipo_s"><svg class="ic" aria-hidden="true"><use href="#i-phone"/></svg> Saldo</div>
+        <div class="tab" id="ep_tipo_t"><svg class="ic" aria-hidden="true"><use href="#i-bank"/></svg> Transferencia</div>
+      </div>
+      <div id="ep_box_s">
+        <label>Tasa que pactaste: precio por cada recarga de 360 (CUP)</label>
+        <input type="number" id="ep_tasa" inputmode="decimal" placeholder="Ej: 1000">
+        <div class="hint">El precio que pagaste por cada recarga de 360. Con la tasa y el total, la app calcula cuánto saldo tiene que llegar.</div>
+      </div>
+      <div id="ep_box_t" class="hide">
+        <label>¿Al cuánto es el trato? (%)</label>
+        <input type="number" id="ep_pct" inputmode="decimal" placeholder="Ej: 30">
+        <div class="hint">El % del trato: con eso y el total, la app calcula cuánto tiene que entrar por transferencia.</div>
+      </div>
+      <label>Total que pagaste en efectivo (CUP)</label>
+      <input type="number" id="ep_total" inputmode="decimal" placeholder="Ej: 4000">
+      <div class="hint" id="ep_tope">Tu efectivo libre para operar aparece aquí cuando cargue tu estado.</div>
+      <label>Teléfono de quien te vendió (opcional)</label>
+      <input type="tel" id="ep_tel" inputmode="tel" placeholder="Ej: 51234567">
+      <button class="go" id="ep_btn" type="button"><svg class="ic" aria-hidden="true"><use href="#i-send"/></svg> Enviar el parte</button>
+      <div class="ok" id="ep_ok" style="display:none"></div>
+      <div class="warn" id="ep_warn"></div>
+    </div>
+  </div>
+
+  <!-- ============ MI PAGO (T3 · v1.7.0) ============ -->
+  <div id="viewPago" class="hide">
+    <button type="button" class="volverBtn" id="mp_volver"><svg class="ic" aria-hidden="true"><use href="#i-back"/></svg> Mi panel</button>
+    <div class="card">
+      <h2><svg class="ic" aria-hidden="true"><use href="#i-cash"/></svg> Mi pago</h2>
+      <div class="hint">Tu pago por vuelta, en claro: lo <b>asegurado</b> es tuyo pase lo que pase con la venta; el <b>premio</b> depende de cómo se venda, y aquí ves también lo que <b>ya te pagaron</b>.</div>
+      <div class="warn" id="mp_warn"></div>
+      <div id="mp_totales"></div>
+    </div>
+    <div class="card">
+      <h2><svg class="ic" aria-hidden="true"><use href="#i-phone"/></svg> Vueltas de saldo</h2>
+      <div id="mp_saldo"><div class="hint">Cargando…</div></div>
+    </div>
+    <div class="card">
+      <h2><svg class="ic" aria-hidden="true"><use href="#i-bank"/></svg> Vueltas de transferencia</h2>
+      <div id="mp_transf"><div class="hint">Cargando…</div></div>
     </div>
   </div>
 
@@ -633,6 +743,11 @@
       <div class="warn" id="pf_warn"></div>
     </div>
     <div class="card">
+      <h2><svg class="ic" aria-hidden="true"><use href="#i-help"/></svg> Guía de la app</h2>
+      <div class="hint">La guía rápida te enseña lo nuevo en 4 pasos: Mis esperas, Mi pago, el clip del chat y cómo mandar el parte de una vuelta.</div>
+      <button class="go" id="pf_guia" type="button">Ver la guía de nuevo</button>
+    </div>
+    <div class="card">
       <h2><svg class="ic" aria-hidden="true"><use href="#i-bell"/></svg> Avisos</h2>
       <div class="hint" id="pf_push_txt">Recibe un aviso en la pantalla cuando Ernesto apruebe un trato, te pague o te escriba. El permiso se pide solo al tocar el botón.</div>
       <button class="go" id="pf_push" type="button">Activar avisos</button>
@@ -651,6 +766,15 @@
       <div class="warn" id="cc_warn"></div>
       <label>Tu enlace personal de entrada</label>
       <div class="hint" id="cc_enlace">—</div>
+    </div>
+  </div>
+
+  <div id="guiaBox" role="dialog" aria-label="Guía de la app">
+    <div class="gPaso" id="guiaPaso">PASO 1 DE 4</div>
+    <div class="gTxt" id="guiaTxt"></div>
+    <div class="gBtns">
+      <button type="button" class="miniBtn" id="guiaSaltar">Saltar</button>
+      <button type="button" class="go" id="guiaBtn">Siguiente</button>
     </div>
   </div>
 
