@@ -44,6 +44,20 @@
 // firma VAPID (ES256) se implementan con WebCrypto del propio Deno,
 // sin librerías externas. La función NO se despliega desde este repo:
 // se despliega en la activación con el CLI de Supabase (ver informe).
+//
+// AVISOS PRO (2026-11-13): NADA falla en silencio. TODO intento de
+// envío queda escrito en public.avisos_log (canal, destino, resultado
+// entregado/fallo/podada, estado HTTP, motivo, si el canal entregó
+// como RESPALDO porque el push falló, y si fue prueba). Cada intento
+// push mueve push_subs.ultimo_uso de su suscripción. Las
+// suscripciones muertas se PODAN solas (404/410, o 400 con
+// VapidPkHashMismatch: nació con otra clave VAPID — la causa raíz de
+// «toqué Activar avisos y no me llega nada»: la sub vieja del dueño
+// era pre-rotación y Apple la rechazaba en silencio, sin registro).
+// DOBLE RIEL: el abanico sale por push Y por el Telegram del dueño
+// (ADMIN); el log marca qué canal entregó y si Telegram cargó el
+// aviso como respaldo. Si NINGÚN canal entrega, el evento queda
+// registrado como «sin_entrega» en avisos_log y en actividad.
 // =====================================================================
 
 import {
@@ -57,7 +71,7 @@ import {
   plTarifa,
   type Plantilla,
 } from "../_shared/telegram-pro.ts";
-import { decidirAcceso } from "./logica.js";
+import { clasificarPush, decidirAcceso } from "./logica.js";
 
 function b64urlToBytes(s: string): Uint8Array {
   const pad = "=".repeat((4 - (s.length % 4)) % 4);
@@ -132,7 +146,7 @@ async function cifrarPayload(sub: { keys: { p256dh: string; auth: string } }, pa
   return concat(cabecera, cifrado);
 }
 
-async function enviarPush(sub: { endpoint: string; keys: { p256dh: string; auth: string } }, evento: Record<string, string>, env: (k: string) => string | undefined): Promise<{ ok: boolean; estado?: number; error?: string }> {
+async function enviarPush(sub: { endpoint: string; keys: { p256dh: string; auth: string } }, evento: Record<string, string>, env: (k: string) => string | undefined): Promise<{ ok: boolean; estado?: number; error?: string; detalle?: string }> {
   const pub = env("VAPID_PUBLIC_KEY") || "";
   const priv = env("VAPID_PRIVATE_KEY") || "";
   const subject = env("VAPID_SUBJECT") || "mailto:avisos@example.com";
@@ -154,7 +168,15 @@ async function enviarPush(sub: { endpoint: string; keys: { p256dh: string; auth:
     },
     body: cuerpo,
   });
-  return { ok: resp.ok || resp.status === 201, estado: resp.status };
+  /* Avisos PRO: en un fallo se lee el cuerpo de la respuesta — ahí
+     viaja el motivo machine-readable del servidor de push (p. ej.
+     {"reason":"VapidPkHashMismatch"}) y sin él el registro de
+     entregas no puede clasificar ni podar con causa. */
+  let detalle = "";
+  if (!resp.ok && resp.status !== 201) {
+    detalle = (await resp.text().catch(() => "")).slice(0, 240);
+  }
+  return { ok: resp.ok || resp.status === 201, estado: resp.status, detalle: detalle || undefined };
 }
 
 /* Ritmo de Telegram: ~1 mensaje/segundo por chat y ~30/segundo en
@@ -220,7 +242,7 @@ async function enviarFCM(token: string, evento: Record<string, string>, env: (k:
         token,
         notification: { title: evento.titulo, body: evento.cuerpo },
         android: { priority: "HIGH" },
-        data: { tipo: evento.tipo || "", tab: evento.tab || "" },
+        data: { tipo: evento.tipo || "", tab: evento.tab || "", ancla: evento.ancla || "" },
       },
     }),
   });
@@ -292,6 +314,44 @@ async function leerTabla(env: (k: string) => string | undefined, tabla: string, 
   return await resp.json();
 }
 
+/* ===== AVISOS PRO: registro de entregas (avisos_log) =====
+   Cada intento de envío deja su fila: nada falla en silencio. La
+   escritura del registro NUNCA rompe el envío (misma filosofía que
+   registrarActividad): si el registro cae, el aviso igual sale. */
+function cabecerasSrv(env: (k: string) => string | undefined): Record<string, string> {
+  return {
+    "apikey": env("SUPABASE_SERVICE_ROLE_KEY") || "",
+    "Authorization": "Bearer " + (env("SUPABASE_SERVICE_ROLE_KEY") || ""),
+    "Content-Type": "application/json",
+  };
+}
+async function escribirLogAviso(env: (k: string) => string | undefined, fila: Record<string, unknown>): Promise<void> {
+  try {
+    await fetch((env("SUPABASE_URL") || "") + "/rest/v1/avisos_log", {
+      method: "POST",
+      headers: { ...cabecerasSrv(env), "Prefer": "return=minimal" },
+      body: JSON.stringify(fila),
+    });
+  } catch { /* el registro nunca rompe el envío */ }
+}
+async function tocarUltimoUso(env: (k: string) => string | undefined, subId: number): Promise<void> {
+  try {
+    await fetch((env("SUPABASE_URL") || "") + "/rest/v1/push_subs?id=eq." + subId, {
+      method: "PATCH",
+      headers: { ...cabecerasSrv(env), "Prefer": "return=minimal" },
+      body: JSON.stringify({ ultimo_uso: new Date().toISOString() }),
+    });
+  } catch { /* idem */ }
+}
+async function podarSub(env: (k: string) => string | undefined, subId: number): Promise<void> {
+  try {
+    await fetch((env("SUPABASE_URL") || "") + "/rest/v1/push_subs?id=eq." + subId, {
+      method: "DELETE",
+      headers: { ...cabecerasSrv(env), "Prefer": "return=minimal" },
+    });
+  } catch { /* idem */ }
+}
+
 export async function manejar(req: Request, env: (k: string) => string | undefined = (k) => Deno.env.get(k)): Promise<Response> {
   if (req.method !== "POST") return new Response("solo POST", { status: 405 });
   let ev: Record<string, unknown>;
@@ -343,23 +403,25 @@ export async function manejar(req: Request, env: (k: string) => string | undefin
     ingreso: ev.ingreso ?? null,
     url: String(ev.url || "./"),
     tab: String(ev.tab || ""),
+    ancla: String(ev.ancla || ""),
+    reporte_id: ev.reporte_id ?? null,
     tag: String(ev.tag || "aviso"),
   };
   if (!para) return new Response("falta «para»", { status: 400 });
 
-  const subs = await leerTabla(env, "push_subs", "codigo=eq." + encodeURIComponent(para) + "&select=suscripcion");
-  const lista = (subs as { suscripcion: { endpoint: string; keys: { p256dh: string; auth: string } } }[]).map((f) => f.suscripcion);
+  /* Avisos PRO: las suscripciones se leen CON su id — el registro de
+     entregas y el ultimo_uso se escriben por suscripción, y las
+     muertas se podan por id. */
+  type FilaSub = {
+    id: number; plataforma?: string; creado_en?: string;
+    suscripcion: { endpoint?: string; keys?: { p256dh: string; auth: string }; tipo?: string; token?: string };
+  };
+  const filas = await leerTabla(env, "push_subs", "codigo=eq." + encodeURIComponent(para) + "&select=id,suscripcion,plataforma,creado_en") as FilaSub[];
   /* v1.4.5: las suscripciones se parten por canal — Web Push (las
      de siempre: endpoint + keys) y FCM nativo (tipo 'fcm' + token,
      de la app instalada). Una fila nativa JAMÁS entra al envío web. */
-  const listaWeb = (lista as unknown[]).filter((s) => {
-    const x = s as { endpoint?: string; keys?: unknown };
-    return !!x?.endpoint && !!x?.keys;
-  }) as { endpoint: string; keys: { p256dh: string; auth: string } }[];
-  const listaFcm = (lista as unknown[]).filter((s) => {
-    const x = s as { tipo?: string; token?: string };
-    return x?.tipo === "fcm" && !!x?.token;
-  }) as { tipo: string; token: string }[];
+  const filasWeb = filas.filter((f) => !!f.suscripcion?.endpoint && !!f.suscripcion?.keys);
+  const filasFcm = filas.filter((f) => f.suscripcion?.tipo === "fcm" && !!f.suscripcion?.token);
 
   let chatTelegram: string | null = null;
   if (para === "ADMIN") {
@@ -370,22 +432,66 @@ export async function manejar(req: Request, env: (k: string) => string | undefin
   if (ev.dry_run === true) {
     return new Response(JSON.stringify({
       ok: true, dry_run: true, para,
-      suscripciones: lista.length,
-      fcm: listaFcm.length,
+      suscripciones: filas.length,
+      fcm: filasFcm.length,
       firebase_configurado: !!env("FCM_SERVICE_ACCOUNT_JSON"),
       telegram: !!chatTelegram,
       vapid_configurado: !!(env("VAPID_PUBLIC_KEY") && env("VAPID_PRIVATE_KEY")),
+      subs_detalle: filas.map((f) => ({
+        id: f.id, plataforma: f.plataforma || null, creado_en: f.creado_en || null,
+        canal: f.suscripcion?.tipo === "fcm" ? "fcm" : "webpush",
+      })),
     }), { headers: { "Content-Type": "application/json" } });
   }
 
+  /* ===== AVISOS PRO: abanico con registro completo =====
+     Cada intento: ultimo_uso al día, fila en avisos_log con su
+     clasificación, y poda de la suscripción muerta. */
+  const claveEv = typeof ev.clave === "string" && ev.clave ? ev.clave : null;
+  const esPrueba = ev.prueba === true || tipoEv === "prueba";
+  const baseLog = {
+    clave: claveEv, evento_tipo: tipoEv || "libre", para,
+    titulo: tituloEv, es_prueba: esPrueba,
+  };
+  let pushIntentado = false;
+  let pushEntrego = false;
+  let telegramEntrego = false;
   const resultados: Record<string, unknown>[] = [];
-  for (const sub of listaWeb) {
-    try { resultados.push({ canal: "webpush", ...(await enviarPush(sub, evento, env)) }); }
-    catch (e) { resultados.push({ canal: "webpush", ok: false, error: String(e) }); }
+  for (const f of filasWeb) {
+    pushIntentado = true;
+    const sub = f.suscripcion as { endpoint: string; keys: { p256dh: string; auth: string } };
+    let r: { ok: boolean; estado?: number; error?: string; detalle?: string };
+    try { r = await enviarPush(sub, evento, env); }
+    catch (e) { r = { ok: false, error: String(e) }; }
+    await tocarUltimoUso(env, f.id);
+    const clase = r.estado != null
+      ? clasificarPush(r.estado, r.detalle || r.error || "")
+      : { resultado: "fallo", podar: false, motivo: r.error || "el envío reventó antes de llegar al servidor de push" };
+    if (clase.resultado === "entregado") pushEntrego = true;
+    let host = "webpush";
+    try { host = new URL(sub.endpoint).host; } catch { /* endpoint raro: queda el genérico */ }
+    await escribirLogAviso(env, {
+      ...baseLog, canal: "webpush", sub_id: f.id, destino: host,
+      resultado: clase.resultado, http_estado: r.estado ?? null,
+      motivo: clase.motivo || r.error || null,
+    });
+    if (clase.podar) await podarSub(env, f.id);
+    resultados.push({ canal: "webpush", sub_id: f.id, ...r, resultado: clase.resultado });
   }
-  for (const sF of listaFcm) {
-    try { resultados.push({ canal: "fcm", ...(await enviarFCM(sF.token, evento, env)) }); }
-    catch (e) { resultados.push({ canal: "fcm", ok: false, error: String(e) }); }
+  for (const f of filasFcm) {
+    pushIntentado = true;
+    let r: { ok: boolean; estado?: number; error?: string; pendiente?: boolean };
+    try { r = await enviarFCM(f.suscripcion.token || "", evento, env); }
+    catch (e) { r = { ok: false, error: String(e) }; }
+    await tocarUltimoUso(env, f.id);
+    const resultadoFcm = r.ok ? "entregado" : (r.pendiente ? "pendiente" : "fallo");
+    if (r.ok) pushEntrego = true;
+    await escribirLogAviso(env, {
+      ...baseLog, canal: "fcm", sub_id: f.id, destino: "fcm",
+      resultado: resultadoFcm, http_estado: r.estado ?? null, motivo: r.error || null,
+    });
+    if (r.estado === 404) await podarSub(env, f.id);
+    resultados.push({ canal: "fcm", sub_id: f.id, ...r, resultado: resultadoFcm });
   }
   if (chatTelegram) {
     try {
@@ -420,7 +526,19 @@ export async function manejar(req: Request, env: (k: string) => string | undefin
         botonesTg = { inline_keyboard: filas };
       }
       const rTg = await enviarTelegram(chatTelegram, evento.html, env, botonesTg);
-      resultados.push({ canal: "telegram", ...rTg });
+      /* DOBLE RIEL: si el push se intentó y no entregó en ninguna
+         suscripción, este Telegram cargó el aviso como RESPALDO —
+         y el registro lo dice. */
+      const tgRespaldo = rTg.ok && pushIntentado && !pushEntrego;
+      if (rTg.ok) telegramEntrego = true;
+      await escribirLogAviso(env, {
+        ...baseLog, canal: "telegram", destino: "telegram",
+        resultado: rTg.ok ? "entregado" : "fallo",
+        http_estado: rTg.estado ?? null,
+        motivo: rTg.error || (rTg.bloqueado ? "Telegram 403: el dueño bloqueó el bot (vínculo roto)" : null),
+        es_respaldo: tgRespaldo,
+      });
+      resultados.push({ canal: "telegram", ...rTg, es_respaldo: tgRespaldo });
       if (rTg.bloqueado) {
         /* 403: bloqueó el bot -> vínculo roto. Queda registrado en
            actividad; su otra vía (el Web Push de este mismo abanico,
@@ -428,9 +546,30 @@ export async function manejar(req: Request, env: (k: string) => string | undefin
         await registrarActividad(env, para, "telegram_vinculo_roto", { canal: "telegram" });
       }
     }
-    catch (e) { resultados.push({ canal: "telegram", ok: false, error: String(e) }); }
+    catch (e) {
+      await escribirLogAviso(env, {
+        ...baseLog, canal: "telegram", destino: "telegram",
+        resultado: "fallo", motivo: String(e),
+      });
+      resultados.push({ canal: "telegram", ok: false, error: String(e) });
+    }
   }
-  return new Response(JSON.stringify({ ok: true, para, resultados }), { headers: { "Content-Type": "application/json" } });
+  /* Si NINGÚN canal entregó, el fracaso queda en voz alta: fila
+     «sin_entrega» en el registro y apunte en actividad. Antes, un
+     aviso podía morir sin dejar ni una línea en ninguna parte. */
+  const entregoAlguno = pushEntrego || telegramEntrego;
+  if (!entregoAlguno) {
+    await escribirLogAviso(env, {
+      ...baseLog, canal: "despacho", resultado: "sin_entrega",
+      motivo: "ningún canal entregó el aviso (push intentado: " + pushIntentado +
+        "; telegram: " + (chatTelegram ? "intentado" : "sin vínculo") + ")",
+    });
+    await registrarActividad(env, para, "aviso_sin_entrega", { tipo: tipoEv, titulo: tituloEv });
+  }
+  return new Response(JSON.stringify({
+    ok: true, para, resultados, entregado: entregoAlguno,
+    canales_ok: resultados.filter((r) => r.ok === true).map((r) => r.canal),
+  }), { headers: { "Content-Type": "application/json" } });
 }
 
 /* Punto de entrada de Supabase Edge Functions. */
