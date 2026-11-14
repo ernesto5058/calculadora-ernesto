@@ -188,10 +188,18 @@ export function profundidadDelante(escVenta, tasa) {
   return Math.round(s * 100) / 100;
 }
 
-export function menuMaker({ topVenta, nivel20, equilibrio: eq, salida, costo, escVenta }) {
+export function menuMaker({ topVenta, topVentaFirme, nivel20, equilibrio: eq, salida, costo, escVenta }) {
   const e = num(eq);
   const techo = e === null ? null : Math.round((e - COLCHON_SALDO) * 100) / 100;
   const tv = num(topVenta), n20 = num(nivel20);
+  // Los peldaños de la cima (Inmediato/Equilibrado) se anclan a la
+  // CIMA FIRME cuando viene calculada: la cruda puede ser una sola
+  // oferta sucia muy por debajo del mercado (2026-11-14: 279,07
+  // contra promedio 305,23) y un peldaño ahí vive en una banda sin
+  // absorción — el Asesor frenaba por «demanda muerta» con el
+  // mercado sano en 310/315. La cruda queda declarada en «cima».
+  const tvf = num(topVentaFirme);
+  const ancla = tvf ?? tv;
   const mk = (nombre, tasa, explica) => {
     if (tasa === null) {
       return {
@@ -215,16 +223,22 @@ export function menuMaker({ topVenta, nivel20, equilibrio: eq, salida, costo, es
   };
   const peldanos = [
     mk("Inmediato",
-      tv === null || techo === null ? null : Math.min(tv + TICK, techo),
+      ancla === null || techo === null ? null : Math.min(ancla + TICK, techo),
       "Un tick sobre la cima de venta, sin pasar tu techo: el primero de la fila."),
     mk("Equilibrado",
-      tv === null || techo === null ? null : Math.min(tv, techo),
+      ancla === null || techo === null ? null : Math.min(ancla, techo),
       "Iguala la cima de venta de ahora: equilibrio entre rapidez y ganancia."),
     mk("Paciente",
       n20 === null ? null : n20,
       "Al nivel de 20 USD del libro de compra: la mayor ganancia, la mayor espera."),
   ];
-  return { techo, libroVentaUsd: usdTotalEscalera(escVenta || []), peldanos };
+  return {
+    techo, libroVentaUsd: usdTotalEscalera(escVenta || []), peldanos,
+    cima: {
+      cruda: tv, firme: tvf,
+      sucia: tv !== null && tvf !== null && tvf !== tv,
+    },
+  };
 }
 
 // ---------------------------------------------------------------------
