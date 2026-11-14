@@ -52,6 +52,7 @@ function depsMock(sobre = {}) {
     conteo: { ultimaEjecutadaEn: null, enUltimaHora: 0, montoHoy: 0 },
     fresco: { equilibrado: 319, misOfertas: [] },
     plantillaDep: PLANTILLA,
+    promo: false,
     ...sobre,
   };
   const deps = {
@@ -65,7 +66,7 @@ function depsMock(sobre = {}) {
     },
     guardarAccion: async (id, parche) => { llamadas.guardar.push(parche); Object.assign(estado.accion, parche); },
     leerConfig: async () => estado.config,
-    promoActiva: async () => false,
+    promoActiva: async () => Boolean(estado.promo),
     leerFoto: async () => estado.foto,
     leerTarifa: async () => estado.tarifa,
     conteo: async () => estado.conteo,
@@ -222,6 +223,60 @@ function depsMock(sobre = {}) {
   const r = await T.ejecutarAccion(deps, ACCION.id);
   ok(r.codigo === "detalles_desconocidos" && llamadas.crear.length === 0,
     "P8: plantilla con detalles vacíos no es base: se niega en claro");
+}
+
+
+/* P9 — PROMO ACTIVA + su toque en «Subirla» (decisión de Ernesto,
+   2026-11-14: «mi toque en Subirla manda siempre, también en
+   promo»): la preparada del asesor con la marca via='guia_subir'
+   (la que SOLO escribe guia_subir tras validar su código admin)
+   queda EXENTA de la baranda 3 — puerta VERDE con el payload de
+   la plantilla y la bitácora registra la exención usada */
+{
+  const { deps, llamadas, estado } = depsMock({
+    promo: true,
+    fresco: { equilibrado: 319, misOfertas: [{ ...VIVA_SIN_DETAILS }] },
+  });
+  const r = await T.ejecutarAccion(deps, ACCION.id);
+  ok(r.ok === true && llamadas.crear.length === 1, "P9: promo activa + toque Subirla -> puerta VERDE (la exención manda)");
+  const p = llamadas.crear[0];
+  ok(p.details?.Celular === "51231558" && p.requirements === null && p.type === "sell",
+    "P9: el payload en promo es el de la plantilla (details objeto, requirements null)");
+  ok(estado.accion.detalle?.exencion_promo === "toque_subirla"
+    && estado.accion.detalle?.base_fuente === "plantilla",
+    "P9: la bitácora registra la exención usada (toque_subirla) y la base plantilla");
+  ok(!("details" in (estado.accion.detalle?.payload || {}))
+    && estado.accion.detalle?.payload?.forma_details?.tipo === "objeto",
+    "P9: ni con exención la bitácora lleva los details: solo su forma (el mensaje público de la oferta no es un dato de pago)");
+}
+
+/* P10 — Promo activa + asesor SIN la marca de su toque (ruta
+   programática: la acción no pasó por guia_subir): la exención es
+   por el TOQUE, no por el origen — sigue congelada en promo */
+{
+  for (const ctx of [{}, { via: "cron_asesor" }, { base_fuente: "plantilla" }]) {
+    const { deps, llamadas, estado } = depsMock({ promo: true });
+    estado.accion = { ...ACCION, contexto: ctx };
+    const r = await T.ejecutarAccion(deps, ACCION.id);
+    ok(r.codigo === "promo" && llamadas.crear.length === 0,
+      `P10: asesor sin marca de toque (contexto ${JSON.stringify(ctx)}) sigue NEGADO en promo`);
+  }
+}
+
+/* P11 — La exención abre SOLO la baranda de promo: con el toque de
+   Subirla y promo activa, una foto vieja sigue vetando (el resto
+   del blindaje intacto) — y esa negación también deja escrita la
+   exención que se había reconocido */
+{
+  const { deps, llamadas, estado } = depsMock({
+    promo: true,
+    foto: { recibida_en: iso(AHORA - 21 * 60000), libro_ok: true },
+  });
+  const r = await T.ejecutarAccion(deps, ACCION.id);
+  ok(r.codigo === "foto_vieja" && llamadas.crear.length === 0,
+    "P11: exenta de promo, la puerta sigue vetando por foto vieja (blindaje intacto)");
+  ok(estado.accion.detalle?.exencion_promo === "toque_subirla",
+    "P11: la negación posterior también registra la exención en la bitácora");
 }
 
 console.log(`\nACTUAR PUERTA-PLANTILLA: ${pass} PASS · ${fail} FAIL`);
