@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mi Negocio — Mercado sin scroll · Muestra v2</title>
+<link rel="stylesheet" href="estilo.css">
+<style>
+/* ── CSS LOCAL de esta muestra: solo lo que el patrón anti-scroll exige ──
+   1) La app se bloquea a UN viewport: la página no crece, no hay scroll.
+   2) Control segmentado que cambia la vista en el mismo hueco fijo.
+   3) Barra de acción fija al pulgar, sobre la barra de pestañas.
+   4) Las hojas ganan tope y scroll INTERNO (la página, nunca).
+   5) Acordeones cerrados por defecto pa lo secundario.              */
+.app.v2{height:100dvh;min-height:0;overflow:hidden;padding-bottom:158px;gap:10px}
+.seg{display:flex;background:var(--panel);border:1px solid var(--line);border-radius:15px;padding:4px;gap:4px;flex:none}
+.seg button{flex:1;padding:9px 0;border-radius:11px;font-size:13.5px;font-weight:700;color:var(--sub);transition:all var(--anim)}
+.seg button.on{background:linear-gradient(100deg,var(--gold1),var(--gold2));color:#191204;box-shadow:0 6px 16px rgba(192,138,45,.3)}
+.panes{flex:1;min-height:0;position:relative}
+.pane{position:absolute;inset:0;display:flex;flex-direction:column;gap:10px;overflow:hidden}
+.pane[hidden]{display:none}
+.libro-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.libro-cell{background:var(--panel);border:1px solid var(--line);border-radius:var(--r-md);padding:12px 14px}
+.libro-cell .v{font-size:20px;font-weight:800;margin-top:3px}
+.fila-pos{display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding:10px 2px}
+.fila-pos + .fila-pos{border-top:1px solid var(--line)}
+.fila-pos .k{font-size:13.5px;color:var(--sub)}
+.fila-pos .v{font-size:15.5px;font-weight:700;white-space:nowrap}
+.ctabar{position:fixed;left:50%;transform:translateX(-50%);bottom:90px;width:calc(100% - 24px);max-width:406px;z-index:31;
+  background:rgba(16,18,23,.85);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);
+  border:1px solid rgba(246,212,124,.28);border-radius:20px;padding:11px 12px 11px 16px;display:flex;align-items:center;gap:12px}
+.ctabar .cta-txt{flex:1;min-width:0}
+.ctabar .cta-tit{font-size:13.5px;font-weight:700;line-height:1.3}
+.ctabar .btn-mini{flex:none}
+.ctabar .btn-mini[disabled]{opacity:.45;cursor:default}
+.hoja{max-height:84dvh;overflow-y:auto}
+.ac{border-top:1px solid var(--line)}
+.ac summary{list-style:none;display:flex;align-items:center;gap:10px;padding:14px 2px;cursor:pointer;min-height:52px}
+.ac summary::-webkit-details-marker{display:none}
+.ac summary .tit{font-size:15px;font-weight:600;flex:1}
+.ac summary .chev{transition:transform var(--anim)}
+.ac[open ] summary .chev{transform:rotate(90deg)}
+.ac .ac-cuerpo{padding:0 2px 14px}
+</style>
+</head>
+<body>
+<div class="app v2">
+
+  <!-- Cabecera de pila: atrás + título + frescura viva -->
+  <div class="stackbar">
+    <a class="backbtn" href="inicio.html"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg>Inicio</a>
+    <span class="ttl">Mercado</span>
+    <span style="flex:1"></span>
+    <span class="pill" id="pillFrescura"><span class="dot"></span>Foto fresca</span>
+  </div>
+
+  <!-- HÉROE COMPACTO: posición + señal + frescura, sin bajar el dedo -->
+  <div class="card hero" style="padding:14px 16px">
+    <div class="row spread">
+      <span class="lbl gold">Tu vendible · saldo</span>
+      <span class="pill">Señal: APROVECHAR</span>
+    </div>
+    <div class="row spread" style="margin-top:7px;align-items:flex-end">
+      <div>
+        <div class="num gold" style="font-size:34px;font-weight:800;letter-spacing:-.02em;line-height:1">9.412,08</div>
+        <div class="tiny" style="margin-top:4px">línea − comprometido − colchón 360</div>
+      </div>
+      <div style="text-align:right">
+        <div class="lbl">Nivel de 20 USD</div>
+        <div class="mid num gold" style="margin-top:2px">303,39</div>
+        <div class="tiny" style="margin-top:2px">top de venta 313</div>
+      </div>
+    </div>
+    <div class="hair" style="margin:11px 0 9px"></div>
+    <div class="row spread">
+      <span class="row" style="gap:7px"><span class="dot" id="dotEdad"></span><span class="small" style="color:var(--txt)">hace <b class="n" id="edadFoto">…</b> · lectura al entrar</span></span>
+      <span class="pill gris"><span class="dot"></span>Centinela · En calma</span>
+    </div>
+  </div>
+
+  <!-- SEGMENTOS: navegar sin scroll, en el mismo hueco fijo -->
+  <div class="seg" id="seg">
+    <button class="on" data-seg="libro">Libro</button>
+    <button data-seg="posicion">Posición</button>
+    <button data-seg="asesor">Asesor</button>
+  </div>
+
+  <div class="panes">
+
+    <!-- LIBRO: top compacto; la profundidad vive en su hoja -->
+    <section class="pane" id="pane-libro">
+      <div class="libro-grid">
+        <div class="libro-cell"><div class="lbl">Top de venta</div><div class="v num">313</div></div>
+        <div class="libro-cell"><div class="lbl">Top de compra</div><div class="v num">308,33</div></div>
+        <div class="libro-cell"><div class="lbl">Promedio venta</div><div class="v num">305,09</div></div>
+        <div class="libro-cell"><div class="lbl">Banco CUP</div><div class="v num">1.119,31</div></div>
+      </div>
+      <div class="card tight">
+        <div class="row spread">
+          <div>
+            <div class="tit" style="font-size:14.5px;font-weight:700">Profundidad y centinela</div>
+            <div class="small" style="margin-top:2px">El detalle abre en hoja — esta pantalla nunca crece</div>
+          </div>
+          <button class="btn-mini" data-hoja="hojaLibro">Abrir</button>
+        </div>
+      </div>
+      <div class="row spread" style="padding:0 2px;margin-top:auto">
+        <span class="tiny">Foto de la 1:36 a. m. · a los 20 min la puerta la veta sola</span>
+        <button class="btn-mini" id="btnLeer">Leer ahora</button>
+      </div>
+    </section>
+
+    <!-- POSICIÓN: la auditoría, en filas compactas -->
+    <section class="pane" id="pane-posicion" hidden>
+      <div class="card" style="padding:6px 16px">
+        <div class="fila-pos"><span class="k">Línea de saldo (sensor SMS)</span><span class="v num">9.772,08</span></div>
+        <div class="fila-pos"><span class="k">En lotes FIFO · 6 abiertos</span><span class="v num">8.502 · 22.455 CUP</span></div>
+        <div class="fila-pos"><span class="k">Sin lote</span><span class="v num">1.270,08</span></div>
+        <div class="fila-pos"><span class="k">Comprometido en ofertas</span><span class="v num">0</span></div>
+        <div class="fila-pos"><span class="k">QUSD en QvaPay · legible</span><span class="v num">0,25</span></div>
+        <div class="fila-pos"><span class="k">Fondo tras reserva de cupos</span><span class="v num">10.993 · libre 0</span></div>
+      </div>
+      <div class="tiny" style="padding:0 2px;margin-top:auto">Auditada hoy 1:36 a. m. · saldo probado por SMS, no estimado · descuadre: ninguno. Cada número con su fuente, como manda la cadena.</div>
+    </section>
+
+    <!-- ASESOR: la oferta que prepararía, con su único bloqueo verdadero -->
+    <section class="pane" id="pane-asesor" hidden>
+      <div class="card hero" style="padding:14px 16px">
+        <div class="row spread">
+          <span class="lbl gold">Asesor de guías</span>
+          <span class="pill ambar">Falta tu oferta base</span>
+        </div>
+        <div class="row" style="margin-top:8px;align-items:baseline;gap:8px">
+          <span class="big-num num">30 QUSD</span>
+          <span class="small" style="color:var(--txt)">a <b class="n">313</b> → recibes <b class="n">9.390</b> de saldo</span>
+        </div>
+        <div class="small" style="margin-top:3px">Ganancia FIFO <b class="n" style="color:var(--green)">+2.264 CUP</b> · +46,65 por recarga · peldaño Equilibrado</div>
+        <div class="hair" style="margin:11px 0"></div>
+        <div class="small">No la deja preparada por una sola razón verdadera: <b style="color:var(--txt)">no tienes oferta de venta abierta</b> y la puerta clona una viva. Publícala una vez a mano y desde ahí solo tocas «Subirla».</div>
+        <button class="btn-mini" style="margin-top:11px" data-hoja="hojaAsesor">Porqués completos y el collar</button>
+      </div>
+    </section>
+
+  </div>
+</div>
+
+<!-- ACCIÓN FIJA AL PULGAR: el CTA del momento, según el segmento -->
+<div class="ctabar">
+  <div class="cta-txt">
+    <div class="cta-tit" id="ctaTit">El Asesor ya calculó tu próxima oferta</div>
+    <div class="tiny" id="ctaSub">30 QUSD a 313 · ganancia +2.264 CUP</div>
+  </div>
+  <button class="btn-mini oro" id="ctaBtn">Ver al Asesor</button>
+</div>
+
+<!-- HOJA · LIBRO: profundidad + acordeones del centinela -->
+<div class="scrim" id="scrim"></div>
+<div class="hoja" id="hojaLibro">
+  <div class="asa"></div>
+  <div class="row spread" style="margin-bottom:2px">
+    <span style="font-size:17px;font-weight:800">El libro por dentro</span>
+    <span class="pill"><span class="dot"></span>Foto fresca · <span class="n" id="edadFotoHoja">…</span></span>
+  </div>
+  <div class="small">Nivel de 20 USD <b class="n" style="color:var(--txt)">303,39</b> — el precio al que el libro de compra de verdad ejecuta. De esta misma foto leen la tarifa, el Asesor y la puerta blindada.</div>
+  <details class="ac" style="margin-top:10px">
+    <summary><span class="tit">Profundidad del libro</span><svg class="chev" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></summary>
+    <div class="ac-cuerpo">
+      <div class="fila-pos"><span class="k">Compra ejecutable junto</span><span class="v num">40 USD a 304,08</span></div>
+      <div class="fila-pos"><span class="k">Top de venta / de compra</span><span class="v num">313 / 308,33</span></div>
+      <div class="fila-pos"><span class="k">Spread</span><span class="v num">4,67</span></div>
+      <div class="fila-pos"><span class="k">Promedio de venta · Banco CUP</span><span class="v num">305,09 · 1.119,31</span></div>
+    </div>
+  </details>
+  <details class="ac">
+    <summary><span class="tit">Centinela · historial</span><span class="pill gris"><span class="dot"></span>En calma</span><svg class="chev" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></summary>
+    <div class="ac-cuerpo">
+      <div class="fila-pos"><span class="k">Sonda cada 2 min · última hace</span><span class="v num" id="edadSonda">…</span></div>
+      <div class="fila-pos"><span class="k">Eventos hoy</span><span class="v num">0 · sin persecuciones</span></div>
+      <div class="fila-pos"><span class="k">Dispara si el nivel salta</span><span class="v num">≥ 1,5 %</span></div>
+      <div class="fila-pos"><span class="k">Topes · freno 429</span><span class="v num">20/h · pausa 15 min</span></div>
+      <div class="tiny" style="margin-top:8px">Si el nivel salta, persigue con foto nueva cada 2 min y te avisa con las dos lecturas que lo prueban, hasta que se aquiete (máx 60 min).</div>
+    </div>
+  </details>
+</div>
+
+<!-- HOJA · ASESOR: porqués completos + el collar de la puerta -->
+<div class="hoja" id="hojaAsesor">
+  <div class="asa"></div>
+  <div style="font-size:17px;font-weight:800;margin-bottom:2px">Por qué 30 QUSD a 313</div>
+  <div class="small">Calculado hoy con la función real del Asesor, sobre la foto de la 1:36 a. m.</div>
+  <div class="feed" style="margin-top:4px">
+    <div class="fila-feed">
+      <div class="fic gold"><svg viewBox="0 0 24 24"><path d="M4.5 12.5l5 5 10-11"/></svg></div>
+      <div class="cuerpo"><div class="sub" style="margin-top:0">El libro de compra junta 40 USD ejecutables a 304,08 saldo por QUSD.</div></div>
+    </div>
+    <div class="fila-feed">
+      <div class="fic gold"><svg viewBox="0 0 24 24"><path d="M4.5 12.5l5 5 10-11"/></svg></div>
+      <div class="cuerpo"><div class="sub" style="margin-top:0">Tu ganancia a esta tasa es +46,65 CUP por recarga de 360 (zona automática).</div></div>
+    </div>
+    <div class="fila-feed">
+      <div class="fic gold"><svg viewBox="0 0 24 24"><path d="M4.5 12.5l5 5 10-11"/></svg></div>
+      <div class="cuerpo"><div class="sub" style="margin-top:0">Es la mejor tasa del día según el historial de fotos.</div></div>
+    </div>
+  </div>
+  <div class="hair" style="margin:11px 0"></div>
+  <div class="small"><b style="color:var(--txt)">El bloqueo, sin humo:</b> la puerta blindada clona los detalles de una oferta tuya viva, y hoy no tienes ninguna abierta (<i>sin_oferta_base</i>). Publicas la primera a mano una vez — desde ahí el Asesor las prepara y tú solo tocas «Subirla».</div>
+  <div class="tiny" style="margin-top:9px">El collar no cambia: $40 por oferta · $120 al día · máx 2 por hora · foto de menos de 20 min o no sube.</div>
+  <button class="btn suave" style="margin-top:13px" disabled>Subirla · se activa con tu oferta base</button>
+</div>
+
+<!-- Barra de pestañas: lo principal, siempre visible -->
+<nav class="tabbar">
+  <a class="tab" href="inicio.html"><svg viewBox="0 0 24 24"><path d="M3 11l9-8 9 8v9a2 2 0 0 1-2 2h-4v-7h-6v7H5a2 2 0 0 1-2-2z"/></svg>Inicio</a>
+  <a class="tab" href="#"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg>Bandeja</a>
+  <a class="tab" href="#"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M16 12.5h.01M3 10h18"/></svg>Mi dinero</a>
+  <a class="tab on" href="mercado.html"><svg viewBox="0 0 24 24"><path d="M3 17l5.5-5.5 3.5 3.5L20 7"/><path d="M15 7h5v5"/></svg>Mercado</a>
+  <a class="tab" href="ajustes.html"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 5-5.5 8-5.5s6.5 1.5 8 5.5"/></svg>Perfil</a>
+</nav>
+
+<script>
+  // Segmentos: cambiar de vista sin scroll, en el mismo hueco fijo.
+  var ctaTit = document.getElementById('ctaTit'),
+      ctaSub = document.getElementById('ctaSub'),
+      ctaBtn = document.getElementById('ctaBtn');
+  var CTA = {
+    libro:    {tit:'El Asesor ya calculó tu próxima oferta', sub:'30 QUSD a 313 · ganancia +2.264 CUP', btn:'Ver al Asesor', ir:'asesor'},
+    posicion: {tit:'El Asesor ya calculó tu próxima oferta', sub:'30 QUSD a 313 · ganancia +2.264 CUP', btn:'Ver al Asesor', ir:'asesor'},
+    asesor:   {tit:'Falta solo tu oferta base', sub:'Publícala una vez en QvaPay y el Asesor prepara solo', btn:'Subirla', off:true}
+  };
+  function irSeg(nombre){
+    document.querySelectorAll('#seg button').forEach(function(b){ b.classList.toggle('on', b.dataset.seg === nombre); });
+    ['libro','posicion','asesor'].forEach(function(n){ document.getElementById('pane-' + n).hidden = n !== nombre; });
+    var c = CTA[nombre];
+    ctaTit.textContent = c.tit; ctaSub.textContent = c.sub; ctaBtn.textContent = c.btn;
+    ctaBtn.disabled = !!c.off; ctaBtn.dataset.ir = c.ir || '';
+  }
+  document.querySelectorAll('#seg button').forEach(function(b){
+    b.addEventListener('click', function(){ irSeg(b.dataset.seg); });
+  });
+  ctaBtn.addEventListener('click', function(){ if (ctaBtn.dataset.ir) irSeg(ctaBtn.dataset.ir); });
+
+  // Hojas inferiores: el detalle vive aquí — la página nunca crece.
+  var scrim = document.getElementById('scrim'), hojaAbierta = null;
+  function abrirHoja(id){
+    cerrarHojas();
+    hojaAbierta = document.getElementById(id);
+    hojaAbierta.classList.add('abierto'); scrim.classList.add('abierto');
+  }
+  function cerrarHojas(){
+    document.querySelectorAll('.hoja.abierto').forEach(function(h){ h.classList.remove('abierto'); });
+    scrim.classList.remove('abierto'); hojaAbierta = null;
+  }
+  document.querySelectorAll('[data-hoja]').forEach(function(b){
+    b.addEventListener('click', function(){ abrirHoja(b.dataset.hoja); });
+  });
+  scrim.addEventListener('click', cerrarHojas);
+
+  // La edad del dato, VIVA: mismos sellos reales que la v1
+  // (foto 2026-11-14 05:36:16 UTC · última sonda 05:40:01 UTC).
+  var FOTO = Date.UTC(2026,10,14,5,36,16);
+  var SONDA = Date.UTC(2026,10,14,5,40,1);
+  function fmtEdad(ms){
+    var s = Math.max(0, Math.floor(ms/1000));
+    if (s < 60) return s + ' s';
+    var m = Math.floor(s/60);
+    if (m < 60) return m + ' min';
+    return Math.floor(m/60) + ' h ' + (m%60) + ' min';
+  }
+  function pintar(){
+    var ahora = Date.now(), e = fmtEdad(ahora - FOTO);
+    document.getElementById('edadFoto').textContent = e;
+    document.getElementById('edadFotoHoja').textContent = 'hace ' + e;
+    document.getElementById('edadSonda').textContent = fmtEdad(ahora - SONDA);
+    var vieja = (ahora - FOTO) > 20*60000;
+    var pill = document.getElementById('pillFrescura');
+    if (vieja && pill.dataset.modo !== 'vieja'){
+      pill.dataset.modo = 'vieja'; pill.className = 'pill ambar';
+      pill.innerHTML = '<span class="dot ambar"></span>Foto vieja · vetada pa vender';
+    }
+  }
+  pintar(); setInterval(pintar, 1000);
+  // «Leer ahora»: re-sella la foto a ahora (en la app real dispara
+  // la puerta mercado_lectura_momento y relee al momento).
+  document.getElementById('btnLeer').addEventListener('click', function(){
+    var b = this; b.textContent = 'Leyendo…';
+    setTimeout(function(){
+      FOTO = Date.now(); SONDA = Date.now();
+      var pill = document.getElementById('pillFrescura');
+      pill.dataset.modo = ''; pill.className = 'pill';
+      pill.innerHTML = '<span class="dot"></span>Foto fresca';
+      b.textContent = 'Leer ahora'; pintar();
+    }, 650);
+  });
+</script>
+</body>
+</html>
