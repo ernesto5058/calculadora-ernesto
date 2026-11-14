@@ -25,8 +25,15 @@
 //      enfriamiento de 10 min entre acciones
 //   7  doble lectura: relectura del libro al ejecutar (si la tasa se
 //      movió > 5, se descarta con la tasa nueva en el motivo)
-//   8  una sola oferta automática abierta; tipo y «details» clonados
-//      de una oferta PROPIA viva (nunca inventados)
+//   8  una sola oferta automática abierta; la BASE de pago sale de
+//      (a) una oferta PROPIA de venta viva con «details» legibles o
+//      (b) la PLANTILLA guardada de Ernesto (guia_plantilla por
+//      moneda/lado) — jamás inventada. Los «details» reales de
+//      QvaPay son un OBJETO de pares (la puerta vieja exigía array
+//      y negaba siempre: reparación del 2026-11-14); si la base no
+//      es la plantilla, sus pares deben coincidir EXACTOS con ella.
+//      requirements/message/offer_kind salen de la MISMA base (su
+//      oferta real trae requirements null: nada de valores fijos)
 //   9  create con idempotency_key = id de la acción; resultado
 //      incierto -> reconciliar contra «mis ofertas», jamás reintentar
 //  10  P2P_SIDE_NOT_ALLOWED / P2P_NOT_ALLOWED -> pausa total con el
@@ -35,7 +42,6 @@
 // Cada desenlace (ejecutada, negada por baranda, error de API) queda
 // en la bitácora mercado_acciones vía deps.guardarAccion.
 
-export const REQUISITOS = { min_completed: 25, min_rating: 4.5 };
 export const TOPE_DIARIO_QUSD = 120;
 export const TOPE_POR_HORA = 2;
 export const ENFRIAMIENTO_MIN = 10;
@@ -112,6 +118,56 @@ export function payloadBitacora(payload) {
   if (!payload || typeof payload !== "object") return payload;
   const { details, ...resto } = payload;
   return { ...resto, forma_details: formaDe(details) };
+}
+
+// Los «details» REALES de QvaPay son un OBJETO de pares
+// ({"Celular": "…"}) — la forma array es la legada. Válido =
+// objeto con ≥1 clave o array con ≥1 elemento; cualquier otra
+// cosa (ausente, vacío, escalar) no sirve de base de pago.
+export function detailsValidos(d) {
+  if (Array.isArray(d)) return d.length > 0;
+  return !!d && typeof d === "object" && Object.keys(d).length > 0;
+}
+
+// ¿Trae «details» EXACTAMENTE los pares (clave → valor) de la
+// plantilla guardada? Con plantilla objeto: cada par suyo debe
+// estar presente e idéntico (los valores se comparan como texto:
+// la API los trae como cadenas). Si alguna de las dos formas es
+// array, solo vale la identidad completa (forma legada).
+export function coincidePlantilla(details, plantillaDetalles) {
+  if (!detailsValidos(details) || !detailsValidos(plantillaDetalles)) return false;
+  if (Array.isArray(details) || Array.isArray(plantillaDetalles)) {
+    return JSON.stringify(details) === JSON.stringify(plantillaDetalles);
+  }
+  return Object.entries(plantillaDetalles)
+    .every(([k, v]) => String(details[k]) === String(v));
+}
+
+// La base normalizada que alimenta el payload: los datos de pago y
+// la FORMA de la oferta (requirements/message/offer_kind/límites)
+// salen de la misma fuente — la oferta viva o la plantilla — y lo
+// que la fuente no trae queda null, como en la oferta real de
+// Ernesto (jamás se rellenan valores fijos).
+function baseDesdeOferta(o) {
+  return {
+    details: o.details,
+    requirements: o.requirements ?? null,
+    message: o.message ?? null,
+    offer_kind: o.offer_kind ?? null,
+    order_min: o.order_min ?? null,
+    order_max: o.order_max ?? null,
+  };
+}
+function baseDesdePlantilla(p) {
+  const b = p && typeof p.bloque === "object" && p.bloque ? p.bloque : {};
+  return {
+    details: p.detalles,
+    requirements: b.requirements ?? null,
+    message: b.message ?? null,
+    offer_kind: b.offer_kind ?? null,
+    order_min: b.order_min ?? null,
+    order_max: b.order_max ?? null,
+  };
 }
 
 export async function ejecutarAccion(deps, accionId) {
@@ -233,22 +289,62 @@ export async function ejecutarAccion(deps, accionId) {
   // cual — clonar de ahí habría creado una oferta de COMPRA. La
   // puerta SOLO vende: la base se busca entre sus ofertas de VENTA
   // y el tipo del payload es «sell» siempre, jamás clonado de otra.
-  const baseOferta = mis.find((o) => o && o.type === "sell") || null;
-  if (!baseOferta) {
-    return negar("sin_oferta_base", "No encuentro una oferta tuya de VENTA abierta para copiar tus datos de pago. La puerta solo vende: deja una oferta de venta abierta y el Analista aprende de ella.");
+  const baseViva = mis.find((o) => o && o.type === "sell") || null;
+  /* BASE DE PAGO (reparación 2026-11-14): con las credenciales de
+     app la API NO expone los «details» de ninguna oferta (CHEQUEO
+     82) — re-clonar del listado dejaba la puerta muda. Prioridad:
+     (1) la oferta viva con details legibles; (2) la PLANTILLA
+     guardada (guia_plantilla por moneda/lado), que viaja en el
+     snapshot de la preparada (contexto.plantilla) y, si el snapshot
+     es viejo y no la trae, la dep leerPlantilla la lee al momento
+     de subir. La misma prioridad que define guia_asesor_interno. */
+  let plantilla = null;
+  const snap = accion.contexto && typeof accion.contexto === "object"
+    ? accion.contexto.plantilla : null;
+  if (snap && typeof snap === "object" && "detalles" in snap) {
+    plantilla = { detalles: snap.detalles, bloque: snap.bloque ?? null };
   }
-  if (!Array.isArray(baseOferta.details)) {
+  if (!plantilla && typeof deps.leerPlantilla === "function") {
+    plantilla = await deps.leerPlantilla(accion.moneda || "ETECSA", "sell");
+  }
+  let basePago = null, baseFuente = null;
+  if (baseViva && detailsValidos(baseViva.details)) {
+    basePago = baseDesdeOferta(baseViva); baseFuente = "oferta_viva";
+  } else if (plantilla && detailsValidos(plantilla.detalles)) {
+    basePago = baseDesdePlantilla(plantilla); baseFuente = "plantilla";
+  }
+  if (!basePago) {
+    if (!baseViva && !plantilla) {
+      return negar("sin_oferta_base", "No encuentro base pa copiar tus datos de pago: ni una oferta tuya de VENTA abierta con datos legibles ni tu plantilla guardada. La puerta solo vende: siembra tu plantilla o deja una oferta de venta abierta.");
+    }
     return negar("detalles_desconocidos", "Tus datos de pago tienen una forma que no reconozco: no se publica a ciegas.",
-      { forma_details: formaDe(baseOferta.details) });
+      { forma_details: formaDe(baseViva ? baseViva.details : plantilla.detalles) });
+  }
+  /* PAR EXACTO (ETECSA): si la base no ES la plantilla, sus datos
+     de pago deben traer exactos los pares de la plantilla guardada
+     — jamás se publica cobrando a otro destino que no sea el suyo. */
+  if (baseFuente !== "plantilla" && plantilla && detailsValidos(plantilla.detalles)
+      && !coincidePlantilla(basePago.details, plantilla.detalles)) {
+    return negar("detalles_distintos_plantilla",
+      "Los datos de pago de tu oferta abierta no coinciden con tu plantilla guardada: no se publica cobrando a otro destino. Actualiza tu plantilla o tu oferta.",
+      { forma_details: formaDe(basePago.details) });
   }
 
-  /* 9) Crear (idempotency_key = id de la acción) */
+  /* 9) Crear (idempotency_key = id de la acción). La forma de la
+     oferta (requirements/message/offer_kind/límites) sale de la
+     MISMA base que los datos de pago: su oferta real trae
+     requirements null y offer_kind «fixed» — nada de valores fijos
+     inventados (la puerta vieja imponía {25 ops, 4,5★} ajenos). */
   const tasa = numA(accion.tasa);
   const receive = Math.round(monto * tasa * 100) / 100;
   const payload = {
     type: "sell", coin: "ETECSA",
-    amount: monto, receive, details: baseOferta.details,
-    requirements: { ...REQUISITOS },
+    amount: monto, receive, details: basePago.details,
+    requirements: basePago.requirements,
+    message: basePago.message,
+    offer_kind: basePago.offer_kind,
+    order_min: basePago.order_min,
+    order_max: basePago.order_max,
     idempotency_key: String(accion.id),
   };
   let resp = null, incierto = false;
@@ -256,7 +352,7 @@ export async function ejecutarAccion(deps, accionId) {
   if (!incierto && resp && resp.ok) {
     await deps.guardarAccion(accionId, {
       estado: "ejecutada", resuelta_en: deps.ahoraIso(), oferta_uuid: resp.uuid ?? null,
-      detalle: { ganancia360: g, payload: payloadBitacora(payload), respuesta: resp.crudo ?? null },
+      detalle: { ganancia360: g, base_fuente: baseFuente, payload: payloadBitacora(payload), respuesta: resp.crudo ?? null },
     });
     await deps.reiniciarFallos();
     return { ok: true, accion_id: accionId, oferta_uuid: resp.uuid ?? null, tasa, monto_qusd: monto, ganancia360: g };
@@ -281,7 +377,7 @@ export async function ejecutarAccion(deps, accionId) {
     if (hallada) {
       await deps.guardarAccion(accionId, {
         estado: "ejecutada", resuelta_en: deps.ahoraIso(), oferta_uuid: hallada.uuid ?? null,
-        detalle: { ganancia360: g, payload: payloadBitacora(payload), reconciliada: true },
+        detalle: { ganancia360: g, base_fuente: baseFuente, payload: payloadBitacora(payload), reconciliada: true },
       });
       await deps.reiniciarFallos();
       return { ok: true, accion_id: accionId, oferta_uuid: hallada.uuid ?? null, tasa, monto_qusd: monto, ganancia360: g, reconciliada: true };
