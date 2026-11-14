@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mi Negocio — Mercado · Muestra de rediseño v3+</title>
+<link rel="stylesheet" href="estilo.css">
+</head>
+<body>
+<div class="app">
+
+  <!-- Cabecera de pila: atrás + título + frescura viva -->
+  <div class="stackbar">
+    <a class="backbtn" href="inicio.html"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg>Inicio</a>
+    <span class="ttl">Mercado</span>
+    <span style="flex:1"></span>
+    <span class="pill" id="pillFrescura"><span class="dot"></span>Foto fresca</span>
+  </div>
+
+  <!-- EL LIBRO: la foto del mercado con su EDAD siempre visible -->
+  <div class="card hero">
+    <div class="row spread">
+      <span class="lbl gold">Libro ETECSA · saldo por QUSD</span>
+      <span class="pill">Señal: APROVECHAR</span>
+    </div>
+    <div class="row" style="margin-top:8px;align-items:baseline;gap:8px">
+      <span class="hero-num num gold">303,39</span>
+      <span style="font-weight:700;color:var(--sub)">nivel de 20 USD</span>
+    </div>
+    <div class="small" style="margin-top:5px">El precio al que el libro de compra de verdad ejecuta. De aquí sale todo: tarifa, Asesor y puerta blindada leen la MISMA foto.</div>
+    <div class="hair" style="margin:13px 0"></div>
+    <div class="row spread">
+      <div><div class="lbl">Top de venta</div><div class="mid num" style="margin-top:3px">313</div></div>
+      <div><div class="lbl">Top de compra</div><div class="mid num" style="margin-top:3px">308,33</div></div>
+      <div><div class="lbl">Promedio venta</div><div class="mid num" style="margin-top:3px">305,09</div></div>
+      <div><div class="lbl">Banco CUP</div><div class="mid num" style="margin-top:3px">1.119,31</div></div>
+    </div>
+    <div class="hair" style="margin:13px 0"></div>
+    <div class="row spread">
+      <div class="row" style="gap:7px">
+        <span class="dot" id="dotEdad"></span>
+        <span class="small" style="color:var(--txt)">hace <b class="n" id="edadFoto">…</b> · lectura al entrar</span>
+      </div>
+      <button class="btn-mini" id="btnLeer">Leer ahora</button>
+    </div>
+    <div class="tiny" style="margin-top:8px">Foto de la 1:36 a. m. · si pasa de 20 min, la puerta blindada la veta sola. «Leer ahora» dispara el lector al momento (velocidad 2).</div>
+  </div>
+
+  <!-- CENTINELA: la velocidad 3, despierto siempre -->
+  <div class="card">
+    <div class="row spread">
+      <span class="lbl">Centinela del mercado</span>
+      <span class="pill"><span class="dot"></span>En calma</span>
+    </div>
+    <div class="feed" style="margin-top:4px">
+      <div class="fila-feed">
+        <div class="fic verde"><svg viewBox="0 0 24 24"><path d="M22 12h-4l-3 8L9 4l-3 8H2"/></svg></div>
+        <div class="cuerpo">
+          <div class="tit">Sonda cada 2 minutos, sin gastar fotos</div>
+          <div class="sub">Última sonda hace <b class="n" id="edadSonda">…</b> · compara el libro vivo contra la última foto</div>
+        </div>
+      </div>
+      <div class="fila-feed">
+        <div class="fic gold"><svg viewBox="0 0 24 24"><path d="M3 17l5.5-5.5 3.5 3.5L20 7"/><path d="M15 7h5v5"/></svg></div>
+        <div class="cuerpo">
+          <div class="tit">Si el nivel salta 1,5 % o más, persigue</div>
+          <div class="sub">Te avisa con las dos lecturas que lo prueban y guarda foto nueva cada 2 min hasta que se aquiete · tope 20 por hora y 60 min por persecución</div>
+        </div>
+      </div>
+      <div class="fila-feed">
+        <div class="fic"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 8v5M12 16.5h.01"/></svg></div>
+        <div class="cuerpo">
+          <div class="tit">Freno automático ante un 429 de QvaPay</div>
+          <div class="sub">Si la API pide calma, el centinela se detiene 15 min. Sin eventos hoy.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TU POSICIÓN: auditada número a número, cada uno con su fuente -->
+  <div class="card">
+    <div class="row spread">
+      <span class="lbl">Tu posición · auditada</span>
+      <span class="tiny">hoy 1:36 a. m.</span>
+    </div>
+    <div class="feed" style="margin-top:4px">
+      <div class="fila-feed">
+        <div class="cuerpo">
+          <div class="tit">Línea de saldo <b class="n">9.772,08</b></div>
+          <div class="sub">Del sensor SMS de ETECSA · último parte vie 13, 4:15 p. m. Es saldo probado, no estimado</div>
+        </div>
+      </div>
+      <div class="fila-feed">
+        <div class="cuerpo">
+          <div class="tit">En lotes <b class="n">8.502</b> de saldo · <b class="n">22.455</b> CUP</div>
+          <div class="sub">6 lotes FIFO abiertos · sin lote: <b class="n">1.270,08</b> · descuadre: ninguno</div>
+        </div>
+      </div>
+      <div class="fila-feed">
+        <div class="cuerpo">
+          <div class="tit">Comprometido <b class="n">0</b> · QUSD en QvaPay <b class="n">0,25</b></div>
+          <div class="sub">Leídos por la API en esta misma foto: no tienes ofertas abiertas ni operaciones en curso</div>
+        </div>
+      </div>
+    </div>
+    <div class="hair" style="margin:11px 0"></div>
+    <div class="row spread">
+      <div>
+        <div class="lbl gold">Vendible (línea − comprometido − colchón 360)</div>
+        <div class="big-num num gold" style="margin-top:4px">9.412,08</div>
+      </div>
+      <div style="text-align:right">
+        <div class="lbl">Fondo</div>
+        <div class="mid num" style="margin-top:3px">10.993</div>
+        <div class="tiny" style="margin-top:2px">tras la reserva de cupos: 0</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- EL ASESOR: lo que prepararía, calculado por su propia función -->
+  <div class="card hero">
+    <div class="row spread">
+      <span class="lbl gold">Asesor de guías</span>
+      <span class="pill ambar">Falta solo tu oferta base</span>
+    </div>
+    <div class="row" style="margin-top:9px;align-items:baseline;gap:8px">
+      <span class="big-num num">30 QUSD</span>
+      <span class="small" style="color:var(--txt)">a <b class="n">313</b> → recibes <b class="n">9.390</b> de saldo</span>
+    </div>
+    <div class="small" style="margin-top:4px">Ganancia FIFO <b class="n" style="color:var(--green)">+2.264 CUP</b> · +46,65 por recarga · peldaño Equilibrado. Esto es lo que el Asesor dejaría preparado, calculado hoy con su función real:</div>
+    <div class="feed" style="margin-top:2px">
+      <div class="fila-feed">
+        <div class="fic gold"><svg viewBox="0 0 24 24"><path d="M4.5 12.5l5 5 10-11"/></svg></div>
+        <div class="cuerpo"><div class="sub" style="margin-top:0">El libro de compra junta 40 USD ejecutables a 304,08 saldo por QUSD.</div></div>
+      </div>
+      <div class="fila-feed">
+        <div class="fic gold"><svg viewBox="0 0 24 24"><path d="M4.5 12.5l5 5 10-11"/></svg></div>
+        <div class="cuerpo"><div class="sub" style="margin-top:0">Tu ganancia a esta tasa es +46,65 CUP por recarga de 360 (zona automática).</div></div>
+      </div>
+      <div class="fila-feed">
+        <div class="fic gold"><svg viewBox="0 0 24 24"><path d="M4.5 12.5l5 5 10-11"/></svg></div>
+        <div class="cuerpo"><div class="sub" style="margin-top:0">Es la mejor tasa del día según el historial de fotos.</div></div>
+      </div>
+    </div>
+    <div class="hair" style="margin:11px 0"></div>
+    <div class="small">Hoy no la deja preparada por una sola razón verdadera: <b style="color:var(--txt)">no tienes ninguna oferta de venta abierta</b> y la puerta blindada clona los detalles de una oferta viva. Publica la primera a mano una vez — desde ahí las prepara él, y tú solo tocas «Subirla».</div>
+    <button class="btn suave" style="margin-top:12px" disabled>Subirla · se activa con tu oferta base</button>
+    <div class="tiny" style="margin-top:8px">El collar no cambia: $40 por oferta · $120 al día · máx 2 por hora · foto de menos de 20 min o no sube.</div>
+  </div>
+
+  <!-- LAS TRES VELOCIDADES: la especificación, en lenguaje de producto -->
+  <div class="card">
+    <div class="lbl" style="margin-bottom:4px">Las tres velocidades del mercado</div>
+    <div class="feed">
+      <div class="fila-feed">
+        <div class="fic"><svg viewBox="0 0 24 24"><path d="M13 2L4.5 13.5H11L9.5 22 19 10h-6.5z"/></svg></div>
+        <div class="cuerpo">
+          <div class="tit">1 · Al entrar a la app</div>
+          <div class="sub">Mi Negocio pide lectura al momento y el libro llega con segundos, con su hora puesta</div>
+        </div>
+      </div>
+      <div class="fila-feed">
+        <div class="fic"><svg viewBox="0 0 24 24"><path d="M3 17l5.5-5.5 3.5 3.5L20 7"/><path d="M15 7h5v5"/></svg></div>
+        <div class="cuerpo">
+          <div class="tit">2 · Al entrar a Mercado</div>
+          <div class="sub">Esta pantalla vuelve a leer: nunca vende con una foto que no acaba de ver</div>
+        </div>
+      </div>
+      <div class="fila-feed">
+        <div class="fic"><svg viewBox="0 0 24 24"><path d="M22 12h-4l-3 8L9 4l-3 8H2"/></svg></div>
+        <div class="cuerpo">
+          <div class="tit">3 · El centinela, siempre despierto</div>
+          <div class="sub">Aunque no abras la app: si el mercado se mueve, te avisa y la foto ya está fresca cuando entras</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Barra de pestañas: lo principal, siempre visible -->
+<nav class="tabbar">
+  <a class="tab" href="inicio.html"><svg viewBox="0 0 24 24"><path d="M3 11l9-8 9 8v9a2 2 0 0 1-2 2h-4v-7h-6v7H5a2 2 0 0 1-2-2z"/></svg>Inicio</a>
+  <a class="tab" href="#"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg>Bandeja</a>
+  <a class="tab" href="#"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M16 12.5h.01M3 10h18"/></svg>Mi dinero</a>
+  <a class="tab on" href="mercado.html"><svg viewBox="0 0 24 24"><path d="M3 17l5.5-5.5 3.5 3.5L20 7"/><path d="M15 7h5v5"/></svg>Mercado</a>
+  <a class="tab" href="ajustes.html"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 5-5.5 8-5.5s6.5 1.5 8 5.5"/></svg>Perfil</a>
+</nav>
+
+<script>
+  // La edad del dato, VIVA: se calcula del sello real de la foto
+  // (2026-11-14 05:36:16 UTC) y de la última sonda del centinela
+  // (05:40:01 UTC). En la app real estos sellos llegan de la base.
+  var FOTO = Date.UTC(2026,10,14,5,36,16);
+  var SONDA = Date.UTC(2026,10,14,5,40,1);
+  function fmtEdad(ms){
+    var s = Math.max(0, Math.floor(ms/1000));
+    if (s < 60) return s + ' s';
+    var m = Math.floor(s/60);
+    if (m < 60) return m + ' min';
+    return Math.floor(m/60) + ' h ' + (m%60) + ' min';
+  }
+  function pintar(){
+    var ahora = Date.now();
+    document.getElementById('edadFoto').textContent = fmtEdad(ahora - FOTO);
+    document.getElementById('edadSonda').textContent = fmtEdad(ahora - SONDA);
+    var vieja = (ahora - FOTO) > 20*60000;
+    var pill = document.getElementById('pillFrescura');
+    if (vieja && pill.dataset.modo !== 'vieja'){
+      pill.dataset.modo = 'vieja'; pill.className = 'pill ambar';
+      pill.innerHTML = '<span class="dot ambar"></span>Foto vieja · vetada pa vender';
+    }
+  }
+  pintar(); setInterval(pintar, 1000);
+  // «Leer ahora» en la muestra: re-sella la foto a ahora (en la app
+  // real dispara la puerta mercado_lectura_momento y relee).
+  document.getElementById('btnLeer').addEventListener('click', function(){
+    var b = this; b.textContent = 'Leyendo…';
+    setTimeout(function(){
+      FOTO = Date.now(); SONDA = Date.now();
+      var pill = document.getElementById('pillFrescura');
+      pill.dataset.modo = ''; pill.className = 'pill';
+      pill.innerHTML = '<span class="dot"></span>Foto fresca';
+      b.textContent = 'Leer ahora'; pintar();
+    }, 650);
+  });
+</script>
+</body>
+</html>
