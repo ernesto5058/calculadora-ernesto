@@ -181,6 +181,15 @@ function crear(extra){
           if (!R.tarifaVivaOk) return rechaza("404");
           if (R.tarifaVivaFila) return json(Object.assign({ ok: true }, R.tarifaVivaFila));
           return json({ ok: true, ingreso_ref360: 1098.68, libro_ref: 1069.38, salida_ref: 950, comision_saldo: 25, comision_transf: 20, piso_transf: 25, actualizado: "2026-11-10 22:00" });
+        /* T1 (v22): las puertas nuevas del panel único. */
+        case "avisos_historial":
+          if (R.avisosFalla) return rechaza("404");
+          return json(R.avisosHist || { ok: true, avisos: [] });
+        case "avisos_probar": return json({ ok: true, para: "ADMIN", encolado: true });
+        case "mercado_foto_vigente": return json(R.mercadoFoto || null);
+        case "guia_ernesto": return json(R.guiaErnesto || { ok: false, motivo: "sin fixture" });
+        case "guia_subir": return json(R.guiaSubirResp || { ok: true, estado: "pendiente" });
+        case "guia_descartar": return json({ ok: true });
       }
       return rechaza("desconocida " + fn);
     }
@@ -193,7 +202,16 @@ function crear(extra){
 }
 function click(el){ el.dispatchEvent(new el.ownerDocument.defaultView.MouseEvent("click", { bubbles: true, cancelable: true })); }
 function input(el, v){ el.value = v; el.dispatchEvent(new el.ownerDocument.defaultView.Event("input", { bubbles: true })); }
-function pestaña(w, nombre){ [...w.document.querySelectorAll(".tab")].forEach(t => { if (t.textContent.includes(nombre)) click(t); }); }
+function pestaña(w, nombre){
+  /* T1 (v22): la barra ya solo trae 4 secciones; las pantallas hijas se
+     abren con irA() — el ayudante hace lo mismo que el dedo de Ernesto:
+     si hay pestaña visible con ese nombre la toca; si no, navega por
+     la función pública de la app con su mapa de nombres. */
+  const MAPA = { "Calculadora": "Calc", "Mi dinero": "Dinero" };
+  let tocada = false;
+  [...w.document.querySelectorAll(".tab")].forEach(t => { if (t.textContent.includes(nombre)) { click(t); tocada = true; } });
+  if (!tocada && typeof w.irA === "function") w.irA(MAPA[nombre] || nombre);
+}
 
 /* ===== 1. LOGIN ===== */
 {
@@ -473,15 +491,18 @@ function pestaña(w, nombre){ [...w.document.querySelectorAll(".tab")].forEach(t
   const { w } = crear({ preState: { codigo: adminValido, foto: { reportes: [], ayudas: [], usuarios: [], datos: datosPublicados, cuando: "", publicar: [], borrados: [], tarifaPanel: null, mercado: null }, cola: [], sellos: {}, tarifaViva: null, tarifaVivaEn: "", publicarPendiente: null } });
   await sleep(150);
   const tabs = [...w.document.querySelectorAll(".tab")].map(t => t.textContent);
-  ok(tabs.length === 11, "MN-48 once pestañas registradas: 6 originales + Cierre/Actividad/Textos + Contabilidad (Fase 1) + Mi dinero (v19) (" + tabs.join(" | ") + ")");
-  ok(tabs.some(t => t.includes("Inicio")) && tabs.some(t => t.includes("Calculadora")) && tabs.some(t => t.includes("Bandeja")) && tabs.some(t => t.includes("Equipo")) && tabs.some(t => t.includes("Tarifa")) && tabs.some(t => t.includes("Mercado")) && tabs.some(t => t.includes("Cierre")) && tabs.some(t => t.includes("Actividad")) && tabs.some(t => t.includes("Textos")) && tabs.some(t => t.includes("Contabilidad")) && tabs.some(t => t.includes("Mi dinero")), "MN-49 las 11 pestañas exactas (las 9 del paquete + Contabilidad + Mi dinero), ninguna otra inventada");
+  /* T1 (v22): la barra ya no lista pantallas: trae SOLO las 4 secciones
+     del panel único; las 13 pantallas viven como hijas alcanzables por
+     irA (la cobertura de módulos la verifica la sección T1 del banco). */
+  ok(tabs.length === 4, "MN-48 T1: la barra trae SOLO las 4 secciones (" + tabs.join(" | ") + ")");
+  ok(tabs.some(t => t.includes("Inicio")) && tabs.some(t => t.includes("Dinero")) && tabs.some(t => t.includes("Mercado")) && tabs.some(t => t.includes("Ajustes")), "MN-49 T1: las 4 secciones exactas (Inicio · Dinero · Mercado · Ajustes), ninguna otra inventada");
   w.close();
 }
 
 /* ===== 10. SERVICE WORKER: scope y caché propios ===== */
 {
   const sw = fs.readFileSync(REPO + "minegocio/sw.js", "utf8");
-  ok(sw.includes('CACHE = "minegocio-v23"'), "MN-50 SW con caché propio minegocio-v23 (v21 + la Tarifa Viva Inteligente)");
+  ok(sw.includes('CACHE = "minegocio-v24"'), "MN-50 SW con caché propio minegocio-v24 (v22 · panel único T1)");
   ok(sw.includes("SKIP_WAITING") && sw.includes('addEventListener("message"'), "MN-50b el SW acepta SKIP_WAITING por mensaje (forzar activación desde la app)");
   ok(!sw.includes("mitrabajo"), "MN-51 el SW de Mi Negocio no toca el de Mi Trabajo");
   const mf = JSON.parse(fs.readFileSync(REPO + "minegocio/manifest.webmanifest", "utf8"));
@@ -542,7 +563,7 @@ function pestaña(w, nombre){ [...w.document.querySelectorAll(".tab")].forEach(t
   ok(d.getElementById("bannerVer").style.display === "block" && d.getElementById("bannerVer").textContent.includes("Nueva versión lista"), "R2-2 SW nuevo instalado con controlador → aviso «Nueva versión lista» visible");
   w.__swReg.__controllerchange();
   await sleep(60);
-  ok(("" + w.sessionStorage.getItem("mnRecarga_v21")) === "1", "R2-3 controllerchange marca la recarga única de la v21 (sin bucles)");
+  ok(("" + w.sessionStorage.getItem("mnRecarga_v22")) === "1", "R2-3 controllerchange marca la recarga única de la v22 (sin bucles)");
   const antes = w.__fakeReg.actualizaciones;
   click(d.getElementById("btnAct"));
   await sleep(120);
@@ -639,11 +660,11 @@ function pestaña(w, nombre){ [...w.document.querySelectorAll(".tab")].forEach(t
   ok(chat.querySelectorAll("[data-vplay]").length === 3 && chat.querySelectorAll(".vozOnda i").length === 72, "R2-25 cada reproductor trae su ▶ circular y su onda de 24 picos");
   ok(typeof w.mejorMimeVoz === "function" && typeof w.hashParChat === "function" && typeof w.rtTimbre === "function", "R2-26 existen mejorMimeVoz, hashParChat y rtTimbre");
   ok(w.hashParChat("ADMIN", "BUSC-1") === w.hashParChat("BUSC-1", "ADMIN") && w.hashParChat("ADMIN", "BUSC-1") !== w.hashParChat("ADMIN", "BUSC-2"), "R2-27 el canal del timbre es el mismo para la pareja en ambos sentidos y distinto por pareja");
-  ok(w.selloVersion() === "Mi Negocio · versión 2026-11-13 17:45 · caché v21", "R2-28 sello de versión exacto: «" + w.selloVersion() + "»");
+  ok(w.selloVersion() === "Mi Negocio · versión 2026-11-14 11:31 · caché v22", "R2-28 sello de versión exacto: «" + w.selloVersion() + "»");
   ok(chat.textContent.includes("cada 3 s"), "R2-29 la ayuda del chat dice el refresco nuevo de 3 s (ya no 15 s)");
   pestaña(w, "Inicio");
   await sleep(120);
-  ok(d.getElementById("pgInicio").textContent.includes("Mi Negocio · versión 2026-11-13 17:45 · caché v21"), "R2-30 el sello de versión se ve en Inicio");
+  ok(d.getElementById("pgInicio").textContent.includes("Mi Negocio · versión 2026-11-14 11:31 · caché v22"), "R2-30 el sello de versión se ve en Inicio");
   w.close();
   R.chatMsgs = [];
 }
@@ -820,7 +841,7 @@ function pestaña(w, nombre){ [...w.document.querySelectorAll(".tab")].forEach(t
   await sleep(350);
   const d = w.document;
   ok(w.PUERTAS.marcarPrueba === "admin_marcar_prueba", "F1-1 la puerta nueva está registrada: PUERTAS.marcarPrueba = admin_marcar_prueba");
-  ok(w.MN_VERSION === "v21", "F1-2 MN_VERSION subió a v21");
+  ok(w.MN_VERSION === "v22", "F1-2 MN_VERSION subió a v22");
   /* Funciones puras con las fórmulas del servidor (tarifa del banco: 1098.68 / 1069.38 / 950) */
   ok(cerca(w.contaGananciaBruta({ tipo: "saldo", precio: 1000, cantidad: 100 }), 9868) && cerca(w.contaNeta({ tipo: "saldo", precio: 1000, cantidad: 100, comision: 2467 }), 7401), "F1-3 saldo r1: bruta 9868 · neta 7401 (comisión GUARDADA, no recalculada)");
   /* NOTA (desviación de la espec, verificada con la fórmula): la
@@ -873,9 +894,9 @@ function pestaña(w, nombre){ [...w.document.querySelectorAll(".tab")].forEach(t
   const idsBan = [...d.querySelectorAll("#pgBandeja [data-rep]")].map(e => e.getAttribute("data-rep"));
   ok(!idsBan.includes("r4") && idsBan.length === 6, "F1-22 Bandeja: la tarjeta de la prueba r4 NO está en el DOM (sí las otras 6) [" + idsBan.join(",") + "]");
   ok(d.getElementById("pgBandeja").textContent.includes("1 reportes marcados como prueba (ocultos de la Bandeja y de las cuentas)"), "F1-23 Bandeja: línea discreta de conteo de pruebas ocultas");
-  const tabBan = [...d.querySelectorAll(".tab")].find(t => t.textContent.includes("Bandeja"));
+  const tabBan = [...d.querySelectorAll(".tab")].find(t => t.getAttribute("data-seccion") === "Inicio");
   const badgeBan = tabBan && tabBan.querySelector(".badge");
-  ok(!!badgeBan && badgeBan.textContent.trim() === "1", "F1-24 badge de pendientes = 1 (solo r5; las pruebas no cuentan)");
+  ok(!!badgeBan && badgeBan.textContent.trim() === "1", "F1-24 T1: badge de pendientes en la sección Inicio = 1 (solo r5; las pruebas no cuentan)");
   const cardDe = id => d.querySelector('[data-rep="' + id + '"]');
   ok(cardDe("r1").textContent.includes("PAGADO") && cardDe("r1").textContent.includes("Comisión pagada el"), "F1-25 PAGADO: r1 (pagada_en del servidor) SÍ pinta PAGADO y «Comisión pagada el…»");
   ok(!cardDe("r2").textContent.includes("PAGADO") && !cardDe("r3").textContent.includes("PAGADO") && !cardDe("r7").textContent.includes("PAGADO"), "F1-26 PAGADO: r2/r3/r7 (aprobados SIN comision_pagada_en) NO pintan PAGADO — y el bloque Por pagar ya los contó como pendientes (F1-9/F1-15)");
@@ -1021,7 +1042,7 @@ function pestaña(w, nombre){ [...w.document.querySelectorAll(".tab")].forEach(t
   await sleep(250);
   const d = w.document;
   const tabs22 = [...d.querySelectorAll(".tab")];
-  ok(tabs22.length === 11 && tabs22.every(t => !!t.querySelector("svg")), "F3-1 las 11 pestañas llevan icono SVG de trazo fino (cero emojis estructurales en la navegación)");
+  ok(tabs22.length === 4 && tabs22.every(t => !!t.querySelector("svg")), "F3-1 T1: las 4 secciones llevan icono SVG de trazo fino (cero emojis estructurales en la navegación)");
   ok(!!d.getElementById("pgCierre") && !!d.getElementById("pgActividad") && !!d.getElementById("pgTextos"), "F3-2 existen #pgCierre, #pgActividad y #pgTextos (en la v7 faltaban en el HTML y esas pestañas abrían en blanco)");
   pestaña(w, "Calculadora");
   await sleep(80);
@@ -1694,6 +1715,123 @@ function pestaña(w, nombre){ [...w.document.querySelectorAll(".tab")].forEach(t
   v2.w.close();
   R.dineroFalla = false; R.dineroEstado = null;
   R.reportes = []; R.usuarios = [];
+}
+
+/* ===== T1 · PANEL ÚNICO (v22): 4 secciones, hub, ramas, Mercado
+   dentro, centro de avisos, marca de destino y guía de 4 pasos ===== */
+{
+  const ahoraISO = new Date().toISOString();
+  R.actividad = [
+    { accion: "cambiar_tarifa", quien: "ADMIN", creado_en: ahoraISO, detalle: { salida: 910, libro: 1115.2, ingreso: 1080 } },
+  ];
+  R.avisosHist = { ok: true, avisos: [
+    { id: 2, creado_en: ahoraISO, evento_tipo: "tarifa_propuesta", titulo: "📊 Propuesta de Tarifa Viva", canal: "telegram", resultado: "fallo", motivo: "sin respuesta", es_prueba: false },
+    { id: 1, creado_en: ahoraISO, evento_tipo: "prueba", titulo: "✅ Avisos PRO: prueba", canal: "webpush", resultado: "entregado", motivo: null, es_prueba: true },
+  ]};
+  R.dineroEstado = { rol: "ernesto", capital_total: 42700, saldo_fondo: 601, saldo_gasto: 3000, saldo_inventario: 38455, saldo_ernesto_inversion: -1000, entregas: [], asignaciones: [], estrellas: [], ganancias: { por_buscador: [] }, vueltas_abiertas: [], devoluciones_pendientes: [], ventas_recientes: [{ fuente: "QvaPay", tipo: "venta saldo", monto: 5000, contraparte: "" }], cuadre: { ok: true, total_libro: 41350 } };
+  R.mercadoFoto = { nivel20: 305.5, nivel20_edad_s: 12, edad_s: 55, fresca: true, ligera: null, top_venta: 310.25, top_compra: 300, promedio_venta: 306.4, bankcup_promedio: 1115.2, count_buy: 20, count_sell: 25, recibida_en: ahoraISO };
+  R.guiaErnesto = { ok: true,
+    foto: { usable: true, fresca: true },
+    tarifa: { ingreso_ref360: 1080, libro_ref: 1115.2, salida_ref: 910, costo_ref360: 1000 },
+    calculo: { senal: "vender", equilibrio: 327.6,
+      posicion: { linea_saldo: 14400, linea_en: ahoraISO, lotes_saldo: 14282, comprometido_saldo: 0, colchon: 5, vendible: 14395, qUSD: 0.25, fondo: 601, reserva_cupos: 0 },
+      preparada: null, motivos_no_prepara: [], compra_fondo: { posible: false }, transferencia: {} },
+    preparada_viva: { id: "11111111-2222-3333-4444-555555555555", tasa: 310.5, monto_qusd: 35, ganancia360: 175.45, expira_en: new Date(Date.now() + 8 * 60000).toISOString(), contexto: { receive: 10863, porques: ["El peldaño combina ganancia y salida."], aviso_promo: null } },
+    contadores: { hoy_qusd: 0, diario_max: 120, acciones_hora: 0, hora_max: 2, tope_oferta: 40 },
+    posicion: { mejor_nivel20_hoy: 312.4 }, silencio_hasta: null };
+  const preT1 = { codigo: adminValido, foto: { reportes: [], ayudas: [], usuarios: [], datos: datosPublicados, cuando: "", publicar: [], borrados: [], tarifaPanel: null, mercado: null }, cola: [], sellos: {}, tarifaViva: null, tarifaVivaEn: "", publicarPendiente: null };
+  const { w } = crear({ sw: true, preState: preT1, ls: { mn_guia_v22: "1" } });
+  const d = w.document;
+  await sleep(450);
+
+  /* La barra: 4 secciones exactas, en orden, con su data-seccion */
+  const secs = [...d.querySelectorAll(".tab")].map(t => t.getAttribute("data-seccion"));
+  ok(JSON.stringify(secs) === JSON.stringify(["Inicio", "Dinero", "Mercado", "Ajustes"]), "T1-1 la barra trae las 4 secciones en orden [" + secs.join(",") + "]");
+  ok(["Inicio", "Calc", "Bandeja", "Equipo", "Tarifa", "Mercado", "Cierre", "Actividad", "Textos", "Contabilidad", "Dinero", "Ajustes", "Avisos"].every(id => !!w.modulo(id)), "T1-2 los 13 módulos existen (las 11 pantallas de siempre + Ajustes + Avisos)");
+
+  /* El hub de Inicio: héroe con el gasto del libro, accesos y novedades */
+  const pgI = d.getElementById("pgInicio");
+  ok(!!d.getElementById("inHero") && pgI.textContent.includes("HOY PUEDES GASTAR") && pgI.textContent.includes(w.fmtE ? "3.000" : "3000"), "T1-3 el héroe enseña el gasto del libro (3.000 CUP)");
+  ok(d.querySelectorAll("#pgInicio .t1Tile").length === 6, "T1-4 seis accesos con dato vivo en el hub");
+  ok(pgI.textContent.includes("Cambiaste la tarifa") && pgI.textContent.includes("Un aviso no llegó"), "T1-5 Novedades: el río trae la actividad y el aviso fallido, con su hora");
+  const bdg = d.getElementById("bdgAvisos");
+  ok(!!bdg && bdg.style.display === "block" && bdg.textContent.trim() === "1", "T1-6 la campana marca 1 aviso fallido en 24 h");
+
+  /* Barra de pila: hija → visible con su sección; raíz → oculta */
+  w.irA("Bandeja");
+  ok(d.getElementById("subBar").className === "visible" && d.getElementById("subVolverTxt").textContent === "Inicio", "T1-7 en una hija, la barra de pila vuelve a Inicio");
+  w.irA("Inicio");
+  ok(d.getElementById("subBar").className === "", "T1-8 en la raíz de la sección, sin barra de pila");
+
+  /* El menú: hoja con datos vivos que navega de verdad */
+  click(d.getElementById("btnMenuMN"));
+  ok(d.getElementById("menuHoja").classList.contains("abierto") && d.getElementById("menuFilas").textContent.includes("Tarifa viva") && d.getElementById("menuFilas").textContent.includes("1098.68"), "T1-9 el menú sube con sus filas y el dato vivo de la tarifa");
+  click(d.querySelector('[data-menu="Tarifa"]'));
+  ok(d.getElementById("pgTarifa").style.display === "block" && !d.getElementById("menuHoja").classList.contains("abierto"), "T1-10 tocar la fila del menú cierra la hoja y abre Tarifa");
+
+  /* Ajustes en ramas */
+  w.irA("Ajustes");
+  const pgAj = d.getElementById("pgAjustes").textContent;
+  ok(pgAj.includes("Cuenta") && pgAj.includes("Negocio") && pgAj.includes("La app") && pgAj.includes("Datos") && pgAj.includes("Tarifa viva") && pgAj.includes("Notificaciones"), "T1-11 Ajustes: raíz en ramas con sus grupos y filas");
+  click(d.querySelector('[data-aj="Tarifa"]'));
+  ok(d.getElementById("pgTarifa").style.display === "block" && d.getElementById("subVolverTxt").textContent === "Ajustes", "T1-12 la fila de una rama abre su página y la pila vuelve a Ajustes");
+
+  /* Centro de avisos: el registro se lee y la prueba llama su puerta */
+  w.irA("Avisos");
+  await sleep(250);
+  const pgAv = d.getElementById("pgAvisos");
+  ok(!!d.getElementById("avRegistro") && pgAv.textContent.includes("Propuesta de Tarifa Viva") && pgAv.textContent.includes("entregado") && pgAv.textContent.includes("falló"), "T1-13 el centro de avisos pinta el registro real (entregado y falló)");
+  click(d.getElementById("avProbar"));
+  await sleep(120);
+  ok(llamadas.includes("rpc:avisos_probar"), "T1-14 «Probar avisos» llama la puerta avisos_probar");
+
+  /* Mercado dentro: libro, posición y el Asesor con Subirla */
+  w.irA("Mercado");
+  await sleep(300);
+  const pgM = d.getElementById("pgMercado");
+  ok(pgM.textContent.includes(w.fmt(305.5)) && pgM.textContent.includes("FOTO FRESCA") && !!d.getElementById("mcNivel"), "T1-15 el héroe de Mercado enseña el nivel 20 de la foto vigente con su estado");
+  click(pgM.querySelector('[data-seg="posicion"]'));
+  ok(pgM.textContent.includes("Vendible ahora") && pgM.textContent.includes(w.fmt(14395)), "T1-16 Posición: el vendible del Asesor, del servidor");
+  click(pgM.querySelector('[data-seg="asesor"]'));
+  ok(!!d.getElementById("mcAsesor") && pgM.textContent.includes("OFERTA LISTA PA SUBIR") && pgM.textContent.includes(w.fmt(10863)), "T1-17 el Asesor enseña la preparada viva con lo que recibes");
+  click(d.getElementById("mcSubirla"));
+  await sleep(200);
+  ok(llamadas.includes("rpc:guia_subir") && (ultimosCuerpos["guia_subir"] || {}).p_accion === "11111111-2222-3333-4444-555555555555", "T1-18 «Subirla» llama SOLO la puerta guia_subir con el id de la preparada (cero QvaPay desde el cliente)");
+
+  /* La marca de destino: anillo que aparece y se desvanece solo */
+  w.irA("Dinero");
+  await sleep(300);
+  const dnV = d.getElementById("dnVentas");
+  ok(!!dnV, "T1-19 el ancla dnVentas existe en Dinero (ventas recientes)");
+  w.marcarDestino("dnVentas", 0);
+  ok(dnV.classList.contains("t1Marca"), "T1-20 la marca pone el anillo dorado en el elemento");
+  await sleep(1500);
+  ok(dnV.classList.contains("t1MarcaOff"), "T1-21 a los ~2,4 s la marca empieza a desvanecerse");
+  await sleep(600);
+  ok(!dnV.classList.contains("t1Marca") && !dnV.classList.contains("t1MarcaOff"), "T1-22 la marca desaparece sola y no deja clases");
+  let marcaSinError = true;
+  try { w.marcarDestino("ancla-que-no-existe", 0); } catch (e) { marcaSinError = false; }
+  ok(marcaSinError, "T1-23 ancla inexistente: cae a la sección sin error");
+
+  /* El SW de esta app: la ancla viaja en el click (fuente) */
+  const swSrcT1 = fs.readFileSync(REPO + "minegocio/sw.js", "utf8");
+  ok(swSrcT1.includes("ancla: a.ancla") && swSrcT1.includes('searchParams.set("ancla"'), "T1-24 el SW guarda la ancla en la notificación y la pasa en el click");
+  w.close();
+  R.actividad = null; R.avisosHist = null; R.dineroEstado = null; R.mercadoFoto = null; R.guiaErnesto = null;
+}
+
+/* ===== T1 · LA GUÍA: 4 coach marks, saltable, una sola vez ===== */
+{
+  const preG = { codigo: adminValido, foto: { reportes: [], ayudas: [], usuarios: [], datos: datosPublicados, cuando: "", publicar: [], borrados: [], tarifaPanel: null, mercado: null }, cola: [], sellos: {}, tarifaViva: null, tarifaVivaEn: "", publicarPendiente: null };
+  const { w } = crear({ preState: preG });
+  const d = w.document;
+  await sleep(900);
+  ok(d.getElementById("guiaCoach").style.display === "block" && d.getElementById("guiaTit").textContent.includes("Tu dinero de hoy"), "T1-25 primera vez: la guía abre sola en el paso 1 (tu dinero de hoy)");
+  click(d.getElementById("guiaSig")); click(d.getElementById("guiaSig")); click(d.getElementById("guiaSig"));
+  ok(d.getElementById("guiaTit").textContent.includes("El menú") && d.getElementById("guiaSig").textContent === "Empezar", "T1-26 la guía llega al paso 4 (el menú) y el botón cierra en «Empezar»");
+  click(d.getElementById("guiaSig"));
+  ok(d.getElementById("guiaCoach").style.display === "none" && w.localStorage.getItem("mn_guia_v22") === "1", "T1-27 al terminar, la guía se apaga y queda marcada como vista");
+  w.close();
 }
 
 console.log("\nBANCO MI NEGOCIO: " + pass + " PASS · " + fail + " FAIL");
