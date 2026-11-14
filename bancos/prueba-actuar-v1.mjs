@@ -150,12 +150,31 @@ function depsMock(sobre = {}) {
   estado.accion = { ...ACCION, origen: "app" };
   const r = await T.ejecutarAccion(deps, ACCION.id);
   ok(r.ok === true && llamadas.crear.length === 1, "exención: origen 'app' con promo activa PASA la baranda 3 y crea la oferta");
+  ok(estado.accion.detalle?.exencion_promo === "toque_app", "exención: la bitácora registra exencion_promo = toque_app");
   for (const org of ["dura_compra", "cruce_eq"]) {
     const m = depsMock({ promo: true });
     m.estado.accion = { ...ACCION, origen: org };
     const rr = await T.ejecutarAccion(m.deps, ACCION.id);
     ok(rr.codigo === "promo" && m.llamadas.crear.length === 0, `exención: origen '${org}' (vía Telegram) sigue NEGADO en promo`);
   }
+}
+/* EXENCIÓN «Subirla» (decisión de Ernesto, 2026-11-14: «mi toque en
+   Subirla manda siempre, también en promo»): la preparada del asesor
+   que nació de su toque — contexto.via = 'guia_subir', la marca que
+   SOLO escribe guia_subir tras validar su código admin — PASA la
+   baranda 3 en promo y la bitácora lo registra; la misma acción SIN
+   la marca (ruta programática) sigue negada: la exención es por el
+   toque, no por el origen en abstracto */
+{
+  const { deps, llamadas, estado } = depsMock({ promo: true });
+  estado.accion = { ...ACCION, origen: "asesor", contexto: { via: "guia_subir" } };
+  const r = await T.ejecutarAccion(deps, ACCION.id);
+  ok(r.ok === true && llamadas.crear.length === 1, "exención Subirla: asesor con la marca de su toque PASA la baranda 3 en promo y crea la oferta");
+  ok(estado.accion.detalle?.exencion_promo === "toque_subirla", "exención Subirla: la bitácora registra exencion_promo = toque_subirla");
+  const m = depsMock({ promo: true });
+  m.estado.accion = { ...ACCION, origen: "asesor", contexto: {} };
+  const rr = await T.ejecutarAccion(m.deps, ACCION.id);
+  ok(rr.codigo === "promo" && m.llamadas.crear.length === 0, "exención Subirla: asesor SIN la marca de su toque sigue NEGADO en promo");
 }
 /* Veto por foto vieja (reloj de recepción, 20 min) */
 {
