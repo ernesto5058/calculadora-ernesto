@@ -78,7 +78,7 @@ export function parsearSms(cuerpo) {
 //   sms_precio / sms_clase / sms_respuesta → el sensor v2 (abajo).
 // Cualquier otro tipo (o cuerpo que no sea objeto) → null = 400.
 // ---------------------------------------------------------------------
-export const RUTAS = ["config", "latido", "sms", "previo", "resultado", "red", "red_resultado", "sms_precio", "sms_clase", "sms_respuesta"];
+export const RUTAS = ["config", "latido", "sms", "previo", "resultado", "red", "red_resultado", "sms_precio", "sms_clase", "sms_respuesta", "sms_lote", "espera_crear"];
 
 export function rutaDe(cuerpo) {
   if (!cuerpo || typeof cuerpo !== "object") return null;
@@ -239,6 +239,23 @@ export function claseDeMenu(texto) {
   return null;
 }
 
+/* El menú «¿De quién es esta recarga?» del sensor (v3.1, 2026-11-14):
+   el texto viaja del teléfono y el código se decide AQUÍ, como todos
+   los menús. «Es de Briku» / «Es de Abraham» devuelven el código real
+   del buscador; «Compra propia» y «Otro» devuelven su clase (el
+   asiento de la vuelta de buscador vive en la ruta «sms_respuesta»;
+   «propia» sigue el flujo de compra de siempre y «otro» deja el
+   evento en la cola de arbitraje). */
+export function duenoDeMenu(texto) {
+  if (typeof texto !== "string") return null;
+  const t = texto.trim().toLowerCase();
+  if (t.startsWith("es de briku")) return "BRIKU-EUX";
+  if (t.startsWith("es de abraham")) return "ABRAHAM-X30";
+  if (t.startsWith("compra propia")) return "propia";
+  if (t.startsWith("otro")) return "otro";
+  return null;
+}
+
 /* La propuesta de total pa una compra, según la forma del precio:
    tasa (por unidad: 2.6) · recarga (por cada 360: 900) · total (el
    número tal cual). Devuelve {total, tasa_efectiva} o null si los
@@ -293,6 +310,182 @@ export function formatoMonto(n) {
   const x = aNumero(n);
   if (x === null) return "";
   return String(Math.round(x * 100) / 100);
+}
+
+/* =====================================================================
+   RIEL PAGO×MOVIL (BANDEC) — parser puro (2026-11-13, núcleo de
+   vueltas). Plantillas REALES de las capturas de Ernesto:
+
+   ENTRADA CUP: «El titular del telefono <TEL> le ha realizado una
+     transferencia a la cuenta <CUENTA> de <MONTO> CUP.
+     Nro. Transaccion <ID>. Fecha: D/M/AAAA»
+   ENTRADA USD: «…a su Tarjeta Clasica <NUM> de <MONTO> USD.
+     Nro. Transaccion <ID>» — OJO: dice «Clasica», pero la tarjeta
+     …6529 de Ernesto es su MLC: la clase sale del NÚMERO registrado
+     en pago_cuentas (cuentas que inyecta el cerebro), jamás de la
+     palabra del SMS.
+   SALIDA: «Banco Bandec: La Transferencia fue completada.
+     Beneficiario: … Monto: … Saldo restante: …» — se guarda como
+     salida, nunca como ingreso ni busca match.
+   RUIDO: autenticación, consulta de saldo, errores y todo lo que no
+     case con una plantilla se ignora (clase «ruido»).
+
+   Devuelve {clase: 'entrada_cup'|'entrada_usd'|'salida'|'ruido',
+   monto, moneda, cuenta_terminacion, tarjeta_terminacion,
+   cuenta_tipo, asentable, telefono_ordenante, beneficiario,
+   nro_transaccion}. La terminación es lo único que se estructura del
+   número completo (el íntegro solo vive en el SMS crudo). */
+const RE_PAGO_NRO = /Nro\.?\s*Transacci[oó]n\s*:?\s*([A-Za-z0-9-]+)/i;
+const RE_PAGO_ENTRADA_CUENTA = new RegExp(
+  "titular del tel[eé]fono\\s+(\\d+)\\s+le ha realizado una transferencia a la cuenta\\s+(\\d+)\\s+de\\s+" + MONTO + "\\s*CUP", "i");
+const RE_PAGO_ENTRADA_TARJETA = new RegExp(
+  "a su Tarjeta\\s+Cl[aá]sica\\s+(\\d+)\\s+de\\s+" + MONTO + "\\s*USD", "i");
+const RE_PAGO_SALIDA = /La Transferencia fue completada/i;
+const RE_PAGO_BENEFICIARIO = /Beneficiario:\s*(.+?)\s+Monto:/i;
+const RE_PAGO_MONTO_SALIDA = new RegExp(
+  "Monto:\\s*" + MONTO + "\\s*(?:CUP\\s*)?Saldo", "i");
+const RE_PAGO_MONTO_SALIDA_SIMPLE = /Monto:\s*([0-9][0-9.,]*)/i;
+
+function cuentaRegistrada(numero, cuentas) {
+  if (!numero || !Array.isArray(cuentas)) {
+    return { terminacion: numero ? numero.slice(-4) : null, tipo: null, asentable: false };
+  }
+  const term = numero.slice(-4);
+  const c = cuentas.find((x) => x && x.terminacion === term);
+  return {
+    terminacion: term,
+    tipo: c ? (c.tipo ?? null) : null,
+    asentable: !!(c && c.asentable),
+  };
+}
+
+export function parsearPagoMovil(cuerpo, cuentas) {
+  const ruido = {
+    clase: "ruido", monto: null, moneda: null,
+    cuenta_terminacion: null, tarjeta_terminacion: null,
+    cuenta_tipo: null, asentable: false,
+    telefono_ordenante: null, beneficiario: null, nro_transaccion: null,
+  };
+  if (typeof cuerpo !== "string" || !cuerpo.trim()) return ruido;
+  const nro = (cuerpo.match(RE_PAGO_NRO) || [])[1] || null;
+
+  const mCup = cuerpo.match(RE_PAGO_ENTRADA_CUENTA);
+  if (mCup) {
+    const reg = cuentaRegistrada(mCup[2], cuentas);
+    return {
+      clase: "entrada_cup", monto: numeroDe(mCup[3]), moneda: "CUP",
+      cuenta_terminacion: reg.terminacion, tarjeta_terminacion: null,
+      cuenta_tipo: reg.tipo, asentable: reg.asentable,
+      telefono_ordenante: mCup[1], beneficiario: null,
+      nro_transaccion: nro,
+    };
+  }
+  const mUsd = cuerpo.match(RE_PAGO_ENTRADA_TARJETA);
+  if (mUsd) {
+    const reg = cuentaRegistrada(mUsd[1], cuentas);
+    const tel = (cuerpo.match(/titular del tel[eé]fono\s+(\d+)/i) || [])[1] || null;
+    return {
+      clase: "entrada_usd", monto: numeroDe(mUsd[2]), moneda: "USD",
+      cuenta_terminacion: null, tarjeta_terminacion: reg.terminacion,
+      cuenta_tipo: reg.tipo, asentable: reg.asentable,
+      telefono_ordenante: tel, beneficiario: null,
+      nro_transaccion: nro,
+    };
+  }
+  if (RE_PAGO_SALIDA.test(cuerpo)) {
+    const ben = (cuerpo.match(RE_PAGO_BENEFICIARIO) || [])[1] || null;
+    const mMonto = cuerpo.match(RE_PAGO_MONTO_SALIDA)
+      || cuerpo.match(RE_PAGO_MONTO_SALIDA_SIMPLE);
+    return {
+      clase: "salida", monto: mMonto ? numeroDe(mMonto[1]) : null,
+      moneda: "CUP", cuenta_terminacion: null, tarjeta_terminacion: null,
+      cuenta_tipo: null, asentable: false,
+      telefono_ordenante: null,
+      beneficiario: ben ? ben.trim() : null,
+      nro_transaccion: nro,
+    };
+  }
+  return ruido;
+}
+
+/* ¿El remitente es PAGO×MOVIL? El nombre llega del atajo tal cual lo
+   ve iOS («PAGO×MOVIL»); se tolera la equis latina y espacios. */
+export function esRemitentePago(remitente) {
+  if (typeof remitente !== "string") return false;
+  const t = remitente.toUpperCase().replace(/[\s_]+/g, "");
+  return t === "PAGO×MOVIL" || t === "PAGOXMOVIL" || t === "PAGOMOVIL";
+}
+
+/* =====================================================================
+   INGESTA OFFLINE-FIRST (ampliación 2026-11-13): el atajo guarda en
+   su iPhone y sincroniza cuando vuelve la red. El cerebro acepta el
+   client_uuid del evento (dedup duro: el resultado original se
+   guarda en sms_ingesta y un reenvío lo devuelve tal cual), el envío
+   en LOTE ordenado por la hora ORIGINAL del SMS (fecha_original que
+   manda el atajo, no la de llegada) y las respuestas de clasificación
+   recogidas en local viajando CON el evento.
+   ===================================================================== */
+
+const RE_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export function clientUuidValido(v) {
+  return typeof v === "string" && RE_UUID.test(v.trim())
+    ? v.trim().toLowerCase() : null;
+}
+
+/* La hora original del SMS según el atajo (ISO o epoch ms). Sin hora
+   sana → null (manda la de llegada). */
+export function fechaOriginalDe(v) {
+  if (typeof v === "number" && Number.isFinite(v) && v > 0) {
+    const d = new Date(v);
+    return Number.isNaN(d.getTime()) ? null : d.toISOString();
+  }
+  if (typeof v === "string" && v.trim()) {
+    const d = new Date(v.trim());
+    return Number.isNaN(d.getTime()) ? null : d.toISOString();
+  }
+  return null;
+}
+
+/* Orden del lote: por hora original ascendente; sin hora, al final;
+   empate o ausencia total → el orden de llegada (sort estable). */
+export function ordenarLoteEventos(eventos) {
+  if (!Array.isArray(eventos)) return [];
+  return eventos
+    .map((ev, i) => ({
+      ev, i,
+      t: ev && typeof ev === "object" ? fechaOriginalDe(ev.fecha_original) : null,
+    }))
+    .sort((a, b) => {
+      if (a.t && b.t) return a.t < b.t ? -1 : (a.t > b.t ? 1 : a.i - b.i);
+      if (a.t) return -1;
+      if (b.t) return 1;
+      return a.i - b.i;
+    })
+    .map((x) => x.ev);
+}
+
+/* Las respuestas de clasificación recogidas en local, normalizadas:
+   {forma, numero} (propuesta de compra), {clase} (menú de salida),
+   {total} (compra confirmada), {qusd} (venta confirmada). Lo que no
+   es sano no viaja: null en su campo, jamás una cifra inventada. */
+export function respuestasDe(item) {
+  const r = item && typeof item === "object" ? item.respuestas : null;
+  if (!r || typeof r !== "object" || Array.isArray(r)) return null;
+  const forma = claseDeMenu(typeof r.forma_texto === "string" ? r.forma_texto : "");
+  const clase = claseDeMenu(typeof r.eleccion_texto === "string" ? r.eleccion_texto : "");
+  const total = enteroPositivo(r.total);
+  const qusd = qusdValido(r.qusd);
+  const numero = aNumero(r.numero);
+  if (!forma && !clase && total === null && qusd === null && numero === null) {
+    return null;
+  }
+  return {
+    forma: forma && forma !== "venta" && forma !== "devolucion" && forma !== "traspaso" ? forma : null,
+    numero,
+    clase: clase === "venta" || clase === "devolucion" || clase === "traspaso" ? clase : null,
+    total, qusd,
+  };
 }
 
 /* HACER/DESHACER (v2): la fila pa maximo_resultados. El Máster reporta
