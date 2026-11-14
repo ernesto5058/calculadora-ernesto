@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mi Negocio — Ajustes · Muestra de rediseño v3+</title>
+<link rel="stylesheet" href="estilo.css">
+</head>
+<body>
+<div class="app plana">
+
+  <!-- Pila de navegación: atrás vuelve al Inicio -->
+  <div class="stackbar">
+    <a class="backbtn" href="inicio.html"><svg viewBox="0 0 24 24"><path d="M14.5 5L7.5 12l7 7"/></svg>Inicio</a>
+    <span class="ttl">Ajustes</span>
+  </div>
+
+  <!-- Tarjeta de perfil: quién eres, de un vistazo -->
+  <a class="card" href="#" style="display:block">
+    <div class="row">
+      <div class="avatar av-gold grande" style="width:54px;height:54px;font-size:19px">EN</div>
+      <div class="cuerpo" style="flex:1;min-width:0">
+        <div style="font-size:17px;font-weight:800;letter-spacing:-.01em">Ernesto Nuñez Torres</div>
+        <div class="small">Cuenta del dueño · código verificado en el servidor</div>
+      </div>
+      <svg class="chev" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg>
+    </div>
+  </a>
+
+  <!-- CUENTA -->
+  <div>
+    <div class="grupo-lbl">Cuenta</div>
+    <div class="lista">
+      <a class="fila-aj" href="#">
+        <div class="fic"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 5-5.5 8-5.5s6.5 1.5 8 5.5"/></svg></div>
+        <div class="cuerpo"><div class="tit">Perfil</div><div class="sub">Tu nombre y cómo te ven los buscadores</div></div>
+        <svg class="chev" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg>
+      </a>
+      <a class="fila-aj" href="#">
+        <div class="fic"><svg viewBox="0 0 24 24"><rect x="4" y="10" width="16" height="10" rx="2.5"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg></div>
+        <div class="cuerpo"><div class="tit">Códigos de acceso</div><div class="sub">Quién puede entrar y con qué cuenta</div></div>
+        <span class="val">2 buscadores</span>
+        <svg class="chev" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg>
+      </a>
+      <a class="fila-aj" href="#">
+        <div class="fic"><svg viewBox="0 0 24 24"><path d="M12 3l7 3v5c0 4.5-3 8.5-7 10-4-1.5-7-5.5-7-10V6z"/><path d="M9.5 12l2 2 3.5-4"/></svg></div>
+        <div class="cuerpo"><div class="tit">Seguridad</div><div class="sub">Bloqueo de la app y sesiones</div></div>
+        <span class="val">Activa</span>
+        <svg class="chev" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg>
+      </a>
+    </div>
+  </div>
+
+  <!-- LA APP -->
+  <div>
+    <div class="grupo-lbl">La app</div>
+    <div class="lista">
+      <a class="fila-aj" href="ajustes-notificaciones.html">
+        <div class="fic gold"><svg viewBox="0 0 24 24"><path d="M18 9a6 6 0 1 0-12 0c0 6-2.5 7-2.5 7h17S18 15 18 9z"/><path d="M10 20a2.2 2.2 0 0 0 4 0"/></svg></div>
+        <div class="cuerpo"><div class="tit">Notificaciones</div><div class="sub">Avisos PRO: push y Telegram, con registro</div></div>
+        <span class="val">Activadas</span>
+        <svg class="chev" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg>
+      </a>
+      <a class="fila-aj" href="#">
+        <div class="fic"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2.5M12 19v2.5M2.5 12H5M19 12h2.5M5 5l1.8 1.8M17.2 17.2L19 19M19 5l-1.8 1.8M6.8 17.2L5 19"/></svg></div>
+        <div class="cuerpo"><div class="tit">Estilo de visión</div><div class="sub">La cara de esta app, o la del sistema</div></div>
+        <span class="val">Por defecto</span>
+        <svg class="chev" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg>
+      </a>
+      <div class="fila-aj">
+        <div class="fic"><svg viewBox="0 0 24 24"><path d="M9 11.5a5.5 5.5 0 1 1 6.4 5.43"/><path d="M9 11.5L4 7m5 4.5L4.5 16"/></svg></div>
+        <div class="cuerpo"><div class="tit">Respuesta al tacto</div><div class="sub">Que cada toque se sienta: hundido y confirmación</div></div>
+        <span class="sw on" role="switch" aria-checked="true" tabindex="0"></span>
+      </div>
+      <a class="fila-aj" href="guia.html">
+        <div class="fic"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M9.5 9.3A2.6 2.6 0 1 1 12 12.5v.5"/><path d="M12 16.8h.01"/></svg></div>
+        <div class="cuerpo"><div class="tit">Guía de la app</div><div class="sub">El recorrido: «esto funciona para esto», en 4 pasos</div></div>
+        <span class="val">Ver</span>
+        <svg class="chev" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg>
+      </a>
+    </div>
+  </div>
+
+  <!-- DATOS -->
+  <div>
+    <div class="grupo-lbl">Datos</div>
+    <div class="lista">
+      <a class="fila-aj" href="#">
+        <div class="fic"><svg viewBox="0 0 24 24"><path d="M12 3v11m0 0l-4-4m4 4l4-4"/><path d="M4 17v2.5A1.5 1.5 0 0 0 5.5 21h13a1.5 1.5 0 0 0 1.5-1.5V17"/></svg></div>
+        <div class="cuerpo"><div class="tit">Respaldo</div><div class="sub">Tu libro se guarda solo, cada día</div></div>
+        <span class="val">Automático</span>
+        <svg class="chev" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg>
+      </a>
+      <div class="fila-aj">
+        <div class="fic"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 10.5V17"/><path d="M12 7h.01"/></svg></div>
+        <div class="cuerpo"><div class="tit">Versión</div><div class="sub">Mi Negocio v20 · lenguaje de diseño v3+</div></div>
+        <span class="val">al día</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Zona separada: lo delicado va abajo -->
+  <div class="lista" style="margin-top:6px">
+    <a class="fila-aj" href="#">
+      <div class="cuerpo" style="text-align:center"><div class="tit" style="color:var(--red)">Cerrar sesión en este teléfono</div></div>
+    </a>
+  </div>
+  <p class="tiny" style="text-align:center;line-height:1.5;padding:0 12px">Todo ajuste vive aquí, en una sola sección.<br>Nada de cazar opciones regadas por la app.</p>
+
+<script>
+  document.querySelectorAll('.sw').forEach(function(s){
+    s.addEventListener('click',function(){s.classList.toggle('on');
+      s.setAttribute('aria-checked',s.classList.contains('on'));});
+  });
+</script>
+</div>
+</body>
+</html>
