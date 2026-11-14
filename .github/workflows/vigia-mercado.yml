@@ -20,7 +20,7 @@ jobs:
   foto:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Tomar la foto del mercado
         run: python3 scripts/foto_mercado.py
       - name: Disparar la construccion del APK si hay orden
