@@ -10,7 +10,7 @@ import vm from "node:vm";
 import { JSDOM } from "jsdom";
 
 const SRC = readFileSync(new URL("../CalculadoraPRO-v15.js", import.meta.url), "utf8");
-const SRC14 = readFileSync(new URL("../CalculadoraPRO.js", import.meta.url), "utf8");
+const SRC14 = readFileSync(new URL("../CalculadoraPRO-v14.js", import.meta.url), "utf8");
 
 let n = 0, ok = 0;
 const fallos = [];
