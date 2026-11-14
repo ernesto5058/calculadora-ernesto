@@ -89,6 +89,12 @@ jobs:
       - name: Banco Mi Trabajo v1.6.1 — tarifa viva inteligente del buscador (fila 76)
         run: node bancos/prueba-mitrabajo-v161.mjs
 
+      - name: Banco Mi Trabajo v1.7.0 — T3 esperas, mi pago, foco del chat y guía (fila 96)
+        run: node bancos/prueba-mitrabajo-v170.mjs
+
+      - name: Banco Esperas-App T3 — puertas de la app en vivo (fila 96; sin PAT se salta)
+        run: node bancos/prueba-esperas-app-t3.mjs
+
       - name: Banco Mi Trabajo — contrato de puertas RPC sin sobrecargas
         run: node bancos/prueba-mitrabajo-v144.mjs
 
