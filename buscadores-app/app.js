@@ -1,6 +1,6 @@
 "use strict";
 /*__SENTRY_CASA__*/
-var APP_VERSION = "1.6.1";
+var APP_VERSION = "1.7.0";
 /* Tarifa de respaldo (E-7, Tanda Nº6): SOLO se usa si nunca llegó ni
    datos.json ni la tarifa viva, y mientras manda ella la app lo dice
    a la vista («RESPALDO» + su origen en tarifaText/pintaFrescura).
@@ -2478,3 +2478,280 @@ reportar = function(){
     var nom = $("r_foto_nom"); if (nom) nom.textContent = "Foto enviada con el reporte.";
   }
 };
+
+/* =====================================================================
+   T3 · v1.7.0 — MIS ESPERAS · MI PAGO · FOCO DEL CHAT · GUÍA
+   ---------------------------------------------------------------------
+   · Esperas: lectura por esperas_mi_estado (SOLO lo suyo) y el PARTE
+     CON TASA por espera_crear_app (la puerta de la app, gemela de la
+     operada del cerebro: misma interna, misma regla del capital). El
+     tope del parte es su efectivo LIBRE (en mano − comprometido): si
+     teclea más, la app lo frena con la explicación y NO manda nada;
+     el servidor frena igual si la foto cambió.
+   · Mi pago: lectura por pago_mi_estado — lo asegurado (fijo), el
+     premio (depende de la venta) y lo ya pagado, saldo y
+     transferencia separados. La pantalla pinta SOLO los campos de la
+     puerta: la cocina del dueño no existe en esta vista.
+   · Chat: pintarChat queda envuelto con la GUARDA DE FOCO — si el
+     refresco del hilo le robara el foco al compositor, se lo devuelve
+     con su texto y su selección (la sonda eterna del CHEQUEO 96).
+     La hoja de adjuntos es hoja inferior con su fondo tocable.
+   · Guía: 4 pasos una sola vez (busc_guia_v170), repetible desde
+     «Mi perfil».
+   ===================================================================== */
+var ESPERAS = null;   /* última foto de esperas_mi_estado */
+var PAGO = null;      /* última foto de pago_mi_estado */
+var EP_TIPO = "saldo";
+
+function fmtMilesT3(n){ return String(Math.round(Number(n) || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, ","); }
+function fmtFechaCorta(iso){
+  var d = new Date(iso); if (isNaN(d.getTime())) return "";
+  var meses = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
+  function p(x){ return (x < 10 ? "0" : "") + x; }
+  return d.getDate() + " de " + meses[d.getMonth()] + " · " + p(d.getHours()) + ":" + p(d.getMinutes());
+}
+function estadoEspera(e){
+  if (e.estado === "abierta") return { txt: "Esperando que llegue el SMS", cls: "esp" };
+  if (e.estado === "cumplida") return { txt: "Asentada", cls: "okk" };
+  if (e.estado === "vencida") return { txt: "Ernesto la está revisando", cls: "rev" };
+  return { txt: "No se confirmó — habla con Ernesto", cls: "no" };
+}
+function pintarEsperas(){
+  var box = $("e_lista"); if (!box) return;
+  var res = $("e_resumen");
+  if (!ESPERAS) { box.innerHTML = '<div class="hint">Cargando tus esperas…</div>'; return; }
+  var abiertas = ESPERAS.esperas.filter(function(e){ return e.estado === "abierta"; }).length;
+  if (res) res.innerHTML = "Efectivo en tu mano: <b>" + fmtMilesT3(ESPERAS.en_mano) + " CUP</b>"
+    + (Number(ESPERAS.comprometido) > 0 ? " · ya puesto en esperas abiertas: <b>" + fmtMilesT3(ESPERAS.comprometido) + " CUP</b>" : "")
+    + " · libre para operar: <b>" + fmtMilesT3(ESPERAS.libre) + " CUP</b>.";
+  var badge = $("navEspBadge");
+  if (badge) { badge.textContent = String(abiertas); badge.classList.toggle("hide", !abiertas); }
+  var tope = $("ep_tope");
+  if (tope) tope.innerHTML = "Tu efectivo libre para operar: <b>" + fmtMilesT3(ESPERAS.libre) + " CUP</b> (lo que tienes en mano menos lo que ya espera). Si el parte pasa de ahí, la app te frena.";
+  if (!ESPERAS.esperas.length) {
+    box.innerHTML = '<div class="hint">Todavía no tienes esperas. Cuando operes una vuelta, mándale el parte a Ernesto con el formulario de abajo: tu espera nace al momento.</div>';
+    return;
+  }
+  box.innerHTML = ESPERAS.esperas.map(function(e){
+    var st = estadoEspera(e);
+    var monto = e.tipo === "saldo"
+      ? fmtMilesT3(e.cantidad) + " de saldo · pusiste " + fmtMilesT3(e.capital_cup) + " CUP"
+      : fmtMilesT3(e.cantidad) + " CUP por transferencia · pusiste " + fmtMilesT3(e.capital_cup) + " CUP";
+    var tasa = (e.tipo === "saldo" && e.tasa_pactada)
+      ? "<br>Tasa de tu parte: " + fmtMilesT3(Math.round(Number(e.tasa_pactada) * 360)) + " CUP por recarga de 360" : "";
+    var vueltas = Number(e.vueltas) > 0 ? "<br>De esta espera nació tu vuelta." : "";
+    return '<div class="espRow"><div class="espTop"><b>' + (e.tipo === "saldo" ? "Vuelta de saldo" : "Vuelta de transferencia") + '</b>'
+      + '<span class="stChip ' + st.cls + '">' + st.txt + '</span></div>'
+      + '<div class="espDet">' + monto + tasa + vueltas + "<br>" + fmtFechaCorta(e.creada_en) + "</div></div>";
+  }).join("");
+}
+function esperasCacheSet(){ try { localStorage.setItem("busc_esperas_cache", JSON.stringify({ codigo: SESION, datos: ESPERAS })); } catch(e){} }
+function esperasCacheGet(){
+  try { var c = JSON.parse(localStorage.getItem("busc_esperas_cache") || "null");
+    return (c && c.codigo === SESION && c.datos && Array.isArray(c.datos.esperas)) ? c.datos : null; } catch(e){ return null; }
+}
+function cargarEsperas(){
+  if (!SESION) return;
+  rpcChat("esperas_mi_estado", { p_codigo: SESION }).then(function(r){
+    if (r && r.ok && Array.isArray(r.esperas)) { ESPERAS = r; esperasCacheSet(); pintarEsperas(); }
+    else if (!ESPERAS) { var c = esperasCacheGet(); if (c) { ESPERAS = c; pintarEsperas(); } }
+  });
+}
+function libreActual(){
+  if (ESPERAS && ESPERAS.libre !== undefined && ESPERAS.libre !== null) return Number(ESPERAS.libre);
+  if (typeof DINERO !== "undefined" && DINERO && DINERO.en_mano !== undefined) return Number(DINERO.en_mano) || 0;
+  return null;
+}
+function enviarParte(){
+  var warn = $("ep_warn"), okEl = $("ep_ok");
+  warn.style.display = "none"; okEl.style.display = "none";
+  function fallo(m){ warn.style.display = "block"; warn.textContent = m; }
+  if (!SESION) return fallo("Primero entra con tu código personal.");
+  if (EN_PAUSA) return fallo("Estás en pausa: habla con Ernesto");
+  var esSaldo = EP_TIPO === "saldo";
+  var tasa = esSaldo ? num("ep_tasa") : num("ep_pct");
+  var total = num("ep_total");
+  if (tasa === null || tasa <= 0) return fallo(esSaldo
+    ? "Escribe la tasa que pactaste: el precio por cada recarga de 360. Sin tasa no hay parte."
+    : "Escribe al cuánto es el trato (%). Sin eso no hay parte.");
+  if (total === null || total <= 0) return fallo("Escribe el total que pagaste en efectivo (CUP).");
+  var libre = libreActual();
+  if (libre !== null && total > libre) return fallo("Te pasas de tu efectivo: tienes " + fmtMilesT3(libre) + " CUP libres para operar (lo de tu mano menos lo que ya espera) y el parte dice " + fmtMilesT3(total) + " CUP. Revisa el total: no se mandó nada.");
+  var btn = $("ep_btn"); btn.disabled = true;
+  rpcChat("espera_crear_app", { p_codigo: SESION, p_tipo: EP_TIPO, p_tasa: tasa, p_total_pagado: Math.round(total),
+    p_telefono: ($("ep_tel").value || "").trim() || null }).then(function(r){
+    btn.disabled = false;
+    if (r && r.ok) {
+      okEl.style.display = "block";
+      okEl.textContent = "Parte enviado: tu espera nació por " + fmtMilesT3(r.cantidad_esperada) + (esSaldo ? " de saldo." : " CUP de transferencia.") + " Cuando llegue su prueba, se asienta sola y la ves aquí como «Asentada».";
+      $("ep_total").value = ""; if (esSaldo) $("ep_tasa").value = ""; else $("ep_pct").value = "";
+      cargarEsperas();
+    } else if (r && r.motivo === "supera_tu_efectivo") {
+      if (ESPERAS) { ESPERAS.libre = r.libre; ESPERAS.en_mano = r.en_mano; ESPERAS.comprometido = r.comprometido; pintarEsperas(); }
+      fallo("Te pasas de tu efectivo: según el servidor tienes " + fmtMilesT3(r.libre) + " CUP libres para operar. Revisa el total: no se creó ninguna espera.");
+    } else if (r && r.motivo === "tasa_invalida") fallo("Esa tasa no vale: tiene que ser mayor que cero.");
+    else fallo("No se pudo enviar el parte ahora. Revisa tu conexión y tócalo otra vez: no se creó ninguna espera.");
+  });
+}
+
+/* ===== Mi pago ===== */
+function pagoCacheSet(){ try { localStorage.setItem("busc_pago_cache", JSON.stringify({ codigo: SESION, datos: PAGO })); } catch(e){} }
+function pagoCacheGet(){
+  try { var c = JSON.parse(localStorage.getItem("busc_pago_cache") || "null");
+    return (c && c.codigo === SESION && c.datos && Array.isArray(c.datos.vueltas)) ? c.datos : null; } catch(e){ return null; }
+}
+function pagoLineaPremio(v){
+  var premio = Number(v.premio) || 0, redondeo = Number(v.redondeo) || 0;
+  if (premio > 0) return "Premio: ya te pagaron <b>" + fmt(premio) + "</b> por la venta" + (redondeo > 0 ? " (con " + fmt(redondeo) + " de ajuste en efectivo)" : "") + ".";
+  if (v.estado === "vendido_sin_premio") return "Premio: la venta no dejó premio en esta vuelta.";
+  return "Premio: todavía depende de la venta — se sabe cuando Ernesto venda.";
+}
+function pagoFilaHtml(v){
+  return '<div class="pagoRow"><span class="prF">' + fmtFechaCorta(v.creada_en) + "</span><br>"
+    + "Lo asegurado: <b>" + fmt(Number(v.fijo) || 0) + "</b> · es tuyo pase lo que pase con la venta.<br>"
+    + pagoLineaPremio(v) + "<br>Ya te pagaron en total: <b>" + fmt(Number(v.total) || 0) + "</b></div>";
+}
+function pintarPago(){
+  var tot = $("mp_totales"), bs = $("mp_saldo"), bt = $("mp_transf");
+  if (!tot || !bs || !bt) return;
+  if (!PAGO) { bs.innerHTML = '<div class="hint">Cargando tu pago…</div>'; bt.innerHTML = '<div class="hint">Cargando tu pago…</div>'; return; }
+  var vs = PAGO.vueltas.filter(function(v){ return v.tipo === "saldo"; });
+  var vt = PAGO.vueltas.filter(function(v){ return v.tipo === "transferencia"; });
+  function suma(arr, k){ return arr.reduce(function(a, v){ return a + (Number(v[k]) || 0); }, 0); }
+  var aseg = suma(PAGO.vueltas, "fijo"), prem = suma(PAGO.vueltas, "premio"), pag = suma(PAGO.vueltas, "total");
+  tot.innerHTML = '<div class="pagoTot">'
+    + '<div class="pt"><div class="n">' + fmt(aseg) + '</div><div class="l">Lo asegurado (tuyo pase lo que pase)</div></div>'
+    + '<div class="pt"><div class="n">' + fmt(prem) + '</div><div class="l">Premio ya pagado (dependía de la venta)</div></div>'
+    + '<div class="pt"><div class="n">' + fmt(pag) + '</div><div class="l">Ya te pagaron en total</div></div></div>';
+  var nav = $("navPagoTxt");
+  if (nav) nav.textContent = PAGO.vueltas.length
+    ? "Asegurado: " + fmt(aseg) + " · ya te pagaron " + fmt(pag) + " en total."
+    : "Lo que ya tienes asegurado, lo que depende de la venta y lo que ya te pagaron.";
+  bs.innerHTML = vs.length ? vs.map(pagoFilaHtml).join("") : '<div class="hint">Todavía no tienes vueltas de saldo con pago calculado. Cuando una vuelta tuya nazca, su pago aparece aquí.</div>';
+  bt.innerHTML = vt.length ? vt.map(pagoFilaHtml).join("") : '<div class="hint">Todavía no tienes vueltas de transferencia con pago calculado. Cuando una vuelta tuya nazca, su pago aparece aquí.</div>';
+}
+function cargarPago(){
+  if (!SESION) return;
+  rpcChat("pago_mi_estado", { p_codigo: SESION }).then(function(r){
+    if (r && r.ok && Array.isArray(r.vueltas)) { PAGO = r; pagoCacheSet(); pintarPago(); }
+    else if (!PAGO) { var c = pagoCacheGet(); if (c) { PAGO = c; pintarPago(); } }
+  });
+}
+
+/* ===== Guarda de foco del chat (CHEQUEO 96) =====
+   El compositor vive fuera del hilo y el repintado ya es incremental;
+   esta guarda lo hace LEY: ningún refresco del hilo le roba el foco
+   a quien está escribiendo — si pasara, se lo devuelve al instante
+   con su texto y su selección intactos. */
+var pintarChatSinGuardaMT = pintarChat;
+pintarChat = function(msgs){
+  var tx = $("c_txt");
+  var conFoco = !!(tx && document.activeElement === tx);
+  var selI = 0, selF = 0;
+  if (conFoco) { try { selI = tx.selectionStart || 0; selF = tx.selectionEnd || 0; } catch(e){} }
+  pintarChatSinGuardaMT(msgs);
+  if (conFoco && document.activeElement !== tx) {
+    try { tx.focus(); tx.setSelectionRange(selI, selF); } catch(e){}
+  }
+};
+
+/* ===== Navegación T3: Esperas y Pago son hijas de Mi panel ===== */
+var showViewSinT3 = showView;
+showView = function(v){
+  if (v === "Esperas" || v === "Pago") {
+    /* la pestaña madre (Mi panel) queda marcada; las 6 vistas base
+       se ocultan todas y manda la hija */
+    ["Calc", "Rep", "Panel", "Ayuda", "Textos", "Perfil"].forEach(function(x){
+      var t = $("tab" + x), vw = $("view" + x);
+      if (t) t.classList.toggle("on", x === "Panel");
+      if (vw) vw.classList.add("hide");
+    });
+    $("viewEsperas").classList.toggle("hide", v !== "Esperas");
+    $("viewPago").classList.toggle("hide", v !== "Pago");
+    if (v === "Esperas") cargarEsperas();
+    if (v === "Pago") cargarPago();
+    try { window.scrollTo(0, 0); } catch(e){}
+    return;
+  }
+  var ve = $("viewEsperas"), vp = $("viewPago");
+  if (ve) ve.classList.add("hide");
+  if (vp) vp.classList.add("hide");
+  showViewSinT3(v);
+  if (v === "Panel") { cargarEsperas(); cargarPago(); }
+};
+
+/* ===== Guía de primera vez (4 pasos, una sola vez) ===== */
+var GUIA_LS_T3 = "busc_guia_v170";
+var GUIA_PASOS_T3 = [
+  { view: "Panel", el: "navEsperas", txt: "<b>Mis esperas:</b> aquí ves tus vueltas en camino — qué falta por llegar y lo que ya se asentó. Ernesto ve lo mismo que tú." },
+  { view: "Panel", el: "navPago", txt: "<b>Mi pago:</b> aquí está tu dinero por vuelta — lo que ya tienes asegurado, lo que depende de la venta y lo que ya te pagaron." },
+  { view: "Ayuda", el: "c_clip", txt: "<b>El clip del chat:</b> tócalo y manda una foto o un documento. La foto sale junto con tu texto en UN solo mensaje, como en WhatsApp." },
+  { view: "Esperas", el: "ep_btn", txt: "<b>El parte:</b> cuando operes una vuelta con tu efectivo, mándale el parte a Ernesto desde aquí — la tasa que pactaste y el total que pagaste. Tu espera nace al momento." }
+];
+var GUIA_I_T3 = -1;
+function guiaLimpiarAnillo(){
+  document.querySelectorAll(".guiaRing").forEach(function(el){ el.classList.remove("guiaRing"); });
+}
+function guiaCerrarT3(){
+  GUIA_I_T3 = -1;
+  guiaLimpiarAnillo();
+  var b = $("guiaBox"); if (b) b.classList.remove("abierta");
+  try { localStorage.setItem(GUIA_LS_T3, "1"); } catch(e){}
+}
+function guiaPasoT3(i){
+  GUIA_I_T3 = i;
+  var paso = GUIA_PASOS_T3[i]; if (!paso) { guiaCerrarT3(); return; }
+  showView(paso.view);
+  guiaLimpiarAnillo();
+  var el = $(paso.el);
+  if (el) {
+    el.classList.add("guiaRing");
+    try { el.scrollIntoView({ block: "center", behavior: "smooth" }); } catch(e){ try { el.scrollIntoView(); } catch(e2){} }
+  }
+  $("guiaPaso").textContent = "PASO " + (i + 1) + " DE " + GUIA_PASOS_T3.length;
+  $("guiaTxt").innerHTML = paso.txt;
+  $("guiaBtn").textContent = (i === GUIA_PASOS_T3.length - 1) ? "Listo" : "Siguiente";
+  $("guiaBox").classList.add("abierta");
+}
+function guiaVerT3(){ guiaPasoT3(0); }
+function guiaVistaT3(){ try { return !!localStorage.getItem(GUIA_LS_T3); } catch(e){ return true; } }
+var entrarSinGuiaT3 = entrar;
+entrar = function(code){
+  entrarSinGuiaT3(code);
+  cargarEsperas(); cargarPago();
+  if (!guiaVistaT3()) setTimeout(function(){ if (SESION && GUIA_I_T3 < 0) guiaPasoT3(0); }, 1200);
+};
+/* El arranque con sesión guardada corre ANTES de este bloque (entrar
+   ya se llamó): la guía se programa igual si aún no se vio. */
+if (SESION && !guiaVistaT3()) setTimeout(function(){ if (SESION && GUIA_I_T3 < 0) guiaPasoT3(0); }, 1200);
+
+/* ===== Cableado T3 ===== */
+(function cablearT3(){
+  try {
+    $("navEsperas").addEventListener("click", function(){ showView("Esperas"); });
+    $("navPago").addEventListener("click", function(){ showView("Pago"); });
+    $("e_volver").addEventListener("click", function(){ showView("Panel"); });
+    $("mp_volver").addEventListener("click", function(){ showView("Panel"); });
+    $("ep_tipo_s").addEventListener("click", function(){ EP_TIPO = "saldo"; $("ep_tipo_s").classList.add("on"); $("ep_tipo_t").classList.remove("on"); $("ep_box_s").classList.remove("hide"); $("ep_box_t").classList.add("hide"); });
+    $("ep_tipo_t").addEventListener("click", function(){ EP_TIPO = "transferencia"; $("ep_tipo_t").classList.add("on"); $("ep_tipo_s").classList.remove("on"); $("ep_box_t").classList.remove("hide"); $("ep_box_s").classList.add("hide"); });
+    $("ep_btn").addEventListener("click", enviarParte);
+    $("guiaBtn").addEventListener("click", function(){ guiaPasoT3(GUIA_I_T3 + 1); });
+    $("guiaSaltar").addEventListener("click", guiaCerrarT3);
+    var pfG = $("pf_guia"); if (pfG) pfG.addEventListener("click", guiaVerT3);
+    /* La hoja inferior se cierra tocando su fondo o su ✕. */
+    var scrim = $("c_adj_scrim");
+    function cerrarHojaT3(){
+      var hj = $("c_adj_hoja"); if (hj) hj.classList.remove("abierta");
+      if (scrim) scrim.classList.remove("abierta");
+    }
+    var clip = $("c_clip");
+    if (clip) clip.addEventListener("click", function(){
+      var hj = $("c_adj_hoja"); if (!hj) return;
+      setTimeout(function(){ if (scrim) scrim.classList.toggle("abierta", hj.classList.contains("abierta")); }, 30);
+    });
+    if (scrim) scrim.addEventListener("click", cerrarHojaT3);
+    ["c_adj_foto", "c_adj_cam", "c_adj_arch", "c_adj_cerrar"].forEach(function(id){
+      var b = $(id); if (b) b.addEventListener("click", function(){ setTimeout(cerrarHojaT3, 30); });
+    });
+  } catch(e){ /* cableado parcial degradado: el resto de la app sigue */ }
+})();
