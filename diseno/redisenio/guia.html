@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mi Negocio — Guía de primera vez · Muestra v3+</title>
+<link rel="stylesheet" href="estilo.css">
+<style>
+  /* El foco de la guía: anillo + sombra gigante = el «agujero» de luz
+     sobre la pantalla real, oscurecida alrededor. */
+  .foco{position:fixed;z-index:50;border:2px solid var(--gold1);border-radius:20px;
+    box-shadow:0 0 0 9999px rgba(2,3,6,.80),0 0 34px rgba(246,212,124,.30);
+    transition:all 340ms cubic-bezier(.32,.72,0,1);pointer-events:none}
+  .coach{position:fixed;z-index:51;left:50%;transform:translateX(-50%);bottom:22px;width:calc(100% - 28px);max-width:402px;
+    background:rgba(22,24,30,.97);border:1px solid rgba(246,212,124,.38);border-radius:20px;padding:16px;
+    box-shadow:0 24px 60px rgba(0,0,0,.65)}
+  .coach .paso{font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--gold-txt)}
+  .coach h3{font-size:17.5px;font-weight:800;margin-top:6px;letter-spacing:-.01em}
+  .coach p{font-size:13.5px;color:var(--sub);line-height:1.5;margin-top:5px}
+  .coach .acciones{display:flex;align-items:center;gap:10px;margin-top:14px}
+</style>
+</head>
+<body>
+<div class="app" aria-hidden="true">
+
+  <div class="row spread">
+    <div class="row">
+      <div class="avatar av-gold" style="width:38px;height:38px;font-size:13px">EN</div>
+      <div>
+        <div style="font-weight:800;font-size:17px;letter-spacing:-.01em">Mi Negocio</div>
+        <div class="tiny" style="display:flex;align-items:center;gap:5px"><span class="dot"></span>En vivo · viernes 13</div>
+      </div>
+    </div>
+    <div class="row" style="gap:8px">
+      <span class="iconbtn"><svg viewBox="0 0 24 24"><path d="M18 9a6 6 0 1 0-12 0c0 6-2.5 7-2.5 7h17S18 15 18 9z"/><path d="M10 20a2.2 2.2 0 0 0 4 0"/></svg><span class="bdg">3</span></span>
+      <span class="iconbtn" id="zonaMenu"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h10"/></svg></span>
+    </div>
+  </div>
+
+  <div class="card hero" id="zonaHero">
+    <div class="lbl gold">Hoy puedes gastar</div>
+    <div class="row" style="margin-top:7px;align-items:baseline;gap:8px">
+      <span class="hero-num num gold">3.000</span><span style="font-weight:700;color:var(--sub)">CUP</span>
+    </div>
+    <div class="small" style="margin-top:6px">Sin tocar ni un peso de lo que está trabajando. Es tu bolsillo de gasto, ya separado.</div>
+    <div class="hair" style="margin:13px 0"></div>
+    <div class="row spread">
+      <div><div class="lbl">Hoy ganaste</div><div class="mid num" style="margin-top:3px">1.575 <span class="tiny">CUP</span></div></div>
+      <div><div class="lbl">Fondo libre</div><div class="mid num" style="margin-top:3px">10.993</div></div>
+      <div><div class="lbl">Capital total</div><div class="mid num" style="margin-top:3px">41.700</div></div>
+    </div>
+  </div>
+
+  <div id="zonaAccesos">
+    <div class="row spread" style="margin:2px 2px 9px">
+      <span class="lbl">Accesos</span><span class="tiny">todo a 2 toques</span>
+    </div>
+    <div class="accesos">
+      <span class="tile"><svg viewBox="0 0 24 24"><path d="M4 19V5m0 14h16M8 15v-4m4 4V8m4 7v-6"/></svg><span><span class="t" style="display:block;font-size:14.5px;font-weight:700">Tarifa viva</span><span class="v num" style="font-size:12px;color:var(--sub)">1.079,81 · se ajustó sola</span></span></span>
+      <span class="tile"><span class="bdg">1</span><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg><span><span class="t" style="display:block;font-size:14.5px;font-weight:700">Esperas</span><span class="v" style="font-size:12px;color:var(--sub)">1 por cuadrar con su SMS</span></span></span>
+      <span class="tile"><svg viewBox="0 0 24 24"><path d="M3 17l5.5-5.5 3.5 3.5L20 7"/><path d="M15 7h5v5"/></svg><span><span class="t" style="display:block;font-size:14.5px;font-weight:700">Mercado</span><span class="v num" style="font-size:12px;color:var(--sub)">Venta ≈ 300 · libro 1.111</span></span></span>
+      <span class="tile"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M19 12a7 7 0 0 0-.14-1.4l2-1.55-2-3.46-2.36.95A7 7 0 0 0 14.1 5.1L13.7 2.6h-3.4l-.4 2.5a7 7 0 0 0-2.4 1.44l-2.36-.95-2 3.46 2 1.55a7 7 0 0 0 0 2.8l-2 1.55 2 3.46 2.36-.95a7 7 0 0 0 2.4 1.44l.4 2.5h3.4l.4-2.5a7 7 0 0 0 2.4-1.44l2.36.95 2-3.46-2-1.55c.1-.45.14-.92.14-1.4z"/></svg><span><span class="t" style="display:block;font-size:14.5px;font-weight:700">Ajustes</span><span class="v" style="font-size:12px;color:var(--sub)">Perfil · avisos · estilo</span></span></span>
+    </div>
+  </div>
+
+  <div class="card" id="zonaNovedades">
+    <div class="row spread"><span class="lbl">Novedades</span><span class="tiny">el sistema trabajó por ti</span></div>
+    <div class="feed" style="margin-top:6px">
+      <div class="fila-feed">
+        <div class="fic gold"><svg viewBox="0 0 24 24"><path d="M4 19V5m0 14h16M8 15v-4m4 4V8m4 7v-6"/></svg></div>
+        <div class="cuerpo"><div class="tit">La tarifa se ajustó sola a <b class="n">1.079,81</b></div>
+        <div class="sub">Foto fresca del mercado · bajó 1,7% · dentro de tu freno de ±2%</div></div>
+        <span class="hora">5:15 p. m.</span>
+      </div>
+      <div class="fila-feed">
+        <div class="fic verde"><svg viewBox="0 0 24 24"><path d="M4.5 12.5l5 5 10-11"/></svg></div>
+        <div class="cuerpo"><div class="tit">Briku cerró 9 recargas de la tarde</div>
+        <div class="sub">Él ganó <b class="n">252</b> · tú <b class="n">539</b> · cada una con su SMS de prueba</div></div>
+        <span class="hora">4:39 p. m.</span>
+      </div>
+      <div class="fila-feed">
+        <div class="fic ambar"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg></div>
+        <div class="cuerpo"><div class="tit">Una espera sigue sin cuadrar</div>
+        <div class="sub">El parte está creado; falta que el SMS la pruebe o que tú la arbitres</div></div>
+        <span class="pill ambar" style="flex:none">Te toca</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<nav class="tabbar" aria-hidden="true">
+  <span class="tab on"><svg viewBox="0 0 24 24"><path d="M3 11l9-8 9 8v9a2 2 0 0 1-2 2h-4v-7h-6v7H5a2 2 0 0 1-2-2z"/></svg>Inicio</span>
+  <span class="tab"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg>Bandeja</span>
+  <span class="tab"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M16 12.5h.01M3 10h18"/></svg>Mi dinero</span>
+  <span class="tab"><svg viewBox="0 0 24 24"><path d="M3 17l5.5-5.5 3.5 3.5L20 7"/><path d="M15 7h5v5"/></svg>Mercado</span>
+  <span class="tab"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 5-5.5 8-5.5s6.5 1.5 8 5.5"/></svg>Perfil</span>
+</nav>
+
+<!-- LA GUÍA: 4 coach marks, una a la vez, saltable siempre -->
+<div class="foco" id="foco"></div>
+<div class="coach" id="coach">
+  <div class="paso" id="cPaso">Paso 1 de 4 · Primera vez aquí</div>
+  <h3 id="cTit">Tu dinero de hoy</h3>
+  <p id="cTxt">Esta es la cifra con la que abres el día: cuánto puedes gastar sin tocar el capital que está trabajando. Todo lo demás cuelga de aquí.</p>
+  <div class="acciones">
+    <a class="btn-mini" href="inicio.html">Saltar</a>
+    <button class="btn-mini oro" id="btnSig">Siguiente</button>
+    <span class="puntos" id="puntos"><i class="on"></i><i></i><i></i><i></i></span>
+  </div>
+</div>
+
+<script>
+  var pasos=[
+    {z:'zonaHero',  t:'Tu dinero de hoy',
+     x:'Esta es la cifra con la que abres el día: cuánto puedes gastar sin tocar el capital que está trabajando. Todo lo demás cuelga de aquí.'},
+    {z:'zonaAccesos', t:'Accesos con su dato vivo',
+     x:'Lo de todos los días está a 2 toques, y cada acceso ya trae su número encima: a la tarifa o a las esperas entras sabiendo, no a ciegas.'},
+    {z:'zonaNovedades', t:'Novedades: el sistema te cuenta',
+     x:'Cada cosa que pasa —la tarifa, una vuelta, un SMS que cuadra— cae aquí con su hora y su estado. Lo que te toca resolver se marca en ámbar y no se va hasta que lo atiendes.'},
+    {z:'zonaMenu', t:'El menú, arriba a la derecha',
+     x:'Lo de menos uso vive en una hoja que sube desde aquí. Y este recorrido puedes repetirlo cuando quieras en Ajustes, Guía de la app. Listo: a trabajar.'}
+  ];
+  var i=0, foco=document.getElementById('foco');
+  function pintar(){
+    var el=document.getElementById(pasos[i].z), r=el.getBoundingClientRect();
+    foco.style.top=(r.top-6)+'px'; foco.style.left=(r.left-6)+'px';
+    foco.style.width=(r.width+12)+'px'; foco.style.height=(r.height+12)+'px';
+    document.getElementById('cTit').textContent=pasos[i].t;
+    document.getElementById('cTxt').textContent=pasos[i].x;
+    document.getElementById('cPaso').textContent='Paso '+(i+1)+' de 4 · Primera vez aquí';
+    document.getElementById('btnSig').textContent=(i===3)?'Empezar':'Siguiente';
+    var pts=document.getElementById('puntos').children;
+    for(var k=0;k<4;k++) pts[k].className=(k===i)?'on':'';
+  }
+  document.getElementById('btnSig').addEventListener('click',function(){
+    if(i===3){ location.href='inicio.html'; return; }
+    i++; pintar();
+  });
+  window.addEventListener('resize',pintar);
+  var h=(location.hash||'').match(/paso(\d)/); if(h) i=Math.min(3,parseInt(h[1])-1);
+  pintar();
+</script>
+</body>
+</html>
