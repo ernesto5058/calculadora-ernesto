@@ -58,7 +58,7 @@ for (const [ruta, etq] of [["buscadores/datos.json", "L1 datos.json público"],
   const genMT = fs.readFileSync(REPO + "buscadores/index.html", "utf8");
   ok(!srcMT.includes("DATA.buscadores") && !genMT.includes("DATA.buscadores"), "L3 Mi Trabajo (fuente y build): NINGÚN camino consulta DATA.buscadores");
   ok(!srcMT.includes("codigoEnDatos") && !genMT.includes("codigoEnDatos"), "L4 Mi Trabajo: la segunda cerradura cliente (codigoEnDatos) no existe");
-  ok(genMT.includes('APP_VERSION = "1.6.1"'), "L5 Mi Trabajo: la tanda viaja en la versión 1.6.1");
+  ok(genMT.includes('APP_VERSION = "1.7.0"'), "L5 Mi Trabajo: la tanda viaja en la versión 1.7.0 (pin actualizado en la tanda T3)");
   const genMN = fs.readFileSync(REPO + "minegocio/index.html", "utf8");
   ok(!genMN.includes("out.buscadores ="), "L6 Mi Negocio (build): construirBase ya NO emite la sección buscadores en el respaldo");
 }
