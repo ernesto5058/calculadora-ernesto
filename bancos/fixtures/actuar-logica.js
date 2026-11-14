@@ -16,9 +16,14 @@
 //   1  la acción existe, está «pendiente» y no venció (10 min)
 //   2  DETENER global / pausa por freno (mercado_config)
 //   3  congelamiento en promo de ETECSA conocida/confirmada — solo
-//      ata a la vía automática; el toque manual de Ernesto EN LA APP
-//      (origen 'app') está EXENTO por su decisión del 2026-11-11:
-//      «mi toque manda siempre»
+//      ata a la vía automática; el TOQUE de Ernesto está EXENTO:
+//      en la app (origen 'app', decisión del 2026-11-11) y en
+//      «Subirla» del Asesor (origen 'asesor' con la marca
+//      contexto.via = 'guia_subir', decisión del 2026-11-14):
+//      «mi toque manda siempre», también en promo. La marca via
+//      SOLO la escribe guia_subir tras validar su código admin —
+//      ninguna ruta automática puede producirla; la exención
+//      usada queda escrita en la bitácora (exencion_promo)
 //   4  veto por datos viejos (foto > 20 min por recepción, o sin libro)
 //   5  collar con la tarifa LEÍDA AL INSTANTE (G<0 -> se niega)
 //   6  topes: ≤ tope por oferta (config) · ≤ $120/día · ≤ 2/hora ·
@@ -172,10 +177,18 @@ function baseDesdePlantilla(p) {
 
 export async function ejecutarAccion(deps, accionId) {
   const base = { ok: false, accion_id: accionId };
+  /* Marca de la baranda 3: si una promo activa quedó EXENTA por el
+     toque de Ernesto, aquí queda CUÁL toque fue ('toque_app' /
+     'toque_subirla') y TODA resolución de la acción — negada por
+     una baranda posterior, ejecutada o error — la escribe en su
+     bitácora (exencion_promo). Jamás lleva datos de pago. */
+  let exencionPromo = null;
+  const conExencion = (detalle) => exencionPromo
+    ? { ...detalle, exencion_promo: exencionPromo } : detalle;
   const negar = async (codigo, motivo, extra = {}) => {
     await deps.guardarAccion(accionId, {
       estado: "negada", resuelta_en: deps.ahoraIso(),
-      detalle: { baranda: codigo, motivo, ...extra },
+      detalle: conExencion({ baranda: codigo, motivo, ...extra }),
     });
     return { ...base, codigo, motivo, ...extra };
   };
@@ -221,13 +234,28 @@ export async function ejecutarAccion(deps, accionId) {
   if (cfg.detenidas) return negar("detenido", "Las acciones están DETENIDAS. Reanúdalas desde tu app Mercado o con /reanudar aquí.");
   if (cfg.pausadas) return negar("pausado", `Las acciones están en pausa: ${cfg.pausa_motivo || "freno de seguridad"}. Reanuda desde tu app Mercado o con /reanudar aquí.`);
 
-  /* 3) Promo activa = automatización congelada. EXENCIÓN (decisión de
-     Ernesto, 2026-11-11 21:04): su toque manual EN LA APP manda
-     siempre — las acciones de origen 'app' NO se congelan; el
-     congelamiento ata solo a la vía automática (origen 'dura_compra' /
-     'cruce_eq', las que se ejecutan desde el botón de Telegram). */
-  if (accion.origen !== "app" && cfg.congelar_en_promo && (await deps.promoActiva())) {
-    return negar("promo", "Hay una promo de ETECSA activa: la automatización se congela hasta que pase (tu regla).");
+  /* 3) Promo activa = automatización congelada. EXENCIONES por el
+     TOQUE de Ernesto — «mi toque manda siempre»:
+     - origen 'app': su toque manual en la app (decisión del
+       2026-11-11 21:04).
+     - origen 'asesor' con contexto.via = 'guia_subir': su toque en
+       «Subirla» (decisión del 2026-11-14). La exención es por el
+       TOQUE, no por el origen en abstracto: la marca 'guia_subir'
+       SOLO la escribe la puerta admin guia_subir tras validar su
+       código (admin_es_valido) al pasar la preparada a pendiente —
+       una acción del asesor que llegue sin esa marca (ruta
+       programática/automática) sigue CONGELADA en promo, igual que
+       la vía de Telegram ('dura_compra' / 'cruce_eq'). */
+  if (cfg.congelar_en_promo && (await deps.promoActiva())) {
+    if (accion.origen === "app") {
+      exencionPromo = "toque_app";
+    } else if (accion.origen === "asesor"
+      && accion.contexto && accion.contexto.via === "guia_subir") {
+      exencionPromo = "toque_subirla";
+    }
+    if (!exencionPromo) {
+      return negar("promo", "Hay una promo de ETECSA activa: la automatización se congela hasta que pase (tu regla).");
+    }
   }
 
   /* 4) Veto por datos viejos (reloj de RECEPCIÓN) */
@@ -352,7 +380,7 @@ export async function ejecutarAccion(deps, accionId) {
   if (!incierto && resp && resp.ok) {
     await deps.guardarAccion(accionId, {
       estado: "ejecutada", resuelta_en: deps.ahoraIso(), oferta_uuid: resp.uuid ?? null,
-      detalle: { ganancia360: g, base_fuente: baseFuente, payload: payloadBitacora(payload), respuesta: resp.crudo ?? null },
+      detalle: conExencion({ ganancia360: g, base_fuente: baseFuente, payload: payloadBitacora(payload), respuesta: resp.crudo ?? null }),
     });
     await deps.reiniciarFallos();
     return { ok: true, accion_id: accionId, oferta_uuid: resp.uuid ?? null, tasa, monto_qusd: monto, ganancia360: g };
@@ -361,7 +389,7 @@ export async function ejecutarAccion(deps, accionId) {
   if (codigoApi === "P2P_SIDE_NOT_ALLOWED" || codigoApi === "P2P_NOT_ALLOWED") {
     await deps.guardarAccion(accionId, {
       estado: "error", resuelta_en: deps.ahoraIso(),
-      detalle: { error_api: codigoApi, mensaje: resp.mensaje ?? null },
+      detalle: conExencion({ error_api: codigoApi, mensaje: resp.mensaje ?? null }),
     });
     await deps.fijarPausa("QvaPay no permite vender con las credenciales de «Vigila Mercado»: activa el interruptor «Vender en el P2P» en tu panel de desarrollador de QvaPay.");
     return {
@@ -377,14 +405,14 @@ export async function ejecutarAccion(deps, accionId) {
     if (hallada) {
       await deps.guardarAccion(accionId, {
         estado: "ejecutada", resuelta_en: deps.ahoraIso(), oferta_uuid: hallada.uuid ?? null,
-        detalle: { ganancia360: g, base_fuente: baseFuente, payload: payloadBitacora(payload), reconciliada: true },
+        detalle: conExencion({ ganancia360: g, base_fuente: baseFuente, payload: payloadBitacora(payload), reconciliada: true }),
       });
       await deps.reiniciarFallos();
       return { ok: true, accion_id: accionId, oferta_uuid: hallada.uuid ?? null, tasa, monto_qusd: monto, ganancia360: g, reconciliada: true };
     }
     await deps.guardarAccion(accionId, {
       estado: "error", resuelta_en: deps.ahoraIso(),
-      detalle: { error_api: "resultado_desconocido", payload: payloadBitacora(payload) },
+      detalle: conExencion({ error_api: "resultado_desconocido", payload: payloadBitacora(payload) }),
     });
     const n = await deps.sumarFallo();
     if (n >= FALLOS_PARA_PAUSA) await deps.fijarPausa("Tres fallos seguidos en la puerta de acción.");
@@ -396,7 +424,7 @@ export async function ejecutarAccion(deps, accionId) {
   /* Error de API con código: queda en bitácora y suma al freno. */
   await deps.guardarAccion(accionId, {
     estado: "error", resuelta_en: deps.ahoraIso(),
-    detalle: { error_api: codigoApi, mensaje: resp?.mensaje ?? null, payload: payloadBitacora(payload) },
+    detalle: conExencion({ error_api: codigoApi, mensaje: resp?.mensaje ?? null, payload: payloadBitacora(payload) }),
   });
   const n = await deps.sumarFallo();
   let pausa = false;
