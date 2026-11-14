@@ -323,7 +323,123 @@ label { display:block; font:600 11px var(--fuente); letter-spacing:.07em; text-t
 #pgContabilidad .contaH4 { font:600 15px var(--fuente); margin:var(--e-4) 0 var(--e-1); }
 #pgContabilidad .contaHist { display:flex; justify-content:space-between; gap:var(--e-3); flex-wrap:wrap; padding:var(--e-2) 0; border-bottom:1px solid var(--linea); font:var(--t-sub); color:var(--txt-2); }
 #pgContabilidad .contaHistDer { color:var(--txt-3); }
-</style><script>window.SENTRY_CASA={app:"minegocio",version:"v21",dsn:"https://1454ae292cfdb8e358e88ec3d1fc1547@o4512419765354496.ingest.us.sentry.io/4512419769876480"};</script>
+/* =====================================================================
+   T1 · PANEL ÚNICO (v22) — barra de 4 secciones fija al pulgar, hub de
+   Inicio (héroe + accesos + novedades), hoja de menú de lo secundario,
+   Ajustes en ramas, segmentos de Mercado y guía de coach marks.
+   Todo con tokens de tema-pro.css: ningún color suelto.
+   ===================================================================== */
+#scrPanel { padding-bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom) + var(--e-6)); }
+.tabs { position:fixed; left:50%; transform:translateX(-50%); bottom:0; z-index:60;
+  width:100%; max-width:640px; margin:0; border-radius:var(--r-lg) var(--r-lg) 0 0;
+  padding:var(--e-1) var(--e-1) calc(var(--e-1) + env(safe-area-inset-bottom)); }
+.tab { position:relative; min-height:52px; }
+.tab .badge { position:absolute; top:2px; right:calc(50% - 22px); background:var(--rojo); color:#fff;
+  font:700 10px var(--fuente); min-width:17px; height:17px; line-height:17px; text-align:center;
+  border-radius:var(--r-pildora); padding:0 4px; }
+/* Cabecera: campana y menú */
+.cabBtns { display:flex; gap:var(--e-2); margin-left:auto; }
+.iconBtn { position:relative; width:42px; height:42px; flex:none; display:flex; align-items:center; justify-content:center;
+  background:var(--bg-1); border:1px solid var(--borde); border-radius:var(--r-md); color:var(--txt-1); cursor:pointer; }
+.iconBtn svg { width:21px; height:21px; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
+.iconBtn .bdg { position:absolute; top:-5px; right:-5px; background:var(--rojo); color:#fff; font:700 10px var(--fuente);
+  min-width:17px; height:17px; line-height:17px; text-align:center; border-radius:var(--r-pildora); padding:0 4px; }
+/* Barra de pila (volver a la sección) */
+#subBar { display:none; align-items:center; gap:var(--e-2); margin:0 0 var(--e-3); }
+#subBar.visible { display:flex; }
+#subBar .backBtn { display:flex; align-items:center; gap:2px; background:var(--bg-1); border:1px solid var(--borde);
+  color:var(--dorado); font:600 14px var(--fuente); border-radius:var(--r-md); padding:8px 12px 8px 8px; cursor:pointer; min-height:40px; }
+#subBar .backBtn svg { width:18px; height:18px; fill:none; stroke:currentColor; stroke-width:2.2; stroke-linecap:round; stroke-linejoin:round; }
+#subBar .subTit { font:var(--t-seccion); }
+/* Héroe de Inicio */
+.t1HeroNum { font:700 38px/1.1 var(--fuente); letter-spacing:-.02em; color:var(--dorado); font-variant-numeric:tabular-nums; }
+.t1HeroGrid { display:flex; justify-content:space-between; gap:var(--e-3); margin-top:var(--e-3); }
+.t1HeroGrid .k { font:var(--t-micro); text-transform:uppercase; letter-spacing:.08em; color:var(--txt-3); }
+.t1HeroGrid .v { font:600 17px var(--fuente); margin-top:2px; font-variant-numeric:tabular-nums; }
+/* Accesos del hub */
+.t1Accesos { display:grid; grid-template-columns:1fr 1fr; gap:var(--e-2); }
+.t1Tile { position:relative; display:flex; gap:var(--e-3); align-items:flex-start; text-align:left; width:100%;
+  background:var(--bg-1); border:1px solid var(--borde); border-radius:var(--r-lg); padding:var(--e-3); cursor:pointer; color:var(--txt-1); }
+.t1Tile svg { width:22px; height:22px; flex:none; fill:none; stroke:var(--dorado); stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; }
+.t1Tile .t { font:600 14.5px var(--fuente); display:block; }
+.t1Tile .v { font:var(--t-nota); color:var(--txt-2); display:block; margin-top:2px; }
+.t1Tile .bdg { position:absolute; top:8px; right:8px; background:var(--rojo); color:#fff; font:700 10px var(--fuente);
+  min-width:17px; height:17px; line-height:17px; text-align:center; border-radius:var(--r-pildora); padding:0 4px; }
+.t1Tile:active, .iconBtn:active, .tab:active { transform:scale(.97); }
+/* Novedades: el río */
+.t1Feed { display:flex; flex-direction:column; }
+.t1Fila { display:flex; gap:var(--e-3); padding:var(--e-3) 0; border-bottom:1px solid var(--linea); align-items:flex-start; }
+.t1Fila:last-child { border-bottom:0; }
+.t1Fic { width:34px; height:34px; flex:none; border-radius:var(--r-sm); background:var(--bg-2); display:flex; align-items:center; justify-content:center; }
+.t1Fic svg { width:18px; height:18px; fill:none; stroke:var(--txt-2); stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
+.t1Fic.dor { background:var(--dorado-suave); } .t1Fic.dor svg { stroke:var(--dorado); }
+.t1Fic.ver { background:var(--verde-suave); } .t1Fic.ver svg { stroke:var(--verde); }
+.t1Fic.amb { background:var(--ambar-suave); } .t1Fic.amb svg { stroke:var(--ambar); }
+.t1Fic.roj { background:var(--rojo-suave); } .t1Fic.roj svg { stroke:var(--rojo); }
+.t1Fila .cue { flex:1; min-width:0; }
+.t1Fila .tit { font:600 14.5px/1.35 var(--fuente); }
+.t1Fila .sub { font:var(--t-nota); color:var(--txt-2); margin-top:1px; }
+.t1Fila .hora { font:var(--t-nota); color:var(--txt-3); flex:none; white-space:nowrap; }
+/* Hoja de menú y hojas T1 */
+.t1Fondo { position:fixed; inset:0; background:rgba(2,3,6,.6); z-index:80; display:none; }
+.t1Fondo.abierto { display:block; }
+.t1Hoja { position:fixed; left:50%; transform:translate(-50%, 105%); bottom:0; z-index:81; width:100%; max-width:640px;
+  background:var(--bg-1); border:1px solid var(--borde); border-bottom:0; border-radius:var(--r-xl) var(--r-xl) 0 0;
+  padding:var(--e-2) var(--e-4) calc(var(--e-5) + env(safe-area-inset-bottom)); max-height:84dvh; overflow-y:auto;
+  transition:transform var(--anim-media); }
+.t1Hoja.abierto { transform:translate(-50%, 0); }
+.t1Hoja .asa { width:38px; height:4px; border-radius:2px; background:var(--borde-fuerte); margin:2px auto var(--e-3); }
+.t1FilaMenu { display:flex; align-items:center; gap:var(--e-3); width:100%; text-align:left; background:none; border:0;
+  border-bottom:1px solid var(--linea); padding:var(--e-3) 0; cursor:pointer; color:var(--txt-1); }
+.t1FilaMenu:last-of-type { border-bottom:0; }
+.t1FilaMenu .val { font:var(--t-sub); color:var(--txt-3); margin-left:auto; white-space:nowrap; }
+.t1FilaMenu .chev { width:18px; height:18px; flex:none; fill:none; stroke:var(--txt-3); stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+/* Ajustes en ramas */
+.t1GrupoLbl { font:var(--t-micro); text-transform:uppercase; letter-spacing:.1em; color:var(--txt-3); margin:var(--e-4) 0 var(--e-2) 2px; }
+.t1Lista { background:var(--bg-1); border:1px solid var(--borde); border-radius:var(--r-lg); padding:0 var(--e-4); }
+.t1FilaAj { display:flex; align-items:center; gap:var(--e-3); width:100%; text-align:left; background:none; border:0;
+  border-bottom:1px solid var(--linea); padding:var(--e-3) 0; cursor:pointer; color:var(--txt-1); min-height:52px; }
+.t1FilaAj:last-child { border-bottom:0; }
+.t1FilaAj .val { font:var(--t-sub); color:var(--txt-3); margin-left:auto; white-space:nowrap; }
+.t1FilaAj .chev { width:18px; height:18px; flex:none; fill:none; stroke:var(--txt-3); stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+.t1FilaAj.plana { cursor:default; }
+/* Segmentos (Mercado) */
+.t1Seg { display:flex; background:var(--bg-1); border:1px solid var(--borde); border-radius:var(--r-md); padding:4px; gap:4px; margin-bottom:var(--e-3); }
+.t1Seg button { flex:1; padding:9px 0; border:0; border-radius:var(--r-sm); background:none; font:700 13.5px var(--fuente); color:var(--txt-2); cursor:pointer; transition:all var(--anim-rapida); }
+.t1Seg button.on { background:var(--dorado-grad); color:var(--txt-sobre-dorado); box-shadow:var(--sombra-dorada); }
+.t1CtaBar { display:flex; align-items:center; gap:var(--e-3); background:var(--bg-2); border:1px solid var(--dorado-borde);
+  border-radius:var(--r-lg); padding:var(--e-3); margin-top:var(--e-3); }
+.t1CtaBar .ctaT { flex:1; min-width:0; }
+.t1CtaBar .ctaTit { font:600 13.5px/1.3 var(--fuente); }
+.t1CtaBar .ctaSub { font:var(--t-nota); color:var(--txt-2); }
+.t1PosFila { display:flex; align-items:baseline; justify-content:space-between; gap:var(--e-3); padding:10px 0; border-bottom:1px solid var(--linea); }
+.t1PosFila:last-child { border-bottom:0; }
+.t1PosFila .k { font:var(--t-sub); color:var(--txt-2); }
+.t1PosFila .v { font:600 15.5px var(--fuente); white-space:nowrap; font-variant-numeric:tabular-nums; }
+.t1LibroGrid { display:grid; grid-template-columns:1fr 1fr; gap:var(--e-2); }
+.t1LibroCell { background:var(--bg-1); border:1px solid var(--borde); border-radius:var(--r-md); padding:var(--e-3); }
+.t1LibroCell .k { font:var(--t-micro); text-transform:uppercase; letter-spacing:.08em; color:var(--txt-3); }
+.t1LibroCell .v { font:700 20px var(--fuente); margin-top:3px; font-variant-numeric:tabular-nums; }
+/* Guía: coach marks */
+#guiaFoco { position:fixed; z-index:90; border:2px solid var(--dorado); border-radius:var(--r-lg);
+  box-shadow:0 0 0 9999px rgba(2,3,6,.8), 0 0 34px rgba(232,184,75,.3); pointer-events:none; display:none;
+  transition:all 340ms cubic-bezier(.32,.72,0,1); }
+#guiaCoach { position:fixed; z-index:91; left:50%; transform:translateX(-50%); bottom:calc(var(--tabbar-h) + env(safe-area-inset-bottom) + var(--e-4));
+  width:calc(100% - 28px); max-width:520px; background:var(--bg-2); border:1px solid var(--dorado-borde);
+  border-radius:var(--r-lg); padding:var(--e-4); box-shadow:var(--sombra-2); display:none; }
+#guiaCoach .paso { font:var(--t-micro); text-transform:uppercase; letter-spacing:.12em; color:var(--dorado); }
+#guiaCoach h3 { font:var(--t-seccion); margin:6px 0 0; }
+#guiaCoach p { font:var(--t-sub); color:var(--txt-2); line-height:1.5; margin:5px 0 0; }
+#guiaCoach .acciones { display:flex; align-items:center; gap:var(--e-3); margin-top:var(--e-4); }
+#guiaCoach .puntos { margin-left:auto; display:flex; gap:5px; }
+#guiaCoach .puntos i { width:7px; height:7px; border-radius:50%; background:var(--borde-fuerte); display:block; }
+#guiaCoach .puntos i.on { background:var(--dorado); }
+/* Marca rápida de destino (enmienda 2026-11-14): al tocar un aviso, la
+   app cae en su apartado y el elemento exacto lleva el anillo dorado
+   de marca un instante; luego se desvanece solo. */
+.t1Marca { box-shadow:0 0 0 2px var(--dorado), 0 0 26px rgba(232,184,75,.45) !important; border-radius:var(--r-lg); transition:box-shadow .7s ease; }
+.t1MarcaOff { box-shadow:0 0 0 2px rgba(232,184,75,0), 0 0 26px rgba(232,184,75,0) !important; }
+</style><script>window.SENTRY_CASA={app:"minegocio",version:"v22",dsn:"https://1454ae292cfdb8e358e88ec3d1fc1547@o4512419765354496.ingest.us.sentry.io/4512419769876480"};</script>
 <script defer crossorigin="anonymous" integrity="sha384-48iagrZwMa6wkDoJKNyCk4jgMHcOcsBK/DzZAJInl1ZhtunellJDCRNZuomfHefF" src="https://browser.sentry-cdn.com/8.38.0/bundle.min.js"></script>
 </head><body>
 <div id="app">
@@ -342,11 +458,12 @@ label { display:block; font:600 11px var(--fuente); letter-spacing:.07em; text-t
 </div>
 
 <div id="scrPanel" style="display:none">
-  <div class="row"><h1>Mi Negocio</h1><button class="bGhost bMini" id="btnAct">⟳ Actualizar</button></div>
+  <div class="row"><h1>Mi Negocio</h1><button class="bGhost bMini" id="btnAct">⟳ Actualizar</button><span class="cabBtns"><button class="iconBtn" id="btnAvisosMN" aria-label="Avisos"><svg viewBox="0 0 24 24"><path d="M18 9a6 6 0 1 0-12 0c0 6-2.5 7-2.5 7h17S18 15 18 9z"/><path d="M10 20a2.2 2.2 0 0 0 4 0"/></svg><span class="bdg" id="bdgAvisos" style="display:none"></span></button><button class="iconBtn" id="btnMenuMN" aria-label="Abrir menú"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h10"/></svg></button></span></div>
   <div class="sub" id="lblEstado">Cargando…</div>
   <div class="offBanner" id="bannerOff"></div>
   <div class="offBanner" id="bannerAct"></div>
   <div class="offBanner" id="bannerVer"></div>
+  <div id="subBar"><button class="backBtn" id="subVolver"><svg viewBox="0 0 24 24"><path d="M14.5 5L7.5 12l7 7"/></svg><span id="subVolverTxt">Inicio</span></button><span class="subTit" id="subTit"></span></div>
   <div class="tabs" id="tabs"></div>
   <div id="pgInicio"></div>
   <div id="pgCalc" style="display:none"></div>
@@ -360,10 +477,29 @@ label { display:block; font:600 11px var(--fuente); letter-spacing:.07em; text-t
   <div id="pgContabilidad" style="display:none"></div>
   <div id="pgDinero" style="display:none"></div>
   <div id="pgChat" style="display:none"></div>
+  <div id="pgAjustes" style="display:none"></div>
+  <div id="pgAvisos" style="display:none"></div>
   <button class="bGhost" id="btnSalir">Salir de Mi Negocio</button>
 </div>
 </div>
 <div id="toast"></div>
+<div class="t1Fondo" id="menuFondo"></div>
+<div class="t1Hoja" id="menuHoja" role="dialog" aria-label="Menú">
+  <div class="asa"></div>
+  <div class="mut" style="margin:0 2px 2px">Menú · lo de menos uso, a un toque, con su dato vivo</div>
+  <div id="menuFilas"></div>
+</div>
+<div id="guiaFoco"></div>
+<div id="guiaCoach" role="dialog" aria-label="Guía de la app">
+  <div class="paso" id="guiaPaso">Paso 1 de 4</div>
+  <h3 id="guiaTit"></h3>
+  <p id="guiaTxt"></p>
+  <div class="acciones">
+    <button class="bGhost bMini" id="guiaSaltar">Saltar</button>
+    <button class="bGold bMini" id="guiaSig">Siguiente</button>
+    <span class="puntos" id="guiaPuntos"><i class="on"></i><i></i><i></i><i></i></span>
+  </div>
+</div>
 <div id="hojaFondo"><div id="hoja"><div id="hojaTit"></div><div id="hojaTxt"></div><div id="hojaBtns"></div></div></div>
 <script id="appjs">
 "use strict";
@@ -2039,7 +2175,7 @@ function tarjetaTarifaVivaHTML(){
   /* v3 (muestra-minegocio-v3): héroe con la referencia en degradado
      dorado, píldora de estado con punto, filas de mercado con
      hairline, propuesta en su bloque y simulador en gemelas. */
-  var h = '<div class="card tv3"><div class="tv3-row"><span class="tv3-lbl" style="font-size:12px;color:var(--txt-1)">Tarifa viva del mercado</span>'
+  var h = '<div class="card tv3" id="tvPropuesta"><div class="tv3-row"><span class="tv3-lbl" style="font-size:12px;color:var(--txt-1)">Tarifa viva del mercado</span>'
     + '<span class="tv3-pill" style="' + sem.pillCss + '"><span class="tv3-dot"></span>' + esc(sem.pill) + "</span></div>";
   h += '<div class="tv3-small" style="margin-top:6px">' + esc(sem.txt) + "</div>";
   if (!m) {
@@ -2202,21 +2338,53 @@ var MODULOS = [];
 function registrarModulo(m){ MODULOS.push(m); }
 function modulo(id){ return MODULOS.filter(function(m){ return m.id === id; })[0]; }
 var tabActual = "Inicio";
+/* ===== T1 · SECCIONES (v22) =====
+   La barra enseña SOLO 4 secciones (Inicio · Dinero · Mercado ·
+   Ajustes); cada módulo cuelga de una y «tabActual» sigue siendo el
+   módulo visible: los deep-links de push (?tab=NombreDeMódulo) y el
+   bypass del chat no cambian. La barra resalta la sección dueña del
+   módulo en pantalla y las hijas llevan barra de pila con «volver». */
+ICONOS.ajustes = '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M19 12a7 7 0 0 0-.14-1.4l2-1.55-2-3.46-2.36.95A7 7 0 0 0 14.1 5.1L13.7 2.6h-3.4l-.4 2.5a7 7 0 0 0-2.4 1.44l-2.36-.95-2 3.46 2 1.55a7 7 0 0 0 0 2.8l-2 1.55 2 3.46 2.36-.95a7 7 0 0 0 2.4 1.44l.4 2.5h3.4l.4-2.5a7 7 0 0 0 2.4-1.44l2.36.95 2-3.46-2-1.55c.1-.45.14-.92.14-1.4z"/></svg>';
+ICONOS.avisos = '<svg viewBox="0 0 24 24"><path d="M18 9a6 6 0 1 0-12 0c0 6-2.5 7-2.5 7h17S18 15 18 9z"/><path d="M10 20a2.2 2.2 0 0 0 4 0"/></svg>';
+var SECCION_DE = { Inicio: "Inicio", Bandeja: "Inicio", Equipo: "Inicio", Actividad: "Inicio",
+  Dinero: "Dinero", Contabilidad: "Dinero", Cierre: "Dinero", Calc: "Dinero",
+  Mercado: "Mercado", Ajustes: "Ajustes", Tarifa: "Ajustes", Textos: "Ajustes", Avisos: "Ajustes" };
+var SECCIONES = [
+  { id: "Inicio", tab: "Inicio", icono: "inicio" },
+  { id: "Dinero", tab: "Dinero", icono: "dinero" },
+  { id: "Mercado", tab: "Mercado", icono: "mercado" },
+  { id: "Ajustes", tab: "Ajustes", icono: "ajustes" }
+];
+var asesorSugerencia = null; /* la llena el módulo Mercado (T1) */
+function pintarSubBar(){
+  var bar = $("subBar"); if (!bar) return;
+  var sec = SECCION_DE[tabActual] || "Inicio";
+  var esHija = tabActual !== sec;
+  bar.className = esHija ? "visible" : "";
+  if (esHija) {
+    $("subVolverTxt").textContent = sec;
+    var m = modulo(tabActual);
+    $("subTit").textContent = m ? m.tab : tabActual;
+  }
+}
 function pintarTabs(){
-  var cont = $("tabs"); cont.innerHTML = "";
-  MODULOS.forEach(function(m){
+  var cont = $("tabs"); if (!cont) return; cont.innerHTML = "";
+  var secActiva = SECCION_DE[tabActual] || "Inicio";
+  SECCIONES.forEach(function(s){
     var d = document.createElement("button");
-    d.className = "tab" + (m.id === tabActual ? " activa" : "");
+    d.className = "tab" + (s.id === secActiva ? " activa" : "");
     var badge = "";
-    if (m.id === "Bandeja") {
+    if (s.id === "Inicio") {
       var pend = state.foto.reportes.filter(function(r){ return r.estado === "pendiente" && !r.prueba; }).length;
       if (pend > 0) badge = '<span class="badge">' + pend + "</span>";
     }
-    if (m.id === "Equipo" && sinLeerTotal > 0) badge = '<span class="badge">' + sinLeerTotal + "</span>";
-    d.innerHTML = icono(m.icono || "inicio") + "<span>" + m.tab + "</span>" + badge;
-    d.addEventListener("click", function(){ irA(m.id); });
+    if (s.id === "Mercado" && asesorSugerencia && asesorSugerencia.estado === "lista") badge = '<span class="badge">1</span>';
+    d.innerHTML = icono(s.icono || "inicio") + "<span>" + s.tab + "</span>" + badge;
+    d.setAttribute("data-seccion", s.id);
+    d.addEventListener("click", function(){ irA(s.id); });
     cont.appendChild(d);
   });
+  pintarSubBar();
 }
 /* La vista de Chat pertenece al módulo Equipo (no es una pestaña). */
 function irA(id){
@@ -2285,10 +2453,18 @@ registrarModulo({
     h += '<div class="card"><h3><span class="secIco">' + icono("reloj") + '</span>Estado de los datos</h3>'
       + '<div class="kv">' + (online ? "En línea: datos frescos de ahora." : (selloTexto("bandeja") + ".")) + '</div>'
       + '<div class="ayuda">Con poca cobertura, Mi Negocio sigue abriendo y trabajando con la última foto guardada de cada pestaña.</div></div>';
-    el.innerHTML = h + bloqueSemaforoHtml() + bloqueCuentasHtml() + bloqueAvisosHtml()
+    el.innerHTML = heroInicioHtml() + h + accesosInicioHtml() + novedadesInicioHtml() + bloqueSemaforoHtml() + bloqueCuentasHtml() + bloqueAvisosHtml()
       + '<div class="mut" style="text-align:center;padding:6px 0 2px">' + selloVersion() + '</div>';
     var rb = $("inReintentar");
     if (rb) rb.addEventListener("click", function(){ despacharCola().then(function(){ cargarTodo(true); }); });
+    el.querySelectorAll("[data-ir]").forEach(function(b){
+      b.addEventListener("click", function(){ irA(b.getAttribute("data-ir")); });
+    });
+  },
+  alMostrar: function(){
+    if (actividadCache === null) cargarActividad();
+    if (avisosHistCache === null) cargarAvisosHist();
+    if (!dineroFotoMN || (Date.now() - dineroLeidoEnMN > 60000)) cargarDineroMN();
   }
 });
 
@@ -2757,6 +2933,7 @@ function abrirChat(codigo, nombre){
   chatCon = codigo; chatNombre = nombre; chatMsgs = [];
   MODULOS.forEach(function(m){ var pg = $("pg" + m.id); if (pg) pg.style.display = "none"; });
   $("pgChat").style.display = "block";
+  var sbT1 = $("subBar"); if (sbT1) sbT1.className = "";
   /* v12: cada apertura monta el esqueleto del chat una vez (cabecera
      y presencia frescas); el refresco de 3 s NO lo vuelve a montar. */
   chatEsqueletoPara = null;
@@ -3852,24 +4029,61 @@ function asignarRetenidoMN(ix){
   }));
 }
 
-/* ===== MÓDULO MERCADO (../datos/ultimo.json en palabras claras) =====
-   OJO con la unidad: el promedio ETECSA del vigía viene en CUP por
-   cada 100 de saldo. Una recarga de 360 rinde promedio × 3.6.        */
-function pintarMercado(){
-  modulo("Mercado").render();
+/* ===== MÓDULO MERCADO · T1 (v22): el Analista vive DENTRO =====
+   Libro en vivo (foto vigente fusionada, puerta mercado_foto_vigente)
+   + Posición + el ASESOR con «Subirla» (puertas guia_ernesto /
+   guia_subir / guia_descartar — las del sistema de guías, con su
+   collar, su bitácora y su expiración; la app jamás llama a QvaPay:
+   Ernesto sube con su toque y la puerta decide). La foto del vigía
+   (promedios por hora) sigue en el Libro como referencia.
+   OJO con la unidad: nivel20/top/promedio del libro van en CUP por
+   QUSD; el promedio ETECSA del vigía viene en CUP por cada 100 de
+   saldo (una recarga de 360 rinde promedio × 3.6). */
+PUERTAS.mercadoFoto = "mercado_foto_vigente";
+PUERTAS.guiaErnesto = "guia_ernesto";
+PUERTAS.guiaSubir = "guia_subir";
+PUERTAS.guiaDescartar = "guia_descartar";
+var mercadoFotoMN = null, mercadoGuiaMN = null, mercadoErrorMN = "", mercadoSegMN = "libro", mercadoCargandoMN = false;
+function pintarMercado(){ var m = modulo("Mercado"); if (m) m.render(); }
+function edadTxtMN(s){
+  s = Number(s); if (isNaN(s)) return "—";
+  if (s < 90) return "hace " + Math.round(s) + " s";
+  if (s < 5400) return "hace " + Math.round(s / 60) + " min";
+  return "hace " + Math.round(s / 3600) + " h";
 }
-registrarModulo({
-  id: "Mercado", tab: "Mercado", icono: "mercado",
-  render: function(){
-    var el = $("pgMercado"); if (!el) return;
-    var m = state.foto.mercado;
-    if (!m) {
-      el.innerHTML = '<div class="card"><h3><span class="secIco">' + icono("mercado") + '</span>Mercado</h3><div class="mut">' + (online ? "Cargando la foto del mercado…" : "Sin conexión y todavía no hay foto guardada del mercado: abre esta pestaña una vez con internet.") + '</div></div>';
-      return;
-    }
+function cargarMercadoMN(){
+  if (!state.codigo || mercadoCargandoMN) return;
+  mercadoCargandoMN = true;
+  var p1 = rpc("mercadoFoto", {}).then(function(r){ if (r) mercadoFotoMN = r; }).catch(function(){});
+  var p2 = rpc("guiaErnesto", { p_codigo: state.codigo, p_prueba: false }).then(function(r){
+    if (r && r.ok !== false) { mercadoGuiaMN = r; mercadoErrorMN = ""; }
+    asesorSugerencia = (r && r.preparada_viva) ? { estado: "lista" } : null;
+  }).catch(function(e){ mercadoErrorMN = (e && e.faltaPuerta) ? "falta" : "red"; });
+  Promise.all([p1, p2]).then(function(){
+    mercadoCargandoMN = false; pintarTabs();
+    if (tabActual === "Mercado") pintarMercado();
+  });
+}
+function fmtON(n){ return (n === null || n === undefined || isNaN(Number(n))) ? "—" : fmt(Number(n)); }
+function mercadoLibroHtml(f){
+  var h = "";
+  if (f) {
+    h += '<div class="t1LibroGrid">'
+      + '<div class="t1LibroCell"><div class="k">Nivel 20 · ETECSA</div><div class="v">' + fmtON(f.nivel20) + '</div></div>'
+      + '<div class="t1LibroCell"><div class="k">BANK_CUP promedio</div><div class="v">' + fmtON(f.bankcup_promedio) + '</div></div>'
+      + '<div class="t1LibroCell"><div class="k">Mejor venta</div><div class="v">' + fmtON(f.top_venta) + '</div></div>'
+      + '<div class="t1LibroCell"><div class="k">Mejor compra</div><div class="v">' + fmtON(f.top_compra) + '</div></div>'
+      + '<div class="t1LibroCell"><div class="k">Promedio de venta</div><div class="v">' + fmtON(f.promedio_venta) + '</div></div>'
+      + '<div class="t1LibroCell"><div class="k">Ofertas en el libro</div><div class="v">' + (f.count_buy != null ? f.count_buy : "—") + " / " + (f.count_sell != null ? f.count_sell : "—") + '</div></div>'
+      + '</div><div class="ayuda">Cifras en CUP por QUSD, de la foto vigente (la completa fusionada con la ligera: cada campo trae su propia edad). Ofertas: compra / venta contadas en el libro.</div>';
+  } else {
+    h += '<div class="card"><div class="kv">El libro en vivo se está leyendo…</div></div>';
+  }
+  /* La foto del vigía (promedios), como referencia — composición v21. */
+  var m = state.foto.mercado;
+  if (m) {
     var e = m.ETECSA || {}, b = m.BANK_CUP || {};
     var ing360 = (e.average !== null && e.average !== undefined) ? Number(e.average) * 3.6 : null;
-    var h = (!online ? '<div class="offBanner" style="display:block">' + selloTexto("mercado") + ".</div>" : "");
     h += '<div class="card"><h3><span class="secIco">' + icono("mercado") + '</span>El mercado, en claro</h3>'
       + (ing360 !== null ? '<div class="big">' + fmt(ing360) + ' <span class="cur">CUP</span></div><div class="mut">rinde en promedio una recarga de 360 en el mercado</div>' : "")
       + '<div class="ayuda">El promedio ETECSA se cotiza por cada 100 de saldo: la recarga de 360 rinde el promedio × 3.6. El vigía revisa las ofertas de QvaPay cada hora.</div>'
@@ -3877,18 +4091,161 @@ registrarModulo({
       + '<div class="kv">Transferencia (BANK_CUP): promedio <b>' + fmt(Number(b.average)) + '</b> CUP por QUSD · compra <b>' + fmt(Number(b.average_buy)) + '</b> · venta <b>' + fmt(Number(b.average_sell)) + '</b> · ofertas contadas: <b>' + (b.count !== undefined ? b.count : "—") + '</b></div>'
       + '<div class="mut">Foto del vigía: ' + esc(m.ts || "—") + (m.ts ? " (" + haceCuanto(m.ts) + ")" : "") + '</div>'
       + '<div class="ayuda">Esto es la foto del mercado, no tu orden: tus números reales viven en tu Calculadora y mandan sobre cualquier promedio.</div></div>';
+  }
+  return h;
+}
+function mercadoPosicionHtml(g){
+  if (!g) return '<div class="card"><div class="kv">' + (mercadoErrorMN === "falta" ? TXT_FALTA_ACTIVAR : "Leyendo tu posición del libro y de tu cuenta…") + '</div></div>';
+  var pos = (g.calculo && g.calculo.posicion) || {};
+  var posT = g.posicion || {};
+  function pv(k){ return pos[k] !== null && pos[k] !== undefined ? pos[k] : posT[k]; }
+  function fila(k, v, suf){
+    return '<div class="t1PosFila"><span class="k">' + k + '</span><span class="v">' + v + (suf ? ' <span style="font:600 11px var(--fuente);color:var(--txt-3)">' + suf + "</span>" : "") + "</span></div>";
+  }
+  var h = '<div class="card"><h3><span class="secIco">' + icono("dinero") + '</span>Tu posición</h3>'
+    + fila("Saldo en tu línea", fmt(Number(pv("linea_saldo"))), "DE SALDO")
+    + fila("Vendible ahora", fmt(Number(pos.vendible)), "DE SALDO")
+    + fila("Comprometido en ofertas", fmt(Number(pv("comprometido_saldo"))), "DE SALDO")
+    + fila("QUSD en tu cuenta", fmt(Number(pv("qUSD"))), "QUSD")
+    + fila("Fondo", fmt(Number(pv("fondo"))), "CUP")
+    + fila("Reserva de cupos", fmt(Number(pv("reserva_cupos"))), "CUP")
+    + (posT.mejor_nivel20_hoy != null ? fila("Mejor nivel 20 de hoy", fmt(Number(posT.mejor_nivel20_hoy)), "CUP/QUSD") : "")
+    + '<div class="ayuda">Vendible = tu saldo en línea menos el colchón de seguridad por envío y lo comprometido. Todo sale de la última foto usable y del libro: si la foto no es usable, el Asesor no prepara nada.</div></div>';
+  return h;
+}
+function motivoAsesorTxt(m){
+  var D = {
+    foto_no_usable: "La foto del mercado no está fresca: el Asesor espera una foto usable.",
+    sin_precio: "La foto no trae precio operable ahora mismo.",
+    ya_en_camino: "Ya tienes una oferta en camino: el Asesor no duplica.",
+    ya_hay_preparada: "Ya hay una preparada viva: el Asesor no prepara otra.",
+    silencio_descarte: "Silencio tras un descarte: el Asesor espera su ventana antes de proponer otra.",
+    silencio: "Silencio: el Asesor espera su ventana antes de proponer otra.",
+    capital_bajo: "El vendible no alcanza el mínimo de la puerta.",
+    vendible_bajo: "El vendible no alcanza el mínimo de la puerta.",
+    monto_bajo: "El monto que saldría no llega al mínimo de la puerta.",
+    no_material: "Con la foto de ahora, la ganancia no llega al mínimo: no se prepara.",
+    sin_margen: "Sin margen con la foto de ahora.",
+    senal_no_vender: "La señal del mercado no es de vender ahora.",
+    puerta_en_pausa: "La puerta está en pausa: el Asesor no prepara.",
+    sin_posicion_firme: "Tu posición no está firme (sin línea o sin lotes claros): el Asesor no prepara.",
+    descuadre_linea_libro: "El libro y tu línea de saldo no cuadran: el Asesor no prepara hasta que cuadre.",
+    tope_hora: "Ya tocaste el tope de acciones de esta hora.",
+    sin_peldano: "Ningún peldaño del libro combina ganancia y salida ahora.",
+    promo_banda_sin_margen: "Ajustar a la banda del puesto promocionado mata el margen: no nace.",
+    demanda_sin_absorcion_en_tu_zona: "En la zona de esta oferta la demanda no está absorbiendo ahora."
+  };
+  return D[m] || ("Motivo del servidor: " + m);
+}
+function porquesHtml(lista){
+  if (!lista || !lista.length) return "";
+  return '<div style="margin-top:8px">' + lista.map(function(p){
+    return '<div class="kv">· ' + esc(typeof p === "string" ? p : (p.texto || p.porque || JSON.stringify(p))) + "</div>";
+  }).join("") + "</div>";
+}
+function mercadoAsesorHtml(g){
+  var h = '<div class="card" id="mcAsesor"><h3><span class="secIco">' + icono("tarifa") + '</span>Asesor</h3>';
+  if (!g) {
+    h += '<div class="kv">' + (mercadoErrorMN === "falta" ? TXT_FALTA_ACTIVAR : "Leyendo el Asesor…") + '</div></div>';
+    return h;
+  }
+  var calc = g.calculo || {};
+  var viva = g.preparada_viva;
+  var prep = calc.preparada;
+  if (g.puerta && g.puerta.detenidas) h += '<div class="offBanner" style="display:block">⛔ La puerta de acciones está DETENIDA: nada se sube hasta reanudarla.</div>';
+  if (viva) {
+    var minRest = Math.max(0, Math.round((Date.parse(viva.expira_en) - Date.now()) / 60000));
+    var porq = (viva.contexto && viva.contexto.porques) || (prep && prep.porques) || [];
+    var recv = (viva.contexto && viva.contexto.receive) || (prep && prep.receive);
+    h += '<span class="pill pOk">OFERTA LISTA PA SUBIR</span> <span class="pill pPend">vence en ' + minRest + ' min</span>'
+      + '<div class="t1PosFila" style="margin-top:6px"><span class="k">Tasa</span><span class="v">' + fmt(Number(viva.tasa)) + ' <span style="font:600 11px var(--fuente);color:var(--txt-3)">CUP/QUSD</span></span></div>'
+      + '<div class="t1PosFila"><span class="k">Monto</span><span class="v">$' + fmt(Number(viva.monto_qusd)) + ' <span style="font:600 11px var(--fuente);color:var(--txt-3)">QUSD</span></span></div>'
+      + (recv != null ? '<div class="t1PosFila"><span class="k">Recibes de saldo</span><span class="v">' + fmt(Number(recv)) + ' <span style="font:600 11px var(--fuente);color:var(--txt-3)">DE SALDO</span></span></div>' : "")
+      + '<div class="t1PosFila"><span class="k">Ganancia por recarga</span><span class="v">' + fmt(Number(viva.ganancia360)) + ' <span style="font:600 11px var(--fuente);color:var(--txt-3)">CUP</span></span></div>'
+      + porquesHtml(porq)
+      + ((prep && prep.aviso_promo) ? '<div class="offBanner" style="display:block">' + esc(prep.aviso_promo) + "</div>" : "")
+      + '<div class="t1CtaBar"><div class="ctaT"><div class="ctaTit">Tu toque manda</div><div class="ctaSub">Subirla pasa por la puerta con su collar y queda en bitácora. La oferta vence sola si no la tocas.</div></div>'
+      + '<button class="bGhost bMini" id="mcDescartar">Ahora no</button>'
+      + '<button class="bGold" id="mcSubirla">Subirla</button></div>';
+  } else if (prep) {
+    h += '<span class="pill pPend">EL ASESOR YA LA CALCULÓ</span>'
+      + '<div class="kv" style="margin-top:6px">Tasa <b>' + fmt(Number(prep.tasa)) + '</b> CUP/QUSD · monto <b>$' + fmt(Number(prep.monto_qusd)) + '</b> QUSD · ganancia <b>' + fmt(Number(prep.ganancia360)) + '</b> CUP por recarga.</div>'
+      + porquesHtml(prep.porques)
+      + (prep.aviso_promo ? '<div class="offBanner" style="display:block">' + esc(prep.aviso_promo) + "</div>" : "")
+      + '<div class="ayuda">La preparada nace sola en el próximo ciclo del Asesor (cada 15 min) si la foto sigue usable: entonces aquí aparece el botón «Subirla».</div>';
+  } else {
+    var mots = calc.motivos_no_prepara || [];
+    h += '<div class="kv">Ahora mismo el Asesor no prepara ninguna oferta.</div>'
+      + (mots.length ? mots.map(function(m){ return '<div class="kv">· ' + esc(motivoAsesorTxt(m)) + "</div>"; }).join("") : '<div class="kv">Sin motivo registrado: la foto manda; cuando el mercado dé la señal, la oferta nace sola aquí.</div>');
+  }
+  var c = g.contadores || {};
+  h += '<div class="mut" style="margin-top:10px">Puerta hoy: $' + fmt(Number(c.hoy_qusd || 0)) + ' de $' + fmt(Number(c.diario_max || 120)) + ' QUSD · esta hora: ' + (c.acciones_hora != null ? c.acciones_hora : "—") + "/" + (c.hora_max || 2) + ' · tope por oferta $' + fmt(Number(c.tope_oferta || 40)) + " QUSD</div>";
+  h += "</div>";
+  return h;
+}
+function subirAsesorMN(){
+  var g = mercadoGuiaMN, viva = g && g.preparada_viva;
+  if (!viva) return;
+  var bs = $("mcSubirla"); if (bs) { bs.disabled = true; bs.textContent = "Subiendo…"; }
+  rpc("guiaSubir", { p_codigo: state.codigo, p_accion: viva.id }).then(function(r){
+    if (r && r.ok) { toast("✅ Oferta subida por la puerta del Analista."); asesorSugerencia = null; pintarTabs(); }
+    else toast("La puerta no la subió: " + ((r && (r.motivo || r.error)) || "revisa el detalle en el Analista."), false);
+    cargarMercadoMN();
+  }).catch(function(e){
+    toast((e && e.faltaPuerta) ? TXT_FALTA_ACTIVAR : "Sin conexión pa subirla ahora.", false);
+    cargarMercadoMN();
+  });
+}
+function descartarAsesorMN(){
+  var g = mercadoGuiaMN, viva = g && g.preparada_viva;
+  if (!viva) return;
+  rpc("guiaDescartar", { p_codigo: state.codigo, p_accion: viva.id, p_motivo: "ahora_no" }).then(function(){
+    toast("Asesor: oferta descartada. Su silencio corre desde ahora.");
+    asesorSugerencia = null; pintarTabs(); cargarMercadoMN();
+  }).catch(function(){ toast("No se pudo descartar (¿sin conexión?).", false); });
+}
+registrarModulo({
+  id: "Mercado", tab: "Mercado", icono: "mercado",
+  render: function(){
+    var el = $("pgMercado"); if (!el) return;
+    var f = mercadoFotoMN, g = mercadoGuiaMN;
+    var h = (!online ? '<div class="offBanner" style="display:block">' + selloTexto("mercado") + ".</div>" : "");
+    h += '<div class="card"><div class="row"><h3 style="margin:0"><span class="secIco">' + icono("mercado") + '</span>Mercado en vivo</h3><button class="bGhost bMini" id="mcAct">Actualizar</button></div>';
+    if (f) {
+      h += '<div class="mut" style="margin-top:8px">NIVEL 20 · ETECSA · CUP POR QUSD</div>'
+        + '<div class="big" id="mcNivel">' + fmtON(f.nivel20) + ' <span class="cur">CUP</span></div>'
+        + '<div class="mut">Nivel de ' + edadTxtMN(f.nivel20_edad_s) + ' · foto completa de ' + edadTxtMN(f.edad_s) + (f.ligera ? ' · con foto ligera encima' : "") + '</div>'
+        + '<div style="margin-top:8px">' + (f.fresca ? '<span class="pill pOk">FOTO FRESCA</span>' : '<span class="pill pPend">FOTO VIEJA — con foto vieja el Asesor no prepara</span>') + "</div>";
+    } else {
+      h += '<div class="kv" style="margin-top:6px">' + (mercadoErrorMN === "falta" ? TXT_FALTA_ACTIVAR : (online ? "Leyendo la foto vigente del mercado…" : "Sin conexión y todavía no hay foto guardada del mercado.")) + "</div>";
+    }
+    h += "</div>";
+    h += '<div class="t1Seg" role="tablist">'
+      + '<button data-seg="libro" class="' + (mercadoSegMN === "libro" ? "on" : "") + '">Libro</button>'
+      + '<button data-seg="posicion" class="' + (mercadoSegMN === "posicion" ? "on" : "") + '">Posición</button>'
+      + '<button data-seg="asesor" class="' + (mercadoSegMN === "asesor" ? "on" : "") + '">Asesor' + (g && g.preparada_viva ? " · 1 lista" : "") + "</button></div>";
+    if (mercadoSegMN === "libro") h += mercadoLibroHtml(f);
+    else if (mercadoSegMN === "posicion") h += mercadoPosicionHtml(g);
+    else h += mercadoAsesorHtml(g);
     el.innerHTML = h;
+    var ba = $("mcAct"); if (ba) ba.addEventListener("click", cargarMercadoMN);
+    el.querySelectorAll("[data-seg]").forEach(function(b){
+      b.addEventListener("click", function(){ mercadoSegMN = b.getAttribute("data-seg"); pintarMercado(); });
+    });
+    var bs = $("mcSubirla"); if (bs) bs.addEventListener("click", subirAsesorMN);
+    var bd = $("mcDescartar"); if (bd) bd.addEventListener("click", descartarAsesorMN);
   },
   alMostrar: function(){
+    cargarMercadoMN();
     if (!window.fetch) return;
     fetch(MERCADO_URL + "?t=" + Date.now()).then(function(r){ return r.ok ? r.json() : null; }).then(function(j){
       if (j) {
         state.foto.mercado = j;
         state.sellos.mercado = new Date().toISOString();
         guardar();
-        pintarMercado();
+        if (tabActual === "Mercado" && mercadoSegMN === "libro") pintarMercado();
       }
-    }).catch(function(){ pintarMercado(); });
+    }).catch(function(){});
   }
 });
 
@@ -3937,14 +4294,14 @@ function intentarEntrar(){
    controllerchange recarga la app UNA sola vez (marca en
    sessionStorage por versión: sin bucles). MN_VERSION se sube
    junto con el CACHE de sw.js. */
-var MN_VERSION = "v21";
+var MN_VERSION = "v22";
 /* Sello VISIBLE de compilación (punto 6): Ernesto quejándose con
    razón — «no sé si se actualizó o no». Una sola constante que
    sube con cada publicación; se ve en Inicio y en la hoja ℹ️ del
    chat. Formato: «Mi Negocio · versión 2026-11-11 HH:MM · caché v6»
    (fecha Y HORA de la publicación, para distinguir dos subidas
    del mismo día). La hora es la de Cuba (CST) al compilar. */
-var MN_COMPILACION = "2026-11-13 17:45";
+var MN_COMPILACION = "2026-11-14 11:31";
 function selloVersion(){ return "Mi Negocio · versión " + MN_COMPILACION + " · caché " + MN_VERSION; }
 var regSW = null;
 var swConControladorAlArrancar = false;
@@ -4035,7 +4392,7 @@ function init(){
   });
   $("hojaFondo").addEventListener("click", function(e){ if (e.target === $("hojaFondo")) cerrarHoja(); });
   document.addEventListener("online", function(){ buscarActualizacionSW(); cargarTodo(true); });
-  document.addEventListener("click", function(e){ if (e.target && e.target.id === "mnAvisos") activarAvisosMN(); });
+  document.addEventListener("click", function(e){ if (e.target && (e.target.id === "mnAvisos" || e.target.id === "mnAvisosB")) activarAvisosMN(); });
   prepararSW();
   if (state.codigo) {
     $("inCodigo").value = state.codigo;
@@ -4946,6 +5303,9 @@ function cargarDineroMN(){
     if (!est || est.rol !== "ernesto") { dineroErrorMN = "La puerta del dinero no devolvió tu foto de dueño."; pintarDineroMN(); return; }
     var guardarFoto = function(){
       dineroFotoMN = est; dineroErrorMN = ""; dineroLeidoEnMN = Date.now(); pintarDineroMN();
+      /* T1: el héroe de Inicio vive de esta foto — si Ernesto está en
+         Inicio, la cifra aterriza sin esperar a que toque nada. */
+      if (tabActual === "Inicio") { var mIni = modulo("Inicio"); if (mIni) mIni.render(); }
     };
     if (est.ganancias) { guardarFoto(); return; }
     rpc("dineroGanancias", { p_prueba: false }).then(function(g){ est.ganancias = g || null; guardarFoto(); }, function(){ guardarFoto(); });
@@ -5044,7 +5404,7 @@ registrarModulo({
     /* --- Ventas recientes del libro --- */
     var ventas = est.ventas_recientes || [];
     if (ventas.length) {
-      h += '<div class="card"><h3>' + ICO_D + 'Ventas recientes</h3>'
+      h += '<div class="card" id="dnVentas"><h3>' + ICO_D + 'Ventas recientes</h3>'
         + ventas.slice(0, 5).map(function(v){
             return '<div class="kv">' + esc(v.fuente || "") + ' · ' + esc(v.tipo || "") + ' · <b>' + fmtE(v.monto) + ' CUP</b>' + (v.contraparte ? ' · ' + esc(v.contraparte) : '') + '</div>';
           }).join("") + '</div>';
@@ -5067,10 +5427,311 @@ registrarModulo({
   }
 });
 
+/* =====================================================================
+   T1 · PANEL ÚNICO (v22, 2026-11-14) — las piezas nuevas del centro de
+   mando: héroe/accesos/novedades del hub de Inicio, hoja de menú con
+   datos vivos, Ajustes en ramas, centro de Avisos (lee avisos_log por
+   la puerta avisos_historial) y la guía de 4 coach marks. Todo lo de
+   las versiones v18–v21 sigue intacto: esto se monta ENCIMA.
+   ===================================================================== */
+PUERTAS.avisosHistorial = "avisos_historial";
+PUERTAS.avisosProbar = "avisos_probar";
+
+/* ===== AVISOS: el registro (avisos_log) leído en la app ===== */
+var avisosHistCache = null, avisosHistErrorMN = "";
+function cargarAvisosHist(){
+  if (!state.codigo) return;
+  rpc("avisosHistorial", { p_codigo: state.codigo, p_limite: 30 }).then(function(r){
+    avisosHistCache = (r && r.avisos) || [];
+    avisosHistErrorMN = "";
+    pintarCampanaAvisos();
+    if (tabActual === "Avisos" || tabActual === "Inicio") pintarTodo();
+  }).catch(function(e){
+    avisosHistErrorMN = (e && e.faltaPuerta) ? "falta" : "red";
+    if (tabActual === "Avisos") pintarTodo();
+  });
+}
+function pintarCampanaAvisos(){
+  var b = $("bdgAvisos"); if (!b) return;
+  var n = 0, ayer = Date.now() - 24 * 3600 * 1000;
+  (avisosHistCache || []).forEach(function(a){
+    if (a.resultado === "fallo" && Date.parse(a.creado_en) > ayer) n++;
+  });
+  b.textContent = n; b.style.display = n > 0 ? "block" : "none";
+}
+function avisoCanalTxt(c){ return c === "webpush" ? "Push" : (c === "telegram" ? "Telegram" : (c === "fcm" ? "Push del aparato" : "Evento")); }
+function avisoFilaHtml(a){
+  var pill = a.resultado === "entregado" ? '<span class="pill pOk">entregado</span>'
+    : (a.resultado === "fallo" ? '<span class="pill" style="background:var(--rojo-suave);color:var(--rojo)">falló</span>'
+    : '<span class="pill pPend">' + esc(a.resultado || "") + "</span>");
+  return '<div class="t1Fila"><div class="t1Fic ' + (a.resultado === "fallo" ? "roj" : (a.resultado === "entregado" ? "ver" : "amb")) + '">' + icono("avisos") + "</div>"
+    + '<div class="cue"><div class="tit">' + esc(a.titulo || a.evento_tipo || "Aviso") + (a.es_prueba ? ' <span class="mut">· prueba</span>' : "") + "</div>"
+    + '<div class="sub">' + avisoCanalTxt(a.canal) + (a.motivo ? " · " + esc(a.motivo) : "") + "</div></div>"
+    + '<span class="hora">' + horaDe(a.creado_en) + "</span>" + pill + "</div>";
+}
+registrarModulo({
+  id: "Avisos", tab: "Notificaciones", icono: "avisos",
+  render: function(){
+    var el = $("pgAvisos"); if (!el) return;
+    var h = '<div class="sub">Avisos PRO: push y Telegram salen juntos y TODO intento queda registrado. Si un aviso no llega, aquí se ve — nada falla en silencio.</div>';
+    h += bloqueAvisosHtml().replace('id="mnAvisos"', 'id="mnAvisosB"').replace("<h3>Avisos</h3>", '<h3><span class="secIco">' + icono("avisos") + "</span>Avisos en este teléfono</h3>");
+    h += '<div class="card" id="avRegistro"><h3><span class="secIco">' + icono("reloj") + '</span>Registro de avisos</h3>';
+    if (avisosHistErrorMN === "falta") h += '<div class="kv"><b>' + TXT_FALTA_ACTIVAR + '</b></div>';
+    else if (avisosHistErrorMN === "red") h += '<div class="kv">Sin conexión pa leer el registro ahora; se reintenta al actualizar.</div>';
+    else if (avisosHistCache === null) h += '<div class="kv">Leyendo el registro…</div>';
+    else if (!avisosHistCache.length) h += '<div class="kv">Todavía no hay avisos registrados.</div>';
+    else h += '<div class="t1Feed">' + avisosHistCache.map(avisoFilaHtml).join("") + "</div>";
+    h += '<div class="ayuda">Push = notificación en tu teléfono · Telegram = tu bot de gestión · Evento = el sistema despachando. «Entregado» lo confirma el canal, no la app.</div>'
+      + '<div class="fila" style="margin-top:8px"><button class="bGhost bMini" id="avProbar">Probar avisos ahora</button></div>'
+      + '<div class="ayuda">La prueba manda un aviso de verdad a tus aparatos; su resultado queda en este registro.</div></div>';
+    el.innerHTML = h;
+    var bp = $("avProbar");
+    if (bp) bp.addEventListener("click", function(){
+      bp.disabled = true; bp.textContent = "Probando…";
+      rpc("avisosProbar", { p_codigo: state.codigo }).then(function(){
+        toast("✅ Prueba enviada: revisa si te llegó el aviso.");
+        setTimeout(cargarAvisosHist, 1800);
+      }).catch(function(e){
+        toast((e && e.faltaPuerta) ? TXT_FALTA_ACTIVAR : "No se pudo probar (¿sin conexión?).", false);
+      }).then(function(){ bp.disabled = false; bp.textContent = "Probar avisos ahora"; });
+    });
+  },
+  alMostrar: function(){ cargarAvisosHist(); }
+});
+
+/* ===== INICIO: héroe, accesos y novedades del hub ===== */
+function heroInicioHtml(){
+  var est = dineroFotoMN;
+  if (!est) return '<div class="card" id="inHero"><div class="mut">HOY PUEDES GASTAR</div><div class="kv" style="margin-top:6px">' + (dineroCargandoMN ? "Leyendo tu dinero del libro…" : "Tu dinero se lee del libro: abre Dinero una vez con conexión y esta cifra vive aquí.") + "</div></div>";
+  var fondo = Number(est.saldo_fondo || 0), inv = Number(est.saldo_ernesto_inversion || 0);
+  return '<div class="card" id="inHero"><div class="mut">HOY PUEDES GASTAR</div>'
+    + '<div class="t1HeroNum">' + fmtE(est.saldo_gasto) + ' <span style="font-size:15px;color:var(--txt-2)">CUP</span></div>'
+    + '<div class="ayuda">Tu bolsillo de gasto, ya separado: sin tocar ni un peso de lo que está trabajando.</div>'
+    + '<div class="t1HeroGrid">'
+    + '<div><div class="k">En tu mano</div><div class="v">' + fmtE(fondo + inv) + "</div></div>"
+    + '<div><div class="k">Hecho en saldo</div><div class="v">' + fmtE(est.saldo_inventario) + "</div></div>"
+    + '<div><div class="k">Capital total</div><div class="v">' + fmtE(est.capital_total) + "</div></div>"
+    + '</div><div class="mut" style="margin-top:8px">Del libro, leído a las ' + horaDe(new Date(dineroLeidoEnMN).toISOString()) + " · el detalle vive en Dinero.</div></div>";
+}
+function accesosInicioHtml(){
+  var t = tarifa();
+  var pendRep = state.foto.reportes.filter(function(r){ return r.estado === "pendiente" && !r.prueba; }).length;
+  var enLinea = 0;
+  if (puertasChat === true) Object.keys(presenciaMap).forEach(function(c){
+    var ms = Date.parse(presenciaMap[c]);
+    if (!isNaN(ms) && (Date.now() - ms) < 3 * 60000) enLinea++;
+  });
+  function tile(id, ic, tit, val, badge){
+    return '<button class="t1Tile" data-ir="' + id + '">' + (badge ? '<span class="bdg">' + badge + "</span>" : "")
+      + icono(ic) + '<span><span class="t">' + tit + '</span><span class="v">' + val + "</span></span></button>";
+  }
+  var h = '<div id="inAccesos"><div class="row" style="margin:2px 2px 9px"><span class="mut">ACCESOS</span><span class="mut">todo a 2 toques</span></div><div class="t1Accesos">'
+    + tile("Bandeja", "bandeja", "Bandeja", pendRep ? pendRep + " por aprobar" : "al día", pendRep || "")
+    + tile("Equipo", "equipo", "Equipo y chat", sinLeerTotal > 0 ? sinLeerTotal + " sin leer" : (puertasChat === true ? enLinea + " en línea ahora" : "tus buscadores"))
+    + tile("Tarifa", "tarifa", "Tarifa viva", t ? fmt(Number(t.ingresoRef360)) + " CUP por recarga" : "sin tarifa real todavía")
+    + tile("Mercado", "mercado", "Mercado", mercadoFotoMN ? "nivel " + fmt(Number(mercadoFotoMN.nivel20)) + " · " + edadTxtMN(mercadoFotoMN.nivel20_edad_s) : "libro en vivo y el Asesor")
+    + tile("Actividad", "reloj", "Actividad", "el registro en palabras claras")
+    + tile("Avisos", "avisos", "Avisos", estadoPush() === "ok" ? "llegando a este teléfono" : "actívalos y mira el registro")
+    + "</div></div>";
+  return h;
+}
+function novedadesInicioHtml(){
+  var filas = "";
+  (avisosHistCache || []).filter(function(a){ return a.resultado === "fallo"; }).slice(0, 2).forEach(function(a){
+    filas += '<div class="t1Fila"><div class="t1Fic roj">' + icono("avisos") + '</div><div class="cue"><div class="tit">Un aviso no llegó: ' + esc(a.titulo || a.evento_tipo || "aviso") + '</div><div class="sub">' + avisoCanalTxt(a.canal) + (a.motivo ? " · " + esc(a.motivo) : "") + ' · el registro completo está en Ajustes → Notificaciones</div></div><span class="hora">' + horaDe(a.creado_en) + "</span></div>";
+  });
+  (actividadCache || []).slice(0, 6).forEach(function(a){
+    filas += '<div class="t1Fila"><div class="t1Fic dor">' + icono("reloj") + '</div><div class="cue"><div class="tit">' + esc(actividadFrase(a)) + '</div><div class="sub">' + esc(actividadQuien(a.quien)) + " · " + esc(etiquetaFecha(a.creado_en)) + '</div></div><span class="hora">' + horaDe(a.creado_en) + "</span></div>";
+  });
+  if (!filas) filas = '<div class="kv">' + ((actividadCache === null && avisosHistCache === null) ? "Cargando novedades…" : "Sin novedades todavía: cuando el sistema trabaje por ti, cae aquí.") + "</div>";
+  return '<div class="card" id="inNovedades"><h3><span class="secIco">' + icono("avisos") + '</span>Novedades</h3><div class="t1Feed">' + filas + '</div><div class="ayuda">El sistema trabajó por ti: cada hecho con su hora y su estado. El registro completo vive en Actividad, aquí en Inicio.</div></div>';
+}
+
+/* ===== MENÚ: la hoja de lo secundario, con datos vivos ===== */
+function abrirMenuMN(){
+  var t = tarifa();
+  var pendEsp = (actividadCache || []).length;
+  var filas = [
+    { ir: "Tarifa", ic: "tarifa", tit: "Tarifa viva", val: t ? fmt(Number(t.ingresoRef360)) + " CUP" : "sin tarifa", dor: true },
+    { ir: "Actividad", ic: "reloj", tit: "Actividad y esperas", val: pendEsp ? "registro al día" : "el registro" },
+    { ir: "Calc", ic: "calc", tit: "Calculadora", val: t ? "libro " + fmt(Number(t.libroRef)) : "" },
+    { ir: "Textos", ic: "doc", tit: "Textos de venta", val: "con IA" },
+    { ir: "Ajustes", ic: "ajustes", tit: "Ajustes", val: "perfil · avisos · datos" },
+    { ir: "GUIA", ic: "info", tit: "Repetir la guía", val: "4 pasos" }
+  ];
+  $("menuFilas").innerHTML = filas.map(function(f){
+    return '<button class="t1FilaMenu" data-menu="' + f.ir + '"><span class="t1Fic' + (f.dor ? " dor" : "") + '">' + icono(f.ic) + '</span><span class="cue"><span class="tit" style="font:600 15px var(--fuente)">' + f.tit + '</span></span>' + (f.val ? '<span class="val">' + esc(f.val) + "</span>" : "") + '<svg class="chev" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></button>';
+  }).join("");
+  $("menuFilas").querySelectorAll("[data-menu]").forEach(function(b){
+    b.addEventListener("click", function(){
+      cerrarMenuMN();
+      var dest = b.getAttribute("data-menu");
+      if (dest === "GUIA") iniciarGuia(); else irA(dest);
+    });
+  });
+  $("menuFondo").classList.add("abierto");
+  $("menuHoja").classList.add("abierto");
+}
+function cerrarMenuMN(){
+  var f = $("menuFondo"), h = $("menuHoja");
+  if (f) f.classList.remove("abierto");
+  if (h) h.classList.remove("abierto");
+}
+
+/* ===== AJUSTES EN RAMAS: raíz categorizada, 2 niveles ===== */
+registrarModulo({
+  id: "Ajustes", tab: "Ajustes", icono: "ajustes",
+  render: function(){
+    var el = $("pgAjustes"); if (!el) return;
+    var t = tarifa();
+    var nBusc = (state.foto.usuarios || []).filter(function(u){ return state.foto.borrados.indexOf(u.codigo) < 0; }).length;
+    function filaAj(dest, ic, tit, sub, val){
+      return '<button class="t1FilaAj" data-aj="' + dest + '"><span class="t1Fic">' + icono(ic) + '</span><span class="cue" style="flex:1;min-width:0"><span class="tit" style="font:600 15px var(--fuente);display:block">' + tit + '</span>' + (sub ? '<span class="sub" style="font:var(--t-nota);color:var(--txt-2);display:block">' + sub + "</span>" : "") + "</span>" + (val ? '<span class="val">' + esc(val) + "</span>" : "") + '<svg class="chev" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></button>';
+    }
+    var h = '<div class="sub">Todo ajuste vive aquí, en una sola sección: tocas una fila y se abre su propia página; atrás, y vuelves a las ramas.</div>';
+    h += '<div class="card"><div style="display:flex;gap:12px;align-items:center"><div class="avatar" style="background:linear-gradient(145deg,#8A6D1F,#4A380A);width:54px;height:54px;font-size:19px;flex:none">E</div><div style="min-width:0"><div style="font:700 17px var(--fuente)">Ernesto Nuñez Torres</div><div class="mut">Cuenta del dueño · tu código se verifica en el servidor</div></div></div></div>';
+    h += '<div class="t1GrupoLbl">Cuenta</div><div class="t1Lista">'
+      + filaAj("Equipo", "equipo", "Códigos de acceso y equipo", "Quién puede entrar y con qué cuenta", nBusc + (nBusc === 1 ? " buscador" : " buscadores"))
+      + filaAj("SESION", "info", "Tu sesión", "Este teléfono queda dentro con tu código", "en este teléfono")
+      + "</div>";
+    h += '<div class="t1GrupoLbl">Negocio</div><div class="t1Lista">'
+      + filaAj("Tarifa", "tarifa", "Tarifa viva", "La que ven tus buscadores, con su inteligencia", t ? fmt(Number(t.ingresoRef360)) + " CUP" : "sin tarifa")
+      + filaAj("Textos", "doc", "Textos de venta", "Los escribe la IA con tu catálogo y tu tarifa", "con IA")
+      + filaAj("Calc", "calc", "Calculadora de tratos", "Equilibrio y ganancia antes de cerrar", t ? "libro " + fmt(Number(t.libroRef)) : "")
+      + "</div>";
+    h += '<div class="t1GrupoLbl">La app</div><div class="t1Lista">'
+      + filaAj("Avisos", "avisos", "Notificaciones", "Avisos PRO: push y Telegram, con registro", estadoPush() === "ok" ? "Activadas" : "Sin activar")
+      + filaAj("GUIA", "info", "Guía de la app", "El recorrido: «esto funciona para esto»", "4 pasos")
+      + filaAj("ACTUALIZAR", "cambio", "Buscar actualización", "La app se actualiza sola; esto lo fuerza", "v" + MN_VERSION.replace("v", ""))
+      + "</div>";
+    h += '<div class="t1GrupoLbl">Datos</div><div class="t1Lista">'
+      + filaAj("RESPALDO", "doc", "Respaldo", "Tu libro se guarda solo en el servidor", "Automático")
+      + '<div class="t1FilaAj plana"><span class="t1Fic">' + icono("info") + '</span><span class="cue" style="flex:1"><span class="tit" style="font:600 15px var(--fuente);display:block">Versión</span><span class="sub" style="font:var(--t-nota);color:var(--txt-2);display:block">' + esc(selloVersion()) + '</span></span></div>'
+      + "</div>";
+    h += '<div class="t1Lista" style="margin-top:16px"><button class="t1FilaAj" data-aj="SALIR"><span class="cue" style="flex:1;text-align:center"><span class="tit" style="font:600 15px var(--fuente);color:var(--rojo)">Cerrar sesión en este teléfono</span></span></button></div>'
+      + '<p class="mut" style="text-align:center;line-height:1.5;padding:0 12px">Nada de cazar opciones regadas por la app:<br>todo ajuste vive en estas ramas.</p>';
+    el.innerHTML = h;
+    el.querySelectorAll("[data-aj]").forEach(function(b){
+      b.addEventListener("click", function(){
+        var d = b.getAttribute("data-aj");
+        if (d === "GUIA") iniciarGuia();
+        else if (d === "SALIR") { var bs = $("btnSalir"); if (bs) bs.click(); }
+        else if (d === "ACTUALIZAR") { buscarActualizacionSW(); toast("Buscando actualización…"); }
+        else if (d === "SESION") abrirHoja("Tu sesión", "Este teléfono entró con tu código de administrador y queda dentro: no tienes que teclearlo en cada visita. El código vive solo en este aparato y en el servidor; Máximo no lo conoce ni lo usa.", [{ txt: "Entendido", cls: "bGold", fn: function(){} }]);
+        else if (d === "RESPALDO") abrirHoja("Respaldo automático", "Tu libro, tu tarifa y tus registros se respaldan solos en el servidor cada día, con su espejo. Si este teléfono se pierde, tu negocio no: todo vuelve a bajar al entrar con tu código en otro aparato.", [{ txt: "Entendido", cls: "bGold", fn: function(){} }]);
+        else irA(d);
+      });
+    });
+  }
+});
+
+/* ===== GUÍA: 4 coach marks, una a la vez, saltable siempre ===== */
+var GUIA_LS = "mn_guia_v22";
+var guiaPasos = [
+  { z: "inHero", t: "Tu dinero de hoy", x: "Esta es la cifra con la que abres el día: cuánto puedes gastar sin tocar el capital que está trabajando. Todo lo demás cuelga de aquí." },
+  { z: "inAccesos", t: "Accesos con su dato vivo", x: "Lo de todos los días está a 2 toques, y cada acceso ya trae su número encima: a la Bandeja o a la Tarifa entras sabiendo, no a ciegas." },
+  { z: "inNovedades", t: "Novedades: el sistema te cuenta", x: "Cada cosa que pasa —la tarifa, una vuelta, un aviso que falló— cae aquí con su hora y su estado. Si algo te toca, se ve." },
+  { z: "btnMenuMN", t: "El menú, arriba a la derecha", x: "Lo de menos uso vive en la hoja que sube desde este botón, cada fila con su dato vivo. Y esta guía se repite cuando quieras en Ajustes → Guía de la app. A trabajar." }
+];
+var guiaI = 0, guiaActiva = false;
+function guiaPintar(){
+  var p = guiaPasos[guiaI], el = document.getElementById(p.z);
+  var foco = $("guiaFoco"), coach = $("guiaCoach");
+  if (!el || !foco || !coach) { guiaCerrar(); return; }
+  var r = el.getBoundingClientRect();
+  foco.style.display = "block";
+  foco.style.top = (r.top - 6) + "px"; foco.style.left = (r.left - 6) + "px";
+  foco.style.width = (r.width + 12) + "px"; foco.style.height = (r.height + 12) + "px";
+  coach.style.display = "block";
+  $("guiaPaso").textContent = "Paso " + (guiaI + 1) + " de 4 · Primera vez aquí";
+  $("guiaTit").textContent = p.t;
+  $("guiaTxt").textContent = p.x;
+  $("guiaSig").textContent = guiaI === 3 ? "Empezar" : "Siguiente";
+  var pts = $("guiaPuntos").children;
+  for (var k = 0; k < 4; k++) pts[k].className = k === guiaI ? "on" : "";
+}
+function iniciarGuia(){
+  if (tabActual !== "Inicio") irA("Inicio");
+  guiaI = 0; guiaActiva = true;
+  setTimeout(guiaPintar, 60);
+}
+function guiaCerrar(){
+  guiaActiva = false;
+  var foco = $("guiaFoco"), coach = $("guiaCoach");
+  if (foco) foco.style.display = "none";
+  if (coach) coach.style.display = "none";
+  try { localStorage.setItem(GUIA_LS, "1"); } catch(e){}
+}
+function guiaAuto(){
+  var vista = ""; try { vista = localStorage.getItem(GUIA_LS) || ""; } catch(e){}
+  if (vista) return;
+  setTimeout(function(){
+    if (guiaActiva) return;
+    var panel = $("scrPanel");
+    if (tabActual === "Inicio" && panel && panel.style.display !== "none") iniciarGuia();
+  }, 1100);
+}
+
+/* ===== DESTINO DE AVISO: la marca rápida (enmienda 2026-11-14) =====
+   El aviso trae tab + ancla: la app ya navegó (irA o ?tab=) y aquí se
+   busca EL elemento: scroll suave, anillo dorado de marca ~2,4 s y
+   desvanecido solo. Si el elemento ya no existe, la sección sola es
+   el destino — sin error. Reintenta porque algunas tarjetas nacen de
+   lecturas async (tarifa viva, la guía del Asesor). */
+var anclaDePush = null;
+function resolverAnclaMN(ancla){
+  if (!ancla) return null;
+  var el = document.getElementById(ancla);
+  if (el) return el;
+  if (ancla.indexOf("rep-") === 0) return document.querySelector('[data-rep="' + ancla.slice(4) + '"]');
+  return null;
+}
+function marcarDestino(ancla, intento){
+  if (!ancla) return;
+  if (ancla === "mcAsesor" && mercadoSegMN !== "asesor") {
+    mercadoSegMN = "asesor";
+    if (tabActual === "Mercado") pintarMercado();
+  }
+  var el = resolverAnclaMN(ancla);
+  if (!el) {
+    if ((intento || 0) < 3) setTimeout(function(){ marcarDestino(ancla, (intento || 0) + 1); }, intento === 0 ? 250 : 800);
+    return;
+  }
+  try { if (el.scrollIntoView) el.scrollIntoView({ behavior: "smooth", block: "center" }); } catch(e){}
+  el.classList.add("t1Marca");
+  setTimeout(function(){ el.classList.add("t1MarcaOff"); }, 2400);
+  setTimeout(function(){ el.classList.remove("t1Marca"); el.classList.remove("t1MarcaOff"); }, 3300);
+}
+
+/* Cableado T1: barra de pila, cabecera, hoja y guía. */
+(function cablearT1(){
+  var sv = $("subVolver");
+  if (sv) sv.addEventListener("click", function(){ irA(SECCION_DE[tabActual] || "Inicio"); });
+  var bm = $("btnMenuMN"); if (bm) bm.addEventListener("click", abrirMenuMN);
+  var ba = $("btnAvisosMN"); if (ba) ba.addEventListener("click", function(){ irA("Avisos"); });
+  var mf = $("menuFondo"); if (mf) mf.addEventListener("click", cerrarMenuMN);
+  var gs = $("guiaSig");
+  if (gs) gs.addEventListener("click", function(){
+    if (guiaI === 3) { guiaCerrar(); return; }
+    guiaI++; guiaPintar();
+  });
+  var gq = $("guiaSaltar"); if (gq) gq.addEventListener("click", guiaCerrar);
+  window.addEventListener("resize", function(){ if (guiaActiva) guiaPintar(); });
+  try { var qsT1 = new URLSearchParams(location.search); if (qsT1.get("ancla")) anclaDePush = qsT1.get("ancla"); } catch(e){}
+  var entrarViejo = entrar;
+  entrar = function(){
+    entrarViejo(); guiaAuto();
+    if (anclaDePush) { var aT1 = anclaDePush; anclaDePush = null; setTimeout(function(){ marcarDestino(aT1, 0); }, 350); }
+  };
+})();
+
 /* Al tocar una notificación, el SW avisa a qué pestaña ir. */
 if ("serviceWorker" in navigator) {
   navigator.serviceWorker.addEventListener("message", function(e){
-    if (e.data && e.data.tipo === "push-tab" && e.data.tab) { try { irA(e.data.tab); } catch(err){} }
+    if (e.data && e.data.tipo === "push-tab" && e.data.tab) {
+      try { irA(e.data.tab); } catch(err){}
+      if (e.data.ancla) setTimeout(function(){ marcarDestino(e.data.ancla, 0); }, 350);
+    }
   });
 }
 
