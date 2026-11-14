@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mi Negocio — Ajustes · Notificaciones · Muestra v3+</title>
+<link rel="stylesheet" href="estilo.css">
+</head>
+<body>
+<div class="app plana">
+
+  <!-- LA RAMA: atrás cierra esta página y vuelve a Ajustes -->
+  <div class="stackbar">
+    <a class="backbtn" href="ajustes.html"><svg viewBox="0 0 24 24"><path d="M14.5 5L7.5 12l7 7"/></svg>Ajustes</a>
+    <span class="ttl">Notificaciones</span>
+  </div>
+
+  <!-- Estado real del sistema de avisos -->
+  <div class="card hero">
+    <div class="row spread">
+      <span class="lbl gold">Avisos PRO</span>
+      <span class="pill"><span class="dot"></span>Activo</span>
+    </div>
+    <div class="mid" style="margin-top:9px;font-size:17px">Push y Telegram, juntos</div>
+    <div class="small" style="margin-top:5px">Cada aviso sale por los dos rieles y queda registrado. Si uno falla, aquí se ve — nunca más un aviso que «no llegó» en silencio.</div>
+  </div>
+
+  <!-- Canales: sí/no en la propia fila -->
+  <div>
+    <div class="grupo-lbl">Canales</div>
+    <div class="lista">
+      <div class="fila-aj">
+        <div class="cuerpo"><div class="tit">Avisos push</div><div class="sub">Al teléfono, aunque la app esté cerrada</div></div>
+        <span class="sw on" role="switch" aria-checked="true" tabindex="0"></span>
+      </div>
+      <div class="fila-aj">
+        <div class="cuerpo"><div class="tit">Avisos por Telegram</div><div class="sub">El mismo aviso, en tu bot de gestión</div></div>
+        <span class="sw on" role="switch" aria-checked="true" tabindex="0"></span>
+      </div>
+      <div class="fila-aj">
+        <div class="cuerpo"><div class="tit">Resumen de la mañana</div><div class="sub">Cómo amaneció el negocio, a las 7:00 a. m.</div></div>
+        <span class="sw" role="switch" aria-checked="false" tabindex="0"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Qué avisa: la inteligencia cuenta el porqué -->
+  <div>
+    <div class="grupo-lbl">Qué te avisa</div>
+    <div class="lista">
+      <div class="fila-aj">
+        <div class="cuerpo"><div class="tit">Tarifa y mercado</div><div class="sub">Ajustes de la tarifa viva y saltos del libro</div></div>
+        <span class="sw on" role="switch" aria-checked="true" tabindex="0"></span>
+      </div>
+      <div class="fila-aj">
+        <div class="cuerpo"><div class="tit">Vueltas y esperas</div><div class="sub">Cuando una vuelta asienta o una espera vence</div></div>
+        <span class="sw on" role="switch" aria-checked="true" tabindex="0"></span>
+      </div>
+      <div class="fila-aj">
+        <div class="cuerpo"><div class="tit">Solo lo importante</div><div class="sub">Silencia lo menor; lo de dinero siempre suena</div></div>
+        <span class="sw" role="switch" aria-checked="false" tabindex="0"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sonido -->
+  <div class="card">
+    <div class="lbl" style="margin-bottom:10px">Sonido del aviso</div>
+    <div class="chiprow">
+      <button class="chip on">Suave</button>
+      <button class="chip">Normal</button>
+      <button class="chip">Silencio</button>
+    </div>
+    <p class="small" style="margin-top:10px">Suave: un toque corto. Lo de dinero urgente ignora el silencio.</p>
+  </div>
+
+  <!-- Probar: la respuesta al tacto, demostrada -->
+  <div>
+    <button class="btn" id="btnProbar">Probar avisos</button>
+    <div class="card tight" id="resultado" style="margin-top:12px;display:none">
+      <div class="row" style="gap:9px">
+        <span class="dot"></span>
+        <div class="small" style="color:var(--txt);font-size:13px">Aviso de prueba enviado · <b>Push aceptado</b> · <b>Telegram entregado</b> · quedó en el registro</div>
+      </div>
+    </div>
+    <p class="tiny" style="text-align:center;margin-top:10px;line-height:1.5">El último aviso real llegó hoy a las 5:11 p. m.<br>El registro completo vive en Novedades.</p>
+  </div>
+
+<script>
+  document.querySelectorAll('.sw').forEach(function(s){
+    s.addEventListener('click',function(){s.classList.toggle('on');
+      s.setAttribute('aria-checked',s.classList.contains('on'));});
+  });
+  document.querySelectorAll('.chip').forEach(function(c){
+    c.addEventListener('click',function(){
+      document.querySelectorAll('.chip').forEach(function(x){x.classList.remove('on')});
+      c.classList.add('on');});
+  });
+  document.getElementById('btnProbar').addEventListener('click',function(){
+    var r=document.getElementById('resultado'); r.style.display='block';
+    this.textContent='Aviso enviado — revisa tu teléfono';
+  });
+</script>
+</div>
+</body>
+</html>
