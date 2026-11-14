@@ -138,6 +138,32 @@ jobs:
                 } catch (e) { nota('No se pudo fotografiar ' + nombre + ': ' + String(e).slice(0, 120)); }
               }
 
+              // Sub-vistas de Mi panel (v1.7.0): Mis esperas y Mi pago por dentro.
+              try {
+                await tocar('#tabPanel');
+                await page.waitForTimeout(1500);
+                await tocar('#navEsperas');
+                await page.waitForTimeout(2000);
+                if (await vistaVisible('viewEsperas')) {
+                  await page.evaluate(() => { const el = document.getElementById('viewEsperas'); if (el) el.scrollIntoView(); });
+                  await page.waitForTimeout(400);
+                  await foto('10-mis-esperas.png', 'Mi Trabajo · Mis esperas — el interior: vueltas en camino y el parte de una vuelta nueva (PEUEBA).');
+                  R.pantallas.push('Mis esperas');
+                } else nota('Mis esperas: la sub-vista no quedó visible.');
+                await tocar('#e_volver');
+                await page.waitForTimeout(1200);
+                await tocar('#navPago');
+                await page.waitForTimeout(2000);
+                if (await vistaVisible('viewPago')) {
+                  await page.evaluate(() => { const el = document.getElementById('viewPago'); if (el) el.scrollIntoView(); });
+                  await page.waitForTimeout(400);
+                  await foto('11-mi-pago.png', 'Mi Trabajo · Mi pago — el interior: asegurado, dependiente de la venta y ya pagado (PEUEBA).');
+                  R.pantallas.push('Mi pago');
+                } else nota('Mi pago: la sub-vista no quedó visible.');
+                await tocar('#mp_volver');
+                await page.waitForTimeout(1000);
+              } catch (e) { nota('Sub-vistas no alcanzadas: ' + String(e).slice(0, 140)); }
+
               // Editor de foto del chat (sin enviar): elegir la foto lo abre.
               try {
                 await tocar('#tabAyuda');
