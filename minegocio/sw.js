@@ -8,7 +8,7 @@
    fallback leía una caché que nadie escribía); sin red se sirve
    esa última copia cacheada, además de la foto en localStorage
    que guarda la propia app. */
-var CACHE = "minegocio-v23";
+var CACHE = "minegocio-v24";
 var CASCARON = [
   "./",
   "./index.html",
@@ -80,12 +80,16 @@ self.addEventListener("fetch", function(e){
 function miles(n){ return String(Math.round(Number(n) || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, " "); }
 function avisoDe(d){
   d = d || {};
-  if (d.titulo && d.cuerpo) return { titulo: d.titulo, cuerpo: d.cuerpo, tab: d.tab || "Inicio" };
+  /* Destino completo (T1 · enmienda 2026-11-14): tab + ANCLA del
+     elemento exacto. Si el emisor no manda ancla pero sí el id del
+     reporte, el ancla se deriva aquí. */
+  var ancla = d.ancla || (d.reporte_id ? "rep-" + d.reporte_id : "");
+  if (d.titulo && d.cuerpo) return { titulo: d.titulo, cuerpo: d.cuerpo, tab: d.tab || "Inicio", ancla: ancla };
   var tipo = d.tipo || "";
-  if (tipo === "reporte") return { titulo: "📋 Reporte nuevo", cuerpo: (d.nombre ? d.nombre + " · " : "") + "pendiente de aprobar en la Bandeja", tab: "Bandeja" };
-  if (tipo === "mensaje") return { titulo: "💬 Mensaje nuevo", cuerpo: d.nombre ? ("De " + d.nombre + " — tócalo para abrir el chat") : "Tócalo para abrir el chat", tab: "Equipo" };
-  if (tipo === "tarifa") return { titulo: "📋 Nueva tarifa publicada", cuerpo: d.ingreso ? ("Ingreso por recarga de 360: " + miles(d.ingreso) + " CUP") : "Ya está visible para tu equipo", tab: "Tarifa" };
-  return { titulo: "🔔 Mi Negocio", cuerpo: "Tienes novedades en tu panel", tab: d.tab || "Inicio" };
+  if (tipo === "reporte") return { titulo: "📋 Reporte nuevo", cuerpo: (d.nombre ? d.nombre + " · " : "") + "pendiente de aprobar en la Bandeja", tab: "Bandeja", ancla: ancla };
+  if (tipo === "mensaje") return { titulo: "💬 Mensaje nuevo", cuerpo: d.nombre ? ("De " + d.nombre + " — tócalo para abrir el chat") : "Tócalo para abrir el chat", tab: "Equipo", ancla: "" };
+  if (tipo === "tarifa") return { titulo: "📋 Nueva tarifa publicada", cuerpo: d.ingreso ? ("Ingreso por recarga de 360: " + miles(d.ingreso) + " CUP") : "Ya está visible para tu equipo", tab: "Tarifa", ancla: "tvPropuesta" };
+  return { titulo: "🔔 Mi Negocio", cuerpo: "Tienes novedades en tu panel", tab: d.tab || "Inicio", ancla: ancla };
 }
 self.addEventListener("push", (event) => {
   /* userVisibleOnly: SIEMPRE se muestra una notificación; si no,
@@ -98,7 +102,7 @@ self.addEventListener("push", (event) => {
     icon: "icon-192.png",
     badge: "icon-192.png",
     tag: "minegocio-" + (d.tipo || "aviso"),
-    data: { tab: a.tab }
+    data: { tab: a.tab, ancla: a.ancla || "" }
   }));
 });
 
@@ -110,12 +114,13 @@ self.addEventListener("notificationclick", function(e){
      apertura (?tab=…) y la app la consume al arrancar. */
   var destinoUrl = new URL(datos.url || "./", self.registration.scope);
   if (datos.tab) destinoUrl.searchParams.set("tab", datos.tab);
+  if (datos.ancla) destinoUrl.searchParams.set("ancla", datos.ancla);
   var destino = destinoUrl.href;
   e.waitUntil(
     clients.matchAll({ type: "window", includeUncontrolled: true }).then(function(lista){
       for (var i = 0; i < lista.length; i++) {
         if (lista[i].url.indexOf(self.registration.scope) === 0 && "focus" in lista[i]) {
-          try { lista[i].postMessage({ tipo: "push-tab", tab: datos.tab }); } catch(err){}
+          try { lista[i].postMessage({ tipo: "push-tab", tab: datos.tab, ancla: datos.ancla || "" }); } catch(err){}
           return lista[i].focus();
         }
       }
