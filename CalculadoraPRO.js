@@ -1,4 +1,18 @@
-// version: 14
+// version: 15
+// v15 (2026-11-14): LA MISMA calculadora de la v14, interfaz intacta,
+// con UNA sola cosa nueva — SINCRONIZACION REAL de la salida y el
+// costo de la pestana Saldo con la tarifa viva del sistema (la tabla
+// tarifa que ya leen Mi Negocio y PanelPRO):
+//  · Al abrir baja la tarifa del sistema (puerta leer_tarifa) y la
+//    aplica; lo que Ernesto teclea SUBE solo (puerta
+//    calc_sincronizar_tarifa) con su codigo de dueno, que vive SOLO
+//    en el Keychain de su iPhone (en este codigo no hay secretos:
+//    la llave de Supabase es la publicable, la de sus apps).
+//  · Campo VACIO = sin tarifa: no se sube, no se pisa, no se inventa
+//    ningun numero (nada de promedios del vigia).
+//  · Sin red: trabaja con la ultima tarifa guardada y lo DICE en el
+//    pie; lo tecleado queda en cola (outbox) y sale solo al reabrir
+//    la app o al refrescar el widget, sin duplicar.
 // Calculadora Ernesto PRO — Scriptable
 // v14: sobre la interfaz de la v13 (la oscura de la v6, rescatada):
 // (1) TECLADO NUMERICO PROPIO oscuro, integrado a la pagina: tocar un
@@ -17,7 +31,9 @@
 const FM = FileManager.local();
 const PATH = FM.joinPath(FM.documentsDirectory(), "calc-ernesto.json");
 
-function loadData() {
+function metaSyncVacia() { return { snap: null, pendiente: {}, ultimo: null }; }
+
+async function loadData() {
   let fromFile = null;
   try {
     if (FM.fileExists(PATH)) fromFile = JSON.parse(FM.readString(PATH));
@@ -26,6 +42,9 @@ function loadData() {
     try {
       const ic = FileManager.iCloud();
       const ip = ic.joinPath(ic.documentsDirectory(), "calc-ernesto.json");
+      // iOS desaloja archivos de iCloud: descargar ANTES de leer (si no,
+      // la lectura en frio devuelve vacio y parece que se borro todo).
+      try { await ic.downloadFileFromiCloud(ip); } catch (e) {}
       if (ic.fileExists(ip)) fromFile = JSON.parse(ic.readString(ip));
     } catch (e) {}
   }
@@ -33,9 +52,42 @@ function loadData() {
   if (!d.saldo) d.saldo = { salida: 950, costo: 1040, tasa: 320, saldo: 3600 };
   if (!d.transf) d.transf = { efectivo: 5000, porc: 30, libro: 1130, salida: 950 };
   if (!d.busc) d.busc = { precio: 950, tasaVenta: 313, efectivo: 5000, porc: 30, libro: 1110, salida: 950 };
+  if (!d.sync || typeof d.sync !== "object") d.sync = metaSyncVacia();
+  if (!d.sync.pendiente || typeof d.sync.pendiente !== "object") d.sync.pendiente = {};
   return d;
 }
-function saveData(d) { FM.writeString(PATH, JSON.stringify(d)); }
+function saveData(d) {
+  const s = JSON.stringify(d);
+  try { FM.writeString(PATH, s); } catch (e) {}
+  // Espejo iCloud (patron de la casa: local + espejo; si falla, silencio —
+  // el dato bueno vive en local).
+  try {
+    const ic = FileManager.iCloud();
+    ic.writeString(ic.joinPath(ic.documentsDirectory(), "calc-ernesto.json"), s);
+  } catch (e) {}
+}
+// El guardado que manda la pagina: fusiona las 3 secciones SIN pisar la
+// meta de sincronizacion, y anota en la cola (outbox) cada cambio de
+// salida/costo que Ernesto tecleo, pa subirlo en la proxima sync.
+function saveSecciones(d, payload) {
+  if (payload && payload.saldo) {
+    registrarEdicionTarifa(d, "salida", payload.saldo.salida);
+    registrarEdicionTarifa(d, "costo", payload.saldo.costo);
+    d.saldo = payload.saldo;
+  }
+  if (payload && payload.transf) d.transf = payload.transf;
+  if (payload && payload.busc) d.busc = payload.busc;
+  saveData(d);
+}
+function registrarEdicionTarifa(d, campo, nuevo) {
+  const antes = numONull(d.saldo ? d.saldo[campo] : null);
+  const n = numONull(nuevo);
+  if (n === antes) return;
+  if (!d.sync || typeof d.sync !== "object") d.sync = metaSyncVacia();
+  if (!d.sync.pendiente) d.sync.pendiente = {};
+  if (n === null) { delete d.sync.pendiente[campo]; return; }
+  d.sync.pendiente[campo] = { valor: n, en: new Date().toISOString() };
+}
 function fmt(n) {
   if (n === null || n === undefined || isNaN(n)) return "—";
   return (Math.round(n * 100) / 100).toFixed(2);
@@ -72,6 +124,173 @@ function calcBuscTransf(b) {
   const comision = ganancia > 0 ? 0.20 * ganancia : 0;
   return { ganancia: ganancia, comision: comision, neto: ganancia - comision, eqp: (b.libro / b.salida - 1) * 100 };
 }
+// ---------- SINCRONIZACION DE TARIFA (v15) ----------
+// === SYNC-CORE-BEGIN === (logica pura: el banco la extrae y la prueba)
+// Numero util (> 0) o null. Vacio, cero o texto = null = SIN TARIFA:
+// jamas se convierte en un numero inventado.
+function numONull(v) {
+  if (v === null || v === undefined || v === "") return null;
+  const n = Number(v);
+  return isNaN(n) || n <= 0 ? null : n;
+}
+// Decide, campo a campo (salida / costo), que hacer con la tarifa:
+//   local     = lo que hay en este iPhone ahora
+//   server    = la tarifa viva del sistema (null = el sistema no tiene)
+//   snap      = ultima foto confirmada en sync (null = primera vez)
+//   pendiente = lo que Ernesto TECLEO aqui y aun no se confirmo arriba
+// Reglas: lo tecleado sube; si el sistema no tiene el dato, lo de aqui
+// lo completa (relleno); si cambio el sistema, baja; vacio local =
+// campo fuera de sync (no se sube, no se pisa); conflicto sin tecleo
+// local: manda el sistema (es la fuente compartida).
+function resolverTarifa(local, server, snap, pendiente) {
+  const res = { aplicar: {}, subir: {}, yaIgual: {}, confirmado: {} };
+  const campos = ["salida", "costo"];
+  for (let i = 0; i < campos.length; i++) {
+    const c = campos[i];
+    const lv = numONull(local ? local[c] : null);
+    const sv = numONull(server ? server[c] : null);
+    const pv = snap ? numONull(snap[c]) : undefined;
+    const pend = pendiente && pendiente[c] ? numONull(pendiente[c].valor) : null;
+    if (pend !== null) {
+      if (sv === pend) res.confirmado[c] = pend; else res.subir[c] = pend;
+      continue;
+    }
+    if (lv === null) continue;
+    if (sv === null) { res.subir[c] = lv; continue; }
+    if (lv === sv) { res.yaIgual[c] = sv; continue; }
+    if (pv === undefined) { res.aplicar[c] = sv; continue; }
+    if (lv === pv) { res.aplicar[c] = sv; continue; }
+    if (sv === pv) { res.subir[c] = lv; continue; }
+    res.aplicar[c] = sv;
+  }
+  return res;
+}
+// === SYNC-CORE-END ===
+
+const SUPA_URL = "https://otsudfgwpapkluusrlnj.supabase.co";
+const SUPA_PKEY = "sb_publishable_Uchl5QnojJkZbXR5ar8vDg_5CXnqi_d";
+const KC_CODIGO = "calcPRO_codigo_admin";
+
+async function rpcTarifa(nombre, cuerpo, timeoutSeg) {
+  const req = new Request(SUPA_URL + "/rest/v1/rpc/" + nombre);
+  req.method = "POST";
+  req.headers = { "apikey": SUPA_PKEY, "Content-Type": "application/json" };
+  req.body = JSON.stringify(cuerpo || {});
+  req.timeoutInterval = timeoutSeg || 3;
+  const r = await req.loadJSON();
+  if (r && r.message) throw new Error(r.message);
+  return r;
+}
+async function leerTarifaRemota(timeoutSeg) {
+  const r = await rpcTarifa("leer_tarifa", {}, timeoutSeg);
+  if (!r || r.ok !== true) throw new Error("sin tarifa en el sistema");
+  return {
+    salida: r.salida_ref === null || r.salida_ref === undefined ? null : Number(r.salida_ref),
+    costo: r.costo_ref360 === null || r.costo_ref360 === undefined ? null : Number(r.costo_ref360)
+  };
+}
+async function subirTarifaRemota(codigo, cambios, timeoutSeg) {
+  const r = await rpcTarifa("calc_sincronizar_tarifa", {
+    p_codigo: codigo,
+    p_salida: cambios.salida === undefined ? null : cambios.salida,
+    p_costo: cambios.costo === undefined ? null : cambios.costo
+  }, timeoutSeg);
+  if (!r || r.ok !== true) throw new Error("subida rechazada");
+  return r;
+}
+async function pedirCodigo() {
+  const a = new Alert();
+  a.title = "Sincronizar tu tarifa";
+  a.message = "Escribe tu codigo de dueno (el mismo de Mi Negocio). Se guarda SOLO en tu iPhone y sirve pa que la salida y el costo que tecleas aqui queden guardados en todo tu sistema.";
+  a.addSecureTextField("Codigo de dueno");
+  a.addAction("Guardar");
+  a.addCancelAction("Ahora no");
+  const r = await a.present();
+  if (r === -1) return null;
+  const v = (a.textFieldValue(0) || "").trim();
+  if (!v) return null;
+  Keychain.set(KC_CODIGO, v);
+  return v;
+}
+// Una pasada de sincronizacion completa. Muta d (aplica lo que baja,
+// anota lo que sube) y persiste. NUNCA lanza: sin red devuelve el
+// estado y la app sigue con su ultima tarifa guardada.
+async function sincronizarTarifa(d, opciones) {
+  const puedePreguntar = !!(opciones && opciones.preguntar);
+  const timeoutSeg = (opciones && opciones.timeout) || 3;
+  if (!d.sync || typeof d.sync !== "object") d.sync = metaSyncVacia();
+  if (!d.sync.pendiente) d.sync.pendiente = {};
+  const meta = d.sync;
+  let remota = null;
+  try { remota = await leerTarifaRemota(timeoutSeg); } catch (e) { remota = null; }
+  if (!remota) {
+    meta.ultimo = { estado: Object.keys(meta.pendiente).length ? "pendiente" : "sin-conexion", en: new Date().toISOString() };
+    saveData(d);
+    return meta.ultimo.estado;
+  }
+  const r = resolverTarifa({ salida: d.saldo.salida, costo: d.saldo.costo }, remota, meta.snap, meta.pendiente);
+  const campos = ["salida", "costo"];
+  for (let i = 0; i < campos.length; i++) {
+    const c = campos[i];
+    if (r.aplicar[c] !== undefined) { d.saldo[c] = r.aplicar[c]; if (!meta.snap) meta.snap = {}; meta.snap[c] = r.aplicar[c]; }
+    if (r.yaIgual[c] !== undefined) { if (!meta.snap) meta.snap = {}; meta.snap[c] = r.yaIgual[c]; }
+    if (r.confirmado[c] !== undefined) { delete meta.pendiente[c]; if (!meta.snap) meta.snap = {}; meta.snap[c] = r.confirmado[c]; }
+  }
+  let estado = "sincronizado";
+  const clavesSubir = Object.keys(r.subir);
+  if (clavesSubir.length) {
+    let codigo = Keychain.contains(KC_CODIGO) ? Keychain.get(KC_CODIGO) : null;
+    if (!codigo && puedePreguntar) codigo = await pedirCodigo();
+    if (!codigo) {
+      for (let i = 0; i < clavesSubir.length; i++) {
+        const c = clavesSubir[i];
+        if (!meta.pendiente[c]) meta.pendiente[c] = { valor: r.subir[c], en: new Date().toISOString() };
+      }
+      estado = "falta-codigo";
+    } else {
+      try {
+        await subirTarifaRemota(codigo, r.subir, timeoutSeg);
+        for (let i = 0; i < clavesSubir.length; i++) {
+          const c = clavesSubir[i];
+          delete meta.pendiente[c];
+          if (!meta.snap) meta.snap = {};
+          meta.snap[c] = r.subir[c];
+        }
+      } catch (e) {
+        for (let i = 0; i < clavesSubir.length; i++) {
+          const c = clavesSubir[i];
+          if (!meta.pendiente[c]) meta.pendiente[c] = { valor: r.subir[c], en: new Date().toISOString() };
+        }
+        const msg = "" + (e && e.message ? e.message : e);
+        estado = msg.indexOf("codigo admin") >= 0 ? "codigo-invalido" : "pendiente";
+        if (estado === "codigo-invalido" && Keychain.contains(KC_CODIGO)) Keychain.remove(KC_CODIGO);
+      }
+    }
+  }
+  meta.ultimo = { estado: estado, en: new Date().toISOString() };
+  saveData(d);
+  return estado;
+}
+function horaCorta(iso) {
+  try {
+    const f = new Date(iso);
+    let h = f.getHours(); const m = f.getMinutes();
+    const ap = h >= 12 ? "p. m." : "a. m.";
+    h = h % 12; if (h === 0) h = 12;
+    return h + ":" + (m < 10 ? "0" + m : m) + " " + ap;
+  } catch (e) { return ""; }
+}
+function textoEstadoSync(d) {
+  const u = d && d.sync ? d.sync.ultimo : null;
+  if (!u) return "\u{1F4F4} Sin conexion — trabajando con tu ultima tarifa guardada";
+  const hora = u.en ? horaCorta(u.en) : "";
+  if (u.estado === "sincronizado") return "\u{2601}\u{FE0F} Tarifa sincronizada con tu sistema" + (hora ? " · " + hora : "");
+  if (u.estado === "pendiente") return "\u{23F3} Tu tarifa se sube sola cuando haya conexion";
+  if (u.estado === "falta-codigo") return "\u{1F511} Tu tarifa se sube con tu codigo de Mi Negocio (se pide una sola vez)";
+  if (u.estado === "codigo-invalido") return "\u{1F511} El codigo guardado no coincidio — se te pedira de nuevo";
+  return "\u{1F4F4} Sin conexion — trabajando con tu ultima tarifa guardada";
+}
+
 // ---------- WIDGET ----------
 function buildWidget(d) {
   const w = new ListWidget();
@@ -300,7 +519,7 @@ function buildHTML(d) {
     <div class="btn copy" onclick="copiar()">📋 Copiar resultado</div>
     <div class="btn" onclick="salir()">❌ Salir</div>
   </div>
-  <div class="foot">Tus datos se guardan solos en tu iPhone 💾 · Hecha por Máximo · v14</div>
+  <div class="foot"><span id="syncFoot">${textoEstadoSync(d)}</span><br>Tus datos se guardan solos en tu iPhone 💾 · Hecha por Máximo · v15</div>
 </div>
 
 <div id="pad">
@@ -336,7 +555,16 @@ function collect(){
   };
 }
 let saveTimer = null;
+let fotoInicial = null;
+let pieEditado = false;
 function autosave(){
+  const ahora = JSON.stringify(collect());
+  if (fotoInicial === null) { fotoInicial = ahora; }
+  else if (ahora !== fotoInicial && !pieEditado) {
+    pieEditado = true;
+    const f = document.getElementById("syncFoot");
+    if (f) f.textContent = "✏️ Cambios guardados en tu iPhone · tu tarifa se sube sola al sistema";
+  }
   clearTimeout(saveTimer);
   saveTimer = setTimeout(function(){
     window.location.href = "ernesto://save?d=" + encodeURIComponent(JSON.stringify(collect()));
@@ -442,9 +670,13 @@ render();
 }
 
 // ---------- MAIN ----------
-const data = loadData();
+const data = await loadData();
 const qp = (typeof args !== "undefined" && args.queryParameters) || {};
 if (config.runsInWidget) {
+  // El widget tambien sincroniza (sin preguntar nada): baja la tarifa
+  // del sistema y sube lo que Ernesto tecleo si su codigo ya vive en
+  // el Keychain. Si algo falla, pinta con los datos guardados.
+  try { await sincronizarTarifa(data, { preguntar: false, timeout: 2 }); } catch (e) {}
   Script.setWidget(buildWidget(data));
   Script.complete();
 } else if (!config.runsInApp && qp.full !== "1") {
@@ -454,6 +686,8 @@ if (config.runsInWidget) {
   await Safari.open(selfURL);
   Script.complete();
 } else {
+  // Sync ANTES de pintar: la pantalla nace con la tarifa del sistema.
+  try { await sincronizarTarifa(data, { preguntar: true, timeout: 3 }); } catch (e) {}
   const wv = new WebView();
   wv.shouldAllowRequest = (req) => {
     const url = req.url || "";
@@ -461,7 +695,7 @@ if (config.runsInWidget) {
       try {
         const q = url.split("?d=")[1];
         const payload = q ? JSON.parse(decodeURIComponent(q)) : {};
-        if (url.indexOf("ernesto://save") === 0) saveData(payload);
+        if (url.indexOf("ernesto://save") === 0) saveSecciones(data, payload);
         if (url.indexOf("ernesto://copy") === 0 && payload.text) Pasteboard.copyString(payload.text);
         if (url.indexOf("ernesto://exit") === 0) Script.complete();
       } catch (e) {}
