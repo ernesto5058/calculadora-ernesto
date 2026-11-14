@@ -112,7 +112,8 @@ function depsMock(sobre = {}) {
   ok(p.type === "sell" && p.coin === "ETECSA", "feliz: tipo clonado de su oferta y moneda ETECSA");
   ok(p.amount === 40 && p.receive === 12760, "feliz: $40 QUSD a 319 = recibe 12 760 saldo");
   ok(p.idempotency_key === ACCION.id, "feliz: idempotency_key = id de la acción");
-  ok(p.requirements.min_completed === 25 && p.requirements.min_rating === 4.5, "feliz: requisitos nativos ≥25 ops y ≥4,5★");
+  ok(p.requirements === null && p.message === null && p.offer_kind === null,
+    "feliz: la forma sale de la BASE (su oferta no trae requirements/mensaje/tipo: null — jamás los fijos {25 ops, 4,5★} ajenos a su oferta real)");
   ok(Array.isArray(p.details) && p.details[0].telefono === "51231558", "feliz: details clonados de SU oferta (nunca inventados)");
   ok(estado.accion.estado === "ejecutada" && estado.accion.oferta_uuid === "oferta-nueva-1", "feliz: la bitácora queda «ejecutada» con el uuid");
   cerca(r.ganancia360, 43.89, 0.011, "feliz: la ganancia devuelta es la del collar (+43,89)");
@@ -228,9 +229,11 @@ function depsMock(sobre = {}) {
   const r2 = await T.ejecutarAccion(d2, ACCION.id);
   ok(r2.ok === true && l2.crear.length === 1 && l2.crear[0].type === "sell", "blindaje: el payload es «sell» SIEMPRE, aunque la config diga «buy»");
 }
-/* detalles_desconocidos (fase 2, 2026-11-12): la negación registra
-   la FORMA observada de «details» (tipos y claves, jamás valores)
-   pa discriminar la causa con el próximo toque real */
+/* detalles: la FORMA se registra en las negaciones (tipos y claves,
+   jamás valores) pa discriminar la causa. Y desde la reparación del
+   2026-11-14, los «details» como OBJETO — la forma REAL de QvaPay —
+   se ACEPTAN: la puerta vieja exigía array y negaba SIEMPRE con
+   detalles_desconocidos (la doble rotura de la puerta de subida) */
 {
   const formaObj = T.formaDe({ telefono: "x", banco: "y" });
   ok(formaObj.tipo === "objeto" && formaObj.claves.join(",") === "banco,telefono" && !JSON.stringify(formaObj).includes("x"),
@@ -242,10 +245,14 @@ function depsMock(sobre = {}) {
   const conObjeto = { ...OFERTA_BASE, details: { telefono: "51231558" } };
   const { deps, llamadas, estado } = depsMock({ fresco: { equilibrado: 319, misOfertas: [conObjeto] } });
   const r = await T.ejecutarAccion(deps, ACCION.id);
-  ok(r.codigo === "detalles_desconocidos" && llamadas.crear.length === 0, "detalles como OBJETO: se niega igual que antes");
-  ok(estado.accion.detalle?.forma_details?.tipo === "objeto" && estado.accion.detalle.forma_details.claves.includes("telefono")
+  ok(r.ok === true && llamadas.crear.length === 1
+    && llamadas.crear[0].details && llamadas.crear[0].details.telefono === "51231558"
+    && !Array.isArray(llamadas.crear[0].details),
+    "detalles como OBJETO (la forma real de QvaPay): se ACEPTAN y van tal cual en el payload");
+  ok(estado.accion.estado === "ejecutada" && estado.accion.detalle?.base_fuente === "oferta_viva"
+    && estado.accion.detalle?.payload?.forma_details?.tipo === "objeto"
     && !JSON.stringify(estado.accion.detalle).includes("51231558"),
-    "detalles como objeto: la bitácora guarda la forma (objeto + claves) y ni un valor");
+    "detalles como objeto: la bitácora registra base «oferta_viva» y la FORMA (objeto + claves), ni un valor");
   const sinDetalles = { uuid: "sin-det", type: "sell", amount: "30", receive: "9600" };
   const { deps: d2, estado: e2 } = depsMock({ fresco: { equilibrado: 319, misOfertas: [sinDetalles] } });
   const r2 = await T.ejecutarAccion(d2, ACCION.id);
