@@ -1,6 +1,6 @@
 {
-  "actualizado": "2026-11-12T21:15:49Z",
-  "apkUrl": "https://github.com/ernesto5058/calculadora-ernesto/releases/download/apk-v1.5.6/Mi-Trabajo-v1.5.6.apk",
+  "actualizado": "2026-11-14T17:15:05Z",
+  "apkUrl": "https://github.com/ernesto5058/calculadora-ernesto/releases/download/apk-v1.6.0/Mi-Trabajo-v1.6.0.apk",
   "publico": {
     "domicilio": "Domicilio gratis en Santiago de Cuba",
     "saldo": {
@@ -24,6 +24,6 @@
     "pisoTransf": 25,
     "salidaRef": 950
   },
-  "version": 6,
-  "versionApp": "1.5.6"
+  "version": 7,
+  "versionApp": "1.6.0"
 }
