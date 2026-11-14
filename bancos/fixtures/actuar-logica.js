@@ -76,13 +76,16 @@ export function gananciaActuar(R, salida, costo) {
   return Math.round(((360 / r) * s - c) * 100) / 100;
 }
 
-// Del libro de VENTA crudo: la menor tasa válida (sin trampa ≥2500,
-// sin las del propio Ernesto) y el peldaño Equilibrado que saldría
-// ahora = min(topVenta, equilibrio − colchón). Es la doble lectura.
+// Del libro de VENTA crudo: la CIMA FIRME (sin trampa ≥2500, sin
+// las del propio Ernesto, sin niveles aislados de libro sucio —
+// paridad con cimaVentaFirme de logica.js del lector, 2026-11-14:
+// una sola oferta a 279,07 con el mercado en 305+ no es la cima)
+// y el peldaño Equilibrado que saldría ahora = min(cima firme,
+// equilibrio − colchón). Es la doble lectura.
 export function equilibradoDe(ventas, eq) {
   const e = numA(eq);
   if (e === null) return null;
-  let top = null;
+  const niveles = [];
   for (const o of ventas || []) {
     if (!o || typeof o !== "object") continue;
     const monto = numA(o.amount), recibe = numA(o.receive);
@@ -90,9 +93,33 @@ export function equilibradoDe(ventas, eq) {
     if (r === null && monto !== null && recibe !== null && monto > 0) r = recibe / monto;
     if (r === null || r <= 0 || r >= 2500) continue;
     if (o.mine === true) continue;
-    if (top === null || r < top) top = r;
+    const flex = numA(o.available_amount);
+    niveles.push({ r, usd: flex !== null ? flex : (monto ?? 0) });
   }
-  if (top === null) return null;
+  if (!niveles.length) return null;
+  niveles.sort((a, b) => a.r - b.r);
+  let top = niveles[0].r;
+  // Promedio robusto pa la prueba de aislamiento: solo niveles
+  // hasta 1,3× la cima. Sin esto, un nivel-trampa altísimo (1300)
+  // infla el promedio y TODO el fondo parece «aislado» — el
+  // promedio debe mirar el centro del mercado cerca de la cima.
+  const cerca = niveles.filter((n) => n.r <= niveles[0].r * 1.3);
+  const totUsd = cerca.reduce((s, n) => s + n.usd, 0);
+  const prom = totUsd > 0
+    ? cerca.reduce((s, n) => s + n.r * n.usd, 0) / totUsd : null;
+  if (prom !== null) {
+    let acum = 0, respaldo = null;
+    for (let i = 0; i < niveles.length; i++) {
+      const sig = i + 1 < niveles.length ? niveles[i + 1].r : null;
+      const aislado = niveles[i].r < prom * 0.97
+        && (sig === null || sig > niveles[i].r * 1.02);
+      if (aislado) continue;
+      respaldo = niveles[i].r;
+      acum += niveles[i].usd;
+      if (acum >= 20) { top = niveles[i].r; respaldo = null; break; }
+    }
+    if (respaldo !== null) top = respaldo;
+  }
   return Math.round(Math.min(top, e - COLCHON_SALDO) * 100) / 100;
 }
 
@@ -364,7 +391,21 @@ export async function ejecutarAccion(deps, accionId) {
      requirements null y offer_kind «fixed» — nada de valores fijos
      inventados (la puerta vieja imponía {25 ops, 4,5★} ajenos). */
   const tasa = numA(accion.tasa);
-  const receive = Math.round(monto * tasa * 100) / 100;
+  const receiveDerivado = Math.round(monto * tasa * 100) / 100;
+  // RECIBE DEL SALDO (2026-11-14, lección de Ernesto): si la
+  // preparada trae el receive en su contexto — guia_calc_asesor lo
+  // calcula DESDE el vendible (entero declarado) — ese manda y la
+  // puerta NO lo re-deriva: re-derivarlo recortaba el saldo
+  // (15.545 → 15.543,75 el 2026-11-14). Sanidad: la tasa efectiva
+  // resultante debe quedar a ≤2 % de la nominal; si el contexto no
+  // trae receive (acciones viejas u otras vías), se deriva como
+  // siempre. La tasa efectiva queda en la bitácora.
+  const receiveGuardado = numA(accion.contexto?.receive);
+  const receive = (receiveGuardado !== null && receiveGuardado > 0
+      && tasa !== null && tasa > 0 && monto > 0
+      && Math.abs(receiveGuardado / monto - tasa) / tasa <= 0.02)
+    ? receiveGuardado : receiveDerivado;
+  const tasaEfectiva = Math.round((receive / monto) * 10000) / 10000;
   const payload = {
     type: "sell", coin: "ETECSA",
     amount: monto, receive, details: basePago.details,
@@ -375,12 +416,19 @@ export async function ejecutarAccion(deps, accionId) {
     order_max: basePago.order_max,
     idempotency_key: String(accion.id),
   };
-  let resp = null, incierto = false;
-  try { resp = await deps.crearOferta(payload); } catch { incierto = true; }
+  let resp = null, incierto = false, excepcion = null;
+  try { resp = await deps.crearOferta(payload); }
+  catch (e) {
+    incierto = true;
+    excepcion = {
+      nombre: (e && e.name) ? String(e.name) : "Error",
+      mensaje: String((e && e.message) ?? e).slice(0, 160),
+    };
+  }
   if (!incierto && resp && resp.ok) {
     await deps.guardarAccion(accionId, {
       estado: "ejecutada", resuelta_en: deps.ahoraIso(), oferta_uuid: resp.uuid ?? null,
-      detalle: conExencion({ ganancia360: g, base_fuente: baseFuente, payload: payloadBitacora(payload), respuesta: resp.crudo ?? null }),
+      detalle: conExencion({ ganancia360: g, base_fuente: baseFuente, receive, tasa_efectiva: tasaEfectiva, payload: payloadBitacora(payload), respuesta: resp.crudo ?? null }),
     });
     await deps.reiniciarFallos();
     return { ok: true, accion_id: accionId, oferta_uuid: resp.uuid ?? null, tasa, monto_qusd: monto, ganancia360: g };
@@ -398,27 +446,52 @@ export async function ejecutarAccion(deps, accionId) {
     };
   }
   if (incierto || (resp && resp.incierto)) {
-    /* Resultado desconocido: reconciliar, jamás reintentar a ciegas. */
+    /* Resultado desconocido: reconciliar, jamás reintentar a
+       ciegas — y CLASIFICAR HONESTO (2026-11-14): dos subidas
+       reales murieron aquí sin que la bitácora dijera si fue
+       timeout, un 5xx de QvaPay o la red. La causa real (nombre de
+       la excepción o estado HTTP + extracto del cuerpo, jamás
+       datos de pago) queda escrita pa que la próxima vez se sepa. */
+    const causa = excepcion
+      ? (excepcion.nombre === "TimeoutError" || excepcion.nombre === "AbortError"
+          ? "timeout" : "red")
+      : (resp?.causa || "sin_confirmar");
     const ahora = await deps.misOfertasAhora();
+    const tolReceive = Math.max(0.6, receive * 0.001);
     const hallada = (ahora || []).find((o) =>
-      Math.abs(numA(o.amount) - monto) < 0.001 && Math.abs(numA(o.receive) - receive) < 0.01);
+      o && o.type === "sell"
+      && Math.abs(numA(o.amount) - monto) <= 0.01
+      && Math.abs(numA(o.receive) - receive) <= tolReceive);
     if (hallada) {
       await deps.guardarAccion(accionId, {
         estado: "ejecutada", resuelta_en: deps.ahoraIso(), oferta_uuid: hallada.uuid ?? null,
-        detalle: conExencion({ ganancia360: g, base_fuente: baseFuente, payload: payloadBitacora(payload), reconciliada: true }),
+        detalle: conExencion({ ganancia360: g, base_fuente: baseFuente, receive, tasa_efectiva: tasaEfectiva, payload: payloadBitacora(payload), reconciliada: true }),
       });
       await deps.reiniciarFallos();
       return { ok: true, accion_id: accionId, oferta_uuid: hallada.uuid ?? null, tasa, monto_qusd: monto, ganancia360: g, reconciliada: true };
     }
     await deps.guardarAccion(accionId, {
       estado: "error", resuelta_en: deps.ahoraIso(),
-      detalle: conExencion({ error_api: "resultado_desconocido", payload: payloadBitacora(payload) }),
+      detalle: conExencion({
+        error_api: "resultado_desconocido", causa,
+        http_status: resp?.http_status ?? null,
+        cuerpo: resp?.cuerpo ?? null,
+        excepcion,
+        payload: payloadBitacora(payload),
+      }),
     });
     const n = await deps.sumarFallo();
     if (n >= FALLOS_PARA_PAUSA) await deps.fijarPausa("Tres fallos seguidos en la puerta de acción.");
+    const causaTxt = causa === "timeout"
+      ? "QvaPay no respondió a tiempo (timeout en la creación)"
+      : causa === "http_5xx"
+        ? `QvaPay devolvió un error de servidor (HTTP ${resp?.http_status ?? "5xx"})`
+        : causa === "red"
+          ? `la llamada a QvaPay falló en la red (${excepcion?.nombre || "error"})`
+          : "QvaPay no confirmó la creación";
     return {
-      ...base, codigo: "resultado_desconocido",
-      motivo: "La respuesta de QvaPay no llegó y la oferta no aparece entre las tuyas: no se reintenta a ciegas. Revisa tu QvaPay antes de tocar nada más.",
+      ...base, codigo: "resultado_desconocido", causa,
+      motivo: `${causaTxt} y la oferta no aparece entre las tuyas: no se reintenta a ciegas. Revisa tu QvaPay antes de tocar nada más.`,
     };
   }
   /* Error de API con código: queda en bitácora y suma al freno. */
