@@ -1,0 +1,113 @@
+name: Tienda Máximo — build
+
+on:
+  workflow_dispatch:
+    inputs:
+      sidestore_ref:
+        description: "Commit de SideStore a compilar (Ruta 2)"
+        required: false
+        default: "4f3d18d98c5fbee72c80f787ceb2e8e09ded60a6"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tienda-maximo
+  cancel-in-progress: false
+
+jobs:
+  ruta1-spike:
+    name: Ruta 1 — cáscara propia (spike)
+    runs-on: macos-26
+    timeout-minutes: 60
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - name: Instalar XcodeGen
+        run: brew install xcodegen
+      - name: Generar proyecto
+        working-directory: tienda-maximo/spike
+        run: xcodegen generate
+      - name: Compilar cáscara (sin firmar)
+        working-directory: tienda-maximo/spike
+        run: |
+          set -o pipefail
+          xcodebuild build -project TiendaMaximo.xcodeproj -scheme TiendaMaximo \
+            -sdk iphoneos -configuration Release \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO \
+            -derivedDataPath build 2>&1 | tee build.log | tail -60
+      - name: Subir log del spike
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ruta1-spike-log
+          path: tienda-maximo/spike/build.log
+          if-no-files-found: ignore
+
+  tienda-maximo:
+    name: Tienda Máximo — IPA (desde fuente)
+    runs-on: macos-26
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Clonar SideStore (fuente, commit fijado)
+        run: |
+          git init ss && cd ss
+          git remote add origin https://github.com/SideStore/SideStore.git
+          git fetch --depth 1 origin "${{ inputs.sidestore_ref }}"
+          git checkout FETCH_HEAD
+          git submodule update --init --recursive --depth 1 || git submodule update --init --recursive
+          git rev-parse HEAD
+
+      - name: Instalar ldid
+        run: brew install ldid
+
+      - name: Aplicar nuestra marca (rebrand)
+        run: bash tienda-maximo/rebrand.sh ss
+
+      - name: Compilar (archive, sin firmar)
+        working-directory: ss
+        run: |
+          set -o pipefail
+          xcodebuild archive -archivePath ./SideStore \
+            -project AltStore.xcodeproj -scheme SideStore -sdk iphoneos \
+            -configuration Release \
+            CODE_SIGNING_REQUIRED=NO AD_HOC_CODE_SIGNING_ALLOWED=YES CODE_SIGNING_ALLOWED=NO \
+            DEVELOPMENT_TEAM=XYZ0123456 MARKETING_VERSION=1.0.0 \
+            2>&1 | tee ../build.log | tail -40
+
+      - name: Fakesign (entitlements) + nombre visible
+        working-directory: ss
+        run: |
+          make fakesign
+          APP=SideStore.xcarchive/Products/Applications/SideStore.app
+          /usr/libexec/PlistBuddy -c 'Add :CFBundleDisplayName string Tienda Máximo' "$APP/Info.plist" \
+            || /usr/libexec/PlistBuddy -c 'Set :CFBundleDisplayName Tienda Máximo' "$APP/Info.plist"
+          /usr/libexec/PlistBuddy -c 'Print :CFBundleDisplayName' "$APP/Info.plist"
+
+      - name: Empaquetar IPA + sha256
+        working-directory: ss
+        run: |
+          rm -rf Payload TiendaMaximo.ipa
+          mkdir -p Payload
+          cp -R SideStore.xcarchive/Products/Applications/SideStore.app Payload/
+          zip -qry TiendaMaximo.ipa Payload
+          shasum -a 256 TiendaMaximo.ipa | tee ../TiendaMaximo.ipa.sha256
+          ls -lh TiendaMaximo.ipa
+
+      - name: Subir artefacto
+        uses: actions/upload-artifact@v4
+        with:
+          name: TiendaMaximo-ipa
+          path: |
+            ss/TiendaMaximo.ipa
+            TiendaMaximo.ipa.sha256
+
+      - name: Subir log si falla
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tienda-build-log
+          path: build.log
+          if-no-files-found: ignore
