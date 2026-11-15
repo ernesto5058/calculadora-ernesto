@@ -232,7 +232,7 @@ class MainActivity : Activity() {
         sondaButton = secondaryButton("Sonda asistida: emparejar con la página WebUSB") { openWebUsbProbe() }
         root.addView(
             sondaButton,
-            LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(50)).apply {
+            LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
                 topMargin = dp(10)
             }
         )
@@ -293,8 +293,8 @@ class MainActivity : Activity() {
         }
         sharePairingButton = secondaryButton("Compartir el registro de pairing") { sharePairing() }
         shareLogButton = secondaryButton("Compartir el registro de etapas") { shareLog() }
-        row.addView(sharePairingButton, LinearLayout.LayoutParams(0, dp(50), 1f).apply { rightMargin = dp(6) })
-        row.addView(shareLogButton, LinearLayout.LayoutParams(0, dp(50), 1f).apply { leftMargin = dp(6) })
+        row.addView(sharePairingButton, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { rightMargin = dp(6) })
+        row.addView(shareLogButton, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { leftMargin = dp(6) })
         root.addView(row)
 
         // Ruta 3 (multi-ruta): un pairing nacido en otra vía — la página WebUSB,
@@ -302,7 +302,7 @@ class MainActivity : Activity() {
         val importButton = secondaryButton("Importar un registro nacido en otra vía") { importPairing() }
         root.addView(
             importButton,
-            LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(50)).apply {
+            LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
                 topMargin = dp(10)
             }
         )
@@ -325,6 +325,11 @@ class MainActivity : Activity() {
             this.text = text
             textSize = 13f
             isAllCaps = false
+            // Altura automática (v1.1): la altura fija de 50dp cortaba la segunda
+            // línea de los textos largos y la solapaba con el contenido de abajo.
+            // minimumHeight conserva el tamaño de una línea; si el texto envuelve
+            // a dos, el botón crece en vez de encimar.
+            minimumHeight = dp(50)
             setTextColor(ink)
             background = GradientDrawable().apply {
                 setColor(surface)
