@@ -19,6 +19,12 @@ name: Ojo Android ARM
 #    pero la única que el runner permite) y con espera de arranque propia
 #    de 25 min — la acción android-emulator-runner abandona a los ~10 min
 #    y no deja alargarla.
+# 3. El binario del emulador se invoca por RUTA ABSOLUTA
+#    ($ANDROID_HOME/emulator/emulator): por PATH resolvió su casa relativo
+#    al directorio de trabajo y murió al instante buscando un qemu
+#    darwin-x86_64 inexistente, dejando el paso colgado en
+#    «adb wait-for-device» hasta el timeout del job (corrida 43746023385).
+#    La espera va acotada y vigilando que el proceso siga vivo.
 # Costo: repo público, $0. Se despacha UNA vez y se espera: nada de
 # re-despachos en ráfaga.
 
@@ -158,22 +164,26 @@ jobs:
           PKG_OJO: ${{ inputs.paquete }}
           ASSET_OJO: ${{ inputs.asset }}
         run: |
-          export PATH="$PATH:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/emulator:$ANDROID_HOME/platform-tools"
+          export PATH="$ANDROID_HOME/platform-tools:$ANDROID_HOME/emulator:$ANDROID_HOME/cmdline-tools/latest/bin:$PATH"
           yes | sdkmanager --licenses > /dev/null 2>&1 || true
           sdkmanager --install 'build-tools;37.0.0' platform-tools 'platforms;android-34' > /dev/null
           sdkmanager --install emulator --channel=0 > /dev/null
           sdkmanager --install 'system-images;android-34;default;arm64-v8a' --channel=0 > /dev/null
           echo no | avdmanager create avd --force -n test --package 'system-images;android-34;default;arm64-v8a' --device 'pixel_6'
           printf 'hw.cpu.ncore=3\n' >> "$HOME/.android/avd/test.avd/config.ini"
+          echo "Host: $(uname -m) · qemu disponibles:"; ls "$ANDROID_HOME/emulator/qemu" || true
           # Sin HVF (el runner no expone virtualización anidada): TCG puro.
-          nohup emulator -port 5554 -avd test -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -memory 2048 -no-snapshot-save -accel off > "$GITHUB_WORKSPACE/emulator.log" 2>&1 &
-          echo "Emulador lanzado (pid $!); esperando el arranque (tope 25 min, TCG)…"
-          adb wait-for-device
+          # Ruta ABSOLUTA: por PATH el lanzador resuelve mal su casa (lección 3).
+          nohup "$ANDROID_HOME/emulator/emulator" -port 5554 -avd test -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -memory 2048 -no-snapshot-save -accel off > "$GITHUB_WORKSPACE/emulator.log" 2>&1 &
+          echo "Emulador lanzado (pid $!); primeras líneas de su registro:"
+          sleep 10; tail -5 "$GITHUB_WORKSPACE/emulator.log" || true
+          echo "Esperando el arranque (tope 25 min, TCG)…"
           BOOT=""
-          for i in $(seq 1 100); do
+          DEADLINE=$((SECONDS + 1500))
+          while [ $SECONDS -lt $DEADLINE ]; do
+            if ! pgrep -f "avd test" > /dev/null; then echo "El proceso del emulador MURIÓ:"; tail -20 "$GITHUB_WORKSPACE/emulator.log"; exit 1; fi
             BOOT=$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')
-            if [ "$BOOT" = "1" ]; then echo "Arranque completo en el intento $i"; break; fi
-            if ! pgrep -f "emulator -port 5554" > /dev/null; then echo "El proceso del emulador MURIÓ:"; tail -20 "$GITHUB_WORKSPACE/emulator.log"; exit 1; fi
+            if [ "$BOOT" = "1" ]; then echo "Arranque completo"; break; fi
             sleep 15
           done
           if [ "$BOOT" != "1" ]; then echo "El emulador no terminó de arrancar en 25 min:"; tail -20 "$GITHUB_WORKSPACE/emulator.log"; exit 1; fi
