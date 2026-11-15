@@ -79,22 +79,29 @@ pub fn run_pair(fd: i32, serial_hint: &str) -> Result<String, StageErr> {
         "ETAPA configuracion: configuración activa = {}, objetivo = {}",
         active, target.config_value
     ));
-    if active != target.config_value {
-        stage("ETAPA configuracion: pidiendo SET_CONFIGURATION (aquí murió el intento de Termux con LIBUSB_ERROR_BUSY)…");
-        match transport.set_configuration(target.config_value) {
-            Ok(()) => stage("ETAPA configuracion: SET_CONFIGURATION OK"),
-            Err(e) => {
-                return Err(err(
-                    "configuracion",
-                    format!(
-                        "SET_CONFIGURATION({}) falló: {}. La configuración activa ({}) no contiene la interfaz mux.",
-                        target.config_value, e, active
-                    ),
-                ));
-            }
+    // SET_CONFIGURATION SIEMPRE, aunque la activa ya sea la del mux (v1.1, paridad
+    // con la demo WebUSB de upstream: `prepare_apple_usb` selecciona la
+    // configuración en CADA apertura). Fijarla reinicia la sesión mux del iPhone
+    // y vacía cualquier frame resto de una sesión anterior encolado en el extremo
+    // IN. La v1 se saltaba este paso si la activa ya era la del mux — y en la
+    // corrida viva del 2026-11-15 la 3 ya estaba activa: la sesión heredada le
+    // costó el saludo mux («got protocol 6»), mientras la página WebUSB, que sí
+    // fija la configuración, emparejó contra el mismo iPhone minutos después.
+    stage(&format!(
+        "ETAPA configuracion: fijando SET_CONFIGURATION({}) (la activa es {}) — reinicia la sesión mux del iPhone…",
+        target.config_value, active
+    ));
+    match transport.set_configuration(target.config_value) {
+        Ok(()) => stage("ETAPA configuracion: SET_CONFIGURATION OK"),
+        Err(e) => {
+            return Err(err(
+                "configuracion",
+                format!(
+                    "SET_CONFIGURATION({}) falló: {}. Sin fijar la configuración no se puede garantizar una sesión mux limpia.",
+                    target.config_value, e
+                ),
+            ));
         }
-    } else {
-        stage("ETAPA configuracion: la activa ya es la del mux; no hace falta SET_CONFIGURATION");
     }
 
     // ── Etapa: claim ──────────────────────────────────────────────────────────
