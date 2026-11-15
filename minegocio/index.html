@@ -71,7 +71,7 @@ button.off, .off { opacity:.45; pointer-events:none; }
 .bMini { width:auto; min-height:44px; padding:var(--e-2) var(--e-4); font-size:13px; margin:0; border-radius:var(--r-md); display:inline-flex; align-items:center; justify-content:center; }
 /* Navegación: rejilla compacta de accesos (icono de trazo + nombre),
    las 10 secciones visibles de un vistazo, sin óvalos gigantes. */
-.tabs { display:grid; grid-template-columns:repeat(4, 1fr); gap:var(--e-1); margin-bottom:var(--e-4); padding:var(--e-1); background:var(--glass); -webkit-backdrop-filter:blur(18px) saturate(1.4); backdrop-filter:blur(18px) saturate(1.4); border:1px solid var(--glass-borde); border-radius:var(--r-lg); }
+.tabs { display:grid; grid-template-columns:repeat(5, 1fr); gap:var(--e-1); margin-bottom:var(--e-4); padding:var(--e-1); background:var(--glass); -webkit-backdrop-filter:blur(18px) saturate(1.4); backdrop-filter:blur(18px) saturate(1.4); border:1px solid var(--glass-borde); border-radius:var(--r-lg); }
 .tab { width:auto; margin:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:var(--e-1); min-height:56px; padding:var(--e-2) 2px; border-radius:var(--r-md); background:transparent; border:1px solid transparent; font:600 11px var(--fuente); letter-spacing:.02em; color:var(--txt-2); cursor:pointer; position:relative; touch-action:manipulation; }
 .tab svg { width:24px; height:24px; fill:none; stroke:currentColor; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; }
 .tab span { white-space:nowrap; letter-spacing:-.01em; }
@@ -449,23 +449,39 @@ label { display:block; font:600 11px var(--fuente); letter-spacing:.07em; text-t
 #inHero .mut { letter-spacing:.1em; }
 .promoCard { border-color:var(--acento-borde); background:linear-gradient(180deg,rgba(45,212,191,.08),var(--bg-1)); }
 .promoCard .promoEstado { font:700 19px var(--fuente-num); font-variant-numeric:tabular-nums; margin-top:2px; }
-.termWrap { background:#07090D; border:1px solid var(--borde); border-radius:10px; padding:10px; margin-bottom:var(--e-2); }
-.termControles { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px; }
-.termChips { display:flex; background:#0A0E14; border:1px solid var(--borde); border-radius:8px; padding:3px; gap:3px; }
-.termChips button { flex:0 0 auto; width:auto; margin:0; padding:7px 12px; border:0; border-radius:6px; background:none; font:700 12.5px var(--fuente); color:var(--txt-2); cursor:pointer; min-height:36px; }
-.termChips button.on { background:var(--acento-suave); color:var(--acento); }
-.termCanvasBox { position:relative; background:#07090D; border:1px solid rgba(148,197,220,.08); border-radius:8px; overflow:hidden; }
+.termWrap { background:#07090D; border:1px solid var(--borde); border-radius:12px; padding:12px; margin-bottom:var(--e-2); }
+.termTopFila { display:flex; align-items:center; gap:8px; margin-bottom:8px; }
+.termPillActivo { display:inline-flex; align-items:center; gap:7px; width:auto; margin:0; padding:9px 16px; border-radius:var(--r-pildora); background:#0A0E14; border:1px solid rgba(232,184,75,.5); color:var(--txt-1); font:700 15px var(--fuente); letter-spacing:.03em; cursor:pointer; min-height:42px; }
+.termPillActivo .chev { color:var(--dorado); font-size:12px; }
+.termMarcoPills { display:flex; gap:6px; margin-bottom:10px; }
+.termMarcoPills button { flex:1; width:auto; margin:0; padding:10px 0; border:0; border-radius:10px; background:#131A24; font:700 14px var(--fuente); color:var(--txt-2); cursor:pointer; min-height:44px; }
+.termMarcoPills button.on { background:var(--dorado-grad); color:var(--txt-sobre-dorado); box-shadow:var(--sombra-dorada); }
+.termCanvasBox { position:relative; background:#07090D; border:1px solid rgba(148,197,220,.08); border-radius:10px; overflow:hidden; }
 .termCanvasBox canvas { display:block; width:100%; }
 .termSello { position:absolute; top:8px; right:8px; background:rgba(245,176,77,.16); border:1px solid rgba(245,176,77,.5); color:#F5B04D; font:700 11.5px var(--fuente); letter-spacing:.04em; padding:5px 9px; border-radius:6px; pointer-events:none; }
 .termNota { font:var(--t-nota); color:var(--txt-3); margin-top:6px; }
 .termPaneles { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:8px; }
 .termPanel { background:#0A0E14; border:1px solid rgba(148,197,220,.08); border-radius:8px; padding:8px; }
-.termPanel .k { font:var(--t-micro); text-transform:uppercase; letter-spacing:.08em; color:var(--txt-3); margin-bottom:6px; }
+.termPanel .k { font:700 12.5px var(--fuente); letter-spacing:.02em; color:var(--txt-2); margin-bottom:6px; display:flex; align-items:center; gap:6px; }
+.termPanel .k svg { width:15px; height:15px; fill:none; stroke:currentColor; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; }
+.termPanelOro .k { color:var(--dorado); }
+.termPanelTeal .k { color:#2DD4BF; }
 .termPanel canvas { display:block; width:100%; }
-.termPresion { display:flex; height:12px; border-radius:6px; overflow:hidden; background:#131A24; margin-top:2px; }
-.termPresion .pc { background:#2DD4BF; }
-.termPresion .pv { background:#F5B04D; }
-.termPresionTxt { display:flex; justify-content:space-between; font:600 11.5px var(--fuente-num); font-variant-numeric:tabular-nums; color:var(--txt-2); margin-top:5px; }
+.termPanel .termLeyenda { display:flex; gap:14px; font:600 11px var(--fuente); color:var(--txt-2); margin-top:5px; }
+.termLeyenda .pto { display:inline-block; width:7px; height:7px; border-radius:50%; margin-right:5px; }
+.termPresion { display:flex; height:10px; border-radius:5px; overflow:hidden; background:#131A24; margin-top:2px; }
+.termPresion .pc { background:var(--verde); }
+.termPresion .pv { background:#E5534B; }
+.termPresionTxt { display:flex; justify-content:space-between; font:600 12px var(--fuente-num); font-variant-numeric:tabular-nums; color:var(--txt-2); margin-top:5px; }
+.termPresionTxt .pcT { color:var(--verde); }
+.termPresionTxt .pvT { color:#E5534B; }
+.termInsight { background:linear-gradient(180deg, rgba(232,184,75,.08), #0A0E14); border:1px solid rgba(232,184,75,.45); border-radius:12px; padding:14px; margin-top:8px; }
+.termInsight .t { display:flex; align-items:center; gap:8px; font:700 15px var(--fuente); color:var(--dorado); }
+.termInsight .t svg { width:19px; height:19px; fill:none; stroke:var(--dorado); stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; }
+.termInsight p { margin:8px 0 0; font:var(--t-sub); color:var(--txt-2); }
+.termInsight .bGold { width:100%; margin-top:12px; }
+.infoBtn { float:right; display:inline-flex; align-items:center; justify-content:center; width:30px; height:30px; margin:-3px -4px 0 8px; padding:0; border-radius:50%; border:1px solid var(--borde); background:transparent; color:var(--txt-3); cursor:pointer; }
+.infoBtn svg { width:16px; height:16px; fill:none; stroke:currentColor; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; }
 .termChip { display:inline-flex; align-items:center; gap:6px; background:#0A0E14; border:1px solid var(--borde); border-radius:var(--r-pildora); padding:6px 11px; font:600 12.5px var(--fuente); color:var(--txt-1); }
 .termEsc { background:#0A0E14; border:1px solid var(--borde); border-radius:10px; padding:12px; margin-bottom:8px; }
 .termEsc .tasa { font:700 24px var(--fuente-num); font-variant-numeric:tabular-nums; letter-spacing:-.01em; }
@@ -509,6 +525,7 @@ label { display:block; font:600 11px var(--fuente); letter-spacing:.07em; text-t
   <div id="pgEquipo" style="display:none"></div>
   <div id="pgTarifa" style="display:none"></div>
   <div id="pgMercado" style="display:none"></div>
+  <div id="pgTerminal" style="display:none"></div>
   <div id="pgCierre" style="display:none"></div>
   <div id="pgActividad" style="display:none"></div>
   <div id="pgTextos" style="display:none"></div>
@@ -930,6 +947,7 @@ var ICONOS = {
   puntos: '<svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><circle cx="12" cy="5" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="12" cy="19" r="1.8"/></svg>',
   telefono: '<svg viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/></svg>',
   pin: '<svg viewBox="0 0 24 24"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0z"/><circle cx="12" cy="10" r="3"/></svg>',
+  terminal: '<svg viewBox="0 0 24 24"><path d="M7 3v3"/><path d="M7 16v5"/><path d="M4.5 6h5v10h-5z"/><path d="M17 6v4"/><path d="M17 19v2"/><path d="M14.5 10h5v9h-5z"/></svg>',
   cambio: '<svg viewBox="0 0 24 24"><path d="M8 3 4 7l4 4"/><path d="M4 7h16"/><path d="m16 21 4-4-4-4"/><path d="M20 17H4"/></svg>',
   clip: '<svg viewBox="0 0 24 24"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>',
   micro: '<svg viewBox="0 0 24 24"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><path d="M12 19v3"/></svg>',
@@ -941,6 +959,44 @@ var ICONOS = {
   dinero: '<svg viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M6 12h.01"/><path d="M18 12h.01"/></svg>'
 };
 function icono(n){ return ICONOS[n] || ""; }
+/* ===== v25 · DIETA DE TEXTO: las explicaciones viven en la hoja ℹ️ =====
+   Regla de la tanda: cifra grande + etiqueta de una línea por tarjeta;
+   toda explicación larga se muda aquí, a la hoja ℹ️ de su sección
+   (abrirHoja, el patrón de hoja de la casa). Si un texto no ayuda a
+   decidir en 3 segundos, no vive en la pantalla: vive aquí. */
+var INFO_SECCIONES = {
+  Inicio: { titulo: "Inicio · cómo se lee", html:
+    '<div class="kv"><b>Tarifa:</b> es la tarifa que tus buscadores ven. La ajustas en la pestaña Tarifa.</div>'
+    + '<div class="kv"><b>Por atender:</b> los reportes se aprueban en la Bandeja. «En línea» = se le vio activo en los últimos 3 minutos.</div>'
+    + '<div class="kv"><b>Pendientes de enviar:</b> la cola vive en este teléfono: nada de lo que hagas sin internet se pierde en silencio; se envía solo cuando vuelve la red.</div>'
+    + '<div class="kv"><b>Con poca cobertura:</b> Mi Negocio sigue abriendo y trabajando con la última foto guardada de cada pestaña.</div>'
+    + '<div class="kv"><b>Hoy puedes gastar:</b> tu bolsillo de gasto, ya separado: sin tocar ni un peso de lo que está trabajando.</div>'
+    + '<div class="kv"><b>Novedades:</b> el sistema trabajó por ti: cada hecho con su hora y su estado. El registro completo vive en Actividad.</div>'
+    + '<div class="kv"><b>Puesto promocionado:</b> con escaparate cubierto, tu oferta promocionada está abierta y el escaparate trabaja por ti mientras el puesto sea tuyo. Sin oferta abierta, el escaparate no vende: el Asesor prepara la oferta cuando el mercado da la señal.</div>' },
+  Mercado: { titulo: "Mercado · cómo se lee", html:
+    '<div class="kv"><b>Nivel 20:</b> la mejor tasa de venta con al menos 20 USD detrás en el libro: el nivel que manda, no un anuncio suelto.</div>'
+    + '<div class="kv"><b>La foto:</b> la vigente fusiona la completa con la ligera y cada campo trae su propia edad. Con foto vieja el Asesor no prepara.</div>'
+    + '<div class="kv"><b>Libro:</b> cifras en CUP por QUSD, de la foto vigente. Ofertas: compra / venta contadas en el libro.</div>'
+    + '<div class="kv"><b>El mercado, en claro:</b> el promedio ETECSA se cotiza por cada 100 de saldo: la recarga de 360 rinde el promedio × 3,6. El vigía revisa las ofertas de QvaPay cada hora. Esto es la foto del mercado, no tu orden: tus números reales viven en tu Calculadora y mandan sobre cualquier promedio.</div>'
+    + '<div class="kv"><b>Tu posición:</b> vendible = tu saldo en línea menos el colchón de seguridad por envío y lo comprometido. Todo sale de la última foto usable y del libro: si la foto no es usable, el Asesor no prepara nada.</div>'
+    + '<div class="kv"><b>Asesor:</b> la preparada nace sola en cada ciclo del Asesor (cada 15 min) si la foto sigue usable: entonces aparece el botón «Subirla». Subirla pasa por la puerta de siempre, con su collar y su bitácora; la oferta vence sola si no la tocas.</div>' },
+  Terminal: { titulo: "Terminal · cómo se lee", html:
+    '<div class="kv"><b>El gráfico:</b> velas de la tasa agregadas de la serie de fotos del mercado. El resplandor ámbar es la liquidez de venta y el teal la de compra: la intensidad crece con el USD acumulado en cada nivel. Los puntos blancos son tus ventas.</div>'
+    + '<div class="kv"><b>Las líneas:</b> punteadas, con su valor en el chip de la derecha — Equilibrio (de tu tarifa viva), Cima firme (el nivel 20 del libro), Tu tarifa (el escenario equilibrado) y Tu costo (de tus lotes vivos). Las dos curvas suaves son las medias móviles de 9 y 21 velas.</div>'
+    + '<div class="kv"><b>Historia corta:</b> en marcos largos la serie aún puede no cubrir todo el marco: la pantalla lo declara y pinta lo que hay, sin inventar velas.</div>'
+    + '<div class="kv"><b>La calculadora:</b> sus tarjetas son de lectura: la subida sigue en el Asesor, por la puerta de siempre, con su collar y su bitácora. Cuando un escenario coincide con la oferta que el Asesor ya tiene preparada y viva, el botón «Subirla» aparece en esa tarjeta y en la Insight.</div>' },
+  Dinero: { titulo: "Mi dinero · cómo se lee", html:
+    '<div class="kv"><b>Sin números a mano:</b> aquí nunca escribes un número: todo se calcula de los movimientos del libro.</div>'
+    + '<div class="kv"><b>Trabajando y parado:</b> trabajando = el capital que está en la calle con tus buscadores más el saldo hecho (inventario). Parado = el que está quieto en tu mano (fondo + tu inversión). Tu gasto va aparte.</div>'
+    + '<div class="kv"><b>Devoluciones:</b> una devolución solo vale cuando tú la marcas «Recibido»: hasta ese momento el capital sigue contado en la mano del buscador.</div>'
+    + '<div class="kv"><b>Tu fondo en el tiempo:</b> la curva se acumula de los movimientos con fecha que trae el libro. Hoy el libro entrega los saldos ya calculados, no el detalle con fecha: la curva nace cuando el detalle exista, y no se inventa ni un punto.</div>' },
+  Avisos: { titulo: "Avisos · cómo se lee", html:
+    '<div class="kv"><b>Avisos PRO:</b> push y Telegram salen juntos y TODO intento queda registrado. Si un aviso no llega, aquí se ve — nada falla en silencio.</div>'
+    + '<div class="kv"><b>El registro:</b> Push = notificación en tu teléfono · Telegram = tu bot de gestión · Evento = el sistema despachando. «Entregado» lo confirma el canal, no la app.</div>'
+    + '<div class="kv"><b>La prueba:</b> manda un aviso de verdad a tus aparatos; su resultado queda en este registro.</div>' }
+};
+function infoBtnHtml(clave){ return '<button type="button" class="infoBtn" data-info="' + clave + '" title="Cómo se lee esta sección" aria-label="Cómo se lee esta sección">' + icono("info") + '</button>'; }
+function abrirInfoSeccion(clave){ var s = INFO_SECCIONES[clave]; if (s) abrirHoja(s.titulo, s.html); }
 /* Palomitas del chat (DISENO-PRO §6): SVG de trazo fino + el nombre
    del estado como texto accesible oculto (lector de pantalla). */
 var TICK_DOBLE = '<svg viewBox="0 0 20 13"><path d="M1 7.2 4.6 10.8 11.8 2.6"/><path d="M8.6 10.8 10.4 12.6 17.6 4.4" transform="translate(1.4 -1.8)"/></svg>';
@@ -2386,11 +2442,12 @@ ICONOS.ajustes = '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><pat
 ICONOS.avisos = '<svg viewBox="0 0 24 24"><path d="M18 9a6 6 0 1 0-12 0c0 6-2.5 7-2.5 7h17S18 15 18 9z"/><path d="M10 20a2.2 2.2 0 0 0 4 0"/></svg>';
 var SECCION_DE = { Inicio: "Inicio", Bandeja: "Inicio", Equipo: "Inicio", Actividad: "Inicio",
   Dinero: "Dinero", Contabilidad: "Dinero", Cierre: "Dinero", Calc: "Dinero",
-  Mercado: "Mercado", Ajustes: "Ajustes", Tarifa: "Ajustes", Textos: "Ajustes", Avisos: "Ajustes" };
+  Mercado: "Mercado", Terminal: "Terminal", Ajustes: "Ajustes", Tarifa: "Ajustes", Textos: "Ajustes", Avisos: "Ajustes" };
 var SECCIONES = [
   { id: "Inicio", tab: "Inicio", icono: "inicio" },
   { id: "Dinero", tab: "Dinero", icono: "dinero" },
   { id: "Mercado", tab: "Mercado", icono: "mercado" },
+  { id: "Terminal", tab: "Terminal", icono: "terminal" },
   { id: "Ajustes", tab: "Ajustes", icono: "ajustes" }
 ];
 var asesorSugerencia = null; /* la llena el módulo Mercado (T1) */
@@ -2460,14 +2517,13 @@ registrarModulo({
     if (!t) {
       h += '<div class="card"><h3><span class="secIco">' + icono("tarifa") + '</span>Tarifa</h3>'
         + '<div class="kv"><b>Sin tarifa real todavía</b>: aún no se ha leído la tarifa viva de la base ni la publicada en datos.json.</div>'
-        + '<div class="ayuda">Sin tarifa real, las sugerencias de comisión y las cuentas quedan bloqueadas (nada sale de valores de fábrica). Conéctate una vez y la tarifa llega sola.</div></div>';
+        + '<div class="ayuda">Sin tarifa real, las cuentas quedan bloqueadas: conéctate una vez y la tarifa llega sola.</div></div>';
     } else {
       h += '<div class="card"><h3><span class="secIco">' + icono("tarifa") + '</span>' + (t._fuente === "viva" ? "Tarifa viva" : "Tarifa") + '</h3>'
         + '<div class="kv">Ingreso por recarga de 360: <b>' + fmt(Number(t.ingresoRef360)) + ' CUP</b></div>'
         + '<div class="kv">Libro (CUP por QUSD): <b>' + fmt(Number(t.libroRef)) + '</b> · Salida de referencia: <b>' + fmt(Number(t.salidaRef)) + '</b></div>'
         + '<div class="kv">Comisiones: saldo <b>' + t.pctSaldo + '%</b> · transferencia <b>' + t.pctTransf + '%</b> · piso <b>' + t.pisoTransf + '%</b></div>'
-        + '<div class="mut">Origen: ' + esc(tarifaOrigenTexto(t)) + '.</div>'
-        + '<div class="ayuda">Es la tarifa que tus buscadores ven. La ajustas en la pestaña Tarifa.</div></div>';
+        + '<div class="mut">Origen: ' + esc(tarifaOrigenTexto(t)) + '.</div></div>';
     }
     h += '<div class="card"><h3><span class="secIco">' + icono("bandeja") + '</span>Por atender</h3>'
       + '<div class="kv">Reportes pendientes de aprobar: <b>' + pendRep + '</b></div>'
@@ -2476,7 +2532,7 @@ registrarModulo({
           : (puertasChat === false
             ? '<div class="kv">Chat y presencia: <b>falta activar</b> (se encienden solos con el paquete SQL único)</div>'
             : '<div class="kv">Chat y presencia: <b>sin comprobar todavía</b> (se revisa al actualizar con conexión)</div>'))
-      + '<div class="ayuda">Los reportes se aprueban en la Bandeja. En línea = se le vio activo en los últimos 3 minutos.</div></div>';
+      + '</div>';
     if (pendEnvio > 0) {
       var listaOps = state.cola.slice(0, 8).map(function(a){
         return '<div class="kv">' + descOp(a) + ' — <b>' + (a.estado === "enviando" ? "enviando…" : "guardado en tu teléfono") + '</b>'
@@ -2485,12 +2541,10 @@ registrarModulo({
       h += '<div class="card"><h3><span class="secIco">' + icono("enviar") + '</span>Pendientes de enviar: ' + pendEnvio + '</h3>'
         + listaOps
         + '<div class="mut">Acciones hechas sin conexión o sin confirmar. Se envían solas cuando vuelva la red.</div>'
-        + '<button class="bGold" id="inReintentar">Reintentar ahora</button>'
-        + '<div class="ayuda">La cola vive en este teléfono: nada de lo que hagas sin internet se pierde en silencio.</div></div>';
+        + '<button class="bGold" id="inReintentar">Reintentar ahora</button></div>';
     }
     h += '<div class="card"><h3><span class="secIco">' + icono("reloj") + '</span>Estado de los datos</h3>'
-      + '<div class="kv">' + (online ? "En línea: datos frescos de ahora." : (selloTexto("bandeja") + ".")) + '</div>'
-      + '<div class="ayuda">Con poca cobertura, Mi Negocio sigue abriendo y trabajando con la última foto guardada de cada pestaña.</div></div>';
+      + '<div class="kv">' + (online ? "En línea: datos frescos de ahora." : (selloTexto("bandeja") + ".")) + '</div></div>';
     el.innerHTML = heroInicioHtml() + promoInicioHtml() + h + accesosInicioHtml() + novedadesInicioHtml() + bloqueSemaforoHtml() + bloqueCuentasHtml() + bloqueAvisosHtml()
       + '<div class="mut" style="text-align:center;padding:6px 0 2px">' + selloVersion() + '</div>';
     var rb = $("inReintentar");
@@ -4101,6 +4155,7 @@ function cargarMercadoMN(){
   Promise.all([p1, p2]).then(function(){
     mercadoCargandoMN = false; pintarTabs();
     if (tabActual === "Mercado") pintarMercado();
+    if (tabActual === "Terminal") pintarTerminal();
   });
 }
 function fmtON(n){ return (n === null || n === undefined || isNaN(Number(n))) ? "—" : fmt(Number(n)); }
@@ -4114,7 +4169,7 @@ function mercadoLibroHtml(f){
       + '<div class="t1LibroCell"><div class="k">Mejor compra</div><div class="v">' + fmtON(f.top_compra) + '</div></div>'
       + '<div class="t1LibroCell"><div class="k">Promedio de venta</div><div class="v">' + fmtON(f.promedio_venta) + '</div></div>'
       + '<div class="t1LibroCell"><div class="k">Ofertas en el libro</div><div class="v">' + (f.count_buy != null ? f.count_buy : "—") + " / " + (f.count_sell != null ? f.count_sell : "—") + '</div></div>'
-      + '</div><div class="ayuda">Cifras en CUP por QUSD, de la foto vigente (la completa fusionada con la ligera: cada campo trae su propia edad). Ofertas: compra / venta contadas en el libro.</div>';
+      + '</div>';
   } else {
     h += '<div class="card"><div class="kv">El libro en vivo se está leyendo…</div></div>';
   }
@@ -4125,11 +4180,9 @@ function mercadoLibroHtml(f){
     var ing360 = (e.average !== null && e.average !== undefined) ? Number(e.average) * 3.6 : null;
     h += '<div class="card"><h3><span class="secIco">' + icono("mercado") + '</span>El mercado, en claro</h3>'
       + (ing360 !== null ? '<div class="big">' + fmt(ing360) + ' <span class="cur">CUP</span></div><div class="mut">rinde en promedio una recarga de 360 en el mercado</div>' : "")
-      + '<div class="ayuda">El promedio ETECSA se cotiza por cada 100 de saldo: la recarga de 360 rinde el promedio × 3.6. El vigía revisa las ofertas de QvaPay cada hora.</div>'
       + '<div class="kv">Saldo (ETECSA): promedio <b>' + fmt(Number(e.average)) + '</b> por cada 100 · compra <b>' + fmt(Number(e.average_buy)) + '</b> · venta <b>' + fmt(Number(e.average_sell)) + '</b> · ofertas contadas: <b>' + (e.count !== undefined ? e.count : "—") + '</b></div>'
       + '<div class="kv">Transferencia (BANK_CUP): promedio <b>' + fmt(Number(b.average)) + '</b> CUP por QUSD · compra <b>' + fmt(Number(b.average_buy)) + '</b> · venta <b>' + fmt(Number(b.average_sell)) + '</b> · ofertas contadas: <b>' + (b.count !== undefined ? b.count : "—") + '</b></div>'
-      + '<div class="mut">Foto del vigía: ' + esc(m.ts || "—") + (m.ts ? " (" + haceCuanto(m.ts) + ")" : "") + '</div>'
-      + '<div class="ayuda">Esto es la foto del mercado, no tu orden: tus números reales viven en tu Calculadora y mandan sobre cualquier promedio.</div></div>';
+      + '<div class="mut">Foto del vigía · ' + esc(m.ts || "—") + (m.ts ? " (" + haceCuanto(m.ts) + ")" : "") + '</div></div>';
   }
   return h;
 }
@@ -4149,7 +4202,7 @@ function mercadoPosicionHtml(g){
     + fila("Fondo", fmt(Number(pv("fondo"))), "CUP")
     + fila("Reserva de cupos", fmt(Number(pv("reserva_cupos"))), "CUP")
     + (posT.mejor_nivel20_hoy != null ? fila("Mejor nivel 20 de hoy", fmt(Number(posT.mejor_nivel20_hoy)), "CUP/QUSD") : "")
-    + '<div class="ayuda">Vendible = tu saldo en línea menos el colchón de seguridad por envío y lo comprometido. Todo sale de la última foto usable y del libro: si la foto no es usable, el Asesor no prepara nada.</div></div>';
+    + '</div>';
   return h;
 }
 function motivoAsesorTxt(m){
@@ -4203,15 +4256,14 @@ function mercadoAsesorHtml(g){
       + '<div class="t1PosFila"><span class="k">Ganancia por recarga</span><span class="v">' + fmt(Number(viva.ganancia360)) + ' <span style="font:600 11px var(--fuente);color:var(--txt-3)">CUP</span></span></div>'
       + porquesHtml(porq)
       + ((prep && prep.aviso_promo) ? '<div class="offBanner" style="display:block">' + esc(prep.aviso_promo) + "</div>" : "")
-      + '<div class="t1CtaBar"><div class="ctaT"><div class="ctaTit">Tu toque manda</div><div class="ctaSub">Subirla pasa por la puerta con su collar y queda en bitácora. La oferta vence sola si no la tocas.</div></div>'
+      + '<div class="t1CtaBar"><div class="ctaT"><div class="ctaTit">Tu toque manda</div><div class="ctaSub">Por la puerta de siempre: collar y bitácora incluidos.</div></div>'
       + '<button class="bGhost bMini" id="mcDescartar">Ahora no</button>'
       + '<button class="bGold" id="mcSubirla">Subirla</button></div>';
   } else if (prep) {
     h += '<span class="pill pPend">EL ASESOR YA LA CALCULÓ</span>'
       + '<div class="kv" style="margin-top:6px">Tasa <b>' + fmt(Number(prep.tasa)) + '</b> CUP/QUSD · monto <b>$' + fmt(Number(prep.monto_qusd)) + '</b> QUSD · ganancia <b>' + fmt(Number(prep.ganancia360)) + '</b> CUP por recarga.</div>'
       + porquesHtml(prep.porques)
-      + (prep.aviso_promo ? '<div class="offBanner" style="display:block">' + esc(prep.aviso_promo) + "</div>" : "")
-      + '<div class="ayuda">La preparada nace sola en el próximo ciclo del Asesor (cada 15 min) si la foto sigue usable: entonces aquí aparece el botón «Subirla».</div>';
+      + (prep.aviso_promo ? '<div class="offBanner" style="display:block">' + esc(prep.aviso_promo) + "</div>" : "");
   } else {
     var mots = calc.motivos_no_prepara || [];
     h += '<div class="kv">Ahora mismo el Asesor no prepara ninguna oferta.</div>'
@@ -4249,12 +4301,12 @@ registrarModulo({
     var el = $("pgMercado"); if (!el) return;
     var f = mercadoFotoMN, g = mercadoGuiaMN;
     var h = (!online ? '<div class="offBanner" style="display:block">' + selloTexto("mercado") + ".</div>" : "");
-    h += '<div class="card"><div class="row"><h3 style="margin:0"><span class="secIco">' + icono("mercado") + '</span>Mercado en vivo</h3><button class="bGhost bMini" id="mcAct">Actualizar</button></div>';
+    h += '<div class="card"><div class="row"><h3 style="margin:0"><span class="secIco">' + icono("mercado") + '</span>Mercado en vivo</h3><span style="margin-left:auto;display:inline-flex;gap:6px;align-items:center"><button class="bGhost bMini" id="mcAct">Actualizar</button>' + infoBtnHtml("Mercado") + '</span></div>';
     if (f) {
+      var chipHora = f.recibida_en ? hora12(f.recibida_en) : edadTxtMN(f.edad_s);
       h += '<div class="mut" style="margin-top:8px">NIVEL 20 · ETECSA · CUP POR QUSD</div>'
         + '<div class="big" id="mcNivel">' + fmtON(f.nivel20) + ' <span class="cur">CUP</span></div>'
-        + '<div class="mut">Nivel de ' + edadTxtMN(f.nivel20_edad_s) + ' · foto completa de ' + edadTxtMN(f.edad_s) + (f.ligera ? ' · con foto ligera encima' : "") + '</div>'
-        + '<div style="margin-top:8px">' + (f.fresca ? '<span class="pill pOk">FOTO FRESCA</span>' : '<span class="pill pPend">FOTO VIEJA — con foto vieja el Asesor no prepara</span>') + "</div>";
+        + '<div style="margin-top:8px"><span class="pill ' + (f.fresca ? 'pOk">Fresca · ' : 'pPend">Vieja · ') + chipHora + '</span></div>';
     } else {
       h += '<div class="kv" style="margin-top:6px">' + (mercadoErrorMN === "falta" ? TXT_FALTA_ACTIVAR : (online ? "Leyendo la foto vigente del mercado…" : "Sin conexión y todavía no hay foto guardada del mercado.")) + "</div>";
     }
@@ -4262,11 +4314,9 @@ registrarModulo({
     h += '<div class="t1Seg" role="tablist">'
       + '<button data-seg="libro" class="' + (mercadoSegMN === "libro" ? "on" : "") + '">Libro</button>'
       + '<button data-seg="posicion" class="' + (mercadoSegMN === "posicion" ? "on" : "") + '">Posición</button>'
-      + '<button data-seg="asesor" class="' + (mercadoSegMN === "asesor" ? "on" : "") + '">Asesor' + (g && g.preparada_viva ? " · 1 lista" : "") + "</button>"
-      + '<button data-seg="terminal" class="' + (mercadoSegMN === "terminal" ? "on" : "") + '">Terminal</button></div>';
+      + '<button data-seg="asesor" class="' + (mercadoSegMN === "asesor" ? "on" : "") + '">Asesor' + (g && g.preparada_viva ? " · 1 lista" : "") + "</button></div>";
     if (mercadoSegMN === "libro") h += mercadoLibroHtml(f);
     else if (mercadoSegMN === "posicion") h += mercadoPosicionHtml(g);
-    else if (mercadoSegMN === "terminal") h += terminalHtmlMN();
     else h += mercadoAsesorHtml(g);
     el.innerHTML = h;
     var ba = $("mcAct"); if (ba) ba.addEventListener("click", cargarMercadoMN);
@@ -4275,7 +4325,6 @@ registrarModulo({
     });
     var bs = $("mcSubirla"); if (bs) bs.addEventListener("click", subirAsesorMN);
     var bd = $("mcDescartar"); if (bd) bd.addEventListener("click", descartarAsesorMN);
-    if (mercadoSegMN === "terminal") montarTerminalMN();
   },
   alMostrar: function(){
     cargarMercadoMN();
@@ -4291,14 +4340,19 @@ registrarModulo({
   }
 });
 
-/* ===== TERMINAL v23 · segmento «terminal» del Módulo Mercado =====
+/* ===== TERMINAL v25 · Módulo Terminal (sección propia de primer nivel) =====
    Terminal profesional: velas agregadas en el cliente desde la serie
    de fotos de la puerta guia_terminal, bandas de profundidad del
-   libro, líneas de equilibrio/tarifa/cima/costo, ventas propias,
-   presión, Momentum y MACD en canvas 2D vanilla (sin librerías).
+   libro con resplandor (ámbar venta arriba · teal compra abajo),
+   líneas de equilibrio/tarifa/cima/costo con chip a la derecha,
+   medias móviles, ventas propias, presión, Momentum y MACD en
+   canvas 2D vanilla (sin librerías), la Insight del Asesor con su
+   «Subirla» por la puerta de siempre y la Calculadora de escenarios.
    La matemática vive en window.__TERM__ (datos planos, sin DOM) y la
-   Terminal la usa: una sola fuente, testeada por el banco v23.
-   Carga perezosa: la puerta solo se llama al abrir el segmento. */
+   Terminal la usa: una sola fuente, testeada por el banco v25.
+   Carga perezosa: la puerta solo se llama al abrir la sección.
+   (Nació en v23 como segmento de Mercado; en v25 es sección propia
+   por orden de Ernesto: un toque, sin menús escondidos.) */
 PUERTAS.guiaTerminal = "guia_terminal";
 var termDatosMN = null, termErrorMN = "", termCargandoMN = false;
 var termMonedaMN = "ETECSA", termMarcoMN = 60;
@@ -4356,6 +4410,12 @@ var TERM_MATH = {
     var vs = (valores || []).map(function(x){ return Number(x); });
     return vs.map(function(v, i){ return i < n ? null : v - vs[i - n]; });
   },
+  ema: function(valores, n){
+    n = (Number(n) > 0 ? Number(n) : 9);
+    var vs = (valores || []).map(function(x){ return Number(x); }).filter(function(x){ return isFinite(x); });
+    var k = 2 / (n + 1), e = null;
+    return vs.map(function(v){ e = e === null ? v : e + k * (v - e); return e; });
+  },
   presionLibro: function(escV, escC, ref){
     ref = Number(ref);
     if (!isFinite(ref) || ref <= 0) return null;
@@ -4401,13 +4461,14 @@ function cargarTerminalMN(){
     termCargandoMN = false;
     if (r && r.ok !== false) { termDatosMN = r; termErrorMN = ""; }
     else termErrorMN = "red";
-    if (tabActual === "Mercado" && mercadoSegMN === "terminal") pintarMercado();
+    if (tabActual === "Terminal") pintarTerminal();
   }).catch(function(e){
     termCargandoMN = false;
     termErrorMN = (e && e.faltaPuerta) ? "falta" : "red";
-    if (tabActual === "Mercado" && mercadoSegMN === "terminal") pintarMercado();
+    if (tabActual === "Terminal") pintarTerminal();
   });
 }
+function pintarTerminal(){ var m = modulo("Terminal"); if (m) m.render(); }
 function termPorqueTxt(p){
   if (p === null || p === undefined) return "";
   if (typeof p === "string") return p;
@@ -4416,7 +4477,7 @@ function termPorqueTxt(p){
 function termEscenariosHtml(d){
   var claves = [["rapida", "Rápida"], ["equilibrada", "Equilibrada"], ["paciente", "Paciente"]];
   var viva = mercadoGuiaMN && mercadoGuiaMN.preparada_viva;
-  var h = '<div class="card"><h3><span class="secIco">' + icono("tarifa") + '</span>Escenarios del Asesor</h3>';
+  var h = '<div class="card"><h3><span class="secIco">' + icono("tarifa") + '</span>Calculadora del Asesor</h3>';
   claves.forEach(function(par){
     var e = termEscenarioMN(d, par[0]);
     h += '<div class="termEsc"><div class="row"><span class="mut">' + par[1].toUpperCase() + '</span>'
@@ -4432,21 +4493,32 @@ function termEscenariosHtml(d){
       + '<div class="fila2"><span>Recibes de saldo</span><b>' + fmt(Number(e.receive)) + '</b></div>'
       + '<div class="fila2"><span>Ganancia por recarga</span><b>' + fmt(Number(e.ganancia360)) + ' CUP</b></div>'
       + '<div class="fila2"><span>Ganancia real (FIFO)</span><b>' + fmt(Number(e.ganancia_fifo)) + ' CUP</b></div>'
-      + (pq ? '<div class="ayuda" style="margin-top:6px">' + esc(pq) + '</div>' : (e.motivo ? '<div class="ayuda" style="margin-top:6px">' + esc(String(e.motivo)) + '</div>' : ""))
-      + '<div class="ayuda">La subida sigue en el Asesor: estas tarjetas son de lectura.</div>';
+      + (pq ? '<div class="kv" style="margin-top:6px">' + esc(pq) + '</div>' : (e.motivo ? '<div class="kv" style="margin-top:6px">' + esc(String(e.motivo)) + '</div>' : ""));
     if (par[0] === "equilibrada" && viva && Math.abs(Number(e.tasa) - Number(viva.tasa)) < 0.01) {
-      h += '<button class="bGold" id="termSubirViva">Subirla: es la preparada viva</button>'
-        + '<div class="ayuda">Este escenario coincide con la oferta que el Asesor ya tiene preparada: subirla pasa por la puerta de siempre, con su collar y su bitácora.</div>';
+      h += '<button class="bGold" id="termSubirViva">Subirla</button>'
+        + '<div class="mut" style="margin-top:6px">Es la preparada viva del Asesor.</div>';
     }
     h += '</div>';
   });
   h += '</div>';
   return h;
 }
+function termInsightHtml(d){
+  var g = mercadoGuiaMN, viva = g && g.preparada_viva;
+  var txt = "";
+  if (viva && viva.contexto && viva.contexto.porques && viva.contexto.porques.length) txt = termPorqueTxt(viva.contexto.porques[0]);
+  if (!txt) { var eq = termEscenarioMN(d, "equilibrada"); if (eq && eq.porques && eq.porques.length) txt = termPorqueTxt(eq.porques[0]); }
+  if (!txt && d && d.demanda && d.demanda.declaracion) txt = String(d.demanda.declaracion);
+  if (!txt) return "";
+  return '<div class="termInsight"><div class="t"><svg viewBox="0 0 24 24"><path d="M12 3a6 6 0 0 0-3.5 10.9c.7.6 1 1.2 1 2.1h5c0-.9.3-1.5 1-2.1A6 6 0 0 0 12 3z"/><path d="M9.5 18h5"/><path d="M10.5 21h3"/></svg>Insight</div>'
+    + '<p>' + esc(txt) + '</p>'
+    + (viva ? '<button class="bGold" id="termSubirInsight">Subirla · ' + fmt(Number(viva.tasa)) + ' CUP/QUSD</button>' : "")
+    + '</div>';
+}
 function terminalHtmlMN(){
   var d = termDatosMN;
   if (!d) {
-    return '<div class="card"><h3><span class="secIco">' + icono("mercado") + '</span>Terminal</h3>'
+    return '<div class="card"><h3><span class="secIco">' + icono("terminal") + '</span>Terminal</h3>'
       + '<div class="kv">' + (termErrorMN === "falta" ? TXT_FALTA_ACTIVAR : (termErrorMN === "red" ? "Sin conexión con la puerta de la Terminal por ahora: se reintenta al tocar Actualizar." : "Leyendo la Terminal: serie de fotos, libro y tus escenarios…")) + '</div>'
       + '<div class="fila" style="margin-top:8px"><button class="bGhost bMini" id="termAct">Actualizar</button></div></div>';
   }
@@ -4461,38 +4533,36 @@ function terminalHtmlMN(){
   var dem = d.demanda || null;
   var mem = d.memoria || null;
   var h = '<div class="termWrap">'
-    + '<div class="termControles">'
-    + '<div class="termChips" role="group" aria-label="Moneda">'
-    + '<button data-tmon="ETECSA" class="' + (termMonedaMN === "ETECSA" ? "on" : "") + '">ETECSA</button>'
-    + '<button data-tmon="BANK_CUP" class="' + (termMonedaMN === "BANK_CUP" ? "on" : "") + '">BANK_CUP</button></div>'
-    + '<div class="termChips" role="group" aria-label="Marco">'
+    + '<div class="termTopFila">'
+    + '<button class="termPillActivo" id="termPillActivo">' + esc(termMonedaMN) + '<span class="chev">▾</span></button>'
+    + infoBtnHtml("Terminal")
+    + '<button class="bGhost bMini" id="termAct" style="margin-left:auto">Actualizar</button></div>'
+    + '<div class="termMarcoPills" role="group" aria-label="Marco">'
     + [[15, "15m"], [60, "1h"], [240, "4h"], [1440, "1d"]].map(function(m){
         return '<button data-tmarco="' + m[0] + '" class="' + (termMarcoMN === m[0] ? "on" : "") + '">' + m[1] + '</button>';
       }).join("")
     + '</div>'
-    + '<button class="bGhost bMini" id="termAct" style="margin-left:auto">Actualizar</button></div>'
-    + '<div class="termCanvasBox"><canvas id="termCanvas" height="250"></canvas>'
+    + '<div class="termCanvasBox"><canvas id="termCanvas" height="300"></canvas>'
     + (vieja ? '<div class="termSello">Foto vieja — hace ' + fmt(Number(foto.edad_min || 0)) + ' min</div>' : "")
     + '</div>'
     + (corta ? '<div class="termNota">Historia corta: la serie aún no cubre este marco; se pinta lo que hay.</div>' : "")
-    + '<div class="termNota">Bandas de calor: ámbar = profundidad de venta · teal = profundidad de compra (intensidad por USD acumulado). Puntos blancos: tus ventas.</div>'
-    + '<div class="termPaneles">'
-    + '<div class="termPanel"><div class="k">Presión del libro</div>'
+    + '<div class="termPanel" style="margin-top:8px"><div class="k">Presión de compra/venta</div>'
     + (pres
         ? '<div class="termPresion"><div class="pc" style="width:' + pres.compra.toFixed(1) + '%"></div><div class="pv" style="width:' + pres.venta.toFixed(1) + '%"></div></div>'
-          + '<div class="termPresionTxt"><span>Compra ' + fmt(pres.compra) + '%</span><span>Venta ' + fmt(pres.venta) + '%</span></div>'
+          + '<div class="termPresionTxt"><span class="pcT">Compras ' + fmt(pres.compra) + '%</span><span class="pvT">Ventas ' + fmt(pres.venta) + '%</span></div>'
         : '<div class="kv">Sin profundidad usable cerca del top en esta foto.</div>')
     + '</div>'
-    + '<div class="termPanel"><div class="k">Demanda</div>'
+    + '<div class="termPaneles">'
+    + '<div class="termPanel termPanelOro"><div class="k"><svg viewBox="0 0 24 24"><path d="M3 17l5-6 4 3 6-8"/><path d="M15 6h6v6"/></svg>Momentum</div><canvas id="termMomCanvas" height="64"></canvas></div>'
+    + '<div class="termPanel termPanelTeal"><div class="k"><svg viewBox="0 0 24 24"><path d="M3 14c3-6 6-6 9-2s6 3 9-2"/><path d="M3 19c3-4 6-4 9-2s6 2 9-1"/></svg>MACD</div><canvas id="termMacdCanvas" height="64"></canvas><div class="termLeyenda"><span><span class="pto" style="background:#38BDF8"></span>MACD</span><span><span class="pto" style="background:#F5B04D"></span>Señal</span></div></div>'
+    + '</div>'
+    + '<div class="termPanel" style="margin-top:8px"><div class="k">Demanda</div>'
     + (dem
         ? '<span class="termChip">' + esc(String(dem.termometro || "—")) + ' · ' + fmt(Number(dem.ops_realizadas || 0)) + ' ops</span>'
-          + (dem.declaracion ? '<div class="termNota">' + esc(String(dem.declaracion)) + '</div>' : "")
+          + (dem.declaracion ? '<div class="kv" style="margin-top:6px">' + esc(String(dem.declaracion)) + '</div>' : "")
         : '<div class="kv">Sin lectura de demanda en esta foto.</div>')
-    + '</div></div>'
-    + '<div class="termPaneles">'
-    + '<div class="termPanel"><div class="k">Momentum (10)</div><canvas id="termMomCanvas" height="56"></canvas></div>'
-    + '<div class="termPanel"><div class="k">MACD (12·26·9)</div><canvas id="termMacdCanvas" height="56"></canvas></div>'
-    + '</div>';
+    + '</div>'
+    + termInsightHtml(d);
   var ventas = (d.ventas || []).slice().sort(function(a, b){ return (termMs(b && b.t) || 0) - (termMs(a && a.t) || 0); }).slice(0, 5);
   if (ventas.length) {
     h += '<div class="card" style="margin-top:8px"><h3><span class="secIco">' + icono("dinero") + '</span>Tus ventas</h3>'
@@ -4525,7 +4595,7 @@ function termPrepararCanvas(cv, altoCss){
 }
 function dibujarTerminalMN(){
   var cv = $("termCanvas"); if (!cv || !termDatosMN) return;
-  var prep = termPrepararCanvas(cv, 250);
+  var prep = termPrepararCanvas(cv, 300);
   var ctx = prep.ctx; if (!ctx) return;
   var W = prep.w, H = prep.h;
   var d = termDatosMN, foto = d.foto || {};
@@ -4546,18 +4616,25 @@ function dibujarTerminalMN(){
     costoLin = 360 * Number(tar.salida_ref) / Number(pos.costo_vivo_360);
   }
   var lineas = [];
-  if (termNum(d.equilibrio) != null) lineas.push({ v: Number(d.equilibrio), color: "#F5B04D", txt: "Equilibrio" });
-  if (tarifaLin != null) lineas.push({ v: tarifaLin, color: "#38BDF8", txt: "Tu tarifa" });
-  if (termNum(foto.nivel20) != null) lineas.push({ v: Number(foto.nivel20), color: "rgba(219,238,246,.55)", txt: "Cima firme" });
-  if (costoLin != null && isFinite(costoLin)) lineas.push({ v: costoLin, color: "#EDF6FA", txt: "Tu costo" });
+  if (termNum(d.equilibrio) != null) lineas.push({ v: Number(d.equilibrio), color: "rgba(237,246,250,.55)", chip: "#EDF6FA", txt: "Equilibrio" });
+  if (tarifaLin != null) lineas.push({ v: tarifaLin, color: "#2DD4BF", chip: "#2DD4BF", txt: "Mi tarifa" });
+  if (termNum(foto.nivel20) != null) lineas.push({ v: Number(foto.nivel20), color: "#F5B04D", chip: "#F5B04D", txt: "Cima firme" });
+  if (costoLin != null && isFinite(costoLin)) lineas.push({ v: costoLin, color: "rgba(148,197,220,.7)", chip: "#94C5DC", txt: "Tu costo" });
   var mn = Infinity, mx = -Infinity;
   velas.forEach(function(v){ if (v.l < mn) mn = v.l; if (v.h > mx) mx = v.h; });
   lineas.forEach(function(L){ if (L.v < mn) mn = L.v; if (L.v > mx) mx = L.v; });
   if (!(mx > mn)) { mx = mn + 1; }
   var pad = (mx - mn) * 0.08; mn -= pad; mx += pad;
-  var padR = 46, plotW = W - padR, plotH = H - 18;
+  var padR = 116, plotW = W - padR, plotH = H - 18;
   function Y(v){ return 8 + (mx - v) / (mx - mn) * plotH; }
-  /* Bandas de profundidad detrás del gráfico */
+  /* Resplandor de liquidez (maqueta v25): ámbar arriba, teal abajo */
+  var gArr = ctx.createLinearGradient(0, 0, 0, H * 0.42);
+  gArr.addColorStop(0, "rgba(245,176,77,.17)"); gArr.addColorStop(1, "rgba(245,176,77,0)");
+  ctx.fillStyle = gArr; ctx.fillRect(0, 0, plotW, H * 0.42);
+  var gAbj = ctx.createLinearGradient(0, H * 0.58, 0, H);
+  gAbj.addColorStop(0, "rgba(45,212,191,0)"); gAbj.addColorStop(1, "rgba(45,212,191,.17)");
+  ctx.fillStyle = gAbj; ctx.fillRect(0, H * 0.58, plotW, H * 0.42);
+  /* Bandas de profundidad detrás del gráfico, con borde suave */
   var libro = d.libro || {};
   var paso = (mx - mn) / 14 || 1;
   function pintaBandas(escalera, rgb){
@@ -4566,19 +4643,26 @@ function dibujarTerminalMN(){
     if (!(maxA > 0)) return;
     bs.forEach(function(b){
       var y1 = Y(b.tasa + paso), y2 = Y(b.tasa);
-      var a = 0.04 + 0.26 * (b.acum / maxA);
-      ctx.fillStyle = "rgba(" + rgb + "," + a.toFixed(3) + ")";
-      ctx.fillRect(0, Math.min(y1, y2), plotW, Math.max(1, Math.abs(y2 - y1)));
+      var yc = (y1 + y2) / 2, hb = Math.max(3, Math.abs(y2 - y1));
+      var a = 0.05 + 0.30 * (b.acum / maxA);
+      var g = ctx.createLinearGradient(0, yc - hb, 0, yc + hb);
+      g.addColorStop(0, "rgba(" + rgb + ",0)");
+      g.addColorStop(0.5, "rgba(" + rgb + "," + a.toFixed(3) + ")");
+      g.addColorStop(1, "rgba(" + rgb + ",0)");
+      ctx.fillStyle = g;
+      ctx.fillRect(0, yc - hb, plotW, hb * 2);
     });
   }
   pintaBandas(libro.escalera_venta, "245,176,77");
   pintaBandas(libro.escalera_compra, "45,212,191");
-  /* Rejilla y etiquetas de precio */
-  ctx.font = "10px monospace"; ctx.textBaseline = "middle";
+  /* Etiquetas de liquidez sobre el resplandor */
+  ctx.font = "600 11px sans-serif"; ctx.textBaseline = "middle";
+  if ((libro.escalera_venta || []).length) { ctx.fillStyle = "rgba(245,176,77,.92)"; ctx.fillText("Liquidez de venta", 10, 15); }
+  if ((libro.escalera_compra || []).length) { ctx.fillStyle = "rgba(45,212,191,.92)"; ctx.fillText("Liquidez de compra", 10, H - 11); }
+  /* Rejilla tenue (los valores viven en los chips de la derecha) */
   for (var gi = 0; gi <= 4; gi++) {
     var gv = mn + (mx - mn) * gi / 4, gy = Y(gv);
     ctx.strokeStyle = "rgba(148,197,220,.08)"; ctx.beginPath(); ctx.moveTo(0, gy); ctx.lineTo(plotW, gy); ctx.stroke();
-    ctx.fillStyle = "rgba(219,238,246,.5)"; ctx.fillText(fmt(gv), plotW + 5, gy);
   }
   /* Velas */
   var slot = plotW / velas.length;
@@ -4592,15 +4676,38 @@ function dibujarTerminalMN(){
     var yO = Y(v.o), yC = Y(v.c);
     ctx.fillRect(x - bw / 2, Math.min(yO, yC), bw, Math.max(1, Math.abs(yC - yO)));
   });
-  /* Líneas punteadas con etiqueta */
-  ctx.font = "600 10.5px sans-serif";
+  /* Medias móviles suaves sobre los cierres (9 y 21 velas) */
+  var cierres = velas.map(function(v){ return v.c; });
+  function pintaEma(arr, color){
+    if (arr.length < 2) return;
+    ctx.strokeStyle = color; ctx.lineWidth = 1.4; ctx.beginPath();
+    arr.forEach(function(v, i){
+      var x = slot * i + slot / 2, y = Y(v);
+      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    });
+    ctx.stroke(); ctx.lineWidth = 1;
+  }
+  pintaEma(TERM_MATH.ema(cierres, 9), "rgba(245,176,77,.85)");
+  pintaEma(TERM_MATH.ema(cierres, 21), "rgba(45,212,191,.8)");
+  /* Líneas punteadas con chip a la derecha (maqueta v25) */
+  function chipTerm(y, txt, color){
+    ctx.font = "600 11px sans-serif";
+    var tw = ctx.measureText(txt).width;
+    var cw = tw + 16, chh = 20;
+    var x = W - cw - 4, yy = Math.max(2, Math.min(H - chh - 2, y - chh / 2));
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(x, yy, cw, chh, 10); else ctx.rect(x, yy, cw, chh);
+    ctx.fillStyle = "rgba(7,10,13,.88)"; ctx.fill();
+    ctx.strokeStyle = color; ctx.lineWidth = 1; ctx.stroke();
+    ctx.fillStyle = color; ctx.textBaseline = "middle";
+    ctx.fillText(txt, x + 8, yy + chh / 2 + 0.5);
+  }
   lineas.forEach(function(L){
     var y = Y(L.v); if (y < 4 || y > H - 4) return;
     ctx.strokeStyle = L.color; ctx.setLineDash([5, 4]);
     ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(plotW, y); ctx.stroke();
     ctx.setLineDash([]);
-    ctx.fillStyle = L.color;
-    ctx.fillText(L.txt + " " + fmt(L.v), 6, Math.max(8, y - 8));
+    chipTerm(y, L.txt + " " + fmt(L.v), L.chip);
   });
   /* Ventas de Ernesto sobre las velas */
   var t0 = velas[0].t, t1 = t0 + velas.length * termMarcoMN * 60000;
@@ -4614,7 +4721,7 @@ function dibujarTerminalMN(){
 }
 function dibujarMiniMN(id, tipo){
   var cv = $(id); if (!cv || !termDatosMN) return;
-  var prep = termPrepararCanvas(cv, 56);
+  var prep = termPrepararCanvas(cv, 64);
   var ctx = prep.ctx; if (!ctx) return;
   var W = prep.w, H = prep.h;
   var serie = termSerieMN(termDatosMN).slice();
@@ -4662,19 +4769,35 @@ function dibujarMiniMN(id, tipo){
   }
 }
 function montarTerminalMN(){
-  var ba = $("termAct"); if (ba) ba.addEventListener("click", function(){ termDatosMN = null; cargarTerminalMN(); pintarMercado(); });
-  document.querySelectorAll("[data-tmon]").forEach(function(b){
-    b.addEventListener("click", function(){ termMonedaMN = b.getAttribute("data-tmon"); pintarMercado(); });
+  var ba = $("termAct"); if (ba) ba.addEventListener("click", function(){ termDatosMN = null; cargarTerminalMN(); pintarTerminal(); });
+  var bp = $("termPillActivo"); if (bp) bp.addEventListener("click", function(){
+    termMonedaMN = termMonedaMN === "ETECSA" ? "BANK_CUP" : "ETECSA";
+    pintarTerminal();
   });
   document.querySelectorAll("[data-tmarco]").forEach(function(b){
-    b.addEventListener("click", function(){ termMarcoMN = Number(b.getAttribute("data-tmarco")) || 60; pintarMercado(); });
+    b.addEventListener("click", function(){ termMarcoMN = Number(b.getAttribute("data-tmarco")) || 60; pintarTerminal(); });
   });
   var bsv = $("termSubirViva"); if (bsv) bsv.addEventListener("click", subirAsesorMN);
-  if (!termDatosMN && !termCargandoMN) cargarTerminalMN();
+  var bsi = $("termSubirInsight"); if (bsi) bsi.addEventListener("click", subirAsesorMN);
+  if (!termDatosMN && !termCargandoMN && tabActual === "Terminal") cargarTerminalMN();
   if (termDatosMN && typeof requestAnimationFrame === "function") {
     requestAnimationFrame(function(){ dibujarTerminalMN(); dibujarMiniMN("termMomCanvas", "mom"); dibujarMiniMN("termMacdCanvas", "macd"); });
   }
 }
+/* ===== v25 · El módulo Terminal: sección propia de primer nivel ===== */
+registrarModulo({
+  id: "Terminal", tab: "Terminal", icono: "terminal",
+  render: function(){
+    var el = $("pgTerminal"); if (!el) return;
+    el.innerHTML = terminalHtmlMN();
+    montarTerminalMN();
+  },
+  alMostrar: function(){
+    cargarMercadoMN();
+    if (!termDatosMN && !termCargandoMN) cargarTerminalMN();
+    else if (termDatosMN) pintarTerminal();
+  }
+});
 /* ===== v23 · Puesto promocionado en Inicio (datos de cargarMercadoMN) ===== */
 function promoInicioHtml(){
   var g = mercadoGuiaMN; if (!g) return "";
@@ -4688,8 +4811,8 @@ function promoInicioHtml(){
   return '<div class="card promoCard" id="inPromo"><h3><span class="secIco">' + icono("mercado") + '</span>Puesto promocionado</h3>'
     + '<div class="promoEstado">' + (cubierto ? "Escaparate cubierto" : "Escaparate vacío") + '</div>'
     + '<div class="ayuda">' + (cubierto
-        ? "Tu oferta promocionada está abierta: el escaparate trabaja por ti mientras el puesto sea tuyo."
-        : "El puesto es tuyo pero no hay oferta abierta cubriéndolo: sin oferta viva el escaparate no vende. El Asesor, en Mercado, prepara la oferta cuando el mercado da la señal.") + '</div>'
+        ? "Tu oferta promocionada está abierta: el escaparate trabaja por ti."
+        : "Sin oferta abierta el escaparate no vende: el Asesor la prepara en la Terminal cuando el mercado dé la señal.") + '</div>'
     + ventana + '</div>';
 }
 /* ===== v23 · Tu fondo en el tiempo (Dinero) =====
@@ -4714,8 +4837,7 @@ function fondoCurvaHtml(est){
   var ICO_D = '<span class="secIco">' + icono("dinero") + '</span>';
   if (delFondo.length < 2) {
     return '<div class="card" id="dnFondoCurva"><h3>' + ICO_D + 'Tu fondo en el tiempo</h3>'
-      + '<div class="kv">La curva nace con los movimientos que ya registras: cuando el libro traiga el detalle de tu fondo con fecha, aquí se dibuja sola.</div>'
-      + '<div class="ayuda">Hoy el libro entrega los saldos ya calculados, no el detalle con fecha: por eso aún no hay curva, y no se inventa ni un punto.</div></div>';
+      + '<div class="kv">La curva nace con los movimientos que ya registras: cuando el libro traiga el detalle de tu fondo con fecha, aquí se dibuja sola.</div></div>';
   }
   delFondo.sort(function(a, b){ return (termMs(a.creada_en) || 0) - (termMs(b.creada_en) || 0); });
   var saldo = 0, pts = delFondo.map(function(m){ saldo += Number(m.monto); return saldo; });
@@ -4728,8 +4850,7 @@ function fondoCurvaHtml(est){
   }).join(" ");
   return '<div class="card" id="dnFondoCurva"><h3>' + ICO_D + 'Tu fondo en el tiempo</h3>'
     + '<div class="fondoCurvaBox"><svg viewBox="0 0 100 36" preserveAspectRatio="none" aria-hidden="true"><polyline points="' + coords + '" fill="none" stroke="#2DD4BF" stroke-width="1.6" vector-effect="non-scaling-stroke"/></svg></div>'
-    + '<div class="kv" style="margin-top:6px">De <b>' + fmtE(pts[0]) + '</b> a <b>' + fmtE(pts[pts.length - 1]) + '</b> CUP · ' + pts.length + ' movimientos del fondo, en orden de fecha.</div>'
-    + '<div class="ayuda">Curva acumulada de los movimientos del fondo que trae el libro, en su orden cronológico.</div></div>';
+    + '<div class="kv" style="margin-top:6px">De <b>' + fmtE(pts[0]) + '</b> a <b>' + fmtE(pts[pts.length - 1]) + '</b> CUP · ' + pts.length + ' movimientos del fondo, en orden de fecha.</div></div>';
 }
 
 /* ===== ENTRADA (login) Y ARRANQUE ===== */
@@ -4777,14 +4898,14 @@ function intentarEntrar(){
    controllerchange recarga la app UNA sola vez (marca en
    sessionStorage por versión: sin bucles). MN_VERSION se sube
    junto con el CACHE de sw.js. */
-var MN_VERSION = "v24";
+var MN_VERSION = "v25";
 /* Sello VISIBLE de compilación (punto 6): Ernesto quejándose con
    razón — «no sé si se actualizó o no». Una sola constante que
    sube con cada publicación; se ve en Inicio y en la hoja ℹ️ del
    chat. Formato: «Mi Negocio · versión 2026-11-11 HH:MM · caché v6»
    (fecha Y HORA de la publicación, para distinguir dos subidas
    del mismo día). La hora es la de Cuba (CST) al compilar. */
-var MN_COMPILACION = "2026-11-15 07:46";
+var MN_COMPILACION = "2026-11-15 08:23";
 function selloVersion(){ return "Mi Negocio · versión " + MN_COMPILACION + " · caché " + MN_VERSION; }
 var regSW = null;
 var swConControladorAlArrancar = false;
@@ -4889,6 +5010,7 @@ function init(){
   $("hojaFondo").addEventListener("click", function(e){ if (e.target === $("hojaFondo")) cerrarHoja(); });
   document.addEventListener("online", function(){ buscarActualizacionSW(); cargarTodo(true); });
   document.addEventListener("click", function(e){ if (e.target && (e.target.id === "mnAvisos" || e.target.id === "mnAvisosB")) activarAvisosMN(); });
+  document.addEventListener("click", function(e){ var b = (e.target && e.target.closest) ? e.target.closest("[data-info]") : null; if (b) abrirInfoSeccion(b.getAttribute("data-info")); });
   prepararSW();
   if (codigoMagico) {
     rpc("validar", { p_codigo: codigoMagico }).then(function(okFlag){
@@ -5824,10 +5946,10 @@ registrarModulo({
   render: function(){
     var el = $("pgDinero"); if (!el) return;
     var ICO_D = '<span class="secIco">' + icono("dinero") + '</span>';
-    var h = '<div class="sub">Tu capital y el que tienen tus buscadores, leídos del libro del dinero. Aquí nunca escribes un número: todo se calcula de los movimientos.</div>';
+    var h = '<div class="sub">Tu capital y el de tus buscadores, del libro del dinero.</div>';
     var est = dineroFotoMN;
     if (!est) {
-      h += '<div class="card"><h3>' + ICO_D + 'Mi dinero</h3>'
+      h += '<div class="card"><h3>' + ICO_D + 'Mi dinero</h3>' + infoBtnHtml("Dinero")
         + (dineroCargandoMN
             ? '<div class="kv">Leyendo el libro…</div>'
             : '<div class="kv"><b>' + esc(dineroErrorMN || "Todavía no se leyó el libro.") + '</b></div>'
@@ -5846,7 +5968,7 @@ registrarModulo({
     var trabajando = enCalle + invent, parado = enMano;
     var pctT = (cap && cap > 0) ? Math.max(0, Math.min(100, Math.round(trabajando / cap * 100))) : 0;
     /* --- Foto del capital por estado --- */
-    h += '<div class="card heroe"><h3>' + ICO_D + 'Mi dinero</h3>'
+    h += '<div class="card heroe"><h3>' + ICO_D + 'Mi dinero</h3>' + infoBtnHtml("Dinero")
       + '<div class="contaKpis">'
       + '<div class="cell heroe"><div class="v">' + fmtE(cap) + '</div><div class="k">CAPITAL TOTAL · CUP</div></div>'
       + '<div class="cell"><div class="v">' + fmtE(enCalle) + '</div><div class="k">EN LA CALLE (BUSCADORES) · CUP</div></div>'
@@ -5860,7 +5982,6 @@ registrarModulo({
       + '<div style="display:flex;height:14px;border-radius:7px;overflow:hidden;margin:10px 0 6px;background:#2A3448">'
       + '<div style="width:' + pctT + '%;background:linear-gradient(145deg,#8A6D1F,#4A380A)"></div></div>'
       + '<div class="kv">Trabajando: <b>' + fmtE(trabajando) + ' CUP</b> · Parado: <b>' + fmtE(parado) + ' CUP</b></div>'
-      + '<div class="ayuda">Trabajando = el capital que está en la calle con tus buscadores más el saldo hecho (inventario). Parado = el que está quieto en tu mano (fondo + tu inversión). Tu gasto va aparte.</div>'
       + '<div class="mut">Leído del libro a las ' + horaDe(new Date(dineroLeidoEnMN).toISOString()) + '.</div>'
       + '<div class="fila" style="margin-top:8px"><button class="bGold bMini" id="dnAct">Actualizar</button></div>'
       + '</div>';
@@ -5903,7 +6024,7 @@ registrarModulo({
         + devs.map(function(dv){
             return '<div class="kv"><b>' + esc(nombreDe(dv.buscador) || dv.buscador) + '</b> · ' + fmtE(dv.monto) + ' CUP · ' + esc(dv.medio || "") + ' — esperando que la marques «Recibido»</div>';
           }).join("")
-        + '<div class="ayuda">Una devolución solo vale cuando tú la marcas «Recibido»: hasta ese momento el capital sigue contado en la mano del buscador.</div></div>';
+        + '</div>';
     }
     /* --- Ventas recientes del libro --- */
     var ventas = est.ventas_recientes || [];
@@ -5977,17 +6098,15 @@ registrarModulo({
   id: "Avisos", tab: "Notificaciones", icono: "avisos",
   render: function(){
     var el = $("pgAvisos"); if (!el) return;
-    var h = '<div class="sub">Avisos PRO: push y Telegram salen juntos y TODO intento queda registrado. Si un aviso no llega, aquí se ve — nada falla en silencio.</div>';
+    var h = '<div class="sub">Push y Telegram, con todo intento registrado.</div>';
     h += bloqueAvisosHtml().replace('id="mnAvisos"', 'id="mnAvisosB"').replace("<h3>Avisos</h3>", '<h3><span class="secIco">' + icono("avisos") + "</span>Avisos en este teléfono</h3>");
-    h += '<div class="card" id="avRegistro"><h3><span class="secIco">' + icono("reloj") + '</span>Registro de avisos</h3>';
+    h += '<div class="card" id="avRegistro"><h3><span class="secIco">' + icono("reloj") + '</span>Registro de avisos</h3>' + infoBtnHtml("Avisos");
     if (avisosHistErrorMN === "falta") h += '<div class="kv"><b>' + TXT_FALTA_ACTIVAR + '</b></div>';
     else if (avisosHistErrorMN === "red") h += '<div class="kv">Sin conexión pa leer el registro ahora; se reintenta al actualizar.</div>';
     else if (avisosHistCache === null) h += '<div class="kv">Leyendo el registro…</div>';
     else if (!avisosHistCache.length) h += '<div class="kv">Todavía no hay avisos registrados.</div>';
     else h += '<div class="t1Feed">' + avisosHistCache.map(avisoFilaHtml).join("") + "</div>";
-    h += '<div class="ayuda">Push = notificación en tu teléfono · Telegram = tu bot de gestión · Evento = el sistema despachando. «Entregado» lo confirma el canal, no la app.</div>'
-      + '<div class="fila" style="margin-top:8px"><button class="bGhost bMini" id="avProbar">Probar avisos ahora</button></div>'
-      + '<div class="ayuda">La prueba manda un aviso de verdad a tus aparatos; su resultado queda en este registro.</div></div>';
+    h += '<div class="fila" style="margin-top:8px"><button class="bGhost bMini" id="avProbar">Probar avisos ahora</button></div></div>';
     el.innerHTML = h;
     var bp = $("avProbar");
     if (bp) bp.addEventListener("click", function(){
@@ -6006,11 +6125,10 @@ registrarModulo({
 /* ===== INICIO: héroe, accesos y novedades del hub ===== */
 function heroInicioHtml(){
   var est = dineroFotoMN;
-  if (!est) return '<div class="card" id="inHero"><div class="mut">HOY PUEDES GASTAR</div><div class="kv" style="margin-top:6px">' + (dineroCargandoMN ? "Leyendo tu dinero del libro…" : "Tu dinero se lee del libro: abre Dinero una vez con conexión y esta cifra vive aquí.") + "</div></div>";
+  if (!est) return '<div class="card" id="inHero">' + infoBtnHtml("Inicio") + '<div class="mut">HOY PUEDES GASTAR</div><div class="kv" style="margin-top:6px">' + (dineroCargandoMN ? "Leyendo tu dinero del libro…" : "Tu dinero se lee del libro: abre Dinero una vez con conexión y esta cifra vive aquí.") + "</div></div>";
   var fondo = Number(est.saldo_fondo || 0), inv = Number(est.saldo_ernesto_inversion || 0);
-  return '<div class="card" id="inHero"><div class="mut">HOY PUEDES GASTAR</div>'
+  return '<div class="card" id="inHero">' + infoBtnHtml("Inicio") + '<div class="mut">HOY PUEDES GASTAR</div>'
     + '<div class="t1HeroNum">' + fmtE(est.saldo_gasto) + ' <span style="font-size:15px;color:var(--txt-2)">CUP</span></div>'
-    + '<div class="ayuda">Tu bolsillo de gasto, ya separado: sin tocar ni un peso de lo que está trabajando.</div>'
     + '<div class="t1HeroGrid">'
     + '<div><div class="k">En tu mano</div><div class="v">' + fmtE(fondo + inv) + "</div></div>"
     + '<div><div class="k">Hecho en saldo</div><div class="v">' + fmtE(est.saldo_inventario) + "</div></div>"
@@ -6048,7 +6166,7 @@ function novedadesInicioHtml(){
     filas += '<div class="t1Fila"><div class="t1Fic dor">' + icono("reloj") + '</div><div class="cue"><div class="tit">' + esc(actividadFrase(a)) + '</div><div class="sub">' + esc(actividadQuien(a.quien)) + " · " + esc(etiquetaFecha(a.creado_en)) + '</div></div><span class="hora">' + horaDe(a.creado_en) + "</span></div>";
   });
   if (!filas) filas = '<div class="kv">' + ((actividadCache === null && avisosHistCache === null) ? "Cargando novedades…" : "Sin novedades todavía: cuando el sistema trabaje por ti, cae aquí.") + "</div>";
-  return '<div class="card" id="inNovedades"><h3><span class="secIco">' + icono("avisos") + '</span>Novedades</h3><div class="t1Feed">' + filas + '</div><div class="ayuda">El sistema trabajó por ti: cada hecho con su hora y su estado. El registro completo vive en Actividad, aquí en Inicio.</div></div>';
+  return '<div class="card" id="inNovedades"><h3><span class="secIco">' + icono("avisos") + '</span>Novedades</h3><div class="t1Feed">' + filas + '</div></div>';
 }
 
 /* ===== MENÚ: la hoja de lo secundario, con datos vivos ===== */
