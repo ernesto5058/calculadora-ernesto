@@ -22,6 +22,10 @@ name: Ojo Android ARM
 #    siendo el host ARM de verdad, la emulación es de la misma
 #    arquitectura: la única puerta que quedaba en GitHub, y la que usa
 #    este workflow. Arranque TCG con espera propia y vigilada de 25 min.
+# 5. La imagen ubuntu-24.04-arm NO trae el SDK de Android preinstalado
+#    (a diferencia de la x86): el paso lo auto-instala (cmdline-tools
+#    oficiales de Google) antes de usar sdkmanager (corrida 43753105495:
+#    «sdkmanager: command not found» en 1 s).
 # Costo: repo público, $0. Se despacha UNA vez y se espera: nada de
 # re-despachos en ráfaga.
 
@@ -163,7 +167,16 @@ jobs:
           ASSET_OJO: ${{ inputs.asset }}
         run: |
           export PATH="$ANDROID_HOME/platform-tools:$ANDROID_HOME/emulator:$ANDROID_HOME/cmdline-tools/latest/bin:$PATH"
-          echo "Host: $(uname -m) · SDK:"; ls "$ANDROID_HOME" | head; which sdkmanager adb || true
+          echo "Host: $(uname -m)"
+          if [ ! -x "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" ]; then
+            echo "La imagen ARM no trae el SDK: auto-instalando cmdline-tools oficiales…"
+            mkdir -p "$ANDROID_HOME/cmdline-tools"
+            curl -sL -o /tmp/cmdtools.zip https://dl.google.com/dl/android/repository/commandlinetools-linux-11076708_latest.zip
+            unzip -q /tmp/cmdtools.zip -d "$ANDROID_HOME/cmdline-tools"
+            mv "$ANDROID_HOME/cmdline-tools/cmdline-tools" "$ANDROID_HOME/cmdline-tools/latest"
+          fi
+          java -version 2>&1 | head -1 || true
+          which sdkmanager
           yes | sdkmanager --licenses > /dev/null 2>&1 || true
           sdkmanager --install 'build-tools;37.0.0' platform-tools 'platforms;android-34' > /dev/null
           sdkmanager --install emulator --channel=0 > /dev/null
