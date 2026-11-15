@@ -206,19 +206,36 @@ pub fn run_sign_install(
     ensure_crypto_provider();
     stage("Firmar e instalar: arrancando la cadena de la fase 2…");
 
-    // ── Etapa: conexión (transporte + hub + proveedor) ─────────────────────
+    let mut pairing_bytes = vault.pairing().ok_or_else(|| {
+        err(
+            "boveda",
+            "no hay registro de pairing en la bóveda: primero empareja el iPhone (pantalla principal) y vuelve aquí",
+        )
+    })?;
+
+    // ── Etapa: sonda manual de lockdown (v2.2, módulo `probe`) ─────────────
+    // La secuencia StartSession + StartService se abre A MANO antes de la
+    // cadena: cada respuesta cruda de Apple queda en el registro y, si el
+    // registro de la bóveda se niega, la puerta re-empareja en el acto
+    // (actualizando `pairing_bytes` y la bóveda) y reintenta en conexión
+    // nueva. Solo si las cuatro vías se niegan, la cadena se declara vencida
+    // aquí — con el Error exacto de cada vía en el mensaje.
+    let gate = crate::probe::gate(fd, &vault, &mut pairing_bytes)?;
+    stage(&format!(
+        "ETAPA sonda: puerta pasada por la vía {} (puerto {}) — sigue la cadena de firma",
+        gate.via, gate.puerto
+    ));
+    if gate.escrow_necesario {
+        stage("ETAPA sonda: aviso — el servicio SOLO abrió presentando el EscrowBag. La pila de instalación de la cadena pide sus servicios sin escrow: si su propia sonda se niega a continuación, la causa es esa y queda registrada arriba con la respuesta cruda (llevar el escrow a toda la cadena es el paso siguiente)");
+    }
+
+    // ── Etapa: conexión (transporte fresco + hub + proveedor) ──────────────
     stage("ETAPA conexion: preparando el cable (descriptores, configuración, claim)…");
     let mut transport = crate::pair::open_mux_transport(fd, "")?;
     let eps = transport.endpoints();
     let hub = spawn_hub(transport, eps).map_err(|e| err("conexion", e))?;
     stage("ETAPA conexion: sesión mux abierta pa los servicios de instalación");
 
-    let pairing_bytes = vault.pairing().ok_or_else(|| {
-        err(
-            "boveda",
-            "no hay registro de pairing en la bóveda: primero empareja el iPhone (pantalla principal) y vuelve aquí",
-        )
-    })?;
     let provider = AnfitrionProvider::new(hub.clone(), pairing_bytes.clone());
 
     let rt = tokio::runtime::Builder::new_multi_thread()

@@ -28,6 +28,7 @@ pub mod crypto;
 mod hub;
 mod mux;
 mod pair;
+mod probe;
 mod provider;
 mod record;
 mod signinstall;

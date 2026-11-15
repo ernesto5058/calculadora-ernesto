@@ -34,17 +34,23 @@ fn err(stage: &str, msg: impl Into<String>) -> StageErr {
 /// Ejecuta el pairing completo. Devuelve el XML del registro listo pa guardar.
 /// `fd` es el descriptor de Android (no se cierra aquí).
 pub fn run_pair(fd: i32, serial_hint: &str) -> Result<String, StageErr> {
+    let mut transport = open_mux_transport(fd, serial_hint)?;
+    pair_with_transport(&mut transport)
+}
+
+/// El pairing sobre un transporte YA preparado (descriptores → configuración
+/// → claim hechos por `open_mux_transport`). La cadena de firma lo reusa pa
+/// re-emparejar en el acto (vía 3 de la sonda v2.2) sin reabrir el fd.
+pub(crate) fn pair_with_transport(transport: &mut FdTransport) -> Result<String, StageErr> {
     // ── Etapa: llaves ─────────────────────────────────────────────────────────
     stage("ETAPA claves: generando la cadena RSA-2048 del anfitrión (raíz + host)…");
     let keys = generate_host_keys().map_err(|e| err("claves", e))?;
     stage("ETAPA claves: OK");
 
-    let mut transport = open_mux_transport(fd, serial_hint)?;
-
     // ── Etapa: mux ────────────────────────────────────────────────────────────
     stage("ETAPA mux: abriendo la sesión mux (VERSION/SETUP) y la pseudo-TCP a lockdownd (62078)…");
     let eps = transport.endpoints();
-    let mut pipe = MuxPipe::connect(&mut transport, eps, LOCKDOWND_PORT)
+    let mut pipe = MuxPipe::connect(&mut *transport, eps, LOCKDOWND_PORT)
         .map_err(|e| err("mux", e))?;
     stage(&format!(
         "ETAPA mux: OK (versión de mux {})",
