@@ -9,8 +9,7 @@ packages:
     url: https://github.com/SideStore/SideSign
     branch: main
   Minimuxer:
-    url: https://github.com/SideStore/minimuxer
-    branch: develop
+    path: vendor/minimuxer
 targets:
   TiendaMaximo:
     type: application
