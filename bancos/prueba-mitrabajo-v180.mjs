@@ -7,6 +7,8 @@
 //     vez con su ID de cliente y la outbox queda vacía al asentar;
 //   · Mis esperas: los 3 estados en palabras de la calle, monto,
 //     fecha y de qué vuelta es; la insignia de abiertas en el panel;
+//     en las ASENTADAS manda la cantidad REAL que entró y la esperada
+//     solo aparece nombrada como espera (extensión del CHEQUEO 103);
 //   · el PARTE CON TASA: el tope de su efectivo libre frena SIN mandar
 //     (cero llamadas a espera_crear_app), la tasa cero se rechaza, y
 //     el parte bueno viaja con su tasa y su total;
@@ -34,7 +36,7 @@ function input(el, v){ el.value = v; el.dispatchEvent(new el.ownerDocument.defau
 
 /* ===== Estático ===== */
 ok(/var APP_VERSION = "1\.8\.0"/.test(html), "V1 APP_VERSION 1.7.0 en el build ensamblado");
-ok(sw.includes('CACHE = "mitrabajo-v33"'), "V2 el SW sube a mitrabajo-v33");
+ok(sw.includes('CACHE = "mitrabajo-v34"'), "V2 el SW sube a mitrabajo-v34");
 ok(datos.versionApp === "1.6.0", "V3 datos.json sigue anunciando la APK 1.6.0 (web-only)");
 ok(html.includes('version:"1.8.0"'), "V4 SENTRY_CASA con version 1.8.0");
 ok(html.includes('id="viewEsperas"') && html.includes('id="viewPago"') && html.includes('id="navEsperas"')
@@ -83,8 +85,9 @@ function crear(guiaVista){
             case "esperas_mi_estado": return json({ ok: true, buscador: "PEUEBA", en_mano: 10000, comprometido: 4000, libre: 6000,
               esperas: [
                 { id: "e1", tipo: "saldo", cantidad: 1440, capital_cup: 4000, estado: "abierta", creada_en: HOY, ventana_fin: HOY, cumplida_en: null, tasa_pactada: 2.7778, total_pagado_cup: 4000, vueltas: 0 },
-                { id: "e2", tipo: "saldo", cantidad: 720, capital_cup: 2000, estado: "cumplida", creada_en: AYER, ventana_fin: AYER, cumplida_en: HOY, tasa_pactada: 2.7778, total_pagado_cup: 2000, vueltas: 1 },
+                { id: "e2", tipo: "saldo", cantidad: 725, cantidad_real: 720, capital_cup: 2000, estado: "cumplida", creada_en: AYER, ventana_fin: AYER, cumplida_en: HOY, tasa_pactada: 2.7778, total_pagado_cup: 2000, vueltas: 1 },
                 { id: "e3", tipo: "transferencia", cantidad: 2600, capital_cup: 2000, estado: "vencida", creada_en: AYER, ventana_fin: AYER, cumplida_en: null, tasa_pactada: null, total_pagado_cup: 2000, vueltas: 0 },
+                { id: "e4", tipo: "transferencia", cantidad: 2600, cantidad_real: 2500, capital_cup: 2000, estado: "cumplida", creada_en: AYER, ventana_fin: AYER, cumplida_en: HOY, tasa_pactada: null, total_pagado_cup: 2000, vueltas: 1 },
               ] });
             case "dinero_registrar_devolucion_efectivo": return json({ ok: true, devolucion: "dv1", estado: "pendiente" });
             case "espera_crear_app": return json({ ok: true, espera_id: "e9", cantidad_esperada: 1440, libre: 6000 });
@@ -127,6 +130,11 @@ const llamadasA = fn => LLAMADAS.filter(x => x.fn === fn);
   ok(d.getElementById("navEspBadge").textContent === "1" && !d.getElementById("navEspBadge").classList.contains("hide"),
      "E7 la insignia del panel cuenta 1 espera abierta");
   ok(d.getElementById("e_resumen").textContent.includes("6,000") , "E8 el resumen enseña su efectivo libre (6,000)");
+  ok(lista.includes("720 de saldo · pusiste"), "E9 CANTIDAD REAL (ext. CHEQUEO 103): la asentada de saldo enseña lo que entró (720), no la esperada (725)");
+  ok(lista.includes("La espera era de 725 de saldo, con el peaje incluido."), "E10 la esperada solo aparece nombrada como espera, con el peaje nombrado (saldo)");
+  ok(lista.includes("2,500 CUP por transferencia · pusiste") && lista.includes("La espera era de 2,600 CUP.")
+     && (lista.match(/peaje/g) || []).length === 1,
+     "E11 la asentada de transferencia enseña su real (2,500) y la frase del peaje sale SOLO en la de saldo");
 
   /* --- El parte con tasa --- */
   input(d.getElementById("ep_tasa"), "1000");
