@@ -1,0 +1,240 @@
+name: Ojo Android ARM
+
+# OJO ANDROID ARM (puerta permanente, orden de Ernesto 2026-11-15): monta una
+# APK con código nativo SOLO ARM (arm64-v8a / armeabi-v7a, p. ej. Anfitrión
+# Máximo) en un emulador ARM64 NATIVO — runner macos-14 (Apple Silicon, M1)
+# con imagen arm64-v8a: la .so corre a velocidad nativa por HVF, sin la
+# emulación total que mató el intento en ubuntu x86 (timeout de boot).
+# La ruta x86 (ojo-android.yml, ubuntu) sigue siendo la puerta de las APK
+# sin código nativo (Capacitor/WebView); esta es la de las APK ARM.
+#
+# LECCIÓN DE LA TANDA v2.1 (2026-11-15): las dos primeras corridas macOS de
+# esta ruta se cancelaron a los 1-2 s de crearse, SIN runner asignado —
+# nunca llegaron a correr: la cola de macOS tarda minutos y la corrida se
+# canceló antes de que el runner la tomara. Por eso este workflow NO lleva
+# concurrency con cancel-in-progress y NO se debe re-despachar a la ligera:
+# se despacha UNA vez y se espera. Costo: repo público, $0 (los minutos de
+# macOS en repos públicos no descuentan cuota del dueño).
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release donde vive la APK (ej. anfitrion-maximo)'
+        required: false
+        default: 'anfitrion-maximo'
+        type: string
+      asset:
+        description: 'Nombre exacto del asset .apk dentro del release'
+        required: false
+        default: 'AnfitrionMaximo-v2.1.apk'
+        type: string
+      paquete:
+        description: 'Paquete de la app a abrir'
+        required: false
+        default: 'com.maximo.anfitrion'
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ojo-android-arm
+  cancel-in-progress: false
+
+jobs:
+  ojo-arm:
+    name: Recorrido ARM en Mac virtual (Apple Silicon)
+    runs-on: macos-14
+    timeout-minutes: 60
+    steps:
+      - name: Descargar el repo
+        uses: actions/checkout@v4
+
+      - name: Descargar la APK del release
+        id: apk
+        run: |
+          URL=$(curl -s "https://api.github.com/repos/${{ github.repository }}/releases/tags/${{ inputs.tag }}" | python3 -c "import sys,json; r=json.load(sys.stdin); a=[x['browser_download_url'] for x in r.get('assets',[]) if x['name']=='${{ inputs.asset }}']; print(a[0] if a else '')")
+          if [ -z "$URL" ]; then echo "El release ${{ inputs.tag }} no trae el asset ${{ inputs.asset }}"; exit 1; fi
+          curl -sL -o app.apk "$URL"
+          ls -la app.apk
+          echo "## Ojo Android ARM — ${{ inputs.asset }}" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Preparar el recorrido (arriba, deslizar, abajo)
+        run: |
+          mkdir -p ojo-arm
+          cat > ojo-arm/visible.py <<'PYEOF'
+          import re, sys
+          # ¿Existe el texto en un nodo con bounds de área real y dentro de pantalla?
+          try: xml = open("/tmp/w.xml", encoding="utf-8", errors="ignore").read()
+          except Exception: sys.exit(1)
+          txt = sys.argv[1]
+          for tag in re.findall(r"<node [^>]*>", xml):
+              attrs = dict(re.findall(r'([\w-]+)="([^"]*)"', tag))
+              t = attrs.get("text","") or attrs.get("content-desc","")
+              if txt not in t: continue
+              m = re.match(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]", attrs.get("bounds","") or "")
+              if not m: continue
+              x1,y1,x2,y2 = map(int, m.groups())
+              if x2-x1 > 0 and y2-y1 > 0 and (x1+x2)//2 >= 10 and (y1+y2)//2 >= 10:
+                  sys.exit(0)
+          sys.exit(1)
+          PYEOF
+          cat > ojo-arm/recorrido.sh <<'SHEOF'
+          #!/usr/bin/env bash
+          # Recorrido del Ojo Android ARM. Nunca sale con error: el veredicto
+          # viaja en ojo-android-arm/veredicto.txt; una caída = ROJO.
+          PKG="${PKG_OJO}"
+          OUT="$GITHUB_WORKSPACE/ojo-android-arm"
+          CAP="$OUT/capturas"
+          mkdir -p "$CAP"
+          MAN="$OUT/capturas.txt"; : > "$MAN"
+          VERED="VERDE"
+          DET="La APK ARM instaló, abrió y su pantalla se deslizó hasta el final en el emulador ARM64 nativo."
+          EXTRA=""
+          rm -f "$CAP"/*.png
+          adb shell settings put global stay_on_while_plugged_in 7 >/dev/null 2>&1
+          adb shell settings put system screen_off_timeout 1800000 >/dev/null 2>&1
+          adb shell wm dismiss-keyguard >/dev/null 2>&1
+          echo "${ASSET_OJO}" > "$OUT/version.txt"
+          shot(){ adb exec-out screencap -p > "$CAP/$1" 2>/dev/null; echo "$1|$2" >> "$MAN"; sleep 1; }
+          dumpw(){ adb shell uiautomator dump /sdcard/w.xml >/dev/null 2>&1; adb pull /sdcard/w.xml /tmp/w.xml >/dev/null 2>&1; }
+          winsize(){ adb shell wm size 2>/dev/null | grep -oE '[0-9]+x[0-9]+' | head -1; }
+          echo "== Instalando ${ASSET_OJO} (ARM) =="
+          if ! adb install -r "$GITHUB_WORKSPACE/app.apk" 2>&1 | tail -2; then
+            VERED="ROJO"; DET="La APK no se pudo instalar en el emulador ARM64."
+          else
+            adb logcat -c >/dev/null 2>&1
+            adb shell monkey -p "$PKG" -c android.intent.category.LAUNCHER 1 >/dev/null 2>&1
+            sleep 10
+            adb shell wm dismiss-keyguard >/dev/null 2>&1
+            if [ -z "$(adb shell pidof "$PKG" 2>/dev/null)" ]; then
+              VERED="ROJO"; DET="La app no quedó corriendo tras abrirla en el emulador ARM64."
+              shot "01-sin-arranque.png" "La app no quedó corriendo tras abrirla"
+            else
+              shot "01-arriba.png" "La app abierta: la parte de arriba de su pantalla"
+              dumpw; cp /tmp/w.xml "$GITHUB_WORKSPACE/dump-arriba.xml" 2>/dev/null || true
+              if python3 ojo-arm/visible.py "Elegir IPA"; then EXTRA="$EXTRA «Elegir IPA» ya se veía arriba."; fi
+              # Deslizar hasta el final: 6 subidas fuertes (la pantalla de la
+              # app mide ~1.150dp; la del teléfono virtual ~914dp útiles).
+              S=$(winsize); W=${S%x*}; H=${S#*x}
+              X=$(python3 -c "print(int($W*0.5))"); Y1=$(python3 -c "print(int($H*0.80))"); Y2=$(python3 -c "print(int($H*0.22))")
+              for i in 1 2 3 4 5 6; do adb shell input swipe "$X" "$Y1" "$X" "$Y2" 300 >/dev/null 2>&1; sleep 1; done
+              sleep 2
+              shot "02-abajo.png" "Tras deslizar 6 veces: el final de la pantalla (sección de firmar y registro)"
+              dumpw; cp /tmp/w.xml "$GITHUB_WORKSPACE/dump-abajo.xml" 2>/dev/null || true
+              if python3 ojo-arm/visible.py "Firmar e instalar"; then
+                EXTRA="$EXTRA Tras deslizar, «Firmar e instalar» quedó visible con geometría real: el scroll de la v2.1 funciona en el emulador."
+              else
+                VERED="PARCIAL"; DET="La app abrió en el emulador ARM64 y se deslizó, pero «Firmar e instalar» no se confirmó visible al final."
+              fi
+              # Vuelta arriba: la pantalla sigue viva tras el viaje.
+              for i in 1 2 3 4 5 6; do adb shell input swipe "$X" "$Y2" "$X" "$Y1" 300 >/dev/null 2>&1; sleep 1; done
+              sleep 2
+              shot "03-arriba-de-vuelta.png" "De vuelta arriba tras deslizar abajo y arriba: la pantalla sigue viva"
+            fi
+            adb logcat -d > "$GITHUB_WORKSPACE/logcat.txt" 2>/dev/null
+            if grep -A4 "FATAL EXCEPTION" "$GITHUB_WORKSPACE/logcat.txt" 2>/dev/null | grep -q "$PKG"; then
+              VERED="ROJO"; DET="La app se cayó durante el recorrido (error fatal del paquete en el registro)."
+            fi
+          fi
+          echo "$VERED" > "$OUT/veredicto.txt"
+          echo "$DET $EXTRA" > "$OUT/detalle.txt"
+          echo "Veredicto: $VERED — $DET $EXTRA"
+          SHEOF
+          chmod +x ojo-arm/recorrido.sh
+          ls -la ojo-arm/
+
+      - name: Encender el teléfono ARM virtual y hacer el recorrido
+        uses: reactivecircus/android-emulator-runner@v2
+        env:
+          PKG_OJO: ${{ inputs.paquete }}
+          ASSET_OJO: ${{ inputs.asset }}
+        with:
+          api-level: 34
+          target: default
+          arch: arm64-v8a
+          profile: pixel_6
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -memory 2048 -no-snapshot-save
+          disable-animations: true
+          script: bash ojo-arm/recorrido.sh
+
+      - name: Generar el índice de capturas (Pages)
+        if: always()
+        run: |
+          python3 - <<'PYEOF'
+          import os, datetime
+          out = "ojo-android-arm"
+          os.makedirs(out + "/capturas", exist_ok=True)
+          def leer(p, defecto=""):
+              try: return open(os.path.join(out, p), encoding="utf-8").read().strip()
+              except Exception: return defecto
+          ver = leer("version.txt", "—")
+          veredicto = leer("veredicto.txt", "SIN RESULTADO")
+          detalle = leer("detalle.txt", "")
+          caps = []
+          for linea in leer("capturas.txt").splitlines():
+              if "|" in linea:
+                  f, c = linea.split("|", 1)
+                  if os.path.exists(os.path.join(out, "capturas", f)): caps.append((f, c))
+          try:
+              from zoneinfo import ZoneInfo
+              ahora = datetime.datetime.now(ZoneInfo("America/Havana")).strftime("%d-%m-%Y · %I:%M %p")
+          except Exception:
+              ahora = datetime.datetime.utcnow().strftime("%d-%m-%Y · %H:%M UTC")
+          color = {"VERDE": "#3FB96B", "PARCIAL": "#E8B84B", "ROJO": "#E5534B"}.get(veredicto, "#9AA4B2")
+          figs = "\n".join('<figure><img src="capturas/%s" alt="%s" loading="lazy"><figcaption>%s</figcaption></figure>' % (f, c, c) for f, c in caps)
+          html = """<!DOCTYPE html>
+          <html lang="es"><head><meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1">
+          <title>Ojo Android ARM — %s</title>
+          <style>
+            :root{--bg:#0B0E13;--card:#12161F;--borde:#232B3A;--txt:#EDF1F7;--mut:#9AA4B2;--oro1:#F5D67B;--oro2:#E8B84B;--oro3:#C9962E}
+            *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--txt);font-family:-apple-system,'Segoe UI',Roboto,sans-serif}
+            .envoltura{max-width:560px;margin:0 auto;padding:20px 16px 48px}
+            h1{font-size:24px;margin:0 0 4px} h1 .oro{background:linear-gradient(120deg,var(--oro1),var(--oro2),var(--oro3));-webkit-background-clip:text;background-clip:text;color:transparent}
+            .mut{color:var(--mut);font-size:14px;line-height:1.45}
+            .sello{display:inline-block;margin:14px 0 6px;padding:6px 14px;border-radius:999px;font-weight:700;letter-spacing:.04em;border:1px solid %s;color:%s}
+            figure{margin:22px 0;background:var(--card);border:1px solid var(--borde);border-radius:16px;overflow:hidden}
+            figure img{width:100%%;display:block}
+            figcaption{padding:12px 14px;font-size:14px;color:var(--mut);line-height:1.45}
+            .pie{margin-top:28px;font-size:13px;color:var(--mut);line-height:1.5}
+          </style></head><body><div class="envoltura">
+          <h1>Ojo Android ARM · <span class="oro">%s</span></h1>
+          <div class="mut">Recorrido automático en un teléfono Android ARM64 virtual (Pixel · Android 14 · Mac Apple Silicon) con la APK exacta del release. %s (hora de Cuba).</div>
+          <div class="sello">%s</div>
+          <div class="mut">%s</div>
+          %s
+          <div class="pie">Emulador ARM64 nativo: la ruta pa las APK con código nativo ARM (la x86 de ubuntu no las puede correr). No sustituye la prueba en un teléfono físico.</div>
+          </div></body></html>""" % (ver, ver, ahora, color, color, veredicto, detalle, figs)
+          open(os.path.join(out, "index.html"), "w", encoding="utf-8").write(html)
+          print("índice generado:", len(caps), "capturas · veredicto", veredicto)
+          PYEOF
+
+      - name: Publicar las capturas en Pages (carpeta ojo-android-arm/)
+        if: always()
+        continue-on-error: true
+        run: |
+          git config user.name "Ojo Android ARM (Actions)"
+          git config user.email "actions@users.noreply.github.com"
+          git add ojo-android-arm
+          git commit -m "Ojo Android ARM: recorrido ${{ inputs.asset }}" || echo "sin cambios que publicar"
+          ok=0
+          for i in 1 2 3 4; do
+            if git pull --rebase origin main && git push origin HEAD:main; then ok=1; break; fi
+            echo "Reintento $i: otro push gano la carrera; rebaseando de nuevo."
+            sleep 6
+          done
+          if [ "$ok" != "1" ]; then echo "No se pudo publicar el album (el artefacto de la corrida guarda las capturas igual)."; fi
+
+      - name: Subir capturas y registro como artifact de la corrida
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ojo-android-arm-${{ inputs.asset }}
+          path: |
+            ojo-android-arm
+            logcat.txt
+            dump-arriba.xml
+            dump-abajo.xml
+          if-no-files-found: ignore
