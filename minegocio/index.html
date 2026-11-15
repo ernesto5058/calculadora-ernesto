@@ -1344,6 +1344,9 @@ function ejecutarAccion(a){
       .then(function(r){ borrarPushPendiente(); return r; });
     case "editarChat": return rpc("editarMensaje", { p_codigo: "ADMIN", p_id: a.id, p_texto: a.texto });
     case "pagado": return rpc("marcarPagado", { p_codigo: cod, p_id: a.id });
+    case "entregarCapital": return rpc("dineroEntregar", { p_codigo: cod, p_buscador: a.buscador, p_monto: a.monto, p_bolsillo: "efectivo", p_cliente_id: a.opId, p_prueba: false });
+    case "confirmarDevolucion": return rpc("dineroConfirmar", { p_codigo: cod, p_devolucion: a.id });
+    case "rechazarDevolucion": return rpc("dineroRechazar", { p_codigo: cod, p_devolucion: a.id });
     case "prueba": return rpc("marcarPrueba", { p_codigo: cod, p_id: a.id, p_prueba: a.prueba });
     case "publicar":
       return rpc("guardarTarifa", { p_codigo: cod, p_ingreso: a.payload.tarifa.ingresoRef360, p_libro: a.payload.tarifa.libroRef, p_salida: a.payload.tarifa.salidaRef, p_com_saldo: a.payload.tarifa.pctSaldo, p_com_transf: a.payload.tarifa.pctTransf, p_piso: a.payload.tarifa.pisoTransf })
@@ -1802,6 +1805,9 @@ function descOp(a){
     case "nuevo": return "Dar de alta a " + (a.nombre || a.codigoUsuario || "");
     case "editarChat": return "Editar un mensaje";
     case "pagado": return "Marcar comisión pagada";
+    case "entregarCapital": return "Entregar capital a " + (nombreDe(a.buscador) || a.buscador || "");
+    case "confirmarDevolucion": return "Confirmar devolución recibida";
+    case "rechazarDevolucion": return "Rechazar una devolución";
     case "prueba": return "Marcar / quitar marca de prueba";
     case "publicar": return "Publicar tarifa y tratos";
     case "pushReg": return "Registrar los avisos en el servidor";
@@ -2533,6 +2539,8 @@ registrarModulo({
     }
     h += '<div class="card"><h3><span class="secIco">' + icono("bandeja") + '</span>Por atender</h3>'
       + '<div class="kv">Reportes pendientes de aprobar: <b>' + pendRep + '</b></div>'
+      + ((capitalFotoMN && capitalFotoMN.solicitudes && capitalFotoMN.solicitudes.length)
+          ? '<div class="kv">Devoluciones por confirmar: <b>' + capitalFotoMN.solicitudes.length + '</b> (se confirman en Dinero)</div>' : '')
       + (puertasChat === true
           ? '<div class="kv">Mensajes sin leer: <b>' + sinLeerTotal + '</b> · Buscadores en línea: <b>' + enLinea + '</b></div>'
           : (puertasChat === false
@@ -4945,14 +4953,14 @@ function intentarEntrar(){
    controllerchange recarga la app UNA sola vez (marca en
    sessionStorage por versión: sin bucles). MN_VERSION se sube
    junto con el CACHE de sw.js. */
-var MN_VERSION = "v26";
+var MN_VERSION = "v27";
 /* Sello VISIBLE de compilación (punto 6): Ernesto quejándose con
    razón — «no sé si se actualizó o no». Una sola constante que
    sube con cada publicación; se ve en Inicio y en la hoja ℹ️ del
    chat. Formato: «Mi Negocio · versión 2026-11-11 HH:MM · caché v6»
    (fecha Y HORA de la publicación, para distinguir dos subidas
    del mismo día). La hora es la de Cuba (CST) al compilar. */
-var MN_COMPILACION = "2026-11-15 11:20";
+var MN_COMPILACION = "2026-11-15 11:45";
 function selloVersion(){ return "Mi Negocio · versión " + MN_COMPILACION + " · caché " + MN_VERSION; }
 var regSW = null;
 var swConControladorAlArrancar = false;
@@ -5956,7 +5964,100 @@ registrarModulo({
    tocar Actualizar: render() pinta la última foto buena. */
 PUERTAS.dineroEstado = "dinero_leer_estado";
 PUERTAS.dineroGanancias = "dinero_ganancias";
+PUERTAS.dineroEntregar = "dinero_entregar_capital";
+PUERTAS.dineroCapital = "dinero_capital_estado";
+PUERTAS.dineroConfirmar = "dinero_confirmar_recibido";
+PUERTAS.dineroRechazar = "dinero_rechazar_devolucion";
 var dineroFotoMN = null, dineroErrorMN = "", dineroCargandoMN = false, dineroLeidoEnMN = 0;
+/* v27 · REPARTO DE CAPITAL: la foto por buscador (dinero_capital_estado)
+   y los ajustes de la cola: lo que Ernesto ya mandó y aún viaja se
+   descuenta de su mano en pantalla al momento (local-first), y el
+   servidor confirma al despachar. */
+var capitalFotoMN = null, capitalErrorMN = "";
+var repartoAbiertoMN = null;
+function capitalPendientesCola(){
+  var ent = {}, conf = {}, rech = {}, totalEnt = 0;
+  (state.cola || []).forEach(function(a){
+    if (!a || a.estado === "fallida") return;
+    if (a.tipo === "entregarCapital") { ent[a.buscador] = (ent[a.buscador] || 0) + Number(a.monto || 0); totalEnt += Number(a.monto || 0); }
+    else if (a.tipo === "confirmarDevolucion") conf[a.id] = true;
+    else if (a.tipo === "rechazarDevolucion") rech[a.id] = true;
+  });
+  return { ent: ent, conf: conf, rech: rech, totalEnt: totalEnt };
+}
+function cargarCapitalMN(){
+  if (!state.codigo) return;
+  rpc("dineroCapital", { p_codigo: state.codigo, p_prueba: false }).then(function(c){
+    capitalFotoMN = c; capitalErrorMN = "";
+    pintarDineroMN();
+    if (tabActual === "Inicio") pintarInicioSiVisible();
+  }).catch(function(e){
+    capitalErrorMN = (e && e.faltaPuerta) ? "falta" : "red";
+    pintarDineroMN();
+  });
+}
+/* Tras despachar una acción de capital, la foto de Dinero se relee en
+   cuanto la acción sale de la cola: la mano nueva se ve al instante,
+   sin esperar al refresco por antigüedad del módulo. Si no hay red,
+   la acción sigue en la cola y la pantalla ya la descuenta sola. */
+function refrescarTrasCola(acc){
+  var n = 0;
+  (function paso(){
+    var sigue = (state.cola || []).some(function(x){ return x === acc || (acc.opId && x.opId === acc.opId); });
+    if (!sigue) { cargarDineroMN(); return; }
+    if (++n > 20) return;
+    setTimeout(paso, 700);
+  })();
+}
+function confirmarEntregaMN(){
+  var cod = repartoAbiertoMN; if (!cod) return;
+  var inp = $("entMonto"), err = $("entErr");
+  var monto = Number(inp && inp.value);
+  function falla(m){ if (err) err.textContent = m; }
+  if (!monto || monto <= 0) return falla("Escribe el monto a entregar.");
+  if (monto % 500) return falla("El reparto va cerrado en billetes: múltiplos de 500.");
+  var mano = capitalFotoMN ? Number(capitalFotoMN.en_mano || 0) - capitalPendientesCola().totalEnt : 0;
+  if (monto > mano) return falla("Tu mano es " + fmtE(mano) + " CUP: no alcanza.");
+  var accEnt = { tipo: "entregarCapital", buscador: cod, monto: monto };
+  encolar(accEnt);
+  repartoAbiertoMN = null;
+  toast("✅ Entrega anotada: queda en «Pendientes de enviar» y se asienta sola al llegar.");
+  despacharCola();
+  refrescarTrasCola(accEnt);
+  pintarDineroMN();
+}
+function repartoHtml(enMano, aj){
+  var ICO = '<span class="secIco">' + icono("dinero") + '</span>';
+  var h = '<div class="card" id="dnReparto"><h3>' + ICO + 'Repartir capital</h3>';
+  if (!capitalFotoMN) {
+    h += '<div class="kv">' + (capitalErrorMN === "falta" ? '<b>' + TXT_FALTA_ACTIVAR + '</b>' : 'Leyendo el capital por buscador…') + '</div></div>';
+    return h;
+  }
+  h += '<div class="kv">En tu mano: <b>' + fmtE(enMano) + ' CUP</b> — de ahí sale lo que entregas.</div>';
+  (capitalFotoMN.cupos || []).forEach(function(c){
+    var r = c.resumen || {};
+    var pendEnt = aj.ent[c.buscador] || 0;
+    h += '<div class="kv" style="margin-top:8px"><b>' + esc(c.nombre || nombreDe(c.buscador) || c.buscador) + '</b>'
+      + ' · en su mano: <b>' + fmtE(Number(r.en_mano || 0) + pendEnt) + '</b> CUP'
+      + (Number(r.trabajando) ? ' · trabajando: <b>' + fmtE(r.trabajando) + '</b>' : '')
+      + (Number(r.pendientes) ? ' · pidió devolver: <b>' + fmtE(r.pendientes) + '</b>' : '')
+      + (r.cerrado ? ' · <span class="pill pPend">cupo cerrado</span>' : '')
+      + (pendEnt ? ' · <span class="pill pPend">entrega en envío: ' + fmtE(pendEnt) + '</span>' : '')
+      + '</div>';
+    if (repartoAbiertoMN === c.buscador) {
+      h += '<div style="margin:6px 0 10px">'
+        + '<div class="fila"><button class="bGhost bMini" data-chipent="5000">5.000</button><button class="bGhost bMini" data-chipent="10000">10.000</button><button class="bGhost bMini" data-chipent="15000">15.000</button></div>'
+        + '<input type="number" class="numIn" id="entMonto" inputmode="numeric" placeholder="Monto en CUP (múltiplos de 500)" style="width:100%;margin:8px 0">'
+        + '<div class="kv" id="entErr" style="color:var(--rojo)"></div>'
+        + '<div class="fila"><button class="bGold bMini" id="entConfirmar">Entregar</button><button class="bGhost bMini" id="entCancelar">Cancelar</button></div>'
+        + '</div>';
+    } else {
+      h += '<div class="fila" style="margin:4px 0 8px"><button class="bGold bMini" data-entregar="' + esc(c.buscador) + '">Entregar</button></div>';
+    }
+  });
+  h += '<div class="kv">La entrega se asienta en el libro: sale de tu mano y entra al cupo del buscador, que la ve en su Mi Trabajo.</div></div>';
+  return h;
+}
 function fmtE(n){
   if (n === null || n === undefined || n === "" || isNaN(Number(n))) return "—";
   var v = Math.round(Number(n));
@@ -5979,6 +6080,7 @@ function cargarDineroMN(){
     if (!est || est.rol !== "ernesto") { dineroErrorMN = "La puerta del dinero no devolvió tu foto de dueño."; pintarDineroMN(); return; }
     var guardarFoto = function(){
       dineroFotoMN = est; dineroErrorMN = ""; dineroLeidoEnMN = Date.now(); pintarDineroMN();
+      cargarCapitalMN();
       /* T1: el héroe de Inicio vive de esta foto — si Ernesto está en
          Inicio, la cifra aterriza sin esperar a que toque nada. */
       if (tabActual === "Inicio") { var mIni = modulo("Inicio"); if (mIni) mIni.render(); }
@@ -6013,7 +6115,8 @@ registrarModulo({
     var cap = (est.capital_total === null || est.capital_total === undefined) ? null : Number(est.capital_total);
     var fondo = Number(est.saldo_fondo || 0), inv = Number(est.saldo_ernesto_inversion || 0);
     var gasto = Number(est.saldo_gasto || 0), invent = Number(est.saldo_inventario || 0);
-    var enMano = fondo + inv;
+    var ajCola = capitalPendientesCola();
+    var enMano = fondo + inv - ajCola.totalEnt;
     var entregas = est.entregas || [];
     var enCalle = entregas.reduce(function(s, e){ return s + Math.max(0, Number(e.pendiente || 0)); }, 0);
     var trabajando = enCalle + invent, parado = enMano;
@@ -6027,6 +6130,7 @@ registrarModulo({
       + '<div class="cell"><div class="v">' + fmtE(invent) + '</div><div class="k">HECHO EN SALDO · CUP</div></div>'
       + '</div>'
       + '<div class="kv">En tu mano: fondo <b>' + fmtE(fondo) + '</b> + tu inversión <b>' + fmtE(inv) + '</b> · Tu gasto: <b>' + fmtE(gasto) + '</b> CUP</div>'
+      + (ajCola.totalEnt ? '<div class="kv">Entregas en envío: <b>' + fmtE(ajCola.totalEnt) + ' CUP</b> — ya descontadas de tu mano; se asientan solas al volver la red.</div>' : '')
       + (est.cuadre ? '<div class="kv">' + (est.cuadre.ok
           ? '<span class="pill pOk">EL LIBRO CUADRA</span> total del libro ' + fmtE(est.cuadre.total_libro) + ' CUP'
           : '<span class="pill pPend">EL LIBRO NO CUADRA</span> avísale a Máximo antes de mover dinero') + '</div>' : '')
@@ -6037,6 +6141,7 @@ registrarModulo({
       + '<div class="fila" style="margin-top:8px"><button class="bGold bMini" id="dnAct">Actualizar</button></div>'
       + '</div>';
     h += fondoCurvaHtml(est);
+    h += repartoHtml(enMano, ajCola);
     /* --- La cuenta de cada buscador --- */
     var porCod = {}, ordenCod = [];
     function aseguraCod(cod){
@@ -6068,13 +6173,19 @@ registrarModulo({
         + '</div>';
     });
     if (!ordenCod.length) h += '<div class="card"><div class="kv">El libro todavía no trae buscadores con asignación.</div></div>';
-    /* --- Devoluciones esperando su «Recibido» --- */
-    var devs = est.devoluciones_pendientes || [];
+    /* --- Devoluciones esperando su «Recibido» (v27: con botones) --- */
+    var devs = (capitalFotoMN && capitalFotoMN.solicitudes) ? capitalFotoMN.solicitudes : (est.devoluciones_pendientes || []);
     if (devs.length) {
       h += '<div class="card"><h3>' + ICO_D + 'Devoluciones por confirmar</h3>'
         + devs.map(function(dv){
-            return '<div class="kv"><b>' + esc(nombreDe(dv.buscador) || dv.buscador) + '</b> · ' + fmtE(dv.monto) + ' CUP · ' + esc(dv.medio || "") + ' — esperando que la marques «Recibido»</div>';
+            var enCola = ajCola.conf[dv.id] || ajCola.rech[dv.id];
+            return '<div class="kv"><b>' + esc(dv.nombre || nombreDe(dv.buscador) || dv.buscador) + '</b> · ' + fmtE(dv.monto) + ' CUP · ' + esc(dv.medio || "")
+              + (dv.es_cierre ? ' · <span class="pill pPend">ES SU CIERRE</span>' : '')
+              + (enCola ? ' · <span class="pill pPend">' + (ajCola.conf[dv.id] ? "confirmando…" : "rechazando…") + '</span>' : '')
+              + ' — esperando que la marques «Recibido»</div>'
+              + (enCola ? '' : '<div class="fila" style="margin:4px 0 10px"><button class="bGold bMini" data-recibido="' + dv.id + '">Recibido</button><button class="bGhost bMini" data-rechazardev="' + dv.id + '">No lo recibí</button></div>');
           }).join("")
+        + '<div class="kv">Toca «Recibido» solo cuando tengas el efectivo en tu mano: en ese momento el capital vuelve a tu inversión y el cupo de él baja.</div>'
         + '</div>';
     }
     /* --- Ventas recientes del libro --- */
@@ -6096,6 +6207,30 @@ registrarModulo({
       + '</div>';
     el.innerHTML = h;
     var ba = $("dnAct"); if (ba) ba.addEventListener("click", cargarDineroMN);
+    el.querySelectorAll("[data-entregar]").forEach(function(b){
+      b.addEventListener("click", function(){ repartoAbiertoMN = b.getAttribute("data-entregar"); pintarDineroMN(); });
+    });
+    el.querySelectorAll("[data-chipent]").forEach(function(b){
+      b.addEventListener("click", function(){ var i = $("entMonto"); if (i) { i.value = b.getAttribute("data-chipent"); i.focus(); } });
+    });
+    var ec = $("entConfirmar"); if (ec) ec.addEventListener("click", confirmarEntregaMN);
+    var ex = $("entCancelar"); if (ex) ex.addEventListener("click", function(){ repartoAbiertoMN = null; pintarDineroMN(); });
+    el.querySelectorAll("[data-recibido]").forEach(function(b){
+      b.addEventListener("click", function(){
+        var acc = { tipo: "confirmarDevolucion", id: b.getAttribute("data-recibido") };
+        encolar(acc);
+        toast("✅ Recibido: el capital vuelve a tu inversión al asentarse.");
+        despacharCola(); refrescarTrasCola(acc); pintarDineroMN();
+      });
+    });
+    el.querySelectorAll("[data-rechazardev]").forEach(function(b){
+      b.addEventListener("click", function(){
+        var acc = { tipo: "rechazarDevolucion", id: b.getAttribute("data-rechazardev") };
+        encolar(acc);
+        toast("Devolución rechazada: queda anotado y nada se mueve.");
+        despacharCola(); refrescarTrasCola(acc); pintarDineroMN();
+      });
+    });
   },
   alMostrar: function(){
     if (!dineroFotoMN || (Date.now() - dineroLeidoEnMN > 60000)) cargarDineroMN();
@@ -6178,10 +6313,11 @@ function heroInicioHtml(){
   var est = dineroFotoMN;
   if (!est) return '<div class="card" id="inHero">' + infoBtnHtml("Inicio") + '<div class="mut">HOY PUEDES GASTAR</div><div class="kv" style="margin-top:6px">' + (dineroCargandoMN ? "Leyendo tu dinero del libro…" : "Tu dinero se lee del libro: abre Dinero una vez con conexión y esta cifra vive aquí.") + "</div></div>";
   var fondo = Number(est.saldo_fondo || 0), inv = Number(est.saldo_ernesto_inversion || 0);
+  var manoHero = fondo + inv - capitalPendientesCola().totalEnt;
   return '<div class="card" id="inHero">' + infoBtnHtml("Inicio") + '<div class="mut">HOY PUEDES GASTAR</div>'
     + '<div class="t1HeroNum">' + fmtE(est.saldo_gasto) + ' <span style="font-size:15px;color:var(--txt-2)">CUP</span></div>'
     + '<div class="t1HeroGrid">'
-    + '<div><div class="k">En tu mano</div><div class="v">' + fmtE(fondo + inv) + "</div></div>"
+    + '<div><div class="k">En tu mano</div><div class="v">' + fmtE(manoHero) + "</div></div>"
     + '<div><div class="k">Hecho en saldo</div><div class="v">' + fmtE(est.saldo_inventario) + "</div></div>"
     + '<div><div class="k">Capital total</div><div class="v">' + fmtE(est.capital_total) + "</div></div>"
     + '</div><div class="mut" style="margin-top:8px">Del libro, leído a las ' + horaDe(new Date(dineroLeidoEnMN).toISOString()) + " · el detalle vive en Dinero.</div></div>";
