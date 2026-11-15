@@ -1,8 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!-- Sin permisos de red ni de ningún tipo: el pairing no los necesita.
+    <!-- Fase 2: INTERNET pa el login con Apple y el servidor de anisette
+         (solo cuando una app nueva entra a la bóveda; la firma e instalación
+         por el cable y la vía sin conexión no lo usan).
+         ACCESS_NETWORK_STATE pa saber si hay red antes de arrancar la cadena.
          El acceso USB se pide en tiempo de ejecución vía UsbManager. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-feature
         android:name="android.hardware.usb.host"
         android:required="true" />

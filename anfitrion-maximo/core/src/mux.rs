@@ -239,7 +239,7 @@ fn frame_matches(frame: &[u8], mux_len: usize, conn: &TcpConn) -> bool {
 // el resto de la pila ya hace con los frames CONTROL en `next_frame`.
 
 /// Extrae el siguiente frame mux completo de `rx`, si ya llegó entero.
-fn take_frame(rx: &mut Vec<u8>) -> Option<Result<(u32, Vec<u8>), String>> {
+pub(crate) fn take_frame(rx: &mut Vec<u8>) -> Option<Result<(u32, Vec<u8>), String>> {
     if rx.len() < 8 {
         return None;
     }
@@ -280,12 +280,11 @@ fn read_frame(
 /// mux anterior), que quedan escritos en el registro de etapas. Si solo llegan
 /// frames ajenos, reenvía la petición UNA vez (el iPhone pudo descartar la primera
 /// mientras cerraba su sesión anterior). Devuelve la versión mayor del mux.
-fn exchange_version(
+pub(crate) fn exchange_version(
     io: &mut impl BulkTransport,
     eps: &Endpoints,
     rx: &mut Vec<u8>,
-) -> Result<u8, String> {
-    io.bulk_out(eps.ep_out, &build_mux_version_request())?;
+) -> Result<u8, String> {    io.bulk_out(eps.ep_out, &build_mux_version_request())?;
     let mut skipped = 0usize;
     let mut resent = false;
     loop {

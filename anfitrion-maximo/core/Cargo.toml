@@ -21,6 +21,22 @@ base64 = "0.22"
 plist = "1"
 time = { version = "0.3", default-features = false, features = ["macros"] }
 ring = "0.17"
+# ── Fase 2: cuenta, firma e instalación (pila probada de InstaladorPRO) ──
+tokio = { version = "1", features = ["rt-multi-thread", "sync", "io-util", "time", "macros"] }
+idevice = { version = "0.1.68", default-features = false, features = ["ring", "usbmuxd", "pair", "remote_pairing", "house_arrest", "installation_proxy"] }
+isideload = { version = "0.5.2", default-features = false, features = ["install", "tokio-mt", "fs-storage"] }
+# rustls sin proveedor por defecto en esta pila: la app instala el de ring al
+# arrancar cualquier operación de red (sin esto, reqwest entra en pánico).
+rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
+# Bóveda cifrada en reposo (AES-256-GCM; la llave vive en el Android Keystore).
+aes-gcm = "0.11"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+# El mismo x509-cert de isideload 0.5.2: reconstruir el CertificateIdentity
+# de la bóveda (certificado DER ↔ objeto) en la vía sin conexión.
+x509-cert = "0.2"
+# El trait SideloadingStorage devuelve Report de rootcause (el de isideload).
+rootcause = "0.12"
 
 [profile.release]
 opt-level = 2

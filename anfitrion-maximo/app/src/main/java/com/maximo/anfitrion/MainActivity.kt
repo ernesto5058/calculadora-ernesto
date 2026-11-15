@@ -14,20 +14,37 @@ import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.hardware.usb.UsbDevice
 import android.hardware.usb.UsbManager
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.ParcelFileDescriptor
+import android.security.keystore.KeyGenParameterSpec
+import android.security.keystore.KeyProperties
+import android.text.InputType
 import android.text.method.ScrollingMovementMethod
+import android.util.Base64
 import android.view.Gravity
 import android.view.View
 import android.widget.Button
+import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 import java.io.File
 import java.io.FileNotFoundException
+import java.security.KeyStore
+import java.security.SecureRandom
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicReference
+import javax.crypto.Cipher
+import javax.crypto.KeyGenerator
+import javax.crypto.SecretKey
+import javax.crypto.spec.GCMParameterSpec
 import kotlin.concurrent.thread
+import org.json.JSONObject
 
 /** Recibe las etapas del núcleo Rust (JNI) y las pasa a la UI. */
 class StageLogger(private val cb: (String) -> Unit) {
@@ -47,6 +64,46 @@ object RustBridge {
      * Devuelve "OK" o "ERROR::<etapa>::<mensaje>".
      */
     external fun nativePair(fd: Int, outPath: String, serial: String, logger: StageLogger): String
+
+    // ── Fase 2: bóveda cifrada ──────────────────────────────────────────────
+    /** Abre la bóveda con la DEK desenvuelta del Keystore. "OK" o "ERROR::<mensaje>". */
+    external fun nativeVaultUnlock(dirPath: String, dek: ByteArray, tmpPath: String, logger: StageLogger): String
+
+    /** Guarda un registro de pairing dentro de la bóveda. */
+    external fun nativeVaultImportPairing(bytes: ByteArray): String
+
+    /** ¿La bóveda ya tiene un registro de pairing? */
+    external fun nativeVaultHasPairing(): Boolean
+
+    /** Materializa el registro de la bóveda en una ruta pa compartirlo. */
+    external fun nativeVaultExportPairing(destPath: String): String
+
+    /** JSON [{bundle_id, nombre, dias}] de las apps guardadas en la bóveda. */
+    external fun nativeVaultProfiles(): String
+
+    /** JSON {cubre, motivo, nombre, bundle_id, dias}: ¿esta app se puede firmar sin conexión? */
+    external fun nativeVaultCovers(ipaPath: String, logger: StageLogger): String
+
+    // ── Fase 2: firmar e instalar ───────────────────────────────────────────
+    /**
+     * La cadena completa (login si hace falta → firma → instalación por el cable).
+     * La contraseña vive solo en esta llamada. El código 2FA lo pide el núcleo
+     * llamando a `tfaBridge.requestTfaCode()` cuando Apple lo exige.
+     * Devuelve "OK" o "ERROR::<etapa>::<mensaje>".
+     */
+    external fun nativeSignInstall(
+        fd: Int, ipaPath: String, email: String, password: String,
+        hayRed: Boolean, tfaBridge: TfaBridge, logger: StageLogger
+    ): String
+}
+
+/**
+ * Puente del código 2FA: el núcleo Rust lo llama (bloqueante) cuando Apple
+ * pide el código; la implementación enseña el campo en la misma pantalla y
+ * espera a que Ernesto lo teclee. Devolver null = cancelar el login.
+ */
+class TfaBridge(private val onRequest: () -> String?) {
+    fun requestTfaCode(): String? = onRequest()
 }
 
 /** Proveedor mínimo pa compartir el .plist guardado (sin dependencias externas). */
@@ -55,7 +112,12 @@ class FilesProvider : ContentProvider() {
 
     private fun fileFor(uri: Uri): File {
         val name = uri.lastPathSegment ?: throw FileNotFoundException("sin nombre")
-        val dir = context?.getExternalFilesDir(null) ?: throw FileNotFoundException("sin dir")
+        val ctx = context ?: throw FileNotFoundException("sin contexto")
+        // v2: lo compartido sale de la carpeta de compartir (el registro se
+        // materializa desde la bóveda justo antes de compartir).
+        val compartido = File(File(ctx.cacheDir, "compartir"), name)
+        if (compartido.exists()) return compartido
+        val dir = ctx.getExternalFilesDir(null) ?: throw FileNotFoundException("sin dir")
         return File(dir, name)
     }
 
@@ -85,6 +147,8 @@ class MainActivity : Activity() {
         private const val APPLE_VID = 0x05AC
         private const val ACTION_USB_PERMISSION = "com.maximo.anfitrion.USB_PERMISSION"
         private const val REQUEST_IMPORT = 77
+        private const val REQUEST_IPA = 78
+        private const val KEK_ALIAS = "anfitrion_boveda_kek"
     }
 
     // Paleta de la casa (DISENO-PRO): fondo oscuro, dorado SOLO en degradado.
@@ -105,6 +169,50 @@ class MainActivity : Activity() {
     private lateinit var shareLogButton: Button
     private lateinit var logView: TextView
     private lateinit var logScroll: ScrollView
+
+    // ── Fase 2 ────────────────────────────────────────────────────────────────
+    private lateinit var elegirIpaButton: Button
+    private lateinit var ipaInfoView: TextView
+    private lateinit var loginBlock: LinearLayout
+    private lateinit var emailInput: EditText
+    private lateinit var passwordInput: EditText
+    private lateinit var tfaBlock: LinearLayout
+    private lateinit var tfaInput: EditText
+    private lateinit var signButton: Button
+    private lateinit var vaultListView: TextView
+
+    private var vaultOpen = false
+    private var chosenIpa: File? = null
+
+    private val tfaLatch = AtomicReference<CountDownLatch?>()
+    @Volatile private var tfaEntregado: String? = null
+
+    /** El núcleo llama aquí (hilo Rust) cuando Apple pide el código 2FA. */
+    private val tfaBridge = TfaBridge {
+        val latch = CountDownLatch(1)
+        tfaLatch.set(latch)
+        tfaEntregado = null
+        runOnUiThread {
+            tfaInput.setText("")
+            tfaBlock.visibility = View.VISIBLE
+            setStatus("Apple pide el código de verificación: mira tu iPhone, escríbelo aquí y toca «Enviar código».", ink)
+        }
+        val llego = latch.await(240, TimeUnit.SECONDS)
+        runOnUiThread { tfaBlock.visibility = View.GONE }
+        if (llego) tfaEntregado else null
+    }
+
+    private fun entregarTfa() {
+        val code = tfaInput.text.toString().trim()
+        if (code.isEmpty()) return
+        tfaEntregado = code
+        tfaLatch.get()?.countDown()
+    }
+
+    private fun cancelarTfa() {
+        tfaEntregado = null
+        tfaLatch.get()?.countDown()
+    }
 
     private var usbManager: UsbManager? = null
     private var appleDevice: UsbDevice? = null
@@ -155,6 +263,9 @@ class MainActivity : Activity() {
         }
         refreshDeviceState()
         handleIncomingIntent(intent)
+        // La bóveda se abre al arrancar: su llave vive en el Keystore y la
+        // migración del registro de la v1.1 corre sola en cuanto abre.
+        thread(name = "anfitrion-boveda") { unlockVault() }
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -255,6 +366,138 @@ class MainActivity : Activity() {
         }
         root.addView(hint)
 
+        // ── Fase 2: firmar e instalar (flujo de tres toques de Ernesto) ─────
+        val divider = View(this).apply {
+            setBackgroundColor(line)
+        }
+        root.addView(divider, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(1)).apply {
+            topMargin = dp(18); bottomMargin = dp(16)
+        })
+
+        val signTitle = TextView(this).apply {
+            text = "FIRMAR E INSTALAR EN EL IPHONE"
+            setTextColor(ink)
+            textSize = 15f
+            typeface = Typeface.DEFAULT_BOLD
+            letterSpacing = 0.06f
+        }
+        root.addView(signTitle)
+
+        val signHint = TextView(this).apply {
+            text = "Elige un .ipa de tu teléfono y la app lo firma con tu Apple ID y lo instala " +
+                "por el cable. La primera vez de cada app pide entrar con tu cuenta (la contraseña " +
+                "no se guarda y la sesión queda solo en este teléfono); después esa app queda en " +
+                "la bóveda y se instala hasta sin conexión."
+            setTextColor(dim)
+            textSize = 13f
+            setPadding(0, dp(6), 0, dp(12))
+        }
+        root.addView(signHint)
+
+        elegirIpaButton = secondaryButton("Elegir IPA") { elegirIpa() }
+        root.addView(
+            elegirIpaButton,
+            LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+        )
+
+        ipaInfoView = TextView(this).apply {
+            setTextColor(dim)
+            textSize = 13f
+            setPadding(0, dp(8), 0, 0)
+            visibility = View.GONE
+        }
+        root.addView(ipaInfoView)
+
+        // Login en la MISMA pantalla (solo aparece si la app no está en la bóveda).
+        loginBlock = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            visibility = View.GONE
+            setPadding(0, dp(10), 0, 0)
+        }
+        val loginTitle = TextView(this).apply {
+            text = "TU APPLE ID (solo esta vez)"
+            setTextColor(dim)
+            textSize = 12f
+            letterSpacing = 0.12f
+        }
+        loginBlock.addView(loginTitle)
+        emailInput = darkInput("Correo de tu Apple ID", InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS)
+        loginBlock.addView(emailInput, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(8) })
+        passwordInput = darkInput("Contraseña", InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD)
+        loginBlock.addView(passwordInput, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(8) })
+        val loginNote = TextView(this).apply {
+            text = "La contraseña no se guarda ni sale de este teléfono: vive solo en esta " +
+                "instalación. Si Apple pide el código de 6 dígitos, te llega al iPhone y lo " +
+                "escribes aquí mismo."
+            setTextColor(dim)
+            textSize = 12f
+            setPadding(0, dp(6), 0, 0)
+        }
+        loginBlock.addView(loginNote)
+        root.addView(loginBlock)
+
+        // 2FA en la misma pantalla (aparece solo cuando Apple lo pide).
+        tfaBlock = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            visibility = View.GONE
+            setPadding(0, dp(10), 0, 0)
+        }
+        val tfaTitle = TextView(this).apply {
+            text = "CÓDIGO DE VERIFICACIÓN DE APPLE"
+            setTextColor(dim)
+            textSize = 12f
+            letterSpacing = 0.12f
+        }
+        tfaBlock.addView(tfaTitle)
+        tfaInput = darkInput("Código de 6 dígitos", InputType.TYPE_CLASS_NUMBER)
+        tfaBlock.addView(tfaInput, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(8) })
+        val tfaRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER
+            setPadding(0, dp(8), 0, 0)
+        }
+        val enviarTfa = secondaryButton("Enviar código") { entregarTfa() }
+        val cancelarTfaBtn = secondaryButton("Cancelar") { cancelarTfa() }
+        tfaRow.addView(enviarTfa, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { rightMargin = dp(6) })
+        tfaRow.addView(cancelarTfaBtn, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { leftMargin = dp(6) })
+        tfaBlock.addView(tfaRow)
+        root.addView(tfaBlock)
+
+        signButton = Button(this).apply {
+            text = "Firmar e instalar"
+            textSize = 18f
+            setTextColor(Color.rgb(26, 20, 4))
+            typeface = Typeface.DEFAULT_BOLD
+            isAllCaps = false
+            background = GradientDrawable(
+                GradientDrawable.Orientation.LEFT_RIGHT, intArrayOf(goldA, goldB)
+            ).apply { cornerRadius = dp(14).toFloat() }
+            setOnClickListener { startSignInstall() }
+        }
+        root.addView(
+            signButton,
+            LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(58)).apply {
+                topMargin = dp(12)
+            }
+        )
+        signButton.isEnabled = false
+
+        val vaultTitle = TextView(this).apply {
+            text = "BÓVEDA SIN CONEXIÓN"
+            setTextColor(dim)
+            textSize = 12f
+            letterSpacing = 0.12f
+            setPadding(0, dp(16), 0, 0)
+        }
+        root.addView(vaultTitle)
+        vaultListView = TextView(this).apply {
+            text = "La bóveda está vacía: la primera app que instales con conexión queda guardada aquí."
+            setTextColor(dim)
+            textSize = 13f
+            setPadding(0, dp(6), 0, dp(14))
+        }
+        root.addView(vaultListView)
+
         val logTitle = TextView(this).apply {
             text = "REGISTRO DE ETAPAS"
             setTextColor(dim)
@@ -337,6 +580,295 @@ class MainActivity : Activity() {
                 cornerRadius = dp(12).toFloat()
             }
             setOnClickListener { onClick() }
+        }
+    }
+
+    /** Campo de texto oscuro del sistema de diseño (login y código 2FA). */
+    private fun darkInput(hintText: String, inputType: Int): EditText {
+        return EditText(this).apply {
+            hint = hintText
+            this.inputType = inputType
+            setTextColor(ink)
+            setHintTextColor(dim)
+            textSize = 15f
+            setPadding(dp(12), dp(12), dp(12), dp(12))
+            background = GradientDrawable().apply {
+                setColor(surface)
+                setStroke(dp(1), line)
+                cornerRadius = dp(10).toFloat()
+            }
+        }
+    }
+
+    // ── Fase 2: bóveda (Keystore) y migración ─────────────────────────────────
+
+    /**
+     * Abre la bóveda cifrada: la llave maestra (KEK) vive en el Android
+     * Keystore (no exportable) y envuelve la DEK que el núcleo usa. La DEK en
+     * claro existe solo en esta llamada; al núcleo llega por JNI y vive en su
+     * memoria. Después migra sola el registro de la v1.1, si existe.
+     */
+    private fun unlockVault() {
+        try {
+            val ks = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
+            val kek: SecretKey = (ks.getEntry(KEK_ALIAS, null) as? KeyStore.SecretKeyEntry)?.secretKey ?: run {
+                val gen = KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, "AndroidKeyStore")
+                gen.init(
+                    KeyGenParameterSpec.Builder(
+                        KEK_ALIAS,
+                        KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT
+                    )
+                        .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
+                        .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
+                        .build()
+                )
+                gen.generateKey()
+            }
+            val prefs = getSharedPreferences("boveda", MODE_PRIVATE)
+            val dek: ByteArray = if (prefs.contains("dek_envuelto")) {
+                val blob = Base64.decode(prefs.getString("dek_envuelto", ""), Base64.NO_WRAP)
+                val iv = Base64.decode(prefs.getString("dek_iv", ""), Base64.NO_WRAP)
+                val c = Cipher.getInstance("AES/GCM/NoPadding")
+                c.init(Cipher.DECRYPT_MODE, kek, GCMParameterSpec(128, iv))
+                c.doFinal(blob)
+            } else {
+                val nueva = ByteArray(32).also { SecureRandom().nextBytes(it) }
+                val c = Cipher.getInstance("AES/GCM/NoPadding")
+                c.init(Cipher.ENCRYPT_MODE, kek)
+                val envuelta = c.doFinal(nueva)
+                prefs.edit()
+                    .putString("dek_envuelto", Base64.encodeToString(envuelta, Base64.NO_WRAP))
+                    .putString("dek_iv", Base64.encodeToString(c.iv, Base64.NO_WRAP))
+                    .apply()
+                nueva
+            }
+            val dir = File(filesDir, "boveda").apply { mkdirs() }
+            val logger = StageLogger { line -> appendLog(line) }
+            val res = RustBridge.nativeVaultUnlock(dir.absolutePath, dek, cacheDir.absolutePath, logger)
+            dek.fill(0)
+            if (res == "OK") {
+                vaultOpen = true
+                migrateLegacyPairing()
+                refreshVaultUi()
+            } else {
+                appendLog("Bóveda: no se pudo abrir ($res)")
+            }
+        } catch (e: Exception) {
+            appendLog("Bóveda: error abriendo el Keystore (${e.message ?: e.javaClass.simpleName})")
+        }
+    }
+
+    /**
+     * Migración v1.1 → v2: el registro que la v1.1 guardó en claro en su
+     * carpeta entra a la bóveda cifrada y la copia en claro se borra. La app
+     * sigue pudiendo compartirlo (se materializa al momento de compartir).
+     */
+    private fun migrateLegacyPairing() {
+        if (RustBridge.nativeVaultHasPairing()) {
+            runOnUiThread { sharePairingButton.isEnabled = true }
+            return
+        }
+        val dirs = listOfNotNull(getExternalFilesDir(null), filesDir)
+        for (dir in dirs) {
+            val candidates = dir.listFiles()?.filter { it.isFile && it.extension == "plist" } ?: continue
+            for (f in candidates) {
+                val bytes = runCatching { f.readBytes() }.getOrNull() ?: continue
+                val text = String(bytes, Charsets.UTF_8)
+                if (!text.contains("<plist") || !text.contains("HostID")) continue
+                if (RustBridge.nativeVaultImportPairing(bytes) == "OK") {
+                    val nombre = f.name
+                    f.delete()
+                    pairingFile = null
+                    appendLog("Migración a la v2: el registro «$nombre» entró a la bóveda cifrada y su copia en claro se borró")
+                    runOnUiThread { sharePairingButton.isEnabled = true }
+                    return
+                }
+            }
+        }
+    }
+
+    /** Refresca la lista de la bóveda (apps + días que le quedan a cada perfil). */
+    private fun refreshVaultUi() {
+        if (!vaultOpen) return
+        thread(name = "anfitrion-boveda-lista") {
+            val texto = try {
+                val arr = org.json.JSONArray(RustBridge.nativeVaultProfiles())
+                if (arr.length() == 0) {
+                    "La bóveda está vacía: la primera app que instales con conexión queda guardada aquí."
+                } else {
+                    val sb = StringBuilder()
+                    for (i in 0 until arr.length()) {
+                        val o = arr.getJSONObject(i)
+                        val dias = o.optInt("dias", 0)
+                        val cuando = when {
+                            dias < 0 -> "perfil CADUCADO: renueva con conexión"
+                            dias == 0 -> "el perfil caduca HOY"
+                            dias == 1 -> "queda 1 día de perfil"
+                            else -> "quedan $dias días de perfil"
+                        }
+                        sb.append("• ${o.optString("nombre")} — $cuando\n")
+                    }
+                    sb.toString().trim()
+                }
+            } catch (e: Exception) {
+                "No se pudo leer la bóveda."
+            }
+            runOnUiThread { vaultListView.text = texto }
+        }
+    }
+
+    // ── Fase 2: elegir IPA y firmar/instalar ──────────────────────────────────
+
+    private fun elegirIpa() {
+        val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+            addCategory(Intent.CATEGORY_OPENABLE)
+            type = "*/*"
+        }
+        @Suppress("DEPRECATION")
+        startActivityForResult(intent, REQUEST_IPA)
+    }
+
+    /** Copia el IPA elegido a la carpeta de trabajo y consulta la bóveda. */
+    private fun onIpaChosen(uri: Uri) {
+        thread(name = "anfitrion-ipa") {
+            try {
+                var displayName = "app.ipa"
+                try {
+                    contentResolver.query(uri, null, null, null, null)?.use { c ->
+                        val idx = c.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+                        if (idx >= 0 && c.moveToFirst()) {
+                            val n = c.getString(idx)
+                            if (!n.isNullOrBlank()) {
+                                displayName = n.replace(Regex("[^A-Za-z0-9._-]"), "_")
+                            }
+                        }
+                    }
+                } catch (e: Exception) {
+                    // el nombre es cosmético
+                }
+                if (!displayName.lowercase().endsWith(".ipa")) displayName += ".ipa"
+                val dir = File(cacheDir, "ipa").apply { mkdirs() }
+                val out = File(dir, displayName)
+                contentResolver.openInputStream(uri)?.use { input ->
+                    out.outputStream().use { input.copyTo(it) }
+                } ?: throw IllegalStateException("no se pudo leer el archivo elegido")
+                chosenIpa = out
+                val sizeMb = out.length() / 1_000_000.0
+                runOnUiThread {
+                    ipaInfoView.visibility = View.VISIBLE
+                    ipaInfoView.text = "${out.name} · ${String.format("%.1f", sizeMb)} MB — consultando la bóveda…"
+                    signButton.isEnabled = !running
+                }
+                // ¿La bóveda cubre esta app? La cara enseña el login solo si hace falta.
+                val logger = StageLogger { line -> appendLog(line) }
+                val json = RustBridge.nativeVaultCovers(out.absolutePath, logger)
+                val o = JSONObject(json)
+                val cubre = o.optBoolean("cubre", false)
+                val motivo = o.optString("motivo", "")
+                val nombre = o.optString("nombre", out.name)
+                runOnUiThread {
+                    ipaInfoView.text = "${out.name} · ${String.format("%.1f", sizeMb)} MB\n$motivo"
+                    if (cubre) {
+                        loginBlock.visibility = View.GONE
+                    } else {
+                        loginBlock.visibility = View.VISIBLE
+                        val savedEmail = getSharedPreferences("boveda", MODE_PRIVATE).getString("apple_email", "")
+                        if (!savedEmail.isNullOrEmpty() && emailInput.text.isNullOrEmpty()) {
+                            emailInput.setText(savedEmail)
+                        }
+                    }
+                    appendLog("IPA elegido: $nombre (${out.name}) — ${if (cubre) "la bóveda lo cubre (sin conexión)" else "necesita la ruta con conexión una vez"}")
+                }
+            } catch (e: Exception) {
+                runOnUiThread {
+                    setStatus("No se pudo preparar el IPA: ${e.message ?: e.javaClass.simpleName}", red)
+                }
+            }
+        }
+    }
+
+    private fun hayRed(): Boolean {
+        val cm = getSystemService(CONNECTIVITY_SERVICE) as? ConnectivityManager ?: return false
+        val caps = cm.getNetworkCapabilities(cm.activeNetwork) ?: return false
+        return caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+    }
+
+    private fun startSignInstall() {
+        val ipa = chosenIpa ?: run {
+            setStatus("Primero elige el IPA que quieres instalar.", red)
+            return
+        }
+        val dev = appleDevice ?: run {
+            refreshDeviceState()
+            setStatus("Conecta el iPhone por cable: la firma es local, pero la instalación va por el cable.", red)
+            return
+        }
+        val mgr = usbManager ?: return
+        if (!mgr.hasPermission(dev)) {
+            requestUsbPermission(dev)
+            return
+        }
+        if (!vaultOpen) {
+            setStatus("La bóveda aún no está abierta: espera un segundo y reintenta.", red)
+            return
+        }
+        val email = emailInput.text.toString().trim()
+        val password = passwordInput.text.toString()
+        if (email.isNotEmpty()) {
+            // El correo se recuerda (no es secreto); la contraseña JAMÁS se guarda.
+            getSharedPreferences("boveda", MODE_PRIVATE).edit().putString("apple_email", email).apply()
+        }
+        running = true
+        signButton.isEnabled = false
+        elegirIpaButton.isEnabled = false
+        pairButton.isEnabled = false
+        sondaButton.isEnabled = false
+        setStatus("Firmando e instalando… sigue las etapas abajo y atiende el iPhone si pide algo.", ink)
+        appendLog("Firmar e instalar: Kotlin presta el fd; la cadena la corre el núcleo Rust")
+
+        thread(name = "anfitrion-firmar") {
+            var result: String
+            try {
+                val connection = mgr.openDevice(dev)
+                if (connection == null) {
+                    result = "ERROR::usb::Android no pudo abrir el iPhone (openDevice devolvió null)"
+                } else {
+                    try {
+                        val fd = connection.fileDescriptor
+                        result = if (fd < 0) {
+                            "ERROR::usb::el descriptor del iPhone salió inválido (fd < 0)"
+                        } else {
+                            val logger = StageLogger { line -> appendLog(line) }
+                            RustBridge.nativeSignInstall(
+                                fd, ipa.absolutePath, email, password,
+                                hayRed(), tfaBridge, logger
+                            )
+                        }
+                    } finally {
+                        connection.close()
+                    }
+                }
+            } catch (e: Exception) {
+                result = "ERROR::usb::${e.message ?: e.javaClass.simpleName}"
+            }
+
+            running = false
+            runOnUiThread {
+                passwordInput.setText("")
+                signButton.isEnabled = chosenIpa != null
+                elegirIpaButton.isEnabled = true
+                pairButton.isEnabled = appleDevice != null
+                sondaButton.isEnabled = appleDevice != null
+                if (result == "OK") {
+                    setStatus("App instalada en el iPhone. Ya puedes abrirla en su pantalla.", teal)
+                    refreshVaultUi()
+                } else {
+                    val parts = result.split("::", limit = 3)
+                    val etapa = parts.getOrNull(1) ?: "?"
+                    val msg = parts.getOrNull(2) ?: result
+                    setStatus("La cadena se detuvo en la etapa «$etapa»: $msg", red)
+                }
+            }
         }
     }
 
@@ -550,6 +1082,17 @@ class MainActivity : Activity() {
                 pairButton.isEnabled = true
                 sondaButton.isEnabled = appleDevice != null
                 if (result == "OK") {
+                    // v2: el registro recién nacido entra a la bóveda cifrada y
+                    // su archivo en claro se borra (queda materializable al compartir).
+                    val nacido = pairingFile
+                    if (vaultOpen && nacido != null && nacido.exists()) {
+                        val bytes = runCatching { nacido.readBytes() }.getOrNull()
+                        if (bytes != null && RustBridge.nativeVaultImportPairing(bytes) == "OK") {
+                            nacido.delete()
+                            pairingFile = null
+                            appendLog("El registro recién nacido entró a la bóveda cifrada (su copia en claro se borró)")
+                        }
+                    }
                     setStatus(
                         "Pairing completado: el iPhone ya confía en este anfitrión. " +
                             "Comparte el registro e impórtalo en Tienda Máximo.",
@@ -584,9 +1127,12 @@ class MainActivity : Activity() {
     @Deprecated("Selector de archivos del sistema (sin AndroidX en esta app)")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
-        if (requestCode != REQUEST_IMPORT || resultCode != RESULT_OK) return
+        if (resultCode != RESULT_OK) return
         val uri = data?.data ?: return
-        importFromUri(uri)
+        when (requestCode) {
+            REQUEST_IMPORT -> importFromUri(uri)
+            REQUEST_IPA -> onIpaChosen(uri)
+        }
     }
 
     /** Copia un .plist (de la sonda, del selector o de otra vía) al almacén de la app y lo deja como pairing vigente. */
@@ -603,6 +1149,25 @@ class MainActivity : Activity() {
                                 "Elige el .plist que descargó la página WebUSB o el que guardó la otra vía.",
                             red
                         )
+                    }
+                    return@thread
+                }
+                // v2: el registro importado entra DIRECTO a la bóveda cifrada;
+                // ya no se guarda ninguna copia en claro.
+                if (vaultOpen) {
+                    if (RustBridge.nativeVaultImportPairing(bytes) == "OK") {
+                        runOnUiThread {
+                            appendLog("Registro importado desde otra vía (${bytes.size} bytes) — guardado en la bóveda cifrada")
+                            setStatus(
+                                "Registro importado y guardado en la bóveda. Compártelo e impórtalo en Tienda Máximo.",
+                                teal
+                            )
+                            sharePairingButton.isEnabled = true
+                        }
+                    } else {
+                        runOnUiThread {
+                            setStatus("La bóveda rechazó el registro importado: compártelo con Máximo si se repite.", red)
+                        }
                     }
                     return@thread
                 }
@@ -643,6 +1208,23 @@ class MainActivity : Activity() {
     // ── Compartir ─────────────────────────────────────────────────────────────
 
     private fun sharePairing() {
+        // v2: el registro vive en la bóveda; se materializa en la carpeta de
+        // compartir justo pa esta salida (el proveedor sirve desde ahí).
+        if (vaultOpen && RustBridge.nativeVaultHasPairing()) {
+            val dir = File(cacheDir, "compartir").apply { mkdirs() }
+            val dest = File(dir, "pair-record.plist")
+            if (RustBridge.nativeVaultExportPairing(dest.absolutePath) == "OK") {
+                val uri = Uri.parse("content://com.maximo.anfitrion.files/${dest.name}")
+                val intent = Intent(Intent.ACTION_SEND).apply {
+                    type = "text/xml"
+                    putExtra(Intent.EXTRA_STREAM, uri)
+                    putExtra(Intent.EXTRA_SUBJECT, "Registro de pairing del iPhone (pair-record.plist)")
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                }
+                startActivity(Intent.createChooser(intent, "Compartir el registro de pairing"))
+                return
+            }
+        }
         val f = pairingFile
         if (f == null || !f.exists()) {
             setStatus("Todavía no hay registro de pairing guardado", red)

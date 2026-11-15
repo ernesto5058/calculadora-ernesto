@@ -39,94 +39,7 @@ pub fn run_pair(fd: i32, serial_hint: &str) -> Result<String, StageErr> {
     let keys = generate_host_keys().map_err(|e| err("claves", e))?;
     stage("ETAPA claves: OK");
 
-    // ── Etapa: descriptores ───────────────────────────────────────────────────
-    stage("ETAPA descriptores: leyendo los descriptores USB del iPhone por el fd…");
-    // Target provisional; scan_mux_target lo sustituye por el real.
-    let provisional = crate::transport::MuxTarget {
-        config_value: 0,
-        interface: 0,
-        alt_setting: 0,
-        ep_in_addr: 0x81,
-        ep_out_addr: 0x01,
-    };
-    let mut transport = FdTransport::new(fd, provisional);
-    let target = transport
-        .scan_mux_target()
-        .map_err(|e| err("descriptores", e))?;
-    transport.target = target;
-    stage(&format!(
-        "ETAPA descriptores: interfaz mux en configuración {}, interfaz {}, alt {}, bulk OUT 0x{:02X} / IN 0x{:02X}",
-        target.config_value, target.interface, target.alt_setting, target.ep_out_addr, target.ep_in_addr
-    ));
-    if !serial_hint.is_empty() {
-        // Android puede devolver la serie con cola corrupta (caracteres de
-        // reemplazo tras el UDID): se imprime solo la parte limpia.
-        let limpia: String = serial_hint
-            .chars()
-            .take_while(|c| !c.is_control() && *c != '\u{fffd}')
-            .collect();
-        stage(&format!(
-            "ETAPA descriptores: serie USB reportada por Android: {}",
-            limpia.trim()
-        ));
-    }
-
-    // ── Etapa: configuración (EL paso de riesgo nº 1) ─────────────────────────
-    let active = transport
-        .active_configuration()
-        .map_err(|e| err("configuracion", format!("GET_CONFIGURATION: {}", e)))?;
-    stage(&format!(
-        "ETAPA configuracion: configuración activa = {}, objetivo = {}",
-        active, target.config_value
-    ));
-    // SET_CONFIGURATION SIEMPRE, aunque la activa ya sea la del mux (v1.1, paridad
-    // con la demo WebUSB de upstream: `prepare_apple_usb` selecciona la
-    // configuración en CADA apertura). Fijarla reinicia la sesión mux del iPhone
-    // y vacía cualquier frame resto de una sesión anterior encolado en el extremo
-    // IN. La v1 se saltaba este paso si la activa ya era la del mux — y en la
-    // corrida viva del 2026-11-15 la 3 ya estaba activa: la sesión heredada le
-    // costó el saludo mux («got protocol 6»), mientras la página WebUSB, que sí
-    // fija la configuración, emparejó contra el mismo iPhone minutos después.
-    stage(&format!(
-        "ETAPA configuracion: fijando SET_CONFIGURATION({}) (la activa es {}) — reinicia la sesión mux del iPhone…",
-        target.config_value, active
-    ));
-    match transport.set_configuration(target.config_value) {
-        Ok(()) => stage("ETAPA configuracion: SET_CONFIGURATION OK"),
-        Err(e) => {
-            return Err(err(
-                "configuracion",
-                format!(
-                    "SET_CONFIGURATION({}) falló: {}. Sin fijar la configuración no se puede garantizar una sesión mux limpia.",
-                    target.config_value, e
-                ),
-            ));
-        }
-    }
-
-    // ── Etapa: claim ──────────────────────────────────────────────────────────
-    stage(&format!(
-        "ETAPA claim: reclamando la interfaz {}…",
-        target.interface
-    ));
-    transport
-        .claim_interface()
-        .map_err(|e| err("claim", format!("CLAIMINTERFACE: {}", e)))?;
-    stage("ETAPA claim: OK");
-    match transport.clear_halts() {
-        Ok(()) => stage("ETAPA claim: clearHalt en ambos extremos OK"),
-        Err(e) => stage(&format!(
-            "ETAPA claim: aviso — clearHalt devolvió: {} (se continúa)",
-            e
-        )),
-    }
-    match transport.set_interface_alt() {
-        Ok(()) => stage("ETAPA claim: ajuste alternativo fijado OK"),
-        Err(e) => stage(&format!(
-            "ETAPA claim: aviso — SETINTERFACE devolvió: {} (se continúa)",
-            e
-        )),
-    }
+    let mut transport = open_mux_transport(fd, serial_hint)?;
 
     // ── Etapa: mux ────────────────────────────────────────────────────────────
     stage("ETAPA mux: abriendo la sesión mux (VERSION/SETUP) y la pseudo-TCP a lockdownd (62078)…");
@@ -304,4 +217,101 @@ fn extract_data_pem(xml: &str) -> Result<String, String> {
 fn trunc(s: &str, n: usize) -> String {
     let flat: String = s.chars().filter(|c| *c != '\n').take(n).collect();
     flat
+}
+
+
+/// Preparación del transporte compartida por el pairing y por la cadena de
+/// firma/instalación de la fase 2: descriptores → SET_CONFIGURATION → claim,
+/// con las mismas etapas escritas. Devuelve el transporte listo pa el mux.
+pub(crate) fn open_mux_transport(fd: i32, serial_hint: &str) -> Result<FdTransport, StageErr> {
+    // ── Etapa: descriptores ───────────────────────────────────────────────────
+    stage("ETAPA descriptores: leyendo los descriptores USB del iPhone por el fd…");
+    // Target provisional; scan_mux_target lo sustituye por el real.
+    let provisional = crate::transport::MuxTarget {
+        config_value: 0,
+        interface: 0,
+        alt_setting: 0,
+        ep_in_addr: 0x81,
+        ep_out_addr: 0x01,
+    };
+    let mut transport = FdTransport::new(fd, provisional);
+    let target = transport
+        .scan_mux_target()
+        .map_err(|e| err("descriptores", e))?;
+    transport.target = target;
+    stage(&format!(
+        "ETAPA descriptores: interfaz mux en configuración {}, interfaz {}, alt {}, bulk OUT 0x{:02X} / IN 0x{:02X}",
+        target.config_value, target.interface, target.alt_setting, target.ep_out_addr, target.ep_in_addr
+    ));
+    if !serial_hint.is_empty() {
+        // Android puede devolver la serie con cola corrupta (caracteres de
+        // reemplazo tras el UDID): se imprime solo la parte limpia.
+        let limpia: String = serial_hint
+            .chars()
+            .take_while(|c| !c.is_control() && *c != '\u{fffd}')
+            .collect();
+        stage(&format!(
+            "ETAPA descriptores: serie USB reportada por Android: {}",
+            limpia.trim()
+        ));
+    }
+
+    // ── Etapa: configuración (EL paso de riesgo nº 1) ─────────────────────────
+    let active = transport
+        .active_configuration()
+        .map_err(|e| err("configuracion", format!("GET_CONFIGURATION: {}", e)))?;
+    stage(&format!(
+        "ETAPA configuracion: configuración activa = {}, objetivo = {}",
+        active, target.config_value
+    ));
+    // SET_CONFIGURATION SIEMPRE, aunque la activa ya sea la del mux (v1.1, paridad
+    // con la demo WebUSB de upstream: `prepare_apple_usb` selecciona la
+    // configuración en CADA apertura). Fijarla reinicia la sesión mux del iPhone
+    // y vacía cualquier frame resto de una sesión anterior encolado en el extremo
+    // IN. La v1 se saltaba este paso si la activa ya era la del mux — y en la
+    // corrida viva del 2026-11-15 la 3 ya estaba activa: la sesión heredada le
+    // costó el saludo mux («got protocol 6»), mientras la página WebUSB, que sí
+    // fija la configuración, emparejó contra el mismo iPhone minutos después.
+    stage(&format!(
+        "ETAPA configuracion: fijando SET_CONFIGURATION({}) (la activa es {}) — reinicia la sesión mux del iPhone…",
+        target.config_value, active
+    ));
+    match transport.set_configuration(target.config_value) {
+        Ok(()) => stage("ETAPA configuracion: SET_CONFIGURATION OK"),
+        Err(e) => {
+            return Err(err(
+                "configuracion",
+                format!(
+                    "SET_CONFIGURATION({}) falló: {}. Sin fijar la configuración no se puede garantizar una sesión mux limpia.",
+                    target.config_value, e
+                ),
+            ));
+        }
+    }
+
+    // ── Etapa: claim ──────────────────────────────────────────────────────────
+    stage(&format!(
+        "ETAPA claim: reclamando la interfaz {}…",
+        target.interface
+    ));
+    transport
+        .claim_interface()
+        .map_err(|e| err("claim", format!("CLAIMINTERFACE: {}", e)))?;
+    stage("ETAPA claim: OK");
+    match transport.clear_halts() {
+        Ok(()) => stage("ETAPA claim: clearHalt en ambos extremos OK"),
+        Err(e) => stage(&format!(
+            "ETAPA claim: aviso — clearHalt devolvió: {} (se continúa)",
+            e
+        )),
+    }
+    match transport.set_interface_alt() {
+        Ok(()) => stage("ETAPA claim: ajuste alternativo fijado OK"),
+        Err(e) => stage(&format!(
+            "ETAPA claim: aviso — SETINTERFACE devolvió: {} (se continúa)",
+            e
+        )),
+    }
+
+    Ok(transport)
 }
