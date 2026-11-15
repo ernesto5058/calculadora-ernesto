@@ -14,7 +14,7 @@ permissions:
 
 jobs:
   ojo:
-    runs-on: macos-14
+    runs-on: ubuntu-latest
     timeout-minutes: 50
     steps:
       - name: Descargar el APK de la ultima build verde de Anfitrion
