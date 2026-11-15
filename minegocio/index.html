@@ -439,7 +439,45 @@ label { display:block; font:600 11px var(--fuente); letter-spacing:.07em; text-t
    de marca un instante; luego se desvanece solo. */
 .t1Marca { box-shadow:0 0 0 2px var(--dorado), 0 0 26px rgba(232,184,75,.45) !important; border-radius:var(--r-lg); transition:box-shadow .7s ease; }
 .t1MarcaOff { box-shadow:0 0 0 2px rgba(232,184,75,0), 0 0 26px rgba(232,184,75,0) !important; }
-</style><script>window.SENTRY_CASA={app:"minegocio",version:"v22",dsn:"https://1454ae292cfdb8e358e88ec3d1fc1547@o4512419765354496.ingest.us.sentry.io/4512419769876480"};</script>
+/* ===== v23 · CONSOLA + TERMINAL (capa propia, manda sobre lo anterior) =====
+   Consola: héroe limpio (cifra protagonista en tinta, dorado solo en
+   el monograma), tiles densos. Terminal: la cara más oscura de la
+   casa (#07090D–#0A0E14), números mono/tabulados, radios 8–10 en
+   tarjetas de datos, hairlines, ámbar/teal de profundidad. */
+#inHero { background:linear-gradient(180deg,var(--bg-2),var(--bg-1)); border-color:var(--borde-fuerte); }
+#inHero .t1HeroNum { color:var(--txt-1); font-size:42px; letter-spacing:-.03em; margin-top:2px; }
+#inHero .mut { letter-spacing:.1em; }
+.promoCard { border-color:var(--acento-borde); background:linear-gradient(180deg,rgba(45,212,191,.08),var(--bg-1)); }
+.promoCard .promoEstado { font:700 19px var(--fuente-num); font-variant-numeric:tabular-nums; margin-top:2px; }
+.termWrap { background:#07090D; border:1px solid var(--borde); border-radius:10px; padding:10px; margin-bottom:var(--e-2); }
+.termControles { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px; }
+.termChips { display:flex; background:#0A0E14; border:1px solid var(--borde); border-radius:8px; padding:3px; gap:3px; }
+.termChips button { flex:0 0 auto; width:auto; margin:0; padding:7px 12px; border:0; border-radius:6px; background:none; font:700 12.5px var(--fuente); color:var(--txt-2); cursor:pointer; min-height:36px; }
+.termChips button.on { background:var(--acento-suave); color:var(--acento); }
+.termCanvasBox { position:relative; background:#07090D; border:1px solid rgba(148,197,220,.08); border-radius:8px; overflow:hidden; }
+.termCanvasBox canvas { display:block; width:100%; }
+.termSello { position:absolute; top:8px; right:8px; background:rgba(245,176,77,.16); border:1px solid rgba(245,176,77,.5); color:#F5B04D; font:700 11.5px var(--fuente); letter-spacing:.04em; padding:5px 9px; border-radius:6px; pointer-events:none; }
+.termNota { font:var(--t-nota); color:var(--txt-3); margin-top:6px; }
+.termPaneles { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:8px; }
+.termPanel { background:#0A0E14; border:1px solid rgba(148,197,220,.08); border-radius:8px; padding:8px; }
+.termPanel .k { font:var(--t-micro); text-transform:uppercase; letter-spacing:.08em; color:var(--txt-3); margin-bottom:6px; }
+.termPanel canvas { display:block; width:100%; }
+.termPresion { display:flex; height:12px; border-radius:6px; overflow:hidden; background:#131A24; margin-top:2px; }
+.termPresion .pc { background:#2DD4BF; }
+.termPresion .pv { background:#F5B04D; }
+.termPresionTxt { display:flex; justify-content:space-between; font:600 11.5px var(--fuente-num); font-variant-numeric:tabular-nums; color:var(--txt-2); margin-top:5px; }
+.termChip { display:inline-flex; align-items:center; gap:6px; background:#0A0E14; border:1px solid var(--borde); border-radius:var(--r-pildora); padding:6px 11px; font:600 12.5px var(--fuente); color:var(--txt-1); }
+.termEsc { background:#0A0E14; border:1px solid var(--borde); border-radius:10px; padding:12px; margin-bottom:8px; }
+.termEsc .tasa { font:700 24px var(--fuente-num); font-variant-numeric:tabular-nums; letter-spacing:-.01em; }
+.termEsc .fila2 { display:flex; justify-content:space-between; gap:8px; padding:5px 0; border-bottom:1px solid rgba(148,197,220,.07); font:var(--t-sub); }
+.termEsc .fila2:last-of-type { border-bottom:0; }
+.termEsc .fila2 b { font-variant-numeric:tabular-nums; }
+.termVentaFila { display:flex; justify-content:space-between; gap:8px; padding:6px 0; border-bottom:1px solid rgba(148,197,220,.07); font:var(--t-sub); }
+.termVentaFila:last-child { border-bottom:0; }
+.termVentaFila b { font-variant-numeric:tabular-nums; }
+.fondoCurvaBox { background:var(--bg-2); border:1px solid var(--borde); border-radius:var(--r-md); padding:10px; }
+.fondoCurvaBox svg { display:block; width:100%; height:72px; }
+</style><script>window.SENTRY_CASA={app:"minegocio",version:"v23",dsn:"https://1454ae292cfdb8e358e88ec3d1fc1547@o4512419765354496.ingest.us.sentry.io/4512419769876480"};</script>
 <script defer crossorigin="anonymous" integrity="sha384-48iagrZwMa6wkDoJKNyCk4jgMHcOcsBK/DzZAJInl1ZhtunellJDCRNZuomfHefF" src="https://browser.sentry-cdn.com/8.38.0/bundle.min.js"></script>
 </head><body>
 <div id="app">
@@ -2453,7 +2491,7 @@ registrarModulo({
     h += '<div class="card"><h3><span class="secIco">' + icono("reloj") + '</span>Estado de los datos</h3>'
       + '<div class="kv">' + (online ? "En línea: datos frescos de ahora." : (selloTexto("bandeja") + ".")) + '</div>'
       + '<div class="ayuda">Con poca cobertura, Mi Negocio sigue abriendo y trabajando con la última foto guardada de cada pestaña.</div></div>';
-    el.innerHTML = heroInicioHtml() + h + accesosInicioHtml() + novedadesInicioHtml() + bloqueSemaforoHtml() + bloqueCuentasHtml() + bloqueAvisosHtml()
+    el.innerHTML = heroInicioHtml() + promoInicioHtml() + h + accesosInicioHtml() + novedadesInicioHtml() + bloqueSemaforoHtml() + bloqueCuentasHtml() + bloqueAvisosHtml()
       + '<div class="mut" style="text-align:center;padding:6px 0 2px">' + selloVersion() + '</div>';
     var rb = $("inReintentar");
     if (rb) rb.addEventListener("click", function(){ despacharCola().then(function(){ cargarTodo(true); }); });
@@ -2464,6 +2502,7 @@ registrarModulo({
   alMostrar: function(){
     if (actividadCache === null) cargarActividad();
     if (avisosHistCache === null) cargarAvisosHist();
+    if (!mercadoGuiaMN && !mercadoCargandoMN) cargarMercadoMN();
     if (!dineroFotoMN || (Date.now() - dineroLeidoEnMN > 60000)) cargarDineroMN();
   }
 });
@@ -4223,9 +4262,11 @@ registrarModulo({
     h += '<div class="t1Seg" role="tablist">'
       + '<button data-seg="libro" class="' + (mercadoSegMN === "libro" ? "on" : "") + '">Libro</button>'
       + '<button data-seg="posicion" class="' + (mercadoSegMN === "posicion" ? "on" : "") + '">Posición</button>'
-      + '<button data-seg="asesor" class="' + (mercadoSegMN === "asesor" ? "on" : "") + '">Asesor' + (g && g.preparada_viva ? " · 1 lista" : "") + "</button></div>";
+      + '<button data-seg="asesor" class="' + (mercadoSegMN === "asesor" ? "on" : "") + '">Asesor' + (g && g.preparada_viva ? " · 1 lista" : "") + "</button>"
+      + '<button data-seg="terminal" class="' + (mercadoSegMN === "terminal" ? "on" : "") + '">Terminal</button></div>';
     if (mercadoSegMN === "libro") h += mercadoLibroHtml(f);
     else if (mercadoSegMN === "posicion") h += mercadoPosicionHtml(g);
+    else if (mercadoSegMN === "terminal") h += terminalHtmlMN();
     else h += mercadoAsesorHtml(g);
     el.innerHTML = h;
     var ba = $("mcAct"); if (ba) ba.addEventListener("click", cargarMercadoMN);
@@ -4234,6 +4275,7 @@ registrarModulo({
     });
     var bs = $("mcSubirla"); if (bs) bs.addEventListener("click", subirAsesorMN);
     var bd = $("mcDescartar"); if (bd) bd.addEventListener("click", descartarAsesorMN);
+    if (mercadoSegMN === "terminal") montarTerminalMN();
   },
   alMostrar: function(){
     cargarMercadoMN();
@@ -4248,6 +4290,447 @@ registrarModulo({
     }).catch(function(){});
   }
 });
+
+/* ===== TERMINAL v23 · segmento «terminal» del Módulo Mercado =====
+   Terminal profesional: velas agregadas en el cliente desde la serie
+   de fotos de la puerta guia_terminal, bandas de profundidad del
+   libro, líneas de equilibrio/tarifa/cima/costo, ventas propias,
+   presión, Momentum y MACD en canvas 2D vanilla (sin librerías).
+   La matemática vive en window.__TERM__ (datos planos, sin DOM) y la
+   Terminal la usa: una sola fuente, testeada por el banco v23.
+   Carga perezosa: la puerta solo se llama al abrir el segmento. */
+PUERTAS.guiaTerminal = "guia_terminal";
+var termDatosMN = null, termErrorMN = "", termCargandoMN = false;
+var termMonedaMN = "ETECSA", termMarcoMN = 60;
+function termNum(v){ var n = Number(v); return isFinite(n) ? n : null; }
+function termMs(t){
+  if (t === null || t === undefined) return null;
+  if (typeof t === "number") return t < 1e12 ? t * 1000 : t;
+  var ms = Date.parse(t); return isNaN(ms) ? null : ms;
+}
+function termNivel(e){
+  if (!e) return null;
+  var tasa = termNum(e.tasa != null ? e.tasa : (e.rate != null ? e.rate : e.precio));
+  var usd = termNum(e.usd != null ? e.usd : (e.monto_usd != null ? e.monto_usd : (e.total_usd != null ? e.total_usd : (e.usd_acum != null ? e.usd_acum : e.monto))));
+  if (tasa === null) return null;
+  return { tasa: tasa, usd: usd || 0 };
+}
+var TERM_MATH = {
+  velasDesde: function(serie, marcoMin){
+    var marco = (Number(marcoMin) > 0 ? Number(marcoMin) : 60) * 60000;
+    var pts = [];
+    (serie || []).forEach(function(p){
+      if (!p) return;
+      var ms = termMs(p.t != null ? p.t : (p.ts != null ? p.ts : p.fecha));
+      var pv = termNum(p.pv != null ? p.pv : p.p);
+      if (ms === null || pv === null) return;
+      pts.push({ ms: ms, pv: pv });
+    });
+    pts.sort(function(a, b){ return a.ms - b.ms; });
+    if (!pts.length) return [];
+    var t0 = pts[0].ms, velas = [], idx = -1;
+    pts.forEach(function(p){
+      var b = Math.floor((p.ms - t0) / marco);
+      if (b !== idx) { idx = b; velas.push({ t: t0 + b * marco, o: p.pv, h: p.pv, l: p.pv, c: p.pv, n: 1 }); }
+      else { var v = velas[velas.length - 1]; if (p.pv > v.h) v.h = p.pv; if (p.pv < v.l) v.l = p.pv; v.c = p.pv; v.n++; }
+    });
+    return velas;
+  },
+  macd: function(valores, c, l, s){
+    c = c || 12; l = l || 26; s = s || 9;
+    var vs = (valores || []).map(function(x){ return Number(x); }).filter(function(x){ return isFinite(x); });
+    var kc = 2 / (c + 1), kl = 2 / (l + 1), ks = 2 / (s + 1);
+    var ec = null, el = null, sg = null;
+    var M = [], S = [], H = [];
+    vs.forEach(function(v){
+      ec = ec === null ? v : ec + kc * (v - ec);
+      el = el === null ? v : el + kl * (v - el);
+      var m = ec - el;
+      sg = sg === null ? m : sg + ks * (m - sg);
+      M.push(m); S.push(sg); H.push(m - sg);
+    });
+    return { macd: M, signal: S, hist: H };
+  },
+  momentum: function(valores, n){
+    n = n || 10;
+    var vs = (valores || []).map(function(x){ return Number(x); });
+    return vs.map(function(v, i){ return i < n ? null : v - vs[i - n]; });
+  },
+  presionLibro: function(escV, escC, ref){
+    ref = Number(ref);
+    if (!isFinite(ref) || ref <= 0) return null;
+    function suma(esc){
+      var s = 0;
+      (esc || []).forEach(function(e){ var nv = termNivel(e); if (nv && nv.tasa >= ref * 0.9 && nv.tasa <= ref * 1.1) s += nv.usd; });
+      return s;
+    }
+    var v = suma(escV), c2 = suma(escC), tot = v + c2;
+    if (!(tot > 0)) return null;
+    var pc = c2 / tot * 100;
+    return { compra: pc, venta: 100 - pc };
+  },
+  bandas: function(escalera, paso){
+    paso = Number(paso);
+    if (!(paso > 0)) paso = 1;
+    var map = {};
+    (escalera || []).forEach(function(e){
+      var nv = termNivel(e); if (!nv) return;
+      var b = Math.floor(nv.tasa / paso) * paso;
+      map[b] = (map[b] || 0) + nv.usd;
+    });
+    var tasas = Object.keys(map).map(function(k){ return Number(k); }).sort(function(a, b){ return a - b; });
+    var acum = 0;
+    return tasas.map(function(t){ acum += map[t]; return { tasa: t, usd: map[t], acum: acum }; });
+  }
+};
+window.__TERM__ = TERM_MATH;
+function termSerieMN(d){
+  if (!d) return [];
+  var s = termMonedaMN === "BANK_CUP" ? d.serie_bankcup : d.serie_etecsa;
+  return s || [];
+}
+function termEscenarioMN(d, clave){
+  var lista = (d && d.escenarios) || [];
+  for (var i = 0; i < lista.length; i++) if (lista[i] && lista[i].clave === clave) return lista[i];
+  return null;
+}
+function cargarTerminalMN(){
+  if (!state.codigo || termCargandoMN) return;
+  termCargandoMN = true;
+  rpc("guiaTerminal", { p_codigo: state.codigo, p_prueba: false }).then(function(r){
+    termCargandoMN = false;
+    if (r && r.ok !== false) { termDatosMN = r; termErrorMN = ""; }
+    else termErrorMN = "red";
+    if (tabActual === "Mercado" && mercadoSegMN === "terminal") pintarMercado();
+  }).catch(function(e){
+    termCargandoMN = false;
+    termErrorMN = (e && e.faltaPuerta) ? "falta" : "red";
+    if (tabActual === "Mercado" && mercadoSegMN === "terminal") pintarMercado();
+  });
+}
+function termPorqueTxt(p){
+  if (p === null || p === undefined) return "";
+  if (typeof p === "string") return p;
+  return p.texto || p.porque || p.motivo || "";
+}
+function termEscenariosHtml(d){
+  var claves = [["rapida", "Rápida"], ["equilibrada", "Equilibrada"], ["paciente", "Paciente"]];
+  var viva = mercadoGuiaMN && mercadoGuiaMN.preparada_viva;
+  var h = '<div class="card"><h3><span class="secIco">' + icono("tarifa") + '</span>Escenarios del Asesor</h3>';
+  claves.forEach(function(par){
+    var e = termEscenarioMN(d, par[0]);
+    h += '<div class="termEsc"><div class="row"><span class="mut">' + par[1].toUpperCase() + '</span>'
+      + (e && e.disponible ? '<span class="pill pOk">DISPONIBLE</span>' : '<span class="pill pPend">NO DISPONIBLE</span>') + '</div>';
+    if (!e) { h += '<div class="kv" style="margin-top:6px">El servidor no trajo este escenario en esta foto.</div></div>'; return; }
+    if (!e.disponible) {
+      h += '<div class="kv" style="margin-top:6px">' + esc(motivoAsesorTxt(e.motivo || "sin_peldano")) + '</div></div>';
+      return;
+    }
+    var pq = (e.porques && e.porques.length) ? termPorqueTxt(e.porques[0]) : "";
+    h += '<div class="tasa">' + fmt(Number(e.tasa)) + ' <span style="font:600 12px var(--fuente);color:var(--txt-3)">CUP/QUSD</span></div>'
+      + '<div class="fila2"><span>Monto</span><b>$' + fmt(Number(e.monto_qusd)) + ' QUSD</b></div>'
+      + '<div class="fila2"><span>Recibes de saldo</span><b>' + fmt(Number(e.receive)) + '</b></div>'
+      + '<div class="fila2"><span>Ganancia por recarga</span><b>' + fmt(Number(e.ganancia360)) + ' CUP</b></div>'
+      + '<div class="fila2"><span>Ganancia real (FIFO)</span><b>' + fmt(Number(e.ganancia_fifo)) + ' CUP</b></div>'
+      + (pq ? '<div class="ayuda" style="margin-top:6px">' + esc(pq) + '</div>' : (e.motivo ? '<div class="ayuda" style="margin-top:6px">' + esc(String(e.motivo)) + '</div>' : ""))
+      + '<div class="ayuda">La subida sigue en el Asesor: estas tarjetas son de lectura.</div>';
+    if (par[0] === "equilibrada" && viva && Math.abs(Number(e.tasa) - Number(viva.tasa)) < 0.01) {
+      h += '<button class="bGold" id="termSubirViva">Subirla: es la preparada viva</button>'
+        + '<div class="ayuda">Este escenario coincide con la oferta que el Asesor ya tiene preparada: subirla pasa por la puerta de siempre, con su collar y su bitácora.</div>';
+    }
+    h += '</div>';
+  });
+  h += '</div>';
+  return h;
+}
+function terminalHtmlMN(){
+  var d = termDatosMN;
+  if (!d) {
+    return '<div class="card"><h3><span class="secIco">' + icono("mercado") + '</span>Terminal</h3>'
+      + '<div class="kv">' + (termErrorMN === "falta" ? TXT_FALTA_ACTIVAR : (termErrorMN === "red" ? "Sin conexión con la puerta de la Terminal por ahora: se reintenta al tocar Actualizar." : "Leyendo la Terminal: serie de fotos, libro y tus escenarios…")) + '</div>'
+      + '<div class="fila" style="margin-top:8px"><button class="bGhost bMini" id="termAct">Actualizar</button></div></div>';
+  }
+  var foto = d.foto || {};
+  var vieja = (Number(foto.edad_min) > 20) || foto.usable === false;
+  var serie = termSerieMN(d);
+  var ptsMs = serie.map(function(p){ return termMs(p && p.t); }).filter(function(x){ return x !== null; });
+  var spanMs = ptsMs.length > 1 ? Math.max.apply(null, ptsMs) - Math.min.apply(null, ptsMs) : 0;
+  var corta = spanMs < termMarcoMN * 60000;
+  var libro = d.libro || {};
+  var pres = TERM_MATH.presionLibro(libro.escalera_venta, libro.escalera_compra, foto.top_venta != null ? foto.top_venta : foto.nivel20);
+  var dem = d.demanda || null;
+  var mem = d.memoria || null;
+  var h = '<div class="termWrap">'
+    + '<div class="termControles">'
+    + '<div class="termChips" role="group" aria-label="Moneda">'
+    + '<button data-tmon="ETECSA" class="' + (termMonedaMN === "ETECSA" ? "on" : "") + '">ETECSA</button>'
+    + '<button data-tmon="BANK_CUP" class="' + (termMonedaMN === "BANK_CUP" ? "on" : "") + '">BANK_CUP</button></div>'
+    + '<div class="termChips" role="group" aria-label="Marco">'
+    + [[15, "15m"], [60, "1h"], [240, "4h"], [1440, "1d"]].map(function(m){
+        return '<button data-tmarco="' + m[0] + '" class="' + (termMarcoMN === m[0] ? "on" : "") + '">' + m[1] + '</button>';
+      }).join("")
+    + '</div>'
+    + '<button class="bGhost bMini" id="termAct" style="margin-left:auto">Actualizar</button></div>'
+    + '<div class="termCanvasBox"><canvas id="termCanvas" height="250"></canvas>'
+    + (vieja ? '<div class="termSello">Foto vieja — hace ' + fmt(Number(foto.edad_min || 0)) + ' min</div>' : "")
+    + '</div>'
+    + (corta ? '<div class="termNota">Historia corta: la serie aún no cubre este marco; se pinta lo que hay.</div>' : "")
+    + '<div class="termNota">Bandas de calor: ámbar = profundidad de venta · teal = profundidad de compra (intensidad por USD acumulado). Puntos blancos: tus ventas.</div>'
+    + '<div class="termPaneles">'
+    + '<div class="termPanel"><div class="k">Presión del libro</div>'
+    + (pres
+        ? '<div class="termPresion"><div class="pc" style="width:' + pres.compra.toFixed(1) + '%"></div><div class="pv" style="width:' + pres.venta.toFixed(1) + '%"></div></div>'
+          + '<div class="termPresionTxt"><span>Compra ' + fmt(pres.compra) + '%</span><span>Venta ' + fmt(pres.venta) + '%</span></div>'
+        : '<div class="kv">Sin profundidad usable cerca del top en esta foto.</div>')
+    + '</div>'
+    + '<div class="termPanel"><div class="k">Demanda</div>'
+    + (dem
+        ? '<span class="termChip">' + esc(String(dem.termometro || "—")) + ' · ' + fmt(Number(dem.ops_realizadas || 0)) + ' ops</span>'
+          + (dem.declaracion ? '<div class="termNota">' + esc(String(dem.declaracion)) + '</div>' : "")
+        : '<div class="kv">Sin lectura de demanda en esta foto.</div>')
+    + '</div></div>'
+    + '<div class="termPaneles">'
+    + '<div class="termPanel"><div class="k">Momentum (10)</div><canvas id="termMomCanvas" height="56"></canvas></div>'
+    + '<div class="termPanel"><div class="k">MACD (12·26·9)</div><canvas id="termMacdCanvas" height="56"></canvas></div>'
+    + '</div>';
+  var ventas = (d.ventas || []).slice().sort(function(a, b){ return (termMs(b && b.t) || 0) - (termMs(a && a.t) || 0); }).slice(0, 5);
+  if (ventas.length) {
+    h += '<div class="card" style="margin-top:8px"><h3><span class="secIco">' + icono("dinero") + '</span>Tus ventas</h3>'
+      + ventas.map(function(v){
+          return '<div class="termVentaFila"><span>' + esc(etiquetaFecha(v.t)) + '</span><b>' + fmt(Number(v.tasa)) + ' CUP/QUSD</b><span>' + fmt(Number(v.saldo)) + ' saldo · $' + fmt(Number(v.qusd)) + '</span></div>';
+        }).join("") + '</div>';
+  }
+  if (mem) {
+    h += '<div class="card"><h3><span class="secIco">' + icono("tarifa") + '</span>Memoria del Asesor</h3>'
+      + '<div class="kv">Acierto del Asesor: <b>' + (mem.acierto_pct != null ? fmt(Number(mem.acierto_pct)) + '%' : "—") + '</b> (' + fmt(Number(mem.llenadas || 0)) + ' llenadas de ' + fmt(Number(mem.resueltas || 0)) + ' resueltas)</div>'
+      + ((mem.ultimas || []).slice(0, 4).map(function(u){
+          return '<div class="kv">· ' + esc(String((u && (u.peldano || u.nombre)) || "sugerencia")) + ' a ' + fmt(Number(u && u.tasa)) + ' — ' + esc(String((u && u.estado) || "")) + '</div>';
+        }).join(""))
+      + '</div>';
+  }
+  h += '</div>';
+  h += termEscenariosHtml(d);
+  return h;
+}
+function termPrepararCanvas(cv, altoCss){
+  var dpr = (typeof window !== "undefined" && window.devicePixelRatio) || 1;
+  var w = (cv.parentElement && cv.parentElement.clientWidth) || cv.clientWidth || 340;
+  if (!(w > 0)) w = 340;
+  cv.width = Math.round(w * dpr);
+  cv.height = Math.round(altoCss * dpr);
+  cv.style.height = altoCss + "px";
+  var ctx = cv.getContext ? cv.getContext("2d") : null;
+  if (ctx && dpr !== 1) ctx.scale(dpr, dpr);
+  return { ctx: ctx, w: w, h: altoCss };
+}
+function dibujarTerminalMN(){
+  var cv = $("termCanvas"); if (!cv || !termDatosMN) return;
+  var prep = termPrepararCanvas(cv, 250);
+  var ctx = prep.ctx; if (!ctx) return;
+  var W = prep.w, H = prep.h;
+  var d = termDatosMN, foto = d.foto || {};
+  var serie = termSerieMN(d);
+  var velas = TERM_MATH.velasDesde(serie, termMarcoMN);
+  ctx.fillStyle = "#07090D"; ctx.fillRect(0, 0, W, H);
+  if (!velas.length) {
+    ctx.fillStyle = "rgba(219,238,246,.64)"; ctx.font = "600 13px sans-serif";
+    ctx.fillText("Sin serie todavía en esta moneda.", 12, 30);
+    return;
+  }
+  var tarifaEq = termEscenarioMN(d, "equilibrada");
+  var viva = mercadoGuiaMN && mercadoGuiaMN.preparada_viva;
+  var tarifaLin = termNum(tarifaEq && tarifaEq.tasa) != null ? Number(tarifaEq.tasa) : (viva ? termNum(viva.tasa) : null);
+  var costoLin = null;
+  var tar = d.tarifa || {}, pos = d.posicion || {};
+  if (termNum(tar.salida_ref) != null && termNum(pos.costo_vivo_360) != null && Number(pos.costo_vivo_360) > 0) {
+    costoLin = 360 * Number(tar.salida_ref) / Number(pos.costo_vivo_360);
+  }
+  var lineas = [];
+  if (termNum(d.equilibrio) != null) lineas.push({ v: Number(d.equilibrio), color: "#F5B04D", txt: "Equilibrio" });
+  if (tarifaLin != null) lineas.push({ v: tarifaLin, color: "#38BDF8", txt: "Tu tarifa" });
+  if (termNum(foto.nivel20) != null) lineas.push({ v: Number(foto.nivel20), color: "rgba(219,238,246,.55)", txt: "Cima firme" });
+  if (costoLin != null && isFinite(costoLin)) lineas.push({ v: costoLin, color: "#EDF6FA", txt: "Tu costo" });
+  var mn = Infinity, mx = -Infinity;
+  velas.forEach(function(v){ if (v.l < mn) mn = v.l; if (v.h > mx) mx = v.h; });
+  lineas.forEach(function(L){ if (L.v < mn) mn = L.v; if (L.v > mx) mx = L.v; });
+  if (!(mx > mn)) { mx = mn + 1; }
+  var pad = (mx - mn) * 0.08; mn -= pad; mx += pad;
+  var padR = 46, plotW = W - padR, plotH = H - 18;
+  function Y(v){ return 8 + (mx - v) / (mx - mn) * plotH; }
+  /* Bandas de profundidad detrás del gráfico */
+  var libro = d.libro || {};
+  var paso = (mx - mn) / 14 || 1;
+  function pintaBandas(escalera, rgb){
+    var bs = TERM_MATH.bandas(escalera, paso);
+    var maxA = 0; bs.forEach(function(b){ if (b.acum > maxA) maxA = b.acum; });
+    if (!(maxA > 0)) return;
+    bs.forEach(function(b){
+      var y1 = Y(b.tasa + paso), y2 = Y(b.tasa);
+      var a = 0.04 + 0.26 * (b.acum / maxA);
+      ctx.fillStyle = "rgba(" + rgb + "," + a.toFixed(3) + ")";
+      ctx.fillRect(0, Math.min(y1, y2), plotW, Math.max(1, Math.abs(y2 - y1)));
+    });
+  }
+  pintaBandas(libro.escalera_venta, "245,176,77");
+  pintaBandas(libro.escalera_compra, "45,212,191");
+  /* Rejilla y etiquetas de precio */
+  ctx.font = "10px monospace"; ctx.textBaseline = "middle";
+  for (var gi = 0; gi <= 4; gi++) {
+    var gv = mn + (mx - mn) * gi / 4, gy = Y(gv);
+    ctx.strokeStyle = "rgba(148,197,220,.08)"; ctx.beginPath(); ctx.moveTo(0, gy); ctx.lineTo(plotW, gy); ctx.stroke();
+    ctx.fillStyle = "rgba(219,238,246,.5)"; ctx.fillText(fmt(gv), plotW + 5, gy);
+  }
+  /* Velas */
+  var slot = plotW / velas.length;
+  var bw = Math.max(2, Math.min(14, slot * 0.62));
+  velas.forEach(function(v, i){
+    var x = slot * i + slot / 2;
+    var sube = v.c >= v.o;
+    ctx.strokeStyle = sube ? "#2DD4BF" : "#E5534B";
+    ctx.fillStyle = sube ? "#2DD4BF" : "#E5534B";
+    ctx.beginPath(); ctx.moveTo(x, Y(v.h)); ctx.lineTo(x, Y(v.l)); ctx.stroke();
+    var yO = Y(v.o), yC = Y(v.c);
+    ctx.fillRect(x - bw / 2, Math.min(yO, yC), bw, Math.max(1, Math.abs(yC - yO)));
+  });
+  /* Líneas punteadas con etiqueta */
+  ctx.font = "600 10.5px sans-serif";
+  lineas.forEach(function(L){
+    var y = Y(L.v); if (y < 4 || y > H - 4) return;
+    ctx.strokeStyle = L.color; ctx.setLineDash([5, 4]);
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(plotW, y); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = L.color;
+    ctx.fillText(L.txt + " " + fmt(L.v), 6, Math.max(8, y - 8));
+  });
+  /* Ventas de Ernesto sobre las velas */
+  var t0 = velas[0].t, t1 = t0 + velas.length * termMarcoMN * 60000;
+  (d.ventas || []).forEach(function(v){
+    var ms = termMs(v && v.t), tasa = termNum(v && v.tasa);
+    if (ms === null || tasa === null || ms < t0 || ms > t1) return;
+    var x = (ms - t0) / (t1 - t0) * plotW, y = Y(tasa);
+    ctx.fillStyle = "#FFFFFF"; ctx.beginPath(); ctx.arc(x, y, 3.4, 0, 6.3); ctx.fill();
+    ctx.strokeStyle = "#F5B04D"; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.arc(x, y, 5.2, 0, 6.3); ctx.stroke(); ctx.lineWidth = 1;
+  });
+}
+function dibujarMiniMN(id, tipo){
+  var cv = $(id); if (!cv || !termDatosMN) return;
+  var prep = termPrepararCanvas(cv, 56);
+  var ctx = prep.ctx; if (!ctx) return;
+  var W = prep.w, H = prep.h;
+  var serie = termSerieMN(termDatosMN).slice();
+  serie.sort(function(a, b){ return (termMs(a && a.t) || 0) - (termMs(b && b.t) || 0); });
+  var pvs = serie.map(function(p){ return Number(p && p.pv); }).filter(function(x){ return isFinite(x); });
+  ctx.clearRect(0, 0, W, H);
+  if (pvs.length < 3) {
+    ctx.fillStyle = "rgba(219,238,246,.5)"; ctx.font = "600 11px sans-serif";
+    ctx.fillText("Serie corta pa este indicador.", 4, 16);
+    return;
+  }
+  if (tipo === "mom") {
+    var mom = TERM_MATH.momentum(pvs, 10);
+    var vals = mom.filter(function(x){ return x !== null; });
+    if (!vals.length) return;
+    var mxa = Math.max.apply(null, vals.map(function(x){ return Math.abs(x); })) || 1;
+    var y0 = H / 2, bw = Math.max(1, W / mom.length * 0.7);
+    mom.forEach(function(v, i){
+      if (v === null) return;
+      var x = i / mom.length * W, hh = Math.abs(v) / mxa * (H / 2 - 3);
+      ctx.fillStyle = v >= 0 ? "#2DD4BF" : "#E5534B";
+      ctx.fillRect(x, v >= 0 ? y0 - hh : y0, bw, Math.max(1, hh));
+    });
+    ctx.strokeStyle = "rgba(148,197,220,.25)"; ctx.beginPath(); ctx.moveTo(0, y0); ctx.lineTo(W, y0); ctx.stroke();
+  } else {
+    var r = TERM_MATH.macd(pvs, 12, 26, 9);
+    var todos = r.macd.concat(r.signal).concat(r.hist);
+    var mxa2 = Math.max.apply(null, todos.map(function(x){ return Math.abs(x); })) || 1;
+    var y02 = H / 2;
+    r.hist.forEach(function(v, i){
+      var x = i / r.hist.length * W, hh = Math.abs(v) / mxa2 * (H / 2 - 3);
+      ctx.fillStyle = v >= 0 ? "rgba(45,212,191,.45)" : "rgba(229,83,75,.45)";
+      ctx.fillRect(x, v >= 0 ? y02 - hh : y02, Math.max(1, W / r.hist.length * 0.7), Math.max(1, hh));
+    });
+    function linea(arr, color){
+      ctx.strokeStyle = color; ctx.beginPath();
+      arr.forEach(function(v, i){
+        var x = i / Math.max(1, arr.length - 1) * W, y = y02 - v / mxa2 * (H / 2 - 3);
+        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      });
+      ctx.stroke();
+    }
+    linea(r.macd, "#38BDF8");
+    linea(r.signal, "#F5B04D");
+  }
+}
+function montarTerminalMN(){
+  var ba = $("termAct"); if (ba) ba.addEventListener("click", function(){ termDatosMN = null; cargarTerminalMN(); pintarMercado(); });
+  document.querySelectorAll("[data-tmon]").forEach(function(b){
+    b.addEventListener("click", function(){ termMonedaMN = b.getAttribute("data-tmon"); pintarMercado(); });
+  });
+  document.querySelectorAll("[data-tmarco]").forEach(function(b){
+    b.addEventListener("click", function(){ termMarcoMN = Number(b.getAttribute("data-tmarco")) || 60; pintarMercado(); });
+  });
+  var bsv = $("termSubirViva"); if (bsv) bsv.addEventListener("click", subirAsesorMN);
+  if (!termDatosMN && !termCargandoMN) cargarTerminalMN();
+  if (termDatosMN && typeof requestAnimationFrame === "function") {
+    requestAnimationFrame(function(){ dibujarTerminalMN(); dibujarMiniMN("termMomCanvas", "mom"); dibujarMiniMN("termMacdCanvas", "macd"); });
+  }
+}
+/* ===== v23 · Puesto promocionado en Inicio (datos de cargarMercadoMN) ===== */
+function promoInicioHtml(){
+  var g = mercadoGuiaMN; if (!g) return "";
+  var promo = g.promo || (g.calculo && g.calculo.promo) || null;
+  if (!promo || !promo.activa) return "";
+  var cubierto = !!g.preparada_viva || promo.cubierto === true || promo.escaparate === "cubierto" || !!promo.oferta_abierta;
+  var ventana = "";
+  var desde = promo.desde || promo.inicio || promo.fecha_inicio || null;
+  var hasta = promo.hasta || promo.fin || promo.fecha_fin || null;
+  if (desde || hasta) ventana = '<div class="kv">Ventana del puesto: <b>' + esc(String(desde || "—")) + '</b> a <b>' + esc(String(hasta || "—")) + '</b></div>';
+  return '<div class="card promoCard" id="inPromo"><h3><span class="secIco">' + icono("mercado") + '</span>Puesto promocionado</h3>'
+    + '<div class="promoEstado">' + (cubierto ? "Escaparate cubierto" : "Escaparate vacío") + '</div>'
+    + '<div class="ayuda">' + (cubierto
+        ? "Tu oferta promocionada está abierta: el escaparate trabaja por ti mientras el puesto sea tuyo."
+        : "El puesto es tuyo pero no hay oferta abierta cubriéndolo: sin oferta viva el escaparate no vende. El Asesor, en Mercado, prepara la oferta cuando el mercado da la señal.") + '</div>'
+    + ventana + '</div>';
+}
+/* ===== v23 · Tu fondo en el tiempo (Dinero) =====
+   La curva se construye SOLO de movimientos con fecha que la app ya
+   cargue en la foto del dinero (creada_en/monto/cuenta/tipo). Hoy la
+   puerta entrega saldos calculados, no el detalle: la tarjeta nace
+   con su estado vacío honesto y se dibuja sola cuando el detalle
+   exista. Jamás se inventa un punto. */
+function fondoCurvaHtml(est){
+  var movs = null;
+  if (est) movs = est.movimientos || est.libro_movimientos || (est.ganancias && est.ganancias.movimientos) || null;
+  var conCuenta = false, limpios = [];
+  (movs || []).forEach(function(m){
+    if (!m || !m.creada_en || !isFinite(Number(m.monto))) return;
+    if (m.cuenta) conCuenta = true;
+    limpios.push(m);
+  });
+  var delFondo = limpios.filter(function(m){
+    if (!conCuenta) return true;
+    return String(m.cuenta || "").toLowerCase().indexOf("fondo") >= 0;
+  });
+  var ICO_D = '<span class="secIco">' + icono("dinero") + '</span>';
+  if (delFondo.length < 2) {
+    return '<div class="card" id="dnFondoCurva"><h3>' + ICO_D + 'Tu fondo en el tiempo</h3>'
+      + '<div class="kv">La curva nace con los movimientos que ya registras: cuando el libro traiga el detalle de tu fondo con fecha, aquí se dibuja sola.</div>'
+      + '<div class="ayuda">Hoy el libro entrega los saldos ya calculados, no el detalle con fecha: por eso aún no hay curva, y no se inventa ni un punto.</div></div>';
+  }
+  delFondo.sort(function(a, b){ return (termMs(a.creada_en) || 0) - (termMs(b.creada_en) || 0); });
+  var saldo = 0, pts = delFondo.map(function(m){ saldo += Number(m.monto); return saldo; });
+  var mn = Math.min.apply(null, pts), mx = Math.max.apply(null, pts);
+  if (!(mx > mn)) { mx = mn + 1; }
+  var coords = pts.map(function(v, i){
+    var x = pts.length === 1 ? 0 : (i / (pts.length - 1) * 100);
+    var y = 34 - (v - mn) / (mx - mn) * 30;
+    return x.toFixed(1) + "," + y.toFixed(1);
+  }).join(" ");
+  return '<div class="card" id="dnFondoCurva"><h3>' + ICO_D + 'Tu fondo en el tiempo</h3>'
+    + '<div class="fondoCurvaBox"><svg viewBox="0 0 100 36" preserveAspectRatio="none" aria-hidden="true"><polyline points="' + coords + '" fill="none" stroke="#2DD4BF" stroke-width="1.6" vector-effect="non-scaling-stroke"/></svg></div>'
+    + '<div class="kv" style="margin-top:6px">De <b>' + fmtE(pts[0]) + '</b> a <b>' + fmtE(pts[pts.length - 1]) + '</b> CUP · ' + pts.length + ' movimientos del fondo, en orden de fecha.</div>'
+    + '<div class="ayuda">Curva acumulada de los movimientos del fondo que trae el libro, en su orden cronológico.</div></div>';
+}
 
 /* ===== ENTRADA (login) Y ARRANQUE ===== */
 /* TANDA 6 · E-11: pestaña destino de un push abierto con la app
@@ -4294,14 +4777,14 @@ function intentarEntrar(){
    controllerchange recarga la app UNA sola vez (marca en
    sessionStorage por versión: sin bucles). MN_VERSION se sube
    junto con el CACHE de sw.js. */
-var MN_VERSION = "v22";
+var MN_VERSION = "v23";
 /* Sello VISIBLE de compilación (punto 6): Ernesto quejándose con
    razón — «no sé si se actualizó o no». Una sola constante que
    sube con cada publicación; se ve en Inicio y en la hoja ℹ️ del
    chat. Formato: «Mi Negocio · versión 2026-11-11 HH:MM · caché v6»
    (fecha Y HORA de la publicación, para distinguir dos subidas
    del mismo día). La hora es la de Cuba (CST) al compilar. */
-var MN_COMPILACION = "2026-11-14 11:31";
+var MN_COMPILACION = "2026-11-14 21:47";
 function selloVersion(){ return "Mi Negocio · versión " + MN_COMPILACION + " · caché " + MN_VERSION; }
 var regSW = null;
 var swConControladorAlArrancar = false;
@@ -5361,6 +5844,7 @@ registrarModulo({
       + '<div class="mut">Leído del libro a las ' + horaDe(new Date(dineroLeidoEnMN).toISOString()) + '.</div>'
       + '<div class="fila" style="margin-top:8px"><button class="bGold bMini" id="dnAct">Actualizar</button></div>'
       + '</div>';
+    h += fondoCurvaHtml(est);
     /* --- La cuenta de cada buscador --- */
     var porCod = {}, ordenCod = [];
     function aseguraCod(cod){
