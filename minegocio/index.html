@@ -4905,7 +4905,7 @@ var MN_VERSION = "v25";
    chat. Formato: «Mi Negocio · versión 2026-11-11 HH:MM · caché v6»
    (fecha Y HORA de la publicación, para distinguir dos subidas
    del mismo día). La hora es la de Cuba (CST) al compilar. */
-var MN_COMPILACION = "2026-11-15 08:23";
+var MN_COMPILACION = "2026-11-15 08:44";
 function selloVersion(){ return "Mi Negocio · versión " + MN_COMPILACION + " · caché " + MN_VERSION; }
 var regSW = null;
 var swConControladorAlArrancar = false;
@@ -4957,8 +4957,12 @@ function init(){
   /* E-11: destino del push en la URL (?tab=…), validado contra los
      módulos reales; se limpia de la URL pa que un refresco no
      vuelva a saltar de pestaña. */
+  /* search0 se captura UNA vez: el replaceState de ?tab= limpia la
+     URL entera y mataba el ?codigo= del enlace mágico cuando los
+     dos parámetros venían juntos (cazado por el Ojo en la v25). */
+  var search0 = location.search;
   try {
-    var tabUrl = new URLSearchParams(location.search).get("tab");
+    var tabUrl = new URLSearchParams(search0).get("tab");
     if (tabUrl && modulo(tabUrl)) {
       tabDePush = tabUrl;
       history.replaceState(null, "", location.pathname + location.hash);
@@ -4971,7 +4975,7 @@ function init(){
      sí queda guardado en este navegador. */
   var codigoMagico = null;
   try {
-    var codUrl = new URLSearchParams(location.search).get("codigo");
+    var codUrl = new URLSearchParams(search0).get("codigo");
     if (codUrl) {
       codigoMagico = String(codUrl).trim().toUpperCase();
       history.replaceState(null, "", location.pathname + location.hash);
