@@ -1,0 +1,70 @@
+name: Ojo Anfitrion v2.1 (temporal)
+
+# Prueba visual del hotfix v2.1: monta el APK de la build de Anfitrion en un
+# emulador ARM64 (macOS, la .so del APK es ARM) con pantalla chica, abre la
+# app, captura arriba y tras deslizar hasta el final. Temporal: se borra al
+# cerrar la tanda.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  ojo:
+    runs-on: macos-14
+    timeout-minutes: 50
+    steps:
+      - name: Descargar el APK de la ultima build verde de Anfitrion
+        run: |
+          RUN=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/repos/${{ github.repository }}/actions/workflows/anfitrion-maximo.yml/runs?per_page=6&status=success" \
+            | python3 -c "import sys,json; rs=json.load(sys.stdin).get('workflow_runs',[]); print(rs[0]['id'] if rs else '')")
+          if [ -z "$RUN" ]; then echo "Sin corrida verde de anfitrion-maximo"; exit 1; fi
+          echo "Corrida de build: $RUN"
+          ART=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/repos/${{ github.repository }}/actions/runs/$RUN/artifacts" \
+            | python3 -c "import sys,json; a=json.load(sys.stdin).get('artifacts',[]); print(a[0]['id'] if a else '')")
+          if [ -z "$ART" ]; then echo "Sin artefacto en la corrida $RUN"; exit 1; fi
+          curl -sL -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -o art.zip "https://api.github.com/repos/${{ github.repository }}/actions/artifacts/$ART/zip"
+          unzip -o art.zip
+          ls -la
+          cp app-debug.apk app.apk
+
+      - name: Recorrido en el emulador (pantalla chica)
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: default
+          arch: arm64-v8a
+          profile: pixel_6
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -memory 3072 -no-snapshot-save
+          script: |
+            adb shell wm size 720x1280
+            adb shell wm density 320
+            adb install -r app.apk
+            adb shell am start -n com.maximo.anfitrion/.MainActivity
+            sleep 8
+            adb exec-out screencap -p > shot-top.png
+            adb shell uiautomator dump /sdcard/w.xml && adb pull /sdcard/w.xml w-top.xml
+            for i in 1 2 3 4 5 6 7 8; do adb shell input swipe 360 1050 360 250 350; sleep 1; done
+            adb exec-out screencap -p > shot-bottom.png
+            adb shell uiautomator dump /sdcard/w.xml && adb pull /sdcard/w.xml w-bottom.xml
+            echo "--- textos al final ---"
+            grep -o "Firmar e instalar" w-bottom.xml | head -1 || true
+            grep -o "REGISTRO DE ETAPAS" w-bottom.xml | head -1 || true
+            grep -o "Compartir el registro" w-bottom.xml | head -1 || true
+
+      - name: Subir las capturas
+        uses: actions/upload-artifact@v4
+        with:
+          name: ojo-anfitrion-v21
+          path: |
+            shot-top.png
+            shot-bottom.png
+            w-top.xml
+            w-bottom.xml
+          if-no-files-found: error
