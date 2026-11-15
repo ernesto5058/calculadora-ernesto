@@ -33,7 +33,9 @@ jobs:
           targets: aarch64-linux-android,armv7-linux-androideabi
 
       - name: cargo-ndk
-        uses: taiki-e/install-action@cargo-ndk
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-ndk
 
       - name: Nucleo Rust a jniLibs
         working-directory: anfitrion-maximo/core
