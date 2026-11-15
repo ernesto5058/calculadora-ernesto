@@ -58,7 +58,7 @@
     <button type="button" class="bigbtn" id="btn-emparejar">🔌 Emparejar mi iPhone</button>
     <a class="dlbtn" id="btn-descargar" href="#" download="pair-record.plist" hidden>⬇️ Descargar archivo de emparejamiento</a>
     <p class="small">Al terminar bien, la descarga arranca sola y este botón verde queda por si necesitas bajarlo otra vez.
-    El archivo también queda guardado en este navegador. <b>No lo borres</b>: es único para tu iPhone.</p>
+    El archivo también queda guardado en este navegador: si recargas la página, el botón verde vuelve a aparecer con tu registro, sin emparejar de nuevo. <b>No borres los datos de este sitio</b>: el registro es único para tu iPhone.</p>
   </div>
 
   <div class="card">
@@ -93,13 +93,37 @@ let wasmReady = false;
   catch(e){ setEstado("❌ El motor no cargó. Revisa tu conexión y recarga la página.", "err"); log("Error cargando WASM: " + e); btn.disabled = true; }
 })();
 
-function ofrecerDescarga(xml){
-  const blob = new Blob([xml], { type: "application/xml" });
-  const url = URL.createObjectURL(blob);
-  dl.href = url; dl.hidden = false;
-  const a = document.createElement("a"); a.href = url; a.download = "pair-record.plist";
-  document.body.appendChild(a); a.click(); a.remove();
+let urlDescarga = null;
+function prepararDescarga(xml){
+  // Tipo octet-stream A PROPÓSITO: con application/xml, Chrome Android trató
+  // la descarga como contenido «visible» y en la corrida real del 2026-11-15
+  // guardó LA PROPIA PÁGINA (pair-record.plist.html, 7.901 B = este index.html)
+  // en vez del blob con el registro. octet-stream siempre se baja como archivo
+  // y Chrome conserva el nombre pair-record.plist sin re-etiquetar.
+  const blob = new Blob([xml], { type: "application/octet-stream" });
+  if (urlDescarga) URL.revokeObjectURL(urlDescarga);
+  urlDescarga = URL.createObjectURL(blob);
+  dl.href = urlDescarga; dl.download = "pair-record.plist"; dl.hidden = false;
 }
+function ofrecerDescarga(xml){
+  prepararDescarga(xml);
+  const a = document.createElement("a");
+  a.href = urlDescarga; a.download = "pair-record.plist"; a.hidden = true;
+  document.body.appendChild(a); a.click();
+  // NO quitar el ancla enseguida: en Chrome Android, removerla en el mismo
+  // instante del click hace que el servicio de descargas pierda la referencia
+  // al blob y termine guardando el documento actual. Se quita al minuto.
+  setTimeout(() => a.remove(), 60000);
+}
+function restaurarGuardado(){
+  let xml = null;
+  try { xml = localStorage.getItem("idevice-rs.pairRecordXml"); } catch {}
+  if (!xml || !xml.includes("<plist")) return;
+  prepararDescarga(xml);
+  setEstado("💾 <b>Ya tienes un registro de emparejamiento guardado</b> en este navegador. Puedes bajarlo otra vez con el botón verde <b>sin volver a emparejar</b>. Si quieres generar uno nuevo, toca «Emparejar mi iPhone».", "ok");
+  log(`Registro guardado restaurado (${(xml.length/1024).toFixed(1)} KiB) — botón verde de descarga listo ✅`);
+}
+restaurarGuardado();
 
 btn.addEventListener("click", async () => {
   if (!wasmReady) { log("El motor aún no termina de cargar; espera un segundo."); return; }
@@ -116,7 +140,7 @@ btn.addEventListener("click", async () => {
     try { localStorage.setItem("idevice-rs.pairRecordXml", xml); } catch {}
     log(`Pairing OK — registro de ${(xml.length/1024).toFixed(1)} KiB ✅`);
     ofrecerDescarga(xml);
-    setEstado("✅ <b>¡EMPAREJADO!</b> El archivo <b>pair-record.plist</b> se está descargando. Guárdalo y <b>NO lo borres</b>. Mándame captura de esta pantalla.", "ok");
+    setEstado("✅ <b>¡EMPAREJADO!</b> El archivo <b>pair-record.plist</b> se está descargando. Guárdalo y <b>NO lo borres</b>. Si en tus archivos aparece con un apellido raro (ej. <b>.html</b>) o una app lo rechaza, tranquilo: la copia buena quedó guardada en este navegador — <b>recarga esta página</b> y el botón verde te lo baja otra vez, sin volver a emparejar. Mándame captura de esta pantalla.", "ok");
   } catch(e) {
     const msg = String(e && e.message ? e.message : e);
     log("ERROR: " + msg);
