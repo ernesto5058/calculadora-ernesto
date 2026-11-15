@@ -326,27 +326,29 @@ jobs:
                       shot "10-chat-adjuntar.png" "Extras v1.4.8: el Chat tras intentar adjuntar (el editor de foto no se alcanzó en el emulador)"
                       EXTRA="$EXTRA El editor de foto nuevo NO se alcanzó en el emulador (selector o editor sin respuesta al robot): queda sin verificar aquí; su prueba es en un teléfono de verdad."
                     fi
-                    # ===== Extras capital v1.8.0 (APK 1.7.0): bloque «Tu capital» y formulario «Devolver capital» =====
+                    # ===== Extras capital v1.8.0 (APK 1.7.0) v2: guía saltada y chequeos con bounds reales =====
+                    python3 ojo/tap.py "Saltar" || true
+                    sleep 2
                     tap_tab "Mi panel" 2; sleep 3
-                    for i in 1 2 3 4; do dumpw; if grep -q "Tu capital" /tmp/w.xml 2>/dev/null; then break; fi; adb shell input swipe 540 1800 540 700 400 >/dev/null 2>&1; sleep 2; done
+                    for i in 1 2 3 4 5 6; do dumpw; if python3 ojo/visible.py "Devolver capital"; then break; fi; adb shell input swipe 540 1800 540 700 400 >/dev/null 2>&1; sleep 2; done
                     dumpw
-                    if grep -q "Tu capital" /tmp/w.xml 2>/dev/null; then
+                    if python3 ojo/visible.py "Tu capital" || python3 ojo/visible.py "Devolver capital"; then
                       shot "14-capital.png" "Capital (Mi Trabajo v1.8.0 dentro de la APK): el bloque «Tu capital» del buscador con su botón «Devolver capital» (cuenta de prueba contra el servidor vivo: su capital real es 0 y el bloque se pinta igual)"
                       if python3 ojo/tap.py "Devolver capital"; then
                         sleep 3; dumpw
-                        if grep -q "Cuánto devuelves" /tmp/w.xml 2>/dev/null; then
+                        if python3 ojo/visible.py "Cuánto devuelves"; then
                           shot "15-devolver-form.png" "Capital (Mi Trabajo v1.8.0 dentro de la APK): el formulario «Devolver capital» abierto (monto, «Todo lo que tengo en mano», «Es mi cierre» y «Enviar la solicitud»); NO se envió ninguna solicitud"
-                          EXTRA="$EXTRA El bloque «Tu capital» y el formulario «Devolver capital» de la v1.8.0 se vieron y respondieron DENTRO de la APK (fotos 14-15; no se envió ninguna solicitud)."
+                          EXTRA="$EXTRA El bloque «Tu capital» y el formulario «Devolver capital» de la v1.8.0 se vieron y respondieron DENTRO de la APK (fotos 14-15, chequeos con bounds reales; no se envió ninguna solicitud)."
                         else
-                          shot "15-devolver-form.png" "Capital: se tocó «Devolver capital» pero el formulario no se confirmó en el árbol (la foto muestra la pantalla donde quedó)"
-                          EXTRA="$EXTRA El botón «Devolver capital» se tocó dentro de la APK pero el formulario no se confirmó en el árbol del emulador (foto 15)."
+                          shot "15-devolver-form.png" "Capital: se tocó «Devolver capital» pero el formulario no se confirmó con bounds reales (la foto muestra la pantalla donde quedó)"
+                          EXTRA="$EXTRA El botón «Devolver capital» se tocó dentro de la APK pero el formulario no se confirmó con bounds reales (foto 15)."
                         fi
                       else
                         EXTRA="$EXTRA El bloque «Tu capital» se vio dentro de la APK (foto 14) pero el botón «Devolver capital» no se alcanzó a tocar en el emulador."
                       fi
                     else
-                      shot "14-capital.png" "Capital: el bloque «Tu capital» no apareció en «Mi panel» en el emulador (la foto muestra la pantalla donde quedó el recorrido)"
-                      EXTRA="$EXTRA El bloque «Tu capital» NO apareció en el emulador: esa pantalla queda sin verificar aquí."
+                      shot "14-capital.png" "Capital: el bloque «Tu capital» no apareció con bounds reales en «Mi panel» en el emulador (la foto muestra la pantalla donde quedó el recorrido)"
+                      EXTRA="$EXTRA El bloque «Tu capital» NO apareció con bounds reales en el emulador: esa pantalla queda sin verificar aquí."
                     fi
                   else
                     VERED="PARCIAL"
@@ -392,6 +394,24 @@ jobs:
               if x2-x1 > 0 and y2-y1 > 0: ok[t] = True
           sys.exit(0 if len(ok) == len(labels) else 1)
           PYEOF3
+          cat > ojo/visible.py <<'PYEOF4'
+          import re, sys
+          # ¿Existe el texto en un nodo con bounds de área real? (los nodos
+          # fantasma de vistas ocultas del WebView traen [0,0][0,0].)
+          try: xml = open("/tmp/w.xml", encoding="utf-8", errors="ignore").read()
+          except Exception: sys.exit(1)
+          txt = sys.argv[1]
+          for tag in re.findall(r"<node [^>]*>", xml):
+              attrs = dict(re.findall(r'([\w-]+)="([^"]*)"', tag))
+              t = attrs.get("text","") or attrs.get("content-desc","")
+              if txt not in t: continue
+              m = re.match(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]", attrs.get("bounds","") or "")
+              if not m: continue
+              x1,y1,x2,y2 = map(int, m.groups())
+              if x2-x1 > 0 and y2-y1 > 0 and (x1+x2)//2 >= 10 and (y1+y2)//2 >= 10:
+                  sys.exit(0)
+          sys.exit(1)
+          PYEOF4
           chmod +x ojo/recorrido.sh ojo/tap.py
           ls -la ojo/
 
