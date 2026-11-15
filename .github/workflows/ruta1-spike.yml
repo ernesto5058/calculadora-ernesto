@@ -42,6 +42,24 @@ jobs:
             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO \
             -derivedDataPath build 2>&1 | tee build.log | tail -60
 
+      - name: Empaquetar IPA del spike (forma, sin firmar)
+        working-directory: tienda-maximo/spike
+        run: |
+          APP=$(find build/Build/Products -name 'TiendaMaximo.app' -maxdepth 3 | head -1)
+          echo "app: $APP"
+          rm -rf Payload TiendaMaximo-ruta1-spike.ipa
+          mkdir -p Payload
+          cp -R "$APP" Payload/
+          zip -qry TiendaMaximo-ruta1-spike.ipa Payload
+          shasum -a 256 TiendaMaximo-ruta1-spike.ipa
+          ls -lh TiendaMaximo-ruta1-spike.ipa
+
+      - name: Subir IPA del spike
+        uses: actions/upload-artifact@v4
+        with:
+          name: ruta1-spike-ipa
+          path: tienda-maximo/spike/TiendaMaximo-ruta1-spike.ipa
+
       - name: Subir log del spike
         if: always()
         uses: actions/upload-artifact@v4
