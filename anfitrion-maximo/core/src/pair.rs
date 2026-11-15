@@ -59,7 +59,16 @@ pub fn run_pair(fd: i32, serial_hint: &str) -> Result<String, StageErr> {
         target.config_value, target.interface, target.alt_setting, target.ep_out_addr, target.ep_in_addr
     ));
     if !serial_hint.is_empty() {
-        stage(&format!("ETAPA descriptores: serie USB reportada por Android: {}", serial_hint));
+        // Android puede devolver la serie con cola corrupta (caracteres de
+        // reemplazo tras el UDID): se imprime solo la parte limpia.
+        let limpia: String = serial_hint
+            .chars()
+            .take_while(|c| !c.is_control() && *c != '\u{fffd}')
+            .collect();
+        stage(&format!(
+            "ETAPA descriptores: serie USB reportada por Android: {}",
+            limpia.trim()
+        ));
     }
 
     // ── Etapa: configuración (EL paso de riesgo nº 1) ─────────────────────────
