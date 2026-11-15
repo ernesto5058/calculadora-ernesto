@@ -2,29 +2,26 @@ name: Ojo Android ARM
 
 # OJO ANDROID ARM (puerta permanente, orden de Ernesto 2026-11-15): monta una
 # APK con código nativo SOLO ARM (arm64-v8a / armeabi-v7a, p. ej. Anfitrión
-# Máximo) en un emulador ARM64 — runner macos-15 (Apple Silicon) con imagen
-# arm64-v8a. La ruta x86 (ojo-android.yml, ubuntu) sigue siendo la puerta de
-# las APK sin código nativo (Capacitor/WebView); esta es la de las APK ARM.
+# Máximo) en un emulador ARM64 sobre el runner Linux ARM64 de GitHub
+# (ubuntu-24.04-arm, host aarch64 real). La ruta x86 (ojo-android.yml,
+# ubuntu x86) sigue siendo la puerta de las APK sin código nativo
+# (Capacitor/WebView); esta es la de las APK ARM.
 #
-# DOS LECCIONES DE LA TANDA v2.1 (2026-11-15, diagnóstico con evidencia):
-# 1. La etiqueta «macos-14» está MUERTA en este repo: GitHub cancela esos
-#    trabajos a los 1-3 s, SIN asignar runner (4 veces el mismo día). La
-#    sonda lo probó en una corrida: macos-14 cancelado al instante;
-#    macos-15 y macos-latest con runner y en verde en segundos. Se usa
-#    macos-15 fijo.
-# 2. Los runners macOS de GitHub NO exponen virtualización anidada: el
-#    emulador muere al arrancar con «HVF error: HV_UNSUPPORTED / failed to
-#    initialize HVF» (registro de la corrida 43744745984). Por eso el
-#    emulador se levanta A MANO con «-accel off» (emulación TCG: más lenta,
-#    pero la única que el runner permite) y con espera de arranque propia
-#    de 25 min — la acción android-emulator-runner abandona a los ~10 min
-#    y no deja alargarla.
-# 3. El binario del emulador se invoca por RUTA ABSOLUTA
-#    ($ANDROID_HOME/emulator/emulator): por PATH resolvió su casa relativo
-#    al directorio de trabajo y murió al instante buscando un qemu
-#    darwin-x86_64 inexistente, dejando el paso colgado en
-#    «adb wait-for-device» hasta el timeout del job (corrida 43746023385).
-#    La espera va acotada y vigilando que el proceso siga vivo.
+# EL CAMINO HASTA AQUÍ (2026-11-15, todo con evidencia de corridas):
+# 1. ubuntu x86 + imagen ARM64 = emulación cruzada TCG: el arranque no
+#    terminó ni en 10 min (corrida 43742514622). Descartado.
+# 2. La etiqueta «macos-14» está MUERTA en este repo: GitHub cancela esos
+#    trabajos a los 1-3 s, SIN asignar runner (4 veces el mismo día; la
+#    sonda lo aisló: macos-15/macos-latest sí asignan al instante).
+# 3. macOS no sirve ni con otra etiqueta: sus runners no exponen
+#    virtualización anidada — el emulador muere con «HVF error:
+#    HV_UNSUPPORTED» (corrida 43744745984) y el qemu darwin-aarch64 NO
+#    trae TCG de respaldo: ni con «-accel off» arranca (43752104052).
+# 4. El runner Linux ARM64 tampoco expone /dev/kvm (sonda 43752872354:
+#    aarch64 real, sin /dev/kvm), PERO el qemu de Linux SÍ trae TCG y,
+#    siendo el host ARM de verdad, la emulación es de la misma
+#    arquitectura: la única puerta que quedaba en GitHub, y la que usa
+#    este workflow. Arranque TCG con espera propia y vigilada de 25 min.
 # Costo: repo público, $0. Se despacha UNA vez y se espera: nada de
 # re-despachos en ráfaga.
 
@@ -56,11 +53,12 @@ concurrency:
 
 jobs:
   ojo-arm:
-    name: Recorrido ARM en Mac virtual (Apple Silicon)
-    runs-on: macos-15
+    name: Recorrido ARM en Linux ARM64 virtual
+    runs-on: ubuntu-24.04-arm
     timeout-minutes: 60
     env:
-      ANDROID_HOME: /Users/runner/Library/Android/sdk
+      ANDROID_HOME: /usr/local/lib/android/sdk
+      ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
     steps:
       - name: Descargar el repo
         uses: actions/checkout@v4
@@ -159,25 +157,26 @@ jobs:
           chmod +x ojo-arm/recorrido.sh
           ls -la ojo-arm/
 
-      - name: Levantar el teléfono ARM a mano (-accel off) y hacer el recorrido
+      - name: Levantar el teléfono ARM a mano (TCG, host ARM) y hacer el recorrido
         env:
           PKG_OJO: ${{ inputs.paquete }}
           ASSET_OJO: ${{ inputs.asset }}
         run: |
           export PATH="$ANDROID_HOME/platform-tools:$ANDROID_HOME/emulator:$ANDROID_HOME/cmdline-tools/latest/bin:$PATH"
+          echo "Host: $(uname -m) · SDK:"; ls "$ANDROID_HOME" | head; which sdkmanager adb || true
           yes | sdkmanager --licenses > /dev/null 2>&1 || true
           sdkmanager --install 'build-tools;37.0.0' platform-tools 'platforms;android-34' > /dev/null
           sdkmanager --install emulator --channel=0 > /dev/null
           sdkmanager --install 'system-images;android-34;default;arm64-v8a' --channel=0 > /dev/null
           echo no | avdmanager create avd --force -n test --package 'system-images;android-34;default;arm64-v8a' --device 'pixel_6'
-          printf 'hw.cpu.ncore=3\n' >> "$HOME/.android/avd/test.avd/config.ini"
-          echo "Host: $(uname -m) · qemu disponibles:"; ls "$ANDROID_HOME/emulator/qemu" || true
-          # Sin HVF (el runner no expone virtualización anidada): TCG puro.
-          # Ruta ABSOLUTA: por PATH el lanzador resuelve mal su casa (lección 3).
+          printf 'hw.cpu.ncore=4\n' >> "$HOME/.android/avd/test.avd/config.ini"
+          echo "qemu disponibles:"; ls "$ANDROID_HOME/emulator/qemu" || true
+          # Sin /dev/kvm en este runner: TCG, pero host e invitado son ARM.
+          # Ruta ABSOLUTA: por PATH el lanzador resuelve mal su casa.
           nohup "$ANDROID_HOME/emulator/emulator" -port 5554 -avd test -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -memory 2048 -no-snapshot-save -accel off > "$GITHUB_WORKSPACE/emulator.log" 2>&1 &
           echo "Emulador lanzado (pid $!); primeras líneas de su registro:"
           sleep 10; tail -5 "$GITHUB_WORKSPACE/emulator.log" || true
-          echo "Esperando el arranque (tope 25 min, TCG)…"
+          echo "Esperando el arranque (tope 25 min, TCG sobre host ARM)…"
           BOOT=""
           DEADLINE=$((SECONDS + 1500))
           while [ $SECONDS -lt $DEADLINE ]; do
@@ -232,11 +231,11 @@ jobs:
             .pie{margin-top:28px;font-size:13px;color:var(--mut);line-height:1.5}
           </style></head><body><div class="envoltura">
           <h1>Ojo Android ARM · <span class="oro">%s</span></h1>
-          <div class="mut">Recorrido automático en un teléfono Android ARM64 virtual (Pixel · Android 14 · Mac Apple Silicon, emulación TCG) con la APK exacta del release. %s (hora de Cuba).</div>
+          <div class="mut">Recorrido automático en un teléfono Android ARM64 virtual (Pixel · Android 14 · Linux ARM64, emulación TCG sobre host ARM) con la APK exacta del release. %s (hora de Cuba).</div>
           <div class="sello">%s</div>
           <div class="mut">%s</div>
           %s
-          <div class="pie">Emulador ARM64: la ruta pa las APK con código nativo ARM (la x86 de ubuntu no las puede correr y el Mac no presta su aceleración). No sustituye la prueba en un teléfono físico.</div>
+          <div class="pie">Emulador ARM64: la ruta pa las APK con código nativo ARM (la x86 no puede con su .so y macOS no presta aceleración). No sustituye la prueba en un teléfono físico.</div>
           </div></body></html>""" % (ver, ver, ahora, color, color, veredicto, detalle, figs)
           open(os.path.join(out, "index.html"), "w", encoding="utf-8").write(html)
           print("índice generado:", len(caps), "capturas · veredicto", veredicto)
