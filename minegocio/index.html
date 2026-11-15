@@ -4777,14 +4777,14 @@ function intentarEntrar(){
    controllerchange recarga la app UNA sola vez (marca en
    sessionStorage por versión: sin bucles). MN_VERSION se sube
    junto con el CACHE de sw.js. */
-var MN_VERSION = "v23";
+var MN_VERSION = "v24";
 /* Sello VISIBLE de compilación (punto 6): Ernesto quejándose con
    razón — «no sé si se actualizó o no». Una sola constante que
    sube con cada publicación; se ve en Inicio y en la hoja ℹ️ del
    chat. Formato: «Mi Negocio · versión 2026-11-11 HH:MM · caché v6»
    (fecha Y HORA de la publicación, para distinguir dos subidas
    del mismo día). La hora es la de Cuba (CST) al compilar. */
-var MN_COMPILACION = "2026-11-14 21:47";
+var MN_COMPILACION = "2026-11-15 07:46";
 function selloVersion(){ return "Mi Negocio · versión " + MN_COMPILACION + " · caché " + MN_VERSION; }
 var regSW = null;
 var swConControladorAlArrancar = false;
@@ -4843,6 +4843,19 @@ function init(){
       history.replaceState(null, "", location.pathname + location.hash);
     }
   } catch(e){}
+  /* Enlace mágico del dueño (pedido por Ernesto, 2026-11-15): si la
+     URL trae ?codigo=, se captura y se limpia de la barra al instante
+     (que no viva en el historial); al final de init se valida contra
+     el servidor igual que la puerta y solo si el servidor dice que
+     sí queda guardado en este navegador. */
+  var codigoMagico = null;
+  try {
+    var codUrl = new URLSearchParams(location.search).get("codigo");
+    if (codUrl) {
+      codigoMagico = String(codUrl).trim().toUpperCase();
+      history.replaceState(null, "", location.pathname + location.hash);
+    }
+  } catch(e){}
   cargarEstado();
   arrancarLocalFirst();
   document.addEventListener("visibilitychange", function(){
@@ -4877,7 +4890,14 @@ function init(){
   document.addEventListener("online", function(){ buscarActualizacionSW(); cargarTodo(true); });
   document.addEventListener("click", function(e){ if (e.target && (e.target.id === "mnAvisos" || e.target.id === "mnAvisosB")) activarAvisosMN(); });
   prepararSW();
-  if (state.codigo) {
+  if (codigoMagico) {
+    rpc("validar", { p_codigo: codigoMagico }).then(function(okFlag){
+      if (okFlag === true) { state.codigo = codigoMagico; guardar(); }
+      if (state.codigo) { $("inCodigo").value = state.codigo; entrar(); }
+    }).catch(function(){
+      if (state.codigo) { $("inCodigo").value = state.codigo; entrar(); }
+    });
+  } else if (state.codigo) {
     $("inCodigo").value = state.codigo;
     entrar();
   }
