@@ -407,11 +407,17 @@ label { display:block; font:600 11px var(--fuente); letter-spacing:.07em; text-t
 .t1Seg { display:flex; background:var(--bg-1); border:1px solid var(--borde); border-radius:var(--r-md); padding:4px; gap:4px; margin-bottom:var(--e-3); }
 .t1Seg button { flex:1; padding:9px 0; border:0; border-radius:var(--r-sm); background:none; font:700 13.5px var(--fuente); color:var(--txt-2); cursor:pointer; transition:all var(--anim-rapida); }
 .t1Seg button.on { background:var(--dorado-grad); color:var(--txt-sobre-dorado); box-shadow:var(--sombra-dorada); }
-.t1CtaBar { display:flex; align-items:center; gap:var(--e-3); background:var(--bg-2); border:1px solid var(--dorado-borde);
+/* v26: la barra era una fila flex donde «Subirla» (botón base
+   width:100%) aplastaba el texto a una columna y lo tapaba. Ahora el
+   texto va a todo ancho arriba y los botones en su fila (rejilla 4/8),
+   sin solapes a ningún ancho. */
+.t1CtaBar { display:flex; flex-direction:column; gap:var(--e-3); background:var(--bg-2); border:1px solid var(--dorado-borde);
   border-radius:var(--r-lg); padding:var(--e-3); margin-top:var(--e-3); }
-.t1CtaBar .ctaT { flex:1; min-width:0; }
 .t1CtaBar .ctaTit { font:600 13.5px/1.3 var(--fuente); }
-.t1CtaBar .ctaSub { font:var(--t-nota); color:var(--txt-2); }
+.t1CtaBar .ctaSub { font:var(--t-nota); color:var(--txt-2); margin-top:2px; }
+.t1CtaBar .ctaBtns { display:flex; gap:var(--e-2); }
+.t1CtaBar .ctaBtns button { width:auto; margin:0; min-height:48px; flex:1; }
+.t1CtaBar .ctaBtns .bGold { flex:1.5; }
 .t1PosFila { display:flex; align-items:baseline; justify-content:space-between; gap:var(--e-3); padding:10px 0; border-bottom:1px solid var(--linea); }
 .t1PosFila:last-child { border-bottom:0; }
 .t1PosFila .k { font:var(--t-sub); color:var(--txt-2); }
@@ -4186,6 +4192,17 @@ function mercadoLibroHtml(f){
   }
   return h;
 }
+function fechaLegibleMN(iso){
+  var d = new Date(iso);
+  if (!iso || isNaN(d)) return "";
+  var tz = "America/Havana";
+  function diaDe(x){ return x.toLocaleDateString("en-CA", { timeZone: tz }); }
+  var hora = d.toLocaleTimeString("es", { timeZone: tz, hour: "numeric", minute: "2-digit" }).toLowerCase();
+  var dia = diaDe(d), hoy = diaDe(new Date()), ayer = diaDe(new Date(Date.now() - 864e5));
+  var pref = dia === hoy ? "hoy" : dia === ayer ? "ayer"
+    : d.toLocaleDateString("es", { timeZone: tz, day: "numeric", month: "short" });
+  return pref + " " + hora;
+}
 function mercadoPosicionHtml(g){
   if (!g) return '<div class="card"><div class="kv">' + (mercadoErrorMN === "falta" ? TXT_FALTA_ACTIVAR : "Leyendo tu posición del libro y de tu cuenta…") + '</div></div>';
   var pos = (g.calculo && g.calculo.posicion) || {};
@@ -4194,14 +4211,26 @@ function mercadoPosicionHtml(g){
   function fila(k, v, suf){
     return '<div class="t1PosFila"><span class="k">' + k + '</span><span class="v">' + v + (suf ? ' <span style="font:600 11px var(--fuente);color:var(--txt-3)">' + suf + "</span>" : "") + "</span></div>";
   }
+  /* v26 — POSICIÓN HONESTA: la cifra del sensor lleva su hora de
+     lectura; si el libro asentado difiere (o la posición no es firme),
+     el libro se muestra también. Nada de números viejos por vivos. */
+  var linea = pv("linea_saldo");
+  var libro = pv("libro_saldo");
+  if (libro === null || libro === undefined) libro = pv("lotes_saldo");
+  var difLibro = (linea !== null && linea !== undefined && libro !== null && libro !== undefined)
+    ? Math.abs(Number(linea) - Number(libro)) : 0;
+  var noFirme = pos.firme === false;
   var h = '<div class="card"><h3><span class="secIco">' + icono("dinero") + '</span>Tu posición</h3>'
-    + fila("Saldo en tu línea", fmt(Number(pv("linea_saldo"))), "DE SALDO")
-    + fila("Vendible ahora", fmt(Number(pos.vendible)), "DE SALDO")
+    + fila("Saldo en tu línea", linea !== null && linea !== undefined ? fmt(Number(linea)) : "—", "DE SALDO")
+    + (pv("linea_en") ? '<div class="mut">Según el sensor de tu iPhone · leído ' + esc(fechaLegibleMN(pv("linea_en"))) + '</div>' : "")
+    + ((noFirme || difLibro > 5) && libro !== null && libro !== undefined ? fila("Saldo según tu libro", fmt(Number(libro)), "DE SALDO") : "")
+    + fila("Vendible ahora", pos.vendible !== null && pos.vendible !== undefined ? fmt(Number(pos.vendible)) : "—", "DE SALDO")
     + fila("Comprometido en ofertas", fmt(Number(pv("comprometido_saldo"))), "DE SALDO")
     + fila("QUSD en tu cuenta", fmt(Number(pv("qUSD"))), "QUSD")
     + fila("Fondo", fmt(Number(pv("fondo"))), "CUP")
     + fila("Reserva de cupos", fmt(Number(pv("reserva_cupos"))), "CUP")
     + (posT.mejor_nivel20_hoy != null ? fila("Mejor nivel 20 de hoy", fmt(Number(posT.mejor_nivel20_hoy)), "CUP/QUSD") : "")
+    + (noFirme && pos.firme_texto ? '<div class="kv" style="margin-top:8px">⚠ ' + esc(pos.firme_texto) + '</div>' : "")
     + '</div>';
   return h;
 }
@@ -4220,7 +4249,7 @@ function motivoAsesorTxt(m){
     sin_margen: "Sin margen con la foto de ahora.",
     senal_no_vender: "La señal del mercado no es de vender ahora.",
     puerta_en_pausa: "La puerta está en pausa: el Asesor no prepara.",
-    sin_posicion_firme: "Tu posición no está firme (sin línea o sin lotes claros): el Asesor no prepara.",
+    sin_posicion_firme: "Tu posición no está firme: el Asesor no prepara hasta que tu libro y la lectura de tu línea cuadren.",
     descuadre_linea_libro: "El libro y tu línea de saldo no cuadran: el Asesor no prepara hasta que cuadre.",
     tope_hora: "Ya tocaste el tope de acciones de esta hora.",
     sin_peldano: "Ningún peldaño del libro combina ganancia y salida ahora.",
@@ -4257,8 +4286,8 @@ function mercadoAsesorHtml(g){
       + porquesHtml(porq)
       + ((prep && prep.aviso_promo) ? '<div class="offBanner" style="display:block">' + esc(prep.aviso_promo) + "</div>" : "")
       + '<div class="t1CtaBar"><div class="ctaT"><div class="ctaTit">Tu toque manda</div><div class="ctaSub">Por la puerta de siempre: collar y bitácora incluidos.</div></div>'
-      + '<button class="bGhost bMini" id="mcDescartar">Ahora no</button>'
-      + '<button class="bGold" id="mcSubirla">Subirla</button></div>';
+      + '<div class="ctaBtns"><button class="bGhost" id="mcDescartar">Ahora no</button>'
+      + '<button class="bGold" id="mcSubirla">Subirla</button></div></div>';
   } else if (prep) {
     h += '<span class="pill pPend">EL ASESOR YA LA CALCULÓ</span>'
       + '<div class="kv" style="margin-top:6px">Tasa <b>' + fmt(Number(prep.tasa)) + '</b> CUP/QUSD · monto <b>$' + fmt(Number(prep.monto_qusd)) + '</b> QUSD · ganancia <b>' + fmt(Number(prep.ganancia360)) + '</b> CUP por recarga.</div>'
@@ -4267,7 +4296,7 @@ function mercadoAsesorHtml(g){
   } else {
     var mots = calc.motivos_no_prepara || [];
     h += '<div class="kv">Ahora mismo el Asesor no prepara ninguna oferta.</div>'
-      + (mots.length ? mots.map(function(m){ return '<div class="kv">· ' + esc(motivoAsesorTxt(m)) + "</div>"; }).join("") : '<div class="kv">Sin motivo registrado: la foto manda; cuando el mercado dé la señal, la oferta nace sola aquí.</div>');
+      + (mots.length ? mots.map(function(m){ return '<div class="kv">· ' + esc(m === "sin_posicion_firme" && calc.posicion && calc.posicion.firme_texto ? calc.posicion.firme_texto : motivoAsesorTxt(m)) + "</div>"; }).join("") : '<div class="kv">Sin motivo registrado: la foto manda; cuando el mercado dé la señal, la oferta nace sola aquí.</div>');
   }
   var c = g.contadores || {};
   h += '<div class="mut" style="margin-top:10px">Puerta hoy: $' + fmt(Number(c.hoy_qusd || 0)) + ' de $' + fmt(Number(c.diario_max || 120)) + ' QUSD · esta hora: ' + (c.acciones_hora != null ? c.acciones_hora : "—") + "/" + (c.hora_max || 2) + ' · tope por oferta $' + fmt(Number(c.tope_oferta || 40)) + " QUSD</div>";
@@ -4916,14 +4945,14 @@ function intentarEntrar(){
    controllerchange recarga la app UNA sola vez (marca en
    sessionStorage por versión: sin bucles). MN_VERSION se sube
    junto con el CACHE de sw.js. */
-var MN_VERSION = "v25";
+var MN_VERSION = "v26";
 /* Sello VISIBLE de compilación (punto 6): Ernesto quejándose con
    razón — «no sé si se actualizó o no». Una sola constante que
    sube con cada publicación; se ve en Inicio y en la hoja ℹ️ del
    chat. Formato: «Mi Negocio · versión 2026-11-11 HH:MM · caché v6»
    (fecha Y HORA de la publicación, para distinguir dos subidas
    del mismo día). La hora es la de Cuba (CST) al compilar. */
-var MN_COMPILACION = "2026-11-15 08:47";
+var MN_COMPILACION = "2026-11-15 11:20";
 function selloVersion(){ return "Mi Negocio · versión " + MN_COMPILACION + " · caché " + MN_VERSION; }
 var regSW = null;
 var swConControladorAlArrancar = false;
