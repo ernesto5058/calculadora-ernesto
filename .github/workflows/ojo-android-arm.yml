@@ -1,5 +1,12 @@
 name: Ojo Android ARM
 
+# ⛔ RUTA CERRADA (2026-11-15): NO re-despachar. GitHub no puede correr
+# APK ARM: macOS sin virtualización anidada y su qemu sin TCG; ubuntu
+# x86 = TCG cruzado sin fin; ubuntu-24.04-arm sin /dev/kvm y Google no
+# publica el paquete «emulator» pa hosts linux-aarch64. La puerta ARM
+# vive en Firebase Test Lab (ver el ESTADO del proyecto Anfitrión).
+# Este archivo queda como REGISTRO de la investigación completa.
+#
 # OJO ANDROID ARM (puerta permanente, orden de Ernesto 2026-11-15): monta una
 # APK con código nativo SOLO ARM (arm64-v8a / armeabi-v7a, p. ej. Anfitrión
 # Máximo) en un emulador ARM64 sobre el runner Linux ARM64 de GitHub
@@ -28,6 +35,11 @@ name: Ojo Android ARM
 #    «sdkmanager: command not found» en 1 s). Y ojo: /usr/local/lib no
 #    es escribible en esa imagen (43753394215: «mkdir: Permission
 #    denied») — el SDK vive en $HOME/android-sdk.
+# 6. MURO FINAL (corrida 43753638566): con el SDK ya auto-instalado,
+#    sdkmanager responde «Warning: Failed to find package 'emulator'» —
+#    Google NO publica el emulador pa hosts Linux aarch64. Sin binario
+#    de emulador pa la arquitectura del runner, la ruta GitHub pa APK
+#    ARM queda cerrada del todo.
 # Costo: repo público, $0. Se despacha UNA vez y se espera: nada de
 # re-despachos en ráfaga.
 
