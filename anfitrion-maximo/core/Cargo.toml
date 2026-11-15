@@ -1,0 +1,27 @@
+[package]
+name = "anfitrion-core"
+version = "1.0.0"
+edition = "2021"
+description = "Núcleo Rust de Anfitrión Máximo: pairing lockdown de iPhone sobre un fd USB de Android (usbdevfs), sin demonio usbmuxd."
+license = "GPL-3.0-only"
+publish = false
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+jni = "0.21"
+libc = "0.2"
+idevice-usb-core = { path = "../vendor/idevice-usb-core" }
+rcgen = { version = "0.12", features = ["x509-parser"] }
+rsa = { version = "0.9", features = ["sha2"] }
+pem = "3"
+rand = "0.8"
+base64 = "0.22"
+plist = "1"
+time = { version = "0.3", default-features = false, features = ["macros"] }
+ring = "0.17"
+
+[profile.release]
+opt-level = 2
+debug = false

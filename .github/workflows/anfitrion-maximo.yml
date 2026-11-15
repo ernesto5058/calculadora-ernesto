@@ -1,0 +1,54 @@
+name: Anfitrion Maximo (APK)
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'anfitrion-maximo/**'
+      - '.github/workflows/anfitrion-maximo.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Gradle 8.9
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Rust + targets Android
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android,armv7-linux-androideabi
+
+      - name: cargo-ndk
+        uses: taiki-e/install-action@cargo-ndk
+
+      - name: Nucleo Rust a jniLibs
+        working-directory: anfitrion-maximo/core
+        run: |
+          export ANDROID_NDK_HOME="$(ls -d "$ANDROID_SDK_ROOT"/ndk/* | sort -V | tail -n 1)"
+          echo "NDK en $ANDROID_NDK_HOME"
+          cargo ndk -t arm64-v8a -t armeabi-v7a -o ../app/src/main/jniLibs build --release
+
+      - name: APK debug
+        working-directory: anfitrion-maximo
+        run: gradle --no-daemon assembleDebug
+
+      - name: Subir el APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: AnfitrionMaximo-v1-apk
+          path: anfitrion-maximo/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
