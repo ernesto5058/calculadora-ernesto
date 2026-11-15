@@ -494,7 +494,7 @@ function pestaña(w, nombre){
   /* T1 (v22): la barra ya no lista pantallas: trae SOLO las 4 secciones
      del panel único; las 13 pantallas viven como hijas alcanzables por
      irA (la cobertura de módulos la verifica la sección T1 del banco). */
-  ok(tabs.length === 4, "MN-48 T1: la barra trae SOLO las 4 secciones (" + tabs.join(" | ") + ")");
+  ok(tabs.length === 5, "MN-48 T1: la barra trae SOLO las 5 secciones (" + tabs.join(" | ") + ")");
   ok(tabs.some(t => t.includes("Inicio")) && tabs.some(t => t.includes("Dinero")) && tabs.some(t => t.includes("Mercado")) && tabs.some(t => t.includes("Ajustes")), "MN-49 T1: las 4 secciones exactas (Inicio · Dinero · Mercado · Ajustes), ninguna otra inventada");
   w.close();
 }
@@ -502,7 +502,7 @@ function pestaña(w, nombre){
 /* ===== 10. SERVICE WORKER: scope y caché propios ===== */
 {
   const sw = fs.readFileSync(REPO + "minegocio/sw.js", "utf8");
-  ok(sw.includes('CACHE = "minegocio-v25"'), "MN-50 SW con caché propio minegocio-v25 (v23 · panel único T1)");
+  ok(sw.includes('CACHE = "minegocio-v28"'), "MN-50 SW con caché propio minegocio-v28 (v26 · panel único T1)");
   ok(sw.includes("SKIP_WAITING") && sw.includes('addEventListener("message"'), "MN-50b el SW acepta SKIP_WAITING por mensaje (forzar activación desde la app)");
   ok(!sw.includes("mitrabajo"), "MN-51 el SW de Mi Negocio no toca el de Mi Trabajo");
   const mf = JSON.parse(fs.readFileSync(REPO + "minegocio/manifest.webmanifest", "utf8"));
@@ -563,7 +563,7 @@ function pestaña(w, nombre){
   ok(d.getElementById("bannerVer").style.display === "block" && d.getElementById("bannerVer").textContent.includes("Nueva versión lista"), "R2-2 SW nuevo instalado con controlador → aviso «Nueva versión lista» visible");
   w.__swReg.__controllerchange();
   await sleep(60);
-  ok(("" + w.sessionStorage.getItem("mnRecarga_v23")) === "1", "R2-3 controllerchange marca la recarga única de la v23 (sin bucles)");
+  ok(("" + w.sessionStorage.getItem("mnRecarga_v26")) === "1", "R2-3 controllerchange marca la recarga única de la v26 (sin bucles)");
   const antes = w.__fakeReg.actualizaciones;
   click(d.getElementById("btnAct"));
   await sleep(120);
@@ -660,11 +660,11 @@ function pestaña(w, nombre){
   ok(chat.querySelectorAll("[data-vplay]").length === 3 && chat.querySelectorAll(".vozOnda i").length === 72, "R2-25 cada reproductor trae su ▶ circular y su onda de 24 picos");
   ok(typeof w.mejorMimeVoz === "function" && typeof w.hashParChat === "function" && typeof w.rtTimbre === "function", "R2-26 existen mejorMimeVoz, hashParChat y rtTimbre");
   ok(w.hashParChat("ADMIN", "BUSC-1") === w.hashParChat("BUSC-1", "ADMIN") && w.hashParChat("ADMIN", "BUSC-1") !== w.hashParChat("ADMIN", "BUSC-2"), "R2-27 el canal del timbre es el mismo para la pareja en ambos sentidos y distinto por pareja");
-  ok(w.selloVersion() === "Mi Negocio · versión 2026-11-14 21:47 · caché v23", "R2-28 sello de versión exacto: «" + w.selloVersion() + "»");
+  ok(w.selloVersion() === "Mi Negocio · versión 2026-11-15 11:20 · caché v26", "R2-28 sello de versión exacto: «" + w.selloVersion() + "»");
   ok(chat.textContent.includes("cada 3 s"), "R2-29 la ayuda del chat dice el refresco nuevo de 3 s (ya no 15 s)");
   pestaña(w, "Inicio");
   await sleep(120);
-  ok(d.getElementById("pgInicio").textContent.includes("Mi Negocio · versión 2026-11-14 21:47 · caché v23"), "R2-30 el sello de versión se ve en Inicio");
+  ok(d.getElementById("pgInicio").textContent.includes("Mi Negocio · versión 2026-11-15 11:20 · caché v26"), "R2-30 el sello de versión se ve en Inicio");
   w.close();
   R.chatMsgs = [];
 }
@@ -841,7 +841,7 @@ function pestaña(w, nombre){
   await sleep(350);
   const d = w.document;
   ok(w.PUERTAS.marcarPrueba === "admin_marcar_prueba", "F1-1 la puerta nueva está registrada: PUERTAS.marcarPrueba = admin_marcar_prueba");
-  ok(w.MN_VERSION === "v23", "F1-2 MN_VERSION subió a v23");
+  ok(w.MN_VERSION === "v26", "F1-2 MN_VERSION subió a v26");
   /* Funciones puras con las fórmulas del servidor (tarifa del banco: 1098.68 / 1069.38 / 950) */
   ok(cerca(w.contaGananciaBruta({ tipo: "saldo", precio: 1000, cantidad: 100 }), 9868) && cerca(w.contaNeta({ tipo: "saldo", precio: 1000, cantidad: 100, comision: 2467 }), 7401), "F1-3 saldo r1: bruta 9868 · neta 7401 (comisión GUARDADA, no recalculada)");
   /* NOTA (desviación de la espec, verificada con la fórmula): la
@@ -1042,7 +1042,7 @@ function pestaña(w, nombre){
   await sleep(250);
   const d = w.document;
   const tabs22 = [...d.querySelectorAll(".tab")];
-  ok(tabs22.length === 4 && tabs22.every(t => !!t.querySelector("svg")), "F3-1 T1: las 4 secciones llevan icono SVG de trazo fino (cero emojis estructurales en la navegación)");
+  ok(tabs22.length === 5 && tabs22.every(t => !!t.querySelector("svg")), "F3-1 T1: las 5 secciones llevan icono SVG de trazo fino (cero emojis estructurales en la navegación)");
   ok(!!d.getElementById("pgCierre") && !!d.getElementById("pgActividad") && !!d.getElementById("pgTextos"), "F3-2 existen #pgCierre, #pgActividad y #pgTextos (en la v7 faltaban en el HTML y esas pestañas abrían en blanco)");
   pestaña(w, "Calculadora");
   await sleep(80);
@@ -1385,7 +1385,7 @@ function pestaña(w, nombre){
   const claveVieja = new Uint8Array(65); claveVieja[0] = 4;
   ok(w.mismaClaveVapid({ options: { applicationServerKey: claveVieja.buffer } }) === false && w.mismaClaveVapid({ options: {} }) === false && w.mismaClaveVapid(null) === false, "T6-5 E-12: clave distinta, ausente o suscripción nula => NO vigente (toca re-suscribir)");
   ok(html.includes("sub.unsubscribe().then(function(){ return suscribirPush(reg); })"), "T6-6 E-12: activarPush da de baja la suscripción de clave vieja y re-suscribe con la actual");
-  ok(html.includes("tabDePush") && html.includes('new URLSearchParams(location.search).get("tab")'), "T6-7 E-11: la app lee ?tab= al arrancar y lo aplica en entrar()");
+  ok(html.includes("tabDePush") && html.includes('new URLSearchParams(search0).get("tab")') && html.includes('new URLSearchParams(search0).get("codigo")'), "T6-7 E-11+v25: la app lee ?tab= y ?codigo= de la query ORIGINAL (search0) al arrancar — el replaceState de uno no mata al otro — y aplica el destino en entrar()");
   w.close();
 }
 
@@ -1746,8 +1746,8 @@ function pestaña(w, nombre){
 
   /* La barra: 4 secciones exactas, en orden, con su data-seccion */
   const secs = [...d.querySelectorAll(".tab")].map(t => t.getAttribute("data-seccion"));
-  ok(JSON.stringify(secs) === JSON.stringify(["Inicio", "Dinero", "Mercado", "Ajustes"]), "T1-1 la barra trae las 4 secciones en orden [" + secs.join(",") + "]");
-  ok(["Inicio", "Calc", "Bandeja", "Equipo", "Tarifa", "Mercado", "Cierre", "Actividad", "Textos", "Contabilidad", "Dinero", "Ajustes", "Avisos"].every(id => !!w.modulo(id)), "T1-2 los 13 módulos existen (las 11 pantallas de siempre + Ajustes + Avisos)");
+  ok(JSON.stringify(secs) === JSON.stringify(["Inicio", "Dinero", "Mercado", "Terminal", "Ajustes"]), "T1-1 la barra trae las 5 secciones en orden [" + secs.join(",") + "]");
+  ok(["Inicio", "Calc", "Bandeja", "Equipo", "Tarifa", "Mercado", "Cierre", "Actividad", "Textos", "Contabilidad", "Dinero", "Terminal", "Ajustes", "Avisos"].every(id => !!w.modulo(id)), "T1-2 los 14 módulos existen (las 12 pantallas de siempre + Terminal + Ajustes + Avisos)");
 
   /* El hub de Inicio: héroe con el gasto del libro, accesos y novedades */
   const pgI = d.getElementById("pgInicio");
@@ -1789,7 +1789,7 @@ function pestaña(w, nombre){
   w.irA("Mercado");
   await sleep(300);
   const pgM = d.getElementById("pgMercado");
-  ok(pgM.textContent.includes(w.fmt(305.5)) && pgM.textContent.includes("FOTO FRESCA") && !!d.getElementById("mcNivel"), "T1-15 el héroe de Mercado enseña el nivel 20 de la foto vigente con su estado");
+  ok(pgM.textContent.includes(w.fmt(305.5)) && pgM.textContent.includes("Fresca ·") && !!d.getElementById("mcNivel"), "T1-15 el héroe de Mercado enseña el nivel 20 de la foto vigente con su estado");
   click(pgM.querySelector('[data-seg="posicion"]'));
   ok(pgM.textContent.includes("Vendible ahora") && pgM.textContent.includes(w.fmt(14395)), "T1-16 Posición: el vendible del Asesor, del servidor");
   click(pgM.querySelector('[data-seg="asesor"]'));
