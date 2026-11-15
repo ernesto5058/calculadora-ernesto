@@ -1,0 +1,51 @@
+name: Tienda Máximo — Ruta 1 (spike)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tienda-maximo-spike
+  cancel-in-progress: false
+
+jobs:
+  spike:
+    name: Cáscara propia sobre SideSign + Minimuxer
+    runs-on: macos-26
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Minimuxer como paquete local (igual que SideStore)
+        run: |
+          git init tienda-maximo/spike/vendor/minimuxer
+          cd tienda-maximo/spike/vendor/minimuxer
+          git remote add origin https://github.com/SideStore/minimuxer.git
+          git fetch --depth 1 origin 12be70dc2627307a16bfd2dc7a009080d5bec909
+          git checkout FETCH_HEAD
+
+      - name: Instalar XcodeGen
+        run: brew install xcodegen
+
+      - name: Generar proyecto
+        working-directory: tienda-maximo/spike
+        run: xcodegen generate
+
+      - name: Compilar cáscara (sin firmar)
+        working-directory: tienda-maximo/spike
+        run: |
+          set -o pipefail
+          xcodebuild build -project TiendaMaximo.xcodeproj -scheme TiendaMaximo \
+            -sdk iphoneos -configuration Release \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO \
+            -derivedDataPath build 2>&1 | tee build.log | tail -60
+
+      - name: Subir log del spike
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ruta1-spike-log
+          path: tienda-maximo/spike/build.log
+          if-no-files-found: ignore
