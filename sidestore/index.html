@@ -42,7 +42,7 @@
 
   <div class="alerta">
     <h3>⚠ Regla de oro</h3>
-    <p>En iloader y en SideStore se entra con un <b>Apple ID secundario</b> creado solo pa firmar. <b>Jamás el principal</b>, y la contraseña no se le da a ningún tercero ni a ningún bot: firmar nunca la necesita en manos ajenas.</p>
+    <p>Se firma con tu <b>Apple ID principal</b> (decisión del 14-nov-2026: el secundario quedó descartado, porque crearlo desde Cuba pedía un número de teléfono de EE. UU.). La contraseña la tecleas <b>tú</b> en el programa, en la PC: no se le da a ningún tercero ni a ningún bot, y no se guarda.</p>
   </div>
 
   <h2>⭐ Nuestro programa: InstaladorPRO (la vía nueva, hecha por Máximo)</h2>
@@ -69,11 +69,11 @@
   </div></div></div>
 
   <div class="card"><div class="pieza"><div class="num">2</div><div>
-    <h3>iloader (.MSI, el recomendado)</h3>
-    <p>La herramienta oficial de instalación de SideStore: crea el certificado, coloca el archivo de emparejamiento e instala SideStore él solo.</p>
-    <a class="btn" href="https://github.com/ernesto5058/calculadora-ernesto/releases/download/kit-sidestore/iloader-windows-x64.msi">Descargar iloader-windows-x64.msi</a>
-    <div class="meta">Versión <span class="tnum">v2.4.1</span> (28-oct-2026) · <span class="tnum">8.5 MB</span> (8,888,320 B) · Fuente: GitHub nab138/iloader, enlazado por la doc oficial de SideStore</div>
-    <div class="sha">SHA-256: 8bfe528197db1b82f51fbcdb74652f355e7ae025e616e07a10a819d60f7d2691</div>
+    <h3>iloader portable (el respaldo)</h3>
+    <p>La herramienta oficial de instalación de SideStore en su versión <b>portable</b>: sin instalar nada, doble clic y corre. Es el respaldo por si InstaladorPRO no resolviera la sesión. <b>Ojo: el instalador .MSI de iloader falló en la PC prestada (error 1722) y NO se recomienda.</b></p>
+    <a class="btn" href="https://github.com/ernesto5058/calculadora-ernesto/releases/download/kit-sidestore/iloader-windows-x64.exe">Descargar iloader-windows-x64.exe (portable)</a>
+    <div class="meta">Versión <span class="tnum">v2.4.1</span> (28-oct-2026) · <span class="tnum">5.7 MB</span> (6,026,098 B) · Fuente: GitHub nab138/iloader, enlazado por la doc oficial de SideStore</div>
+    <div class="sha">SHA-256: 0b9a129ae55106074c2648ec8c0eb17bc580bf7041126f4d94fbb488d7620ff7</div>
   </div></div></div>
 
   <div class="card"><div class="pieza"><div class="num">3</div><div>
@@ -94,15 +94,15 @@
   <h2>Guía rápida de la sesión (20–45 min)</h2>
   <ol class="pasos">
     <li><b>Instala iTunes</b> con el instalador de aquí arriba (el de Apple, no el de la Store).</li>
-    <li><b>Instala iloader</b> con el .MSI.</li>
+    <li><b>Corre InstaladorPRO-v1.exe</b> (portable, el de arriba): es la ruta principal y hace la sesión completa él solo. Solo si fallara, usa el <b>iloader portable</b> (pieza 2). El .MSI no: ya falló una vez (error 1722).</li>
     <li><b>Conecta el iPhone por cable</b> (uno que pase datos), desbloquéalo y toca <b>Confiar</b>; deja el código puesto.</li>
-    <li>Abre <b>iloader</b>, entra con el <b>Apple ID secundario</b>, elige el iPhone marcado <b>(USB)</b> y pulsa <b>Install SideStore (Stable)</b>. iloader hace el resto solo.</li>
+    <li>Sigue a <b>InstaladorPRO</b>: teclea tu <b>Apple ID principal</b> cuando lo pida (la contraseña no se guarda) y el programa genera el emparejamiento, firma SideStore y lo instala solo. Respaldo: con <b>iloader portable</b>, entra con el mismo Apple ID principal, elige el iPhone marcado <b>(USB)</b> y pulsa <b>Install SideStore (Stable)</b>.</li>
     <li>En el iPhone: <b>Ajustes → General → VPN y gestión de dispositivos → Confiar</b> en tu cuenta; y <b>Ajustes → Privacidad y seguridad → Modo de desarrollador</b> activado (se reinicia).</li>
     <li>Instala <b>LocalDevVPN</b> desde la App Store, ábrela y toca <b>Connect</b> (permite la configuración VPN con tu código).</li>
-    <li>Abre <b>SideStore</b>, entra con el <b>mismo</b> Apple ID secundario y en <b>My Apps</b> toca el contador <b>«7 DAYS»</b> de SideStore: ese primer refresh cierra la instalación. Después, rutina: <b>Refresh All el día 4–5</b>, siempre con Wi-Fi (los datos móviles no sirven) y LocalDevVPN conectada.</li>
+    <li>Abre <b>SideStore</b>, entra con el <b>mismo</b> Apple ID principal y en <b>My Apps</b> toca el contador <b>«7 DAYS»</b> de SideStore: ese primer refresh cierra la instalación. Después, rutina: <b>Refresh All el día 4–5</b>, siempre con Wi-Fi (los datos móviles no sirven) y LocalDevVPN conectada.</li>
   </ol>
 
-  <p class="nota">Límites de la cuenta gratis de Apple: máximo <b>3 apps firmadas a la vez contando SideStore</b> (quedan 2 huecos; LiveContainer puede guardar más dentro de un hueco) y ~10 App IDs nuevos por semana. El certificado dura 7 días: por eso la rutina de refresh. Si un día el archivo de emparejamiento caduca, se repite esta misma sesión con iloader y listo.</p>
+  <p class="nota">Límites de la cuenta gratis de Apple: máximo <b>3 apps firmadas a la vez contando SideStore</b> (quedan 2 huecos; LiveContainer puede guardar más dentro de un hueco) y ~10 App IDs nuevos por semana. El certificado dura 7 días: por eso la rutina de refresh. Si un día el archivo de emparejamiento caduca, se repite esta misma sesión con InstaladorPRO (o el iloader portable) y listo.</p>
   <p class="nota">Descarga alternativa de todo el kit de una vez: <a style="color:var(--oro1)" href="https://github.com/ernesto5058/calculadora-ernesto/releases/tag/kit-sidestore">página del Release «Kit SideStore»</a>.</p>
 </div>
 </body>
