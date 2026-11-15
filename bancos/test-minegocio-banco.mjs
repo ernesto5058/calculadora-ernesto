@@ -502,7 +502,7 @@ function pestaña(w, nombre){
 /* ===== 10. SERVICE WORKER: scope y caché propios ===== */
 {
   const sw = fs.readFileSync(REPO + "minegocio/sw.js", "utf8");
-  ok(sw.includes('CACHE = "minegocio-v29"'), "MN-50 SW con caché propio minegocio-v29 (v27 · panel único T1)");
+  ok(sw.includes('CACHE = "minegocio-v30"'), "MN-50 SW con caché propio minegocio-v30 (v28 · Asesor con cuadre)");
   ok(sw.includes("SKIP_WAITING") && sw.includes('addEventListener("message"'), "MN-50b el SW acepta SKIP_WAITING por mensaje (forzar activación desde la app)");
   ok(!sw.includes("mitrabajo"), "MN-51 el SW de Mi Negocio no toca el de Mi Trabajo");
   const mf = JSON.parse(fs.readFileSync(REPO + "minegocio/manifest.webmanifest", "utf8"));
@@ -563,7 +563,7 @@ function pestaña(w, nombre){
   ok(d.getElementById("bannerVer").style.display === "block" && d.getElementById("bannerVer").textContent.includes("Nueva versión lista"), "R2-2 SW nuevo instalado con controlador → aviso «Nueva versión lista» visible");
   w.__swReg.__controllerchange();
   await sleep(60);
-  ok(("" + w.sessionStorage.getItem("mnRecarga_v27")) === "1", "R2-3 controllerchange marca la recarga única de la v27 (sin bucles)");
+  ok(("" + w.sessionStorage.getItem("mnRecarga_v28")) === "1", "R2-3 controllerchange marca la recarga única de la v28 (sin bucles)");
   const antes = w.__fakeReg.actualizaciones;
   click(d.getElementById("btnAct"));
   await sleep(120);
@@ -660,11 +660,11 @@ function pestaña(w, nombre){
   ok(chat.querySelectorAll("[data-vplay]").length === 3 && chat.querySelectorAll(".vozOnda i").length === 72, "R2-25 cada reproductor trae su ▶ circular y su onda de 24 picos");
   ok(typeof w.mejorMimeVoz === "function" && typeof w.hashParChat === "function" && typeof w.rtTimbre === "function", "R2-26 existen mejorMimeVoz, hashParChat y rtTimbre");
   ok(w.hashParChat("ADMIN", "BUSC-1") === w.hashParChat("BUSC-1", "ADMIN") && w.hashParChat("ADMIN", "BUSC-1") !== w.hashParChat("ADMIN", "BUSC-2"), "R2-27 el canal del timbre es el mismo para la pareja en ambos sentidos y distinto por pareja");
-  ok(w.selloVersion() === "Mi Negocio · versión 2026-11-15 11:45 · caché v27", "R2-28 sello de versión exacto: «" + w.selloVersion() + "»");
+  ok(w.selloVersion() === "Mi Negocio · versión 2026-11-15 13:50 · caché v28", "R2-28 sello de versión exacto: «" + w.selloVersion() + "»");
   ok(chat.textContent.includes("cada 3 s"), "R2-29 la ayuda del chat dice el refresco nuevo de 3 s (ya no 15 s)");
   pestaña(w, "Inicio");
   await sleep(120);
-  ok(d.getElementById("pgInicio").textContent.includes("Mi Negocio · versión 2026-11-15 11:45 · caché v27"), "R2-30 el sello de versión se ve en Inicio");
+  ok(d.getElementById("pgInicio").textContent.includes("Mi Negocio · versión 2026-11-15 13:50 · caché v28"), "R2-30 el sello de versión se ve en Inicio");
   w.close();
   R.chatMsgs = [];
 }
@@ -841,7 +841,7 @@ function pestaña(w, nombre){
   await sleep(350);
   const d = w.document;
   ok(w.PUERTAS.marcarPrueba === "admin_marcar_prueba", "F1-1 la puerta nueva está registrada: PUERTAS.marcarPrueba = admin_marcar_prueba");
-  ok(w.MN_VERSION === "v27", "F1-2 MN_VERSION subió a v27");
+  ok(w.MN_VERSION === "v28", "F1-2 MN_VERSION subió a v28");
   /* Funciones puras con las fórmulas del servidor (tarifa del banco: 1098.68 / 1069.38 / 950) */
   ok(cerca(w.contaGananciaBruta({ tipo: "saldo", precio: 1000, cantidad: 100 }), 9868) && cerca(w.contaNeta({ tipo: "saldo", precio: 1000, cantidad: 100, comision: 2467 }), 7401), "F1-3 saldo r1: bruta 9868 · neta 7401 (comisión GUARDADA, no recalculada)");
   /* NOTA (desviación de la espec, verificada con la fórmula): la
@@ -1736,7 +1736,7 @@ function pestaña(w, nombre){
     calculo: { senal: "vender", equilibrio: 327.6,
       posicion: { linea_saldo: 14400, linea_en: ahoraISO, lotes_saldo: 14282, comprometido_saldo: 0, colchon: 5, vendible: 14395, qUSD: 0.25, fondo: 601, reserva_cupos: 0 },
       preparada: null, motivos_no_prepara: [], compra_fondo: { posible: false }, transferencia: {} },
-    preparada_viva: { id: "11111111-2222-3333-4444-555555555555", tasa: 310.5, monto_qusd: 35, ganancia360: 175.45, expira_en: new Date(Date.now() + 8 * 60000).toISOString(), contexto: { receive: 10863, porques: ["El peldaño combina ganancia y salida."], aviso_promo: null } },
+    preparada_viva: { id: "11111111-2222-3333-4444-555555555555", tasa: 310.5, monto_qusd: 35, ganancia360: 175.45, expira_en: new Date(Date.now() + 8 * 60000).toISOString(), contexto: { receive: 10863, porques: ["El peldaño combina ganancia y salida."], aviso_promo: null, cuadre: { enviar_saldo: 3715, peaje_saldo: 5, costo_lotes: 10099.78, qusd_entran: 12.05, efectivo_entra: 11086, comision_buscador: 37.14, neto: 949.08, gasto_corte: 296, vuelve_inversion: 10752.86 }, libro_hoy: { cima_firme: 308.33, top_venta_cruda: 279.07, nivel20: 295.01 }, precio: { brecha_vs_nivel20: 13.32 } } },
     contadores: { hoy_qusd: 0, diario_max: 120, acciones_hora: 0, hora_max: 2, tope_oferta: 40 },
     posicion: { mejor_nivel20_hoy: 312.4 }, silencio_hasta: null };
   const preT1 = { codigo: adminValido, foto: { reportes: [], ayudas: [], usuarios: [], datos: datosPublicados, cuando: "", publicar: [], borrados: [], tarifaPanel: null, mercado: null }, cola: [], sellos: {}, tarifaViva: null, tarifaVivaEn: "", publicarPendiente: null };
@@ -1794,6 +1794,7 @@ function pestaña(w, nombre){
   ok(pgM.textContent.includes("Vendible ahora") && pgM.textContent.includes(w.fmt(14395)), "T1-16 Posición: el vendible del Asesor, del servidor");
   click(pgM.querySelector('[data-seg="asesor"]'));
   ok(!!d.getElementById("mcAsesor") && pgM.textContent.includes("OFERTA LISTA PA SUBIR") && pgM.textContent.includes(w.fmt(10863)), "T1-17 el Asesor enseña la preparada viva con lo que recibes");
+  ok(pgM.textContent.includes("CUADRE DE LA VUELTA") && pgM.textContent.includes(w.fmt(10752.86)) && pgM.textContent.includes(w.fmt(296)) && pgM.textContent.includes("EL LIBRO HOY") && pgM.textContent.includes(w.fmt(308.33)), "T1-17b el Asesor enseña el cuadre de la vuelta y el libro hoy (CHEQUEO 105)");
   click(d.getElementById("mcSubirla"));
   await sleep(200);
   ok(llamadas.includes("rpc:guia_subir") && (ultimosCuerpos["guia_subir"] || {}).p_accion === "11111111-2222-3333-4444-555555555555", "T1-18 «Subirla» llama SOLO la puerta guia_subir con el id de la preparada (cero QvaPay desde el cliente)");
