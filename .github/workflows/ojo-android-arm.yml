@@ -2,19 +2,22 @@ name: Ojo Android ARM
 
 # OJO ANDROID ARM (puerta permanente, orden de Ernesto 2026-11-15): monta una
 # APK con código nativo SOLO ARM (arm64-v8a / armeabi-v7a, p. ej. Anfitrión
-# Máximo) en un emulador ARM64 NATIVO — runner macos-14 (Apple Silicon, M1)
+# Máximo) en un emulador ARM64 NATIVO — runner macos-15 (Apple Silicon, M1)
 # con imagen arm64-v8a: la .so corre a velocidad nativa por HVF, sin la
 # emulación total que mató el intento en ubuntu x86 (timeout de boot).
 # La ruta x86 (ojo-android.yml, ubuntu) sigue siendo la puerta de las APK
 # sin código nativo (Capacitor/WebView); esta es la de las APK ARM.
 #
-# LECCIÓN DE LA TANDA v2.1 (2026-11-15): las dos primeras corridas macOS de
-# esta ruta se cancelaron a los 1-2 s de crearse, SIN runner asignado —
-# nunca llegaron a correr: la cola de macOS tarda minutos y la corrida se
-# canceló antes de que el runner la tomara. Por eso este workflow NO lleva
-# concurrency con cancel-in-progress y NO se debe re-despachar a la ligera:
-# se despacha UNA vez y se espera. Costo: repo público, $0 (los minutos de
-# macOS en repos públicos no descuentan cuota del dueño).
+# LECCIÓN DE LA TANDA v2.1 (2026-11-15, diagnóstico con sonda): la etiqueta
+# «macos-14» está MUERTA en este repo — GitHub cancela esos trabajos a los
+# 1-3 s de crearse, SIN asignar runner (pasó 4 veces: 2 del intento temporal,
+# 1 de esta puerta y 1 de la sonda, el mismo día). No es la cola ni la
+# paciencia: es la etiqueta. La sonda lo probó en una sola corrida:
+# macos-14 cancelado al instante; macos-15 y macos-latest con runner
+# asignado y en verde en segundos. Por eso aquí se usa macos-15 fijo.
+# Aun así: se despacha UNA vez y se espera — nada de re-despachos en ráfaga.
+# Costo: repo público, $0 (los minutos de macOS en repos públicos no
+# descuentan cuota del dueño).
 
 on:
   workflow_dispatch:
@@ -45,7 +48,7 @@ concurrency:
 jobs:
   ojo-arm:
     name: Recorrido ARM en Mac virtual (Apple Silicon)
-    runs-on: macos-14
+    runs-on: macos-15
     timeout-minutes: 60
     steps:
       - name: Descargar el repo
