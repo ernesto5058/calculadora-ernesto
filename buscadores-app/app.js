@@ -1,6 +1,6 @@
 "use strict";
 /*__SENTRY_CASA__*/
-var APP_VERSION = "1.7.0";
+var APP_VERSION = "1.8.0";
 /* Tarifa de respaldo (E-7, Tanda Nº6): SOLO se usa si nunca llegó ni
    datos.json ni la tarifa viva, y mientras manda ella la app lo dice
    a la vista («RESPALDO» + su origen en tarifaText/pintaFrescura).
@@ -966,7 +966,7 @@ function cargarDinero(){
       if (!d || d.rol !== "buscador") return;
       DINERO = d;
       if (d.estrellas) { T.pctSaldo = Number(d.estrellas.pct_saldo); T.pctTransf = Number(d.estrellas.pct_transferencia); }
-      pintarCupo(); pintarTarifaViva(); estReporte();
+      pintarCupo(); pintarTarifaViva(); estReporte(); syncDev();
     }).catch(function(){});
 }
 function pintarCupo(){
@@ -994,6 +994,83 @@ function pintarCupo(){
       "</small></span></div>";
   });
   $("cu_vueltas").innerHTML = html ? ('<label>Tus vueltas abiertas</label>' + html) : "";
+  pintarCapital();
+}
+
+/* ===== v1.8.0: DEVOLVER CAPITAL (solicitud; el libro solo se mueve
+   cuando Ernesto marca «Recibido» en su Mi Negocio) =====
+   Outbox propia offline-first: la solicitud se guarda en el teléfono
+   con su ID de cliente y sube sola al volver la red; el servidor
+   deduplica por ese ID. Jamás se enseña un fallo por falta de red. */
+var DEV_KEY = "busc_dev_outbox";
+function devOutbox(){ try { return JSON.parse(localStorage.getItem(DEV_KEY) || "[]") || []; } catch(e){ return []; } }
+function devOutboxSet(l){ try { localStorage.setItem(DEV_KEY, JSON.stringify(l)); } catch(e){} }
+function devPendientes(){ return devOutbox().filter(function(x){ return !x.enviado; }); }
+function devPendMonto(){ return devPendientes().reduce(function(s, x){ return s + Number(x.monto || 0); }, 0); }
+function devDevolvible(){
+  var cap = DINERO && DINERO.capital; if (!cap) return 0;
+  return Math.max(0, Number(cap.devolvible || 0) - devPendMonto());
+}
+function syncDev(){
+  if (!SESION) return;
+  var l = devOutbox();
+  if (!l.some(function(x){ return !x.enviado; })) return;
+  (function paso(i){
+    if (i >= l.length) { devOutboxSet(devOutbox().filter(function(x){ return !x.enviado; })); pintarCupo(); return; }
+    var it = l[i];
+    if (it.enviado) return paso(i + 1);
+    fetch(SB_RPC + "dinero_registrar_devolucion_efectivo", { method: "POST", headers: sbHeaders(), body: JSON.stringify({ p_codigo: SESION, p_buscador: SESION, p_monto: it.monto, p_medio: "efectivo", p_prueba: false, p_es_cierre: !!it.es_cierre, p_cliente_id: it.opId }) })
+      .then(function(r){ return r.ok ? r.json() : null; })
+      .then(function(d){
+        if (d && d.ok) { it.enviado = true; devOutboxSet(l); cargarDinero(); }
+        paso(i + 1);
+      })
+      .catch(function(){ paso(i + 1); });
+  })(0);
+}
+function pintarCapital(){
+  var box = $("cu_capital"); if (!box) return;
+  var cap = DINERO && DINERO.capital;
+  if (!cap) { box.classList.add("hide"); return; }
+  box.classList.remove("hide");
+  $("cap_mano").textContent = fmtN(cap.en_mano || 0);
+  var det = "Puedes devolver ahora: <b>" + fmtN(devDevolvible()) + "</b>";
+  if (Number(cap.trabajando)) det += "<br>Trabajando en vueltas abiertas: <b>" + fmtN(cap.trabajando) + "</b> — se liquida al cerrar la vuelta; no se devuelve en efectivo.";
+  if (Number(cap.pendientes)) det += "<br>Ya pediste devolver <b>" + fmtN(cap.pendientes) + "</b>: esperando que Ernesto lo reciba.";
+  if (cap.cerrado) det += "<br><b>Tu cupo está cerrado.</b> Si Ernesto te entrega capital de nuevo, se reabre solo.";
+  $("cap_det").innerHTML = det;
+  var html = "";
+  var enServidor = {};
+  (DINERO.devoluciones || []).forEach(function(dv){
+    if (dv.cliente_id) enServidor[dv.cliente_id] = true;
+    if (dv.estado === "pendiente") html += '<div class="trato"><span>⏳ Devolución de ' + fmtN(dv.monto) + ' pedida' + (dv.es_cierre ? " · <b>es tu cierre</b>" : "") + '<br><small>Esperando que Ernesto la reciba y la confirme.</small></span></div>';
+    else if (dv.estado === "confirmada") html += '<div class="trato"><span>✅ Ernesto recibió tu devolución de ' + fmtN(dv.monto) + '</span></div>';
+    else if (dv.estado === "rechazada") html += '<div class="trato"><span>Ernesto no confirmó una devolución de ' + fmtN(dv.monto) + '<br><small>Tu capital sigue en tu mano; habla con él.</small></span></div>';
+  });
+  devPendientes().forEach(function(x){
+    if (enServidor[x.opId]) return;
+    html += '<div class="trato"><span>📤 Devolución de ' + fmtN(x.monto) + ' guardada en tu teléfono' + (x.es_cierre ? " · <b>es tu cierre</b>" : "") + '<br><small>Sale sola cuando vuelva la conexión. No tienes que hacer nada.</small></span></div>';
+  });
+  $("cap_devs").innerHTML = html;
+  var btn = $("cap_btn");
+  if (btn) btn.style.display = devDevolvible() > 0 ? "" : "none";
+}
+function capEnviar(){
+  var warn = $("cap_warn"), ok = $("cap_ok");
+  warn.style.display = "none"; ok.style.display = "none";
+  function fallo(m){ warn.style.display = "block"; warn.textContent = m; }
+  if (!DINERO || !DINERO.capital) return fallo("Todavía no cargó tu capital: toca Actualizar y prueba de nuevo.");
+  var monto = Number($("cap_monto").value);
+  if (!monto || monto <= 0) return fallo("Escribe el monto o toca «Todo lo que tengo en mano».");
+  if (monto > devDevolvible()) return fallo("Solo puedes devolver lo que tienes en mano: " + fmtN(devDevolvible()) + ".");
+  var l = devOutbox();
+  l.push({ opId: nuevoOpId(), monto: monto, es_cierre: !!$("cap_cierre").checked, enviado: false, ts: Date.now() });
+  devOutboxSet(l);
+  $("cap_monto").value = ""; $("cap_cierre").checked = false;
+  $("cap_form").classList.add("hide");
+  ok.style.display = "block"; ok.textContent = "✅ Solicitud guardada: Ernesto la ve en su app y la confirma cuando la reciba.";
+  pintarCapital();
+  syncDev();
 }
 
 function chatEnviar(){
@@ -1016,7 +1093,7 @@ function refrescarTodo(){
   lastRefresh = Date.now();
   var ft = $("freshTxt"); if (ft) ft.textContent = "Actualizando…";
   var p = loadData();
-  syncReportes(); despacharChat(); chatBadge(); tocarPresencia(); cargarVivo();
+  syncReportes(); syncDev(); despacharChat(); chatBadge(); tocarPresencia(); cargarVivo();
   if (!$("viewAyuda").classList.contains("hide")) chatCargar();
   validarSesionRemota();   /* v1.5.3 (E-3+E-6): revoca si toca y libera/pone la pausa segun el servidor */
   if (p && p.then) p.then(function(){ pintaFrescura(); });
@@ -1045,6 +1122,10 @@ $("tabAyuda").addEventListener("click", function(){ showView("Ayuda"); try { rtS
 $("r_tipo_s").addEventListener("click", function(){ REP_TIPO = "saldo"; $("r_tipo_s").classList.add("on"); $("r_tipo_t").classList.remove("on"); $("r_box_s").classList.remove("hide"); $("r_box_t").classList.add("hide"); });
 $("r_tipo_t").addEventListener("click", function(){ REP_TIPO = "transferencia"; $("r_tipo_t").classList.add("on"); $("r_tipo_s").classList.remove("on"); $("r_box_t").classList.remove("hide"); $("r_box_s").classList.add("hide"); });
 $("r_btn").addEventListener("click", reportar);
+$("cap_btn").addEventListener("click", function(){ $("cap_form").classList.remove("hide"); $("cap_warn").style.display = "none"; });
+$("cap_cancelar").addEventListener("click", function(){ $("cap_form").classList.add("hide"); });
+$("cap_todo").addEventListener("click", function(){ var v = devDevolvible(); if (v > 0) $("cap_monto").value = v; });
+$("cap_enviar").addEventListener("click", capEnviar);
 $("c_btn").addEventListener("click", chatEnviar);
 $("c_txt").addEventListener("keydown", function(ev){ if (ev.key === "Enter" && !ev.shiftKey) { ev.preventDefault(); chatEnviar(); } });
 $("btnSalir").addEventListener("click", function(){ salir(""); });
@@ -1062,7 +1143,7 @@ setInterval(function(){
   try { despacharChat(); } catch(e){}
   try { if (!$("viewAyuda").classList.contains("hide")) chatCargar(); } catch(e){}
 }, 20000);
-window.addEventListener("online", function(){ try { despacharChat(); } catch(e){} try { syncReportes(); } catch(e){} try { if (SESION) chatCargar(); } catch(e){} });   /* v1.5.3 (E-5): tambien la cola de REPORTES */
+window.addEventListener("online", function(){ try { despacharChat(); } catch(e){} try { syncReportes(); } catch(e){} try { syncDev(); } catch(e){} try { if (SESION) chatCargar(); } catch(e){} });   /* v1.5.3 (E-5): tambien la cola de REPORTES */
 window.addEventListener("focus", function(){ try { despacharChat(); } catch(e){} try { syncReportes(); } catch(e){} });   /* v1.5.3 (E-5): al recuperar el foco */
 setInterval(function(){
   // v1.3.1: con el chat abierto, el hilo se refresca para que los estados
