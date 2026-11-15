@@ -4572,9 +4572,9 @@ function terminalHtmlMN(){
   }
   if (mem) {
     h += '<div class="card"><h3><span class="secIco">' + icono("tarifa") + '</span>Memoria del Asesor</h3>'
-      + '<div class="kv">Acierto del Asesor: <b>' + (mem.acierto_pct != null ? fmt(Number(mem.acierto_pct)) + '%' : "—") + '</b> (' + fmt(Number(mem.llenadas || 0)) + ' llenadas de ' + fmt(Number(mem.resueltas || 0)) + ' resueltas)</div>'
+      + '<div class="kv">Acierto del Asesor: <b>' + (mem.acierto_pct != null ? fmt(Number(mem.acierto_pct)) + '%' : "—") + '</b> (' + fmtE(Number(mem.llenadas || 0)) + ' llenadas de ' + fmtE(Number(mem.resueltas || 0)) + ' resueltas)</div>'
       + ((mem.ultimas || []).slice(0, 4).map(function(u){
-          return '<div class="kv">· ' + esc(String((u && (u.peldano || u.nombre)) || "sugerencia")) + ' a ' + fmt(Number(u && u.tasa)) + ' — ' + esc(String((u && u.estado) || "")) + '</div>';
+          return '<div class="kv">· ' + esc(String((u && (u.peldano || u.nombre)) || "sugerencia")) + ' a ' + fmt(Number(u && u.tasa)) + ' — ' + esc(String((u && u.estado) || "").replace(/_/g, " ")) + '</div>';
         }).join(""))
       + '</div>';
   }
@@ -4601,6 +4601,9 @@ function dibujarTerminalMN(){
   var d = termDatosMN, foto = d.foto || {};
   var serie = termSerieMN(d);
   var velas = TERM_MATH.velasDesde(serie, termMarcoMN);
+  /* Ventana visible: las últimas 56 velas (una terminal enseña la
+     acción reciente legible, no todo el histórico aplastado). */
+  if (velas.length > 56) velas = velas.slice(velas.length - 56);
   ctx.fillStyle = "#07090D"; ctx.fillRect(0, 0, W, H);
   if (!velas.length) {
     ctx.fillStyle = "rgba(219,238,246,.64)"; ctx.font = "600 13px sans-serif";
@@ -4616,10 +4619,14 @@ function dibujarTerminalMN(){
     costoLin = 360 * Number(tar.salida_ref) / Number(pos.costo_vivo_360);
   }
   var lineas = [];
-  if (termNum(d.equilibrio) != null) lineas.push({ v: Number(d.equilibrio), color: "rgba(237,246,250,.55)", chip: "#EDF6FA", txt: "Equilibrio" });
-  if (tarifaLin != null) lineas.push({ v: tarifaLin, color: "#2DD4BF", chip: "#2DD4BF", txt: "Mi tarifa" });
-  if (termNum(foto.nivel20) != null) lineas.push({ v: Number(foto.nivel20), color: "#F5B04D", chip: "#F5B04D", txt: "Cima firme" });
-  if (costoLin != null && isFinite(costoLin)) lineas.push({ v: costoLin, color: "rgba(148,197,220,.7)", chip: "#94C5DC", txt: "Tu costo" });
+  /* Las líneas son conceptos del saldo (ETECSA): en BANK_CUP no se
+     pintan — aplastaban la escala y el gráfico quedaba ilegible. */
+  if (termMonedaMN === "ETECSA") {
+    if (termNum(d.equilibrio) != null) lineas.push({ v: Number(d.equilibrio), color: "rgba(237,246,250,.55)", chip: "#EDF6FA", txt: "Equilibrio" });
+    if (tarifaLin != null) lineas.push({ v: tarifaLin, color: "#2DD4BF", chip: "#2DD4BF", txt: "Mi tarifa" });
+    if (termNum(foto.nivel20) != null) lineas.push({ v: Number(foto.nivel20), color: "#F5B04D", chip: "#F5B04D", txt: "Cima firme" });
+    if (costoLin != null && isFinite(costoLin)) lineas.push({ v: costoLin, color: "rgba(148,197,220,.7)", chip: "#94C5DC", txt: "Tu costo" });
+  }
   var mn = Infinity, mx = -Infinity;
   velas.forEach(function(v){ if (v.l < mn) mn = v.l; if (v.h > mx) mx = v.h; });
   lineas.forEach(function(L){ if (L.v < mn) mn = L.v; if (L.v > mx) mx = L.v; });
@@ -4690,24 +4697,35 @@ function dibujarTerminalMN(){
   pintaEma(TERM_MATH.ema(cierres, 9), "rgba(245,176,77,.85)");
   pintaEma(TERM_MATH.ema(cierres, 21), "rgba(45,212,191,.8)");
   /* Líneas punteadas con chip a la derecha (maqueta v25) */
-  function chipTerm(y, txt, color){
+  function chipTerm(y, txt, color, minY){
     ctx.font = "600 11px sans-serif";
     var tw = ctx.measureText(txt).width;
     var cw = tw + 16, chh = 20;
     var x = W - cw - 4, yy = Math.max(2, Math.min(H - chh - 2, y - chh / 2));
+    if (minY != null && yy < minY) yy = Math.min(H - chh - 2, minY);
     ctx.beginPath();
     if (ctx.roundRect) ctx.roundRect(x, yy, cw, chh, 10); else ctx.rect(x, yy, cw, chh);
     ctx.fillStyle = "rgba(7,10,13,.88)"; ctx.fill();
     ctx.strokeStyle = color; ctx.lineWidth = 1; ctx.stroke();
     ctx.fillStyle = color; ctx.textBaseline = "middle";
     ctx.fillText(txt, x + 8, yy + chh / 2 + 0.5);
+    return yy + chh;
   }
   lineas.forEach(function(L){
     var y = Y(L.v); if (y < 4 || y > H - 4) return;
     ctx.strokeStyle = L.color; ctx.setLineDash([5, 4]);
     ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(plotW, y); ctx.stroke();
     ctx.setLineDash([]);
-    chipTerm(y, L.txt + " " + fmt(L.v), L.chip);
+  });
+  /* Anti-colisión: los chips se colocan ordenados por su altura en
+     pantalla; dos líneas al mismo valor (Equilibrio y Tu costo
+     coinciden cuando el costo vivo = el de la tarifa) no se enciman:
+     el segundo chip baja lo justo. */
+  var chipsOrd = lineas.filter(function(L){ var y = Y(L.v); return y >= 4 && y <= H - 4; })
+    .slice().sort(function(a, b){ return Y(a.v) - Y(b.v); });
+  var chipFondo = 0;
+  chipsOrd.forEach(function(L){
+    chipFondo = chipTerm(Y(L.v), L.txt + " " + fmt(L.v), L.chip, chipFondo + 2);
   });
   /* Ventas de Ernesto sobre las velas */
   var t0 = velas[0].t, t1 = t0 + velas.length * termMarcoMN * 60000;
@@ -4905,7 +4923,7 @@ var MN_VERSION = "v25";
    chat. Formato: «Mi Negocio · versión 2026-11-11 HH:MM · caché v6»
    (fecha Y HORA de la publicación, para distinguir dos subidas
    del mismo día). La hora es la de Cuba (CST) al compilar. */
-var MN_COMPILACION = "2026-11-15 08:44";
+var MN_COMPILACION = "2026-11-15 08:47";
 function selloVersion(){ return "Mi Negocio · versión " + MN_COMPILACION + " · caché " + MN_VERSION; }
 var regSW = null;
 var swConControladorAlArrancar = false;
