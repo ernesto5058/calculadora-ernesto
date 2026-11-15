@@ -25,7 +25,9 @@ name: Ojo Android ARM
 # 5. La imagen ubuntu-24.04-arm NO trae el SDK de Android preinstalado
 #    (a diferencia de la x86): el paso lo auto-instala (cmdline-tools
 #    oficiales de Google) antes de usar sdkmanager (corrida 43753105495:
-#    «sdkmanager: command not found» en 1 s).
+#    «sdkmanager: command not found» en 1 s). Y ojo: /usr/local/lib no
+#    es escribible en esa imagen (43753394215: «mkdir: Permission
+#    denied») — el SDK vive en $HOME/android-sdk.
 # Costo: repo público, $0. Se despacha UNA vez y se espera: nada de
 # re-despachos en ráfaga.
 
@@ -61,8 +63,8 @@ jobs:
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 60
     env:
-      ANDROID_HOME: /usr/local/lib/android/sdk
-      ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+      ANDROID_HOME: /home/runner/android-sdk
+      ANDROID_SDK_ROOT: /home/runner/android-sdk
     steps:
       - name: Descargar el repo
         uses: actions/checkout@v4
