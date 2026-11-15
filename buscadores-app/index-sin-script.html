@@ -372,7 +372,7 @@
   #guiaBox .gBtns .go { margin-top: 0; flex: 1; }
   .guiaRing { outline: 3px solid rgba(232,184,75,.95) !important; outline-offset: 3px; border-radius: 14px; animation: guiaPulso 1.2s ease-in-out infinite; position: relative; z-index: 65; }
   @keyframes guiaPulso { 0%,100% { box-shadow: 0 0 0 0 rgba(232,184,75,.45); } 50% { box-shadow: 0 0 0 9px rgba(232,184,75,0); } }
-</style><script>window.SENTRY_CASA={app:"mitrabajo",version:"1.7.0",dsn:"https://c55f15054776babcf29ee7023c77f250@o4512419765354496.ingest.us.sentry.io/4512419773087744"};</script>
+</style><script>window.SENTRY_CASA={app:"mitrabajo",version:"1.8.0",dsn:"https://c55f15054776babcf29ee7023c77f250@o4512419765354496.ingest.us.sentry.io/4512419773087744"};</script>
 <script defer crossorigin="anonymous" integrity="sha384-48iagrZwMa6wkDoJKNyCk4jgMHcOcsBK/DzZAJInl1ZhtunellJDCRNZuomfHefF" src="https://browser.sentry-cdn.com/8.38.0/bundle.min.js"></script>
 </head>
 <body>
@@ -617,6 +617,23 @@
           <div class="hint" id="cu_prog_lab"></div>
           <div class="hint" id="cu_info"></div>
           <div id="cu_vueltas"></div>
+          <div id="cu_capital" class="hide">
+            <label>💰 Tu capital</label>
+            <div class="trato"><span>Capital en tu mano: <b id="cap_mano">—</b><br><small id="cap_det"></small></span></div>
+            <div id="cap_devs"></div>
+            <div class="ok" id="cap_ok" style="display:none"></div>
+            <button type="button" class="go" id="cap_btn">Devolver capital</button>
+            <div id="cap_form" class="hide">
+              <label>¿Cuánto devuelves?</label>
+              <input type="number" id="cap_monto" inputmode="numeric" placeholder="Monto en CUP">
+              <button type="button" class="miniBtn" id="cap_todo">Todo lo que tengo en mano</button>
+              <label style="font-weight:400;text-transform:none;letter-spacing:0"><input type="checkbox" id="cap_cierre" style="width:auto"> Es mi cierre — quiero parar</label>
+              <div class="warn" id="cap_warn"></div>
+              <button type="button" class="go" id="cap_enviar">Enviar la solicitud</button>
+              <button type="button" class="miniBtn" id="cap_cancelar">Cancelar</button>
+              <div class="hint">La solicitud NO mueve tu dinero: tu capital sigue contado en tu mano hasta que Ernesto lo reciba en persona y lo confirme en su app.</div>
+            </div>
+          </div>
         </div>
         <div class="total">
           <div class="lab">TOTAL GANADO</div>
