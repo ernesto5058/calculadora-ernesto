@@ -2615,9 +2615,25 @@ function pintarEsperas(){
   }
   box.innerHTML = ESPERAS.esperas.map(function(e){
     var st = estadoEspera(e);
+    /* CHEQUEO 103 (extensión): en las ASENTADAS manda la cantidad REAL
+       que entró (cantidad_real del payload, la que la prueba trajo);
+       la esperada solo aparece como expectativa nombrada cuando
+       difiere — en saldo incluye el peaje ETECSA (+5 por envío):
+       360 reales se esperaban como 365 y enseñar «365» sería enseñar
+       la expectativa como si fuera el hecho. Sin cantidad_real
+       (esperas viejas) se cae a la esperada, lo único que existe.
+       En las pendientes sigue la esperada: es lo que se espera. */
+    var asentada = e.estado === "cumplida";
+    var real = (e.cantidad_real === null || e.cantidad_real === undefined || e.cantidad_real === "")
+      ? NaN : Number(e.cantidad_real);
+    var principal = (asentada && isFinite(real)) ? real : e.cantidad;
     var monto = e.tipo === "saldo"
-      ? fmtMilesT3(e.cantidad) + " de saldo · pusiste " + fmtMilesT3(e.capital_cup) + " CUP"
-      : fmtMilesT3(e.cantidad) + " CUP por transferencia · pusiste " + fmtMilesT3(e.capital_cup) + " CUP";
+      ? fmtMilesT3(principal) + " de saldo · pusiste " + fmtMilesT3(e.capital_cup) + " CUP"
+      : fmtMilesT3(principal) + " CUP por transferencia · pusiste " + fmtMilesT3(e.capital_cup) + " CUP";
+    if (asentada && isFinite(real) && Number(e.cantidad) !== real) {
+      monto += "<br>La espera era de " + fmtMilesT3(e.cantidad)
+        + (e.tipo === "saldo" ? " de saldo, con el peaje incluido." : " CUP.");
+    }
     var tasa = (e.tipo === "saldo" && e.tasa_pactada)
       ? "<br>Tasa de tu parte: " + fmtMilesT3(Math.round(Number(e.tasa_pactada) * 360)) + " CUP por recarga de 360" : "";
     var vueltas = Number(e.vueltas) > 0 ? "<br>De esta espera nació tu vuelta." : "";
