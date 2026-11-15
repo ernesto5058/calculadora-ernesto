@@ -4254,6 +4254,7 @@ function motivoAsesorTxt(m){
     vendible_bajo: "El vendible no alcanza el mínimo de la puerta.",
     monto_bajo: "El monto que saldría no llega al mínimo de la puerta.",
     no_material: "Con la foto de ahora, la ganancia no llega al mínimo: no se prepara.",
+    vuelta_no_rentable: "La vuelta no deja ganancia neta positiva con los precios de hoy (costo real de tus lotes + peaje + comisiones): el Asesor no propone perder.",
     sin_margen: "Sin margen con la foto de ahora.",
     senal_no_vender: "La señal del mercado no es de vender ahora.",
     puerta_en_pausa: "La puerta está en pausa: el Asesor no prepara.",
@@ -4271,6 +4272,28 @@ function porquesHtml(lista){
   return '<div style="margin-top:8px">' + lista.map(function(p){
     return '<div class="kv">· ' + esc(typeof p === "string" ? p : (p.texto || p.porque || JSON.stringify(p))) + "</div>";
   }).join("") + "</div>";
+}
+function asesorLibroHoyHtml(lh, precio){
+  if (!lh) return "";
+  var h = '<div class="mut" style="margin-top:10px">EL LIBRO HOY</div>';
+  if (lh.cima_firme != null) h += '<div class="t1PosFila"><span class="k">Venta firme</span><span class="v">' + fmt(Number(lh.cima_firme)) + ' <span style="font:600 11px var(--fuente);color:var(--txt-3)">CUP/QUSD</span></span></div>';
+  if (lh.top_venta_cruda != null) h += '<div class="t1PosFila"><span class="k">Cruda (oferta aislada)</span><span class="v">' + fmt(Number(lh.top_venta_cruda)) + ' <span style="font:600 11px var(--fuente);color:var(--txt-3)">CUP/QUSD</span></span></div>';
+  if (lh.nivel20 != null) h += '<div class="t1PosFila"><span class="k">Compradores ejecutan (nivel 20)</span><span class="v">' + fmt(Number(lh.nivel20)) + ' <span style="font:600 11px var(--fuente);color:var(--txt-3)">CUP/QUSD</span></span></div>';
+  if (precio && precio.brecha_vs_nivel20 != null && Number(precio.brecha_vs_nivel20) > 0)
+    h += '<div class="kv">Tu tasa queda <b>' + fmt(Number(precio.brecha_vs_nivel20)) + '</b> por encima de donde ejecutan los compradores: la oferta espera a que el libro llegue a ella.</div>';
+  return h;
+}
+function asesorCuadreHtml(cq){
+  if (!cq) return "";
+  var h = '<div class="mut" style="margin-top:10px">CUADRE DE LA VUELTA</div>';
+  h += '<div class="t1PosFila"><span class="k">Sale</span><span class="v">' + fmt(Number(cq.enviar_saldo)) + ' de saldo + ' + fmt(Number(cq.peaje_saldo)) + ' de peaje</span></div>';
+  h += '<div class="t1PosFila"><span class="k">Costo de ese saldo</span><span class="v">' + fmt(Number(cq.costo_lotes)) + ' <span style="font:600 11px var(--fuente);color:var(--txt-3)">CUP</span></span></div>';
+  h += '<div class="t1PosFila"><span class="k">Entra</span><span class="v">$' + fmt(Number(cq.qusd_entran)) + ' <span style="font:600 11px var(--fuente);color:var(--txt-3)">QUSD</span> → ' + fmt(Number(cq.efectivo_entra)) + ' <span style="font:600 11px var(--fuente);color:var(--txt-3)">CUP</span></span></div>';
+  if (Number(cq.comision_buscador) > 0) h += '<div class="t1PosFila"><span class="k">Comisión del buscador</span><span class="v">−' + fmt(Number(cq.comision_buscador)) + ' <span style="font:600 11px var(--fuente);color:var(--txt-3)">CUP</span></span></div>';
+  h += '<div class="t1PosFila"><span class="k">Tu ganancia neta</span><span class="v">' + fmt(Number(cq.neto)) + ' <span style="font:600 11px var(--fuente);color:var(--txt-3)">CUP</span></span></div>';
+  h += '<div class="t1PosFila"><span class="k">Pa tus gastos</span><span class="v">' + fmt(Number(cq.gasto_corte)) + ' <span style="font:600 11px var(--fuente);color:var(--txt-3)">CUP</span></span></div>';
+  h += '<div class="t1PosFila"><span class="k">Vuelve a inversión</span><span class="v">' + fmt(Number(cq.vuelve_inversion)) + ' <span style="font:600 11px var(--fuente);color:var(--txt-3)">CUP</span></span></div>';
+  return h;
 }
 function mercadoAsesorHtml(g){
   var h = '<div class="card" id="mcAsesor"><h3><span class="secIco">' + icono("tarifa") + '</span>Asesor</h3>';
@@ -4290,16 +4313,20 @@ function mercadoAsesorHtml(g){
       + '<div class="t1PosFila" style="margin-top:6px"><span class="k">Tasa</span><span class="v">' + fmt(Number(viva.tasa)) + ' <span style="font:600 11px var(--fuente);color:var(--txt-3)">CUP/QUSD</span></span></div>'
       + '<div class="t1PosFila"><span class="k">Monto</span><span class="v">$' + fmt(Number(viva.monto_qusd)) + ' <span style="font:600 11px var(--fuente);color:var(--txt-3)">QUSD</span></span></div>'
       + (recv != null ? '<div class="t1PosFila"><span class="k">Recibes de saldo</span><span class="v">' + fmt(Number(recv)) + ' <span style="font:600 11px var(--fuente);color:var(--txt-3)">DE SALDO</span></span></div>' : "")
-      + '<div class="t1PosFila"><span class="k">Ganancia por recarga</span><span class="v">' + fmt(Number(viva.ganancia360)) + ' <span style="font:600 11px var(--fuente);color:var(--txt-3)">CUP</span></span></div>'
+      + '<div class="t1PosFila"><span class="k">Ganancia por recarga</span><span class="v">' + fmt(Number(viva.ganancia360)) + ' <span style="font:600 11px var(--fuente);color:var(--txt-3)">CUP · costo real</span></span></div>'
+      + asesorCuadreHtml((viva.contexto && viva.contexto.cuadre) || (prep && prep.cuadre))
       + porquesHtml(porq)
+      + asesorLibroHoyHtml((viva.contexto && viva.contexto.libro_hoy) || (prep && prep.libro_hoy), (viva.contexto && viva.contexto.precio) || (prep && prep.precio))
       + ((prep && prep.aviso_promo) ? '<div class="offBanner" style="display:block">' + esc(prep.aviso_promo) + "</div>" : "")
       + '<div class="t1CtaBar"><div class="ctaT"><div class="ctaTit">Tu toque manda</div><div class="ctaSub">Por la puerta de siempre: collar y bitácora incluidos.</div></div>'
       + '<div class="ctaBtns"><button class="bGhost" id="mcDescartar">Ahora no</button>'
       + '<button class="bGold" id="mcSubirla">Subirla</button></div></div>';
   } else if (prep) {
     h += '<span class="pill pPend">EL ASESOR YA LA CALCULÓ</span>'
-      + '<div class="kv" style="margin-top:6px">Tasa <b>' + fmt(Number(prep.tasa)) + '</b> CUP/QUSD · monto <b>$' + fmt(Number(prep.monto_qusd)) + '</b> QUSD · ganancia <b>' + fmt(Number(prep.ganancia360)) + '</b> CUP por recarga.</div>'
+      + '<div class="kv" style="margin-top:6px">Tasa <b>' + fmt(Number(prep.tasa)) + '</b> CUP/QUSD · monto <b>$' + fmt(Number(prep.monto_qusd)) + '</b> QUSD · ganancia <b>' + fmt(Number(prep.ganancia360)) + '</b> CUP por recarga (costo real).</div>'
+      + asesorCuadreHtml(prep.cuadre)
       + porquesHtml(prep.porques)
+      + asesorLibroHoyHtml(prep.libro_hoy, prep.precio)
       + (prep.aviso_promo ? '<div class="offBanner" style="display:block">' + esc(prep.aviso_promo) + "</div>" : "");
   } else {
     var mots = calc.motivos_no_prepara || [];
@@ -4953,14 +4980,14 @@ function intentarEntrar(){
    controllerchange recarga la app UNA sola vez (marca en
    sessionStorage por versión: sin bucles). MN_VERSION se sube
    junto con el CACHE de sw.js. */
-var MN_VERSION = "v27";
+var MN_VERSION = "v28";
 /* Sello VISIBLE de compilación (punto 6): Ernesto quejándose con
    razón — «no sé si se actualizó o no». Una sola constante que
    sube con cada publicación; se ve en Inicio y en la hoja ℹ️ del
    chat. Formato: «Mi Negocio · versión 2026-11-11 HH:MM · caché v6»
    (fecha Y HORA de la publicación, para distinguir dos subidas
    del mismo día). La hora es la de Cuba (CST) al compilar. */
-var MN_COMPILACION = "2026-11-15 11:45";
+var MN_COMPILACION = "2026-11-15 13:50";
 function selloVersion(){ return "Mi Negocio · versión " + MN_COMPILACION + " · caché " + MN_VERSION; }
 var regSW = null;
 var swConControladorAlArrancar = false;
