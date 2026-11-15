@@ -169,6 +169,7 @@ class MainActivity : Activity() {
     private lateinit var shareLogButton: Button
     private lateinit var logView: TextView
     private lateinit var logScroll: ScrollView
+    private lateinit var pageScroll: ScrollView
 
     // ── Fase 2 ────────────────────────────────────────────────────────────────
     private lateinit var elegirIpaButton: Button
@@ -524,7 +525,7 @@ class MainActivity : Activity() {
         }
         root.addView(
             logScroll,
-            LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f).apply {
+            LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(190)).apply {
                 topMargin = dp(8)
             }
         )
@@ -558,7 +559,22 @@ class MainActivity : Activity() {
         }
         root.addView(importHint)
 
-        setContentView(root)
+        // v2.1 (hotfix): la raíz vive dentro de un ScrollView de página completa.
+        // La v2 sumó la sección de firmar + login + bóveda y el contenido dejó
+        // de caber en pantallas chicas: «Elegir IPA» quedaba cortado en el borde
+        // y la info/login/botón de firmar nacían bajo el corte, inalcanzables.
+        pageScroll = ScrollView(this).apply {
+            isFillViewport = true
+            setBackgroundColor(bg)
+            addView(
+                root,
+                android.view.ViewGroup.LayoutParams(
+                    android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                    android.view.ViewGroup.LayoutParams.WRAP_CONTENT
+                )
+            )
+        }
+        setContentView(pageScroll)
         sharePairingButton.isEnabled = false
         shareLogButton.isEnabled = false
     }
@@ -778,6 +794,11 @@ class MainActivity : Activity() {
                         }
                     }
                     appendLog("IPA elegido: $nombre (${out.name}) — ${if (cubre) "la bóveda lo cubre (sin conexión)" else "necesita la ruta con conexión una vez"}")
+                    // v2.1: la página baja sola hasta la sección de firmar pa que
+                    // el nombre/tamaño y el botón se vean sin que haya que buscarlos.
+                    pageScroll.post {
+                        pageScroll.smoothScrollTo(0, (elegirIpaButton.top - dp(16)).coerceAtLeast(0))
+                    }
                 }
             } catch (e: Exception) {
                 runOnUiThread {
