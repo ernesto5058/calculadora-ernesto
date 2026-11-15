@@ -1,0 +1,32 @@
+name: Sonda macOS (temporal)
+
+# Sonda de diagnóstico 2026-11-15: ¿qué etiqueta macOS asigna runner de
+# verdad en este repo? (macos-14 canceló 3 corridas en 1-3 s sin runner;
+# ojo-ios con macos-latest corrió en verde el 2026-11-12.) Se borra al
+# cerrar el diagnóstico.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  m14:
+    name: macos-14
+    runs-on: macos-14
+    timeout-minutes: 10
+    steps:
+      - run: echo "m14 ok"; uname -m; sw_vers
+  m15:
+    name: macos-15
+    runs-on: macos-15
+    timeout-minutes: 10
+    steps:
+      - run: echo "m15 ok"; uname -m; sw_vers
+  mlatest:
+    name: macos-latest
+    runs-on: macos-latest
+    timeout-minutes: 10
+    steps:
+      - run: echo "mlatest ok"; uname -m; sw_vers
