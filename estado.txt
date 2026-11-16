@@ -14,3 +14,5 @@
 [18:49:03] SESION VIVA: esperando ordenes por cmd.txt durante 85 min
 [18:49:27] Orden recibida (1ed90477)
 [18:49:30] Orden ejecutada; foto 'ahora' publicada
+[19:17:28] Orden recibida (a952a4c4)
+[19:17:37] Orden ejecutada; foto 'ahora' publicada
