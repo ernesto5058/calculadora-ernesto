@@ -1,25 +1,2 @@
-[13:50:49] Instalando piezas (Xvfb, x11vnc, noVNC, cloudflared)...
-[13:51:14] Piezas listas (t+27s)
-[13:51:16] /dev/kvm presente: crw-rw-rw- root kvm
-[13:52:21] vivo.ini en: /home/runner/.android/avd/vivo.ini
-[13:52:21] ANDROID_AVD_HOME=/home/runner/.android/avd · AVDs segun el emulador: vivo 
-[13:52:21] AVD creado (t+94s)
-[13:52:56] Emulador arrancado (t+129s desde el inicio del script)
-[13:53:10] Tunel listo (t+143s)
-[13:53:12] Descargando la APK apk-v1.5.0...
-[13:53:16] APK instalada: Mi-Trabajo-v1.5.0.apk (t+149s)
-[13:53:27] App abierta en su puerta; foto publicada
-[13:53:29] SESION VIVA: esperando ordenes por cmd.txt durante 20 min
-[13:54:06] Orden recibida (adbe624c)
-[13:54:11] Orden ejecutada; foto 'ahora' publicada
-[13:55:15] Orden recibida (cb2e869b)
-[13:55:28] Orden ejecutada; foto 'ahora' publicada
-[13:56:31] Orden recibida (a65efca9)
-[13:56:39] Orden ejecutada; foto 'ahora' publicada
-[13:57:43] Orden recibida (c168290f)
-[13:57:51] Orden ejecutada; foto 'ahora' publicada
-[13:59:06] Orden recibida (70bde43e)
-[13:59:25] Orden ejecutada; foto 'ahora' publicada
-[14:00:28] Orden recibida (d268340c)
-[14:00:40] Orden ejecutada; foto 'ahora' publicada
-[14:13:32] Fin de la sesion viva (tiempo cumplido)
+[17:41:48] Instalando piezas (Xvfb, x11vnc, noVNC, cloudflared)...
+[17:42:08] Piezas listas (t+23s)
