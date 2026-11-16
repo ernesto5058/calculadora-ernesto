@@ -10,6 +10,7 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.provider.Settings
 import android.util.DisplayMetrics
 import android.view.Gravity
 import android.view.WindowManager
@@ -21,6 +22,7 @@ object OjoState {
     @Volatile var estado: String = "Listo. Máximo no está viendo nada."
     @Volatile var subidas: Int = 0
     @Volatile var sesionActiva: Boolean = false
+    @Volatile var manos: Boolean = false
 }
 
 class MainActivity : Activity() {
@@ -29,7 +31,9 @@ class MainActivity : Activity() {
     private var modoPendiente: String = "unica"
     private val refresco = object : Runnable {
         override fun run() {
-            estadoTxt.text = OjoState.estado + "\n\nCapturas enviadas: " + OjoState.subidas
+            val manosTxt = if (ManosService.instancia != null || OjoState.manos) "ACTIVAS 🟢" else "apagadas ⚪"
+            estadoTxt.text = OjoState.estado + "\n\nCapturas enviadas: " + OjoState.subidas +
+                "\nManos de Máximo: " + manosTxt
             handler.postDelayed(this, 1000)
         }
     }
@@ -73,6 +77,17 @@ class MainActivity : Activity() {
             val i = Intent(this, CaptureService::class.java).setAction(CaptureService.ACCION_PARAR)
             startService(i)
         }
+        val explManos = TextView(this).apply {
+            text = "🖐 MANOS DE MÁXIMO: si activas su servicio de accesibilidad, Máximo puede " +
+                "tocar, deslizar, escribir y leer el texto de la pantalla de este teléfono. " +
+                "Tú lo enciendes y lo apagas cuando quieras, desde Accesibilidad."
+            textSize = 16f
+            setTextColor(0xFFD8E2F2.toInt())
+            setPadding(0, 36, 0, 12)
+        }
+        val bManos = boton("🖐  ACTIVAR / VER LAS MANOS") {
+            startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+        }
         estadoTxt = TextView(this).apply {
             textSize = 16f
             setTextColor(0xFF9FE8B1.toInt())
@@ -83,6 +98,8 @@ class MainActivity : Activity() {
         raiz.addView(bUnica)
         raiz.addView(bSesion)
         raiz.addView(bParar)
+        raiz.addView(explManos)
+        raiz.addView(bManos)
         raiz.addView(estadoTxt)
         setContentView(raiz)
     }
@@ -120,6 +137,8 @@ class MainActivity : Activity() {
             putExtra("resultCode", resultCode)
             putExtra("data", data)
             putExtra("modo", modoPendiente)
+            // Captura única: 5 s pa que Ernesto cambie de app antes de la foto.
+            putExtra("retraso", if (modoPendiente == "unica") 5000L else 700L)
             putExtra("ancho", metrics.widthPixels)
             putExtra("alto", metrics.heightPixels)
             putExtra("dpi", metrics.densityDpi)
@@ -128,7 +147,7 @@ class MainActivity : Activity() {
         OjoState.estado = if (modoPendiente == "sesion") {
             "Sesión activa: reproduce el error, yo lo estoy viendo."
         } else {
-            "Capturando…"
+            "Tienes 5 segundos: cambia a la app que quieres enseñarme…"
         }
     }
 }
