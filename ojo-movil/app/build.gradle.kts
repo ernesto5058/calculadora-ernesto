@@ -11,8 +11,8 @@ android {
         applicationId = "com.maximo.ojo"
         minSdk = 26
         targetSdk = 34
-        versionCode = 4
-        versionName = "2.2"
+        versionCode = 5
+        versionName = "2.3"
     }
 
     buildTypes {
@@ -32,4 +32,5 @@ android {
 
 dependencies {
     implementation("org.jetbrains.kotlin:kotlin-stdlib:2.0.20")
+    implementation("androidx.core:core:1.13.1")
 }

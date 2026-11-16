@@ -10,6 +10,7 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.os.PowerManager
 import android.provider.Settings
 import android.util.DisplayMetrics
 import android.view.Gravity
@@ -26,14 +27,30 @@ object OjoState {
 }
 
 class MainActivity : Activity() {
+    private lateinit var panelTxt: TextView
     private lateinit var estadoTxt: TextView
     private val handler = Handler(Looper.getMainLooper())
     private var modoPendiente: String = "unica"
     private val refresco = object : Runnable {
         override fun run() {
-            val manosTxt = if (ManosService.instancia != null || OjoState.manos) "ACTIVAS 🟢" else "apagadas ⚪"
-            estadoTxt.text = OjoState.estado + "\n\nCapturas enviadas: " + OjoState.subidas +
-                "\nManos de Máximo: " + manosTxt
+            val manosVivas = ManosService.instancia != null || OjoState.manos
+            val manosTxt = if (manosVivas) "ACTIVAS 🟢" else "INACTIVAS ⚪"
+            val puenteTxt = if (manosVivas) "conectado" else "en espera (activa las Manos)"
+            val version = try {
+                @Suppress("DEPRECATION")
+                packageManager.getPackageInfo(packageName, 0).versionName ?: "?"
+            } catch (_: Exception) {
+                "?"
+            }
+            val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
+            val batTxt = if (pm.isIgnoringBatteryOptimizations(packageName)) {
+                "exenta de optimización"
+            } else {
+                "optimizada por Android"
+            }
+            panelTxt.text = "Manos: $manosTxt\nPuente: $puenteTxt" +
+                "\nVersión: $version\nBatería: $batTxt"
+            estadoTxt.text = OjoState.estado + "\nCapturas enviadas: " + OjoState.subidas
             handler.postDelayed(this, 1000)
         }
     }
@@ -56,50 +73,60 @@ class MainActivity : Activity() {
             setTextColor(0xFFF5C86B.toInt())
             gravity = Gravity.CENTER
         }
-        val expl = TextView(this).apply {
-            text = "Máximo ve la pantalla de este teléfono SOLO cuando tú lo activas aquí. " +
-                "«Captura ahora» le enseña una pantalla. «Sesión de errores» le va mandando " +
-                "capturas mientras reproduces un fallo, pa que vea el error completo. " +
-                "Con la app cerrada no se captura nada."
-            textSize = 16f
-            setTextColor(0xFFD8E2F2.toInt())
-            setPadding(0, 24, 0, 24)
-        }
-        fun boton(texto: String, accion: () -> Unit) = Button(this).apply {
-            text = texto
+        panelTxt = TextView(this).apply {
             textSize = 19f
-            setPadding(0, 28, 0, 28)
-            setOnClickListener { accion() }
-        }
-        val bUnica = boton("📸  CAPTURA AHORA") { pedirProyeccion("unica") }
-        val bSesion = boton("🔴  SESIÓN DE ERRORES (2 MIN)") { pedirProyeccion("sesion") }
-        val bParar = boton("⏹  DETENER") {
-            val i = Intent(this, CaptureService::class.java).setAction(CaptureService.ACCION_PARAR)
-            startService(i)
-        }
-        val explManos = TextView(this).apply {
-            text = "🖐 MANOS DE MÁXIMO: si activas su servicio de accesibilidad, Máximo puede " +
-                "tocar, deslizar, escribir y leer el texto de la pantalla de este teléfono. " +
-                "Tú lo enciendes y lo apagas cuando quieras, desde Accesibilidad."
-            textSize = 16f
-            setTextColor(0xFFD8E2F2.toInt())
+            setTextColor(0xFF9FE8B1.toInt())
             setPadding(0, 36, 0, 12)
         }
-        val bManos = boton("🖐  ACTIVAR / VER LAS MANOS") {
-            startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
-        }
-        estadoTxt = TextView(this).apply {
+        val expl = TextView(this).apply {
+            text = "Con las Manos activas, Máximo trabaja en este teléfono por el puente: " +
+                "en segundo plano (descargar, instalar, archivos) y en pantalla solo cuando " +
+                "tú se lo pides. Tú enciendes y apagas las Manos cuando quieras, desde Accesibilidad."
             textSize = 16f
-            setTextColor(0xFF9FE8B1.toInt())
-            setPadding(0, 32, 0, 0)
+            setTextColor(0xFFD8E2F2.toInt())
+            setPadding(0, 12, 0, 24)
+        }
+        val bManos = Button(this).apply {
+            text = "🖐  ACTIVAR / VER LAS MANOS"
+            textSize = 19f
+            setPadding(0, 28, 0, 28)
+            setOnClickListener {
+                this@MainActivity.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+            }
+        }
+        val etqHerramientas = TextView(this).apply {
+            text = "Herramientas"
+            textSize = 14f
+            setTextColor(0xFF8FA3C8.toInt())
+            setPadding(0, 40, 0, 8)
+        }
+        fun botonChico(texto: String, accion: () -> Unit) = Button(this).apply {
+            text = texto
+            textSize = 13f
+            setPadding(0, 16, 0, 16)
+            layoutParams = LinearLayout.LayoutParams(
+                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f
+            )
+            setOnClickListener { accion() }
+        }
+        val fila = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        fila.addView(botonChico("📸 CAPTURA AHORA") { pedirProyeccion("unica") })
+        fila.addView(botonChico("🔴 SESIÓN DE ERRORES") { pedirProyeccion("sesion") })
+        fila.addView(botonChico("⏹ DETENER") {
+            val i = Intent(this, CaptureService::class.java).setAction(CaptureService.ACCION_PARAR)
+            startService(i)
+        })
+        estadoTxt = TextView(this).apply {
+            textSize = 15f
+            setTextColor(0xFFD8E2F2.toInt())
+            setPadding(0, 28, 0, 0)
         }
         raiz.addView(titulo)
+        raiz.addView(panelTxt)
         raiz.addView(expl)
-        raiz.addView(bUnica)
-        raiz.addView(bSesion)
-        raiz.addView(bParar)
-        raiz.addView(explManos)
         raiz.addView(bManos)
+        raiz.addView(etqHerramientas)
+        raiz.addView(fila)
         raiz.addView(estadoTxt)
         setContentView(raiz)
     }

@@ -9,11 +9,14 @@ import android.content.Context
 import android.content.Intent
 import android.graphics.Path
 import android.graphics.Rect
+import android.net.Uri
 import android.os.Bundle
 import android.os.Environment
 import android.os.Handler
 import android.os.HandlerThread
+import android.os.PowerManager
 import android.provider.MediaStore
+import androidx.core.content.FileProvider
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import org.json.JSONArray
@@ -127,6 +130,9 @@ class ManosService : AccessibilityService() {
                 }
                 "escribir" -> escribir(cmd.getString("texto"))
                 "descargar" -> descargar(cmd.getString("url"), cmd.optString("nombre", ""))
+                "instalar" -> instalar(cmd.getString("url"), cmd.optString("nombre", ""))
+                "instalar_local" -> instalarLocal(cmd.getString("nombre"))
+                "bateria" -> bateria()
                 "shell" -> shell(cmd.getString("cmd"))
                 "archivos" -> archivos(cmd.optString("ruta", ""))
                 "macro" -> macro(cmd)
@@ -235,67 +241,129 @@ class ManosService : AccessibilityService() {
         return JSONObject().put("ok", todosOk).put("resultados", resultados).toString()
     }
 
+    // Zona propia de la app (getExternalFilesDir): aquí viven los APK a
+    // instalar, servidos al instalador del sistema por el FileProvider.
+    private fun dirLocal(): File {
+        val base = getExternalFilesDir(null) ?: filesDir
+        return File(base, "apks").apply { mkdirs() }
+    }
+
     private fun descargar(url: String, nombreIn: String): String {
         val nombre = nombreIn.ifEmpty {
             url.substringAfterLast('/').substringBefore('?').ifEmpty { "descarga.bin" }
         }
-        var conn: HttpURLConnection? = null
         return try {
-            // Sin el token del puente: es una URL arbitraria, no se filtra la llave.
+            // Copia local SIEMPRE (zona propia de la app).
+            val local = File(dirLocal(), nombre)
+            val (total, sha) = bajarAArchivo(url, local)
+            // Y la copia visible en Descargas, vía MediaStore, como hasta ahora.
+            var rutaFinal = local.absolutePath
+            if (android.os.Build.VERSION.SDK_INT >= 29) {
+                try {
+                    val valores = ContentValues().apply {
+                        put(MediaStore.Downloads.DISPLAY_NAME, nombre)
+                        put(MediaStore.Downloads.MIME_TYPE, "application/octet-stream")
+                        put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
+                    }
+                    val uri = contentResolver.insert(
+                        MediaStore.Downloads.EXTERNAL_CONTENT_URI, valores
+                    )
+                    if (uri != null) {
+                        contentResolver.openOutputStream(uri)?.use { o ->
+                            local.inputStream().use { inp -> inp.copyTo(o) }
+                        }
+                        rutaFinal = Environment.getExternalStoragePublicDirectory(
+                            Environment.DIRECTORY_DOWNLOADS
+                        ).absolutePath + "/" + nombre
+                    }
+                } catch (_: Exception) {
+                }
+            }
+            JSONObject().put("ok", true).put("ruta", rutaFinal)
+                .put("copia_local", local.absolutePath)
+                .put("bytes", total).put("sha256", sha).toString()
+        } catch (e: Exception) {
+            JSONObject().put("ok", false).put("error", e.message ?: "error").toString()
+        }
+    }
+
+    // Baja la URL a un archivo local y devuelve (bytes, sha256 de 12).
+    // Sin el token del puente: es una URL arbitraria, no se filtra la llave.
+    private fun bajarAArchivo(url: String, destino: File): Pair<Long, String> {
+        var conn: HttpURLConnection? = null
+        try {
             conn = (URL(url).openConnection() as HttpURLConnection).apply {
                 connectTimeout = 15000
                 readTimeout = 60000
                 instanceFollowRedirects = true
             }
             val code = conn.responseCode
-            if (code !in 200..299) {
-                JSONObject().put("ok", false).put("error", "HTTP $code").toString()
-            } else {
-                val md = MessageDigest.getInstance("SHA-256")
-                var salida: java.io.OutputStream? = null
-                var rutaFinal: String? = null
-                if (android.os.Build.VERSION.SDK_INT >= 29) {
-                    try {
-                        val valores = ContentValues().apply {
-                            put(MediaStore.Downloads.DISPLAY_NAME, nombre)
-                            put(MediaStore.Downloads.MIME_TYPE, "application/octet-stream")
-                            put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
-                        }
-                        val uri = contentResolver.insert(
-                            MediaStore.Downloads.EXTERNAL_CONTENT_URI, valores
-                        )
-                        if (uri != null) {
-                            salida = contentResolver.openOutputStream(uri)
-                            if (salida != null) {
-                                rutaFinal = Environment.getExternalStoragePublicDirectory(
-                                    Environment.DIRECTORY_DOWNLOADS
-                                ).absolutePath + "/" + nombre
-                            }
-                        }
-                    } catch (_: Exception) {
-                        salida = null
-                        rutaFinal = null
-                    }
-                }
-                if (salida == null) {
-                    val dir = getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS) ?: filesDir
-                    val f = File(dir, nombre)
-                    salida = f.outputStream()
-                    rutaFinal = f.absolutePath
-                }
-                var total = 0L
-                salida.use { o ->
-                    conn.inputStream.use { inp -> total = copiarContando(inp, o, md) }
-                }
-                val sha = md.digest().joinToString("") { "%02x".format(it) }.take(12)
-                JSONObject().put("ok", true).put("ruta", rutaFinal)
-                    .put("bytes", total).put("sha256", sha).toString()
+            if (code !in 200..299) throw Exception("HTTP $code")
+            val md = MessageDigest.getInstance("SHA-256")
+            var total = 0L
+            destino.outputStream().use { o ->
+                conn.inputStream.use { inp -> total = copiarContando(inp, o, md) }
             }
-        } catch (e: Exception) {
-            JSONObject().put("ok", false).put("error", e.message ?: "error").toString()
+            val sha = md.digest().joinToString("") { "%02x".format(it) }.take(12)
+            return Pair(total, sha)
         } finally {
             conn?.disconnect()
         }
+    }
+
+    // ---- Instalación asistida (v2.3) ----
+    // El instalador del sistema se dispara DESDE la app, con un content://
+    // del FileProvider propio. Nada de `am` ni shell: eso muere por
+    // permisos (INTERACT_ACROSS_USERS). El diálogo «Instalar» del sistema
+    // sigue apareciendo: es la regla de Android sin root ni dueño del
+    // dispositivo; aquí solo se reporta que el intent salió.
+
+    private fun instalar(url: String, nombreIn: String): String {
+        val nombre = nombreIn.ifEmpty {
+            url.substringAfterLast('/').substringBefore('?').ifEmpty { "app.apk" }
+        }.substringAfterLast('/')
+        return try {
+            val f = File(dirLocal(), nombre)
+            val (total, sha) = bajarAArchivo(url, f)
+            lanzarInstalador(f).put("bytes", total).put("sha256", sha).toString()
+        } catch (e: Exception) {
+            JSONObject().put("ok", false).put("error", e.message ?: "error").toString()
+        }
+    }
+
+    private fun instalarLocal(nombreIn: String): String {
+        val nombre = nombreIn.substringAfterLast('/')
+        return try {
+            val f = File(dirLocal(), nombre)
+            if (!f.exists()) {
+                JSONObject().put("ok", false)
+                    .put("error", "no está en la zona local: $nombre").toString()
+            } else {
+                lanzarInstalador(f).toString()
+            }
+        } catch (e: Exception) {
+            JSONObject().put("ok", false).put("error", e.message ?: "error").toString()
+        }
+    }
+
+    private fun lanzarInstalador(f: File): JSONObject {
+        val uri: Uri = FileProvider.getUriForFile(this, "com.maximo.ojo.files", f)
+        val i = Intent(Intent.ACTION_VIEW).apply {
+            setDataAndType(uri, "application/vnd.android.package-archive")
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        startActivity(i)
+        return JSONObject().put("ok", true).put("ruta", f.absolutePath)
+            .put("puede_instalar", packageManager.canRequestPackageInstalls())
+            .put("nota", "instalador lanzado; queda el toque a «Instalar» en el diálogo del sistema")
+    }
+
+    private fun bateria(): String {
+        val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
+        return JSONObject().put("ok", true)
+            .put("exenta_bateria", pm.isIgnoringBatteryOptimizations(packageName))
+            .put("paquete", packageName).toString()
     }
 
     private fun copiarContando(
