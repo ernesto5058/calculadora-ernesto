@@ -133,6 +133,7 @@ class ManosService : AccessibilityService() {
                 "instalar" -> instalar(cmd.getString("url"), cmd.optString("nombre", ""))
                 "instalar_local" -> instalarLocal(cmd.getString("nombre"))
                 "bateria" -> bateria()
+                "notificaciones" -> notificaciones(cmd.optInt("n", 10))
                 "shell" -> shell(cmd.getString("cmd"))
                 "archivos" -> archivos(cmd.optString("ruta", ""))
                 "macro" -> macro(cmd)
@@ -357,6 +358,32 @@ class ManosService : AccessibilityService() {
         return JSONObject().put("ok", true).put("ruta", f.absolutePath)
             .put("puede_instalar", packageManager.canRequestPackageInstalls())
             .put("nota", "instalador lanzado; queda el toque a «Instalar» en el diálogo del sistema")
+    }
+
+    // ---- Notificaciones en segundo plano (v2.4) ----
+    // Lee el buffer en memoria que llena NotificacionesService. Si Ernesto
+    // no ha concedido el acceso a notificaciones, lo dice claro en vez de
+    // devolver una lista vacía que parecería «sin mensajes».
+    private fun notificaciones(nIn: Int): String {
+        if (!OjoState.notifConectado) {
+            return JSONObject().put("ok", false).put("conectado", false)
+                .put("error", "acceso a notificaciones NO activado").toString()
+        }
+        val n = nIn.coerceIn(1, 50)
+        val arr = JSONArray()
+        for (item in OjoState.ultimasNotif(n)) {
+            arr.put(
+                JSONObject()
+                    .put("paquete", item.paquete)
+                    .put("app", item.app)
+                    .put("titulo", item.titulo)
+                    .put("texto", item.texto)
+                    .put("hora_ms", item.horaMs)
+            )
+        }
+        return JSONObject().put("ok", true).put("conectado", true)
+            .put("total_buffer", OjoState.totalNotif())
+            .put("notificaciones", arr).toString()
     }
 
     private fun bateria(): String {
