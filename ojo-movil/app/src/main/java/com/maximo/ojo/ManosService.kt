@@ -172,8 +172,8 @@ class ManosService : AccessibilityService() {
             sb.append("  ".repeat(nivel)).append(clase)
             val t = n.text?.toString()
             val d = n.contentDescription?.toString()
-            if (!t.isNullOrEmpty()) sb.append(" \"").append(t.take(60)).append('"')
-            else if (!d.isNullOrEmpty()) sb.append(" ~").append(d.take(60)).append("~")
+            if (!t.isNullOrEmpty()) sb.append(" \"").append(t.take(6000)).append('"')
+            else if (!d.isNullOrEmpty()) sb.append(" ~").append(d.take(120)).append("~")
             sb.append(" [").append(r.left).append(',').append(r.top).append(',')
                 .append(r.right).append(',').append(r.bottom).append(']')
             if (n.isClickable) sb.append(" TOCABLE")
@@ -185,7 +185,7 @@ class ManosService : AccessibilityService() {
             for (i in 0 until n.childCount) caminar(n.getChild(i), nivel + 1)
         }
         caminar(raiz, 0)
-        return sb.toString().take(30000)
+        return sb.toString().take(60000)
     }
 
     private fun http(metodo: String, url: String, cuerpo: String?): Pair<Int, String?> {
