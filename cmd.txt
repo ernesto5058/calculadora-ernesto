@@ -1,4 +1,4 @@
-adb shell input keyevent 11 15 11 12 15 10
+adb shell input tap 540 1368
 sleep 1
-adb shell input tap 540 1286
+adb shell input tap 540 1041
 sleep 4
