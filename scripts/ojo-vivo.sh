@@ -132,7 +132,12 @@ mkdir -p "$RUNNER_TEMP/apk"
 gh release download "$TAG" --repo ernesto5058/calculadora-ernesto --pattern "*.apk" --dir "$RUNNER_TEMP/apk" >/dev/null 2>&1 || fallo "descargando la APK $TAG"
 APK=$(ls "$RUNNER_TEMP/apk"/*.apk | head -1)
 adb install -r "$APK" >/dev/null 2>&1 && linea "APK instalada: $(basename "$APK") (t+$(( $(date +%s)-T_INICIO ))s)" || fallo "instalando la APK"
-adb shell monkey -p cu.ernesto.mitrabajo -c android.intent.category.LAUNCHER 1 >/dev/null 2>&1 || true
+for P in com.facebook.aura cu.ernesto.mitrabajo; do
+  if adb shell pm list packages 2>/dev/null | tr -d '\r' | grep -qx "package:$P"; then
+    adb shell monkey -p "$P" -c android.intent.category.LAUNCHER 1 >/dev/null 2>&1 || true
+    linea "App lanzada: $P"
+  fi
+done
 sleep 8
 shot puerta
 linea "App abierta en su puerta; foto publicada"
