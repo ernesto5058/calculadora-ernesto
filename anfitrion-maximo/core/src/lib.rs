@@ -25,6 +25,7 @@ macro_rules! log_line {
 }
 
 pub mod crypto;
+mod cadena;
 mod hub;
 mod mux;
 mod pair;

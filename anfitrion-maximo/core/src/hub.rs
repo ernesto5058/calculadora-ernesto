@@ -1,6 +1,15 @@
-//! Hub mux multi-conexión de la fase 2: la sesión mux que la v1.1 abrió pa
-//! lockdownd ahora alimenta TODOS los servicios que pide la pila `idevice`
+//! Hub mux multi-conexión: la sesión mux que la v1.1 abrió pa lockdownd
+//! alimentó en la fase 2 a TODOS los servicios que pide la pila `idevice`
 //! (lockdownd, AFC, InstallationProxy, HouseArrest), cada uno con su pseudo-TCP.
+//!
+//! **v2.4 — el hub ya NO es transporte de la cadena.** Probado en vivo el
+//! 2026-11-16 (determinista 2/2): abrir InstallationProxy sobre la sesión
+//! del hub moría al instante (`CONTROL del iPhone: socketIsClosed
+//! sock_receive returned errno 54` → tls handshake eof) — el hub arrastra
+//! estado mux sucio entre sesiones. Desde la v2.4 el hub queda solo pa
+//! **detección/latido**: saluda (prueba que el cable y el mux viven),
+//! **purga** su estado y se cierra ANTES de que la cadena arranque; la
+//! cadena viaja sobre su propia sesión fresca (`cadena.rs`).
 //!
 //! Diseño: UN hilo dueño del transporte USB; demultiplexa las tramas por
 //! puerto y guarda el payload de cada conexión en su cola. Las operaciones de
@@ -73,6 +82,23 @@ impl MuxHub {
 
     pub fn mux_version(&self) -> u8 {
         self.mux_version
+    }
+
+    /// **La purga del hub (v2.4)**: fuera conexiones, fuera IDs, fuera bytes
+    /// resto; los contadores vuelven a su nacimiento. Tras el
+    /// SET_CONFIGURATION del pairing, el hub purga su estado y se cierra
+    /// ANTES de que la cadena arranque — ningún frame de una sesión muerta
+    /// queda con dueño al que entregarse. Devuelve
+    /// `(bytes_descartados, conexiones_descartadas)` pa el registro.
+    pub fn purge(&mut self) -> (usize, usize) {
+        let bytes = self.rx.len();
+        let conns = self.conns.len();
+        self.conns.clear();
+        self.by_id.clear();
+        self.rx.clear();
+        self.next_id = 1;
+        self.mux_tx_seq = 1;
+        (bytes, conns)
     }
 
     /// Lee UNA trama del cable y la entrega a la cola de su conexión.
@@ -315,6 +341,16 @@ enum HubCmd {
     Close {
         id: u32,
     },
+    /// Purga el estado de sesión (v2.4); la respuesta viaja por un canal
+    /// std porque quien la pide (la etapa «conexion») aún no tiene runtime.
+    Purge {
+        reply: std::sync::mpsc::Sender<Result<(), String>>,
+    },
+    /// Cierra el hub: el hilo suelta el transporte (la interfaz USB queda
+    /// liberada) ANTES de responder — el cierre es síncrono de verdad.
+    Shutdown {
+        reply: std::sync::mpsc::Sender<()>,
+    },
 }
 
 #[derive(Clone)]
@@ -374,6 +410,27 @@ fn hub_loop(mut hub: MuxHub, rx: Receiver<HubCmd>) {
                     pending_reads.push((id, max, reply));
                 }
                 HubCmd::Close { id } => hub.close(id),
+                HubCmd::Purge { reply } => {
+                    let (bytes, conns) = hub.purge();
+                    // Las lecturas pendientes eran de conexiones purgadas:
+                    // mueren con causa, no colgadas.
+                    for (_, _, r) in pending_reads.drain(..) {
+                        let _ = r.send(Err("la sesión del hub fue purgada".into()));
+                    }
+                    crate::stage(&format!(
+                        "[hub] purga: {} conexiones y {} bytes resto descartados — el estado de sesión queda en cero",
+                        conns, bytes
+                    ));
+                    let _ = reply.send(Ok(()));
+                }
+                HubCmd::Shutdown { reply } => {
+                    // Soltar el transporte ANTES de responder: cuando la
+                    // etapa «conexion» despierta, la interfaz ya es libre
+                    // pa que la cadena reclame la suya sin pisarse.
+                    drop(hub);
+                    let _ = reply.send(());
+                    return;
+                }
             }
         }
         // 2) Servir lecturas con lo encolado.
@@ -416,6 +473,28 @@ fn hub_loop(mut hub: MuxHub, rx: Receiver<HubCmd>) {
 }
 
 impl HubHandle {
+    /// Purga TODO el estado de sesión del hub (síncrono: la etapa
+    /// «conexion» lo corre antes de que exista runtime tokio).
+    pub fn purge(&self) -> Result<(), String> {
+        let (tx, rx) = std::sync::mpsc::channel();
+        self.tx
+            .send(HubCmd::Purge { reply: tx })
+            .map_err(|_| "el hilo del hub no responde".to_string())?;
+        rx.recv()
+            .map_err(|_| "el hilo del hub cerró sin responder".to_string())?
+    }
+
+    /// Cierra el hub y ESPERA a que su hilo haya soltado el transporte:
+    /// la interfaz USB queda liberada antes de que la cadena abra la suya.
+    pub fn shutdown(self) -> Result<(), String> {
+        let (tx, rx) = std::sync::mpsc::channel();
+        self.tx
+            .send(HubCmd::Shutdown { reply: tx })
+            .map_err(|_| "el hilo del hub no responde".to_string())?;
+        rx.recv()
+            .map_err(|_| "el hilo del hub cerró sin responder".to_string())
+    }
+
     pub async fn open(&self, dport: u16) -> Result<u32, String> {
         let (tx, rx) = oneshot::channel();
         self.tx

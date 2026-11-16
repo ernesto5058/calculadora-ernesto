@@ -15,6 +15,17 @@
 //! diagnóstico probó que el `connect` del crate pedía el StartService sin
 //! escrow y descartaba la respuesta cruda de Apple — la muerte de la v2.2.
 //!
+//! **v2.4:** la cadena ya NO viaja sobre la sesión mux del hub. Probado en
+//! vivo el 2026-11-16 (2/2): pasada la puerta por la vía 1, abrir
+//! InstallationProxy sobre la sesión reutilizada del hub moría al instante
+//! (`CONTROL del iPhone: socketIsClosed … errno 54` → tls handshake eof) —
+//! el hub arrastra estado mux sucio entre sesiones. Ahora el hub solo
+//! detecta (saluda), **purga** su estado y se cierra, y la cadena abre su
+//! propia sesión mux FRESCA con la secuencia de la vía 1 (`cadena.rs`):
+//! conexión mux nueva + LockdownClient nuevo + StartSession propio por
+//! servicio, el camino que la puerta ya probó que funciona (puertos
+//! 60057/60090 por la vía 1; 60059/60092 por la réplica del crate).
+//!
 //! La contraseña llega de Kotlin, vive solo en esta llamada y se suelta al
 //! abrir la sesión; jamás se guarda ni se escribe en el registro. El código
 //! 2FA lo pide el callback de isideload a Kotlin por JNI (bloqueante: la UI
@@ -53,7 +64,8 @@ use x509_cert::{
     Certificate,
 };
 
-use crate::hub::{spawn_hub, HubHandle};
+use crate::cadena::spawn_cadena;
+use crate::hub::spawn_hub;
 use crate::provider::AnfitrionProvider;
 use crate::stage;
 use crate::vault::{VaultHandle, VaultStorageRef, KEY_CERT, KEY_EQUIPO};
@@ -241,14 +253,38 @@ pub fn run_sign_install(
         stage("ETAPA sonda: el servicio SOLO abrió presentando el EscrowBag — la cadena v2.3 lo presenta en TODOS sus servicios (InstallationProxy, AFC, HouseArrest) desde el primer intento");
     }
 
-    // ── Etapa: conexión (transporte fresco + hub + proveedor) ──────────────
+    // ── Etapa: conexión (v2.4: el hub detecta y se purga; la cadena abre
+    //    su PROPIA sesión mux fresca, secuencia de la vía 1) ────────────────
+    // Hasta la v2.3 la cadena viajaba sobre la sesión del hub, abierta tras
+    // la puerta — y abrir InstallationProxy sobre esa sesión reutilizada
+    // moría al instante (CONTROL «socketIsClosed … errno 54» → tls
+    // handshake eof, 2/2 en vivo). El hub arrastra estado mux sucio entre
+    // sesiones; la puerta, en cambio, abre el servicio SIEMPRE sobre su
+    // secuencia fresca. La v2.4 copia ese camino pa toda la cadena.
     stage("ETAPA conexion: preparando el cable (descriptores, configuración, claim)…");
-    let mut transport = crate::pair::open_mux_transport(fd, "")?;
+    {
+        // Detección/latido: el hub saluda (su línea de sesión abierta es la
+        // prueba de que el cable y el mux viven tras la puerta)…
+        let transport = crate::pair::open_mux_transport(fd, "")?;
+        let eps = transport.endpoints();
+        let hub = spawn_hub(transport, eps).map_err(|e| err("conexion", e))?;
+        // …purga su estado (tras el SET_CONFIGURATION del pairing, ningún
+        // frame ni ID de sesiones muertas queda con dueño)…
+        hub.purge().map_err(|e| err("conexion", e))?;
+        // …y se cierra soltando la interfaz ANTES de que la cadena abra la
+        // suya: el hub nunca es transporte de la cadena.
+        hub.shutdown().map_err(|e| err("conexion", e))?;
+        stage("ETAPA conexion: hub de detección purgado y cerrado — la cadena NO viaja sobre el hub");
+    }
+    // La sesión de la cadena: transporte fresco (SET_CONFIGURATION que
+    // reinicia la sesión mux del iPhone) + saludo de la vía 1 + purga del
+    // resto del saludo. Todos los servicios de `run_chain` cuelgan de ella.
+    let transport = crate::pair::open_mux_transport(fd, "")?;
     let eps = transport.endpoints();
-    let hub = spawn_hub(transport, eps).map_err(|e| err("conexion", e))?;
-    stage("ETAPA conexion: sesión mux abierta pa los servicios de instalación");
+    let cadena = spawn_cadena(transport, eps).map_err(|e| err("conexion", e))?;
+    stage("ETAPA conexion: sesión mux FRESCA de la cadena abierta (la secuencia que la puerta probó)");
 
-    let provider = AnfitrionProvider::new(hub.clone(), pairing_bytes.clone());
+    let provider = AnfitrionProvider::new(cadena, pairing_bytes.clone());
 
     let rt = tokio::runtime::Builder::new_multi_thread()
         .worker_threads(2)
@@ -259,7 +295,6 @@ pub fn run_sign_install(
     rt.block_on(async move {
         run_chain(
             provider,
-            hub,
             ipa_path,
             email,
             password,
@@ -276,7 +311,6 @@ pub fn run_sign_install(
 #[allow(clippy::too_many_arguments)]
 async fn run_chain(
     provider: AnfitrionProvider,
-    _hub: HubHandle,
     ipa_path: &str,
     email: &str,
     password: &str,
