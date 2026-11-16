@@ -361,6 +361,13 @@
   .pagoRow { padding: 12px 2px; border-bottom: 1px solid var(--linea); font-size: 15px; line-height: 1.55; }
   .pagoRow:last-child { border-bottom: none; }
   .pagoRow .prF { color: var(--txt-3); font-size: 13px; }
+  /* C2 · botones de cobro por ciclo (A0/A/B): enormes, de calle */
+  .cicloBtns { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+  .cicloBtns button { width: 100%; min-height: 56px; padding: 12px 14px; border-radius: 14px; border: 1px solid var(--borde-fuerte); background: #FFFFFF; color: var(--txt-1); font-size: 16px; font-weight: 700; cursor: pointer; text-align: left; }
+  .cicloBtns button.activa { background: var(--dorado-suave); border-color: var(--dorado); }
+  .cicloBtns button:active { transform: scale(.98); }
+  .cicloBtns button:disabled { opacity: .55; cursor: wait; }
+  .cicloBtns .rango { display: block; font-size: 13px; font-weight: 400; color: var(--txt-2); margin-top: 2px; }
   .adjScrim { display: none; position: fixed; inset: 0; z-index: 55; background: rgba(10,12,16,.42); }
   .adjScrim.abierta { display: block; }
   .adjHojaPRO { position: fixed; left: 0; right: 0; bottom: 0; top: auto; margin: 0 auto; max-width: 560px; z-index: 56; border-radius: 20px 20px 0 0; padding: 10px 10px calc(14px + env(safe-area-inset-bottom)); }
@@ -702,9 +709,10 @@
     <button type="button" class="volverBtn" id="mp_volver"><svg class="ic" aria-hidden="true"><use href="#i-back"/></svg> Mi panel</button>
     <div class="card">
       <h2><svg class="ic" aria-hidden="true"><use href="#i-cash"/></svg> Mi pago</h2>
-      <div class="hint">Tu pago por vuelta, en claro: lo <b>asegurado</b> es tuyo pase lo que pase con la venta; el <b>premio</b> depende de cómo se venda, y aquí ves también lo que <b>ya te pagaron</b>.</div>
+      <div class="hint">Tu pago por vuelta, en claro: lo <b>asegurado</b> es tuyo pase lo que pase con la venta; el <b>premio por venta</b> depende de cómo se venda, y aquí ves también lo que <b>ya te pagaron</b>.</div>
       <div class="warn" id="mp_warn"></div>
       <div id="mp_totales"></div>
+      <div id="mp_ganado"></div>
     </div>
     <div class="card">
       <h2><svg class="ic" aria-hidden="true"><use href="#i-phone"/></svg> Vueltas de saldo</h2>
@@ -3629,7 +3637,7 @@ reportar = function(){
      teclea más, la app lo frena con la explicación y NO manda nada;
      el servidor frena igual si la foto cambió.
    · Mi pago: lectura por pago_mi_estado — lo asegurado (fijo), el
-     premio (depende de la venta) y lo ya pagado, saldo y
+     premio por venta (depende de la venta) y lo ya pagado, saldo y
      transferencia separados. La pantalla pinta SOLO los campos de la
      puerta: la cocina del dueño no existe en esta vista.
    · Chat: pintarChat queda envuelto con la GUARDA DE FOCO — si el
@@ -3758,14 +3766,28 @@ function pagoCacheGet(){
 }
 function pagoLineaPremio(v){
   var premio = Number(v.premio) || 0, redondeo = Number(v.redondeo) || 0;
-  if (premio > 0) return "Premio: ya te pagaron <b>" + fmt(premio) + "</b> por la venta" + (redondeo > 0 ? " (con " + fmt(redondeo) + " de ajuste en efectivo)" : "") + ".";
-  if (v.estado === "vendido_sin_premio") return "Premio: la venta no dejó premio en esta vuelta.";
-  return "Premio: todavía depende de la venta — se sabe cuando Ernesto venda.";
+  if (premio > 0) return "Premio por venta: ya te pagaron <b>" + fmt(premio) + "</b> por la venta" + (redondeo > 0 ? " (con " + fmt(redondeo) + " de ajuste en efectivo)" : "") + ".";
+  if (v.estado === "vendido_sin_premio") return "Premio por venta: esta vuelta se vendió sin dejarlo.";
+  return "Premio por venta: todavía depende de la venta — se sabe cuando Ernesto venda.";
 }
 function pagoFilaHtml(v){
   return '<div class="pagoRow"><span class="prF">' + fmtFechaCorta(v.creada_en) + "</span><br>"
     + "Lo asegurado: <b>" + fmt(Number(v.fijo) || 0) + "</b> · es tuyo pase lo que pase con la venta.<br>"
-    + pagoLineaPremio(v) + "<br>Ya te pagaron en total: <b>" + fmt(Number(v.total) || 0) + "</b></div>";
+    + pagoLineaPremio(v) + "<br>Ya te pagaron en total: <b>" + fmt(Number(v.total) || 0) + "</b>"
+    + pagoLineaGanado(v) + pagoLineaCiclo(v) + "</div>";
+}
+/* v29 · PRO (barrido M3): ganado / entregado / pendiente por vuelta y
+   en total, con los campos aditivos de pago_mi_estado (ganado_comision,
+   ganado_premio, entregado, pendiente_entrega). Si la puerta aún no
+   los trae, la línea no se pinta: degrada sin romper. «Ganado» es lo
+   calculado; «entregado» solo lo que Ernesto confirmó en mano. */
+function pagoLineaGanado(v){
+  if (!v || v.ganado_comision === undefined || v.ganado_comision === null) return "";
+  var gc = Number(v.ganado_comision) || 0, gp = Number(v.ganado_premio) || 0;
+  var ent = Number(v.entregado) || 0;
+  var pend = (v.pendiente_entrega !== undefined && v.pendiente_entrega !== null) ? Number(v.pendiente_entrega) : (gc + gp - ent);
+  return "<br>Ganado en esta vuelta: <b>" + fmt(gc + gp) + "</b> (comisión " + fmt(gc) + " + premio por venta " + fmt(gp) + ") · Entregado: <b>" + fmt(ent) + "</b>"
+    + (pend > 0 ? " · Te falta por recibir: <b>" + fmt(pend) + "</b>" : " · Nada pendiente de entrega.");
 }
 function pintarPago(){
   var tot = $("mp_totales"), bs = $("mp_saldo"), bt = $("mp_transf");
@@ -3777,14 +3799,105 @@ function pintarPago(){
   var aseg = suma(PAGO.vueltas, "fijo"), prem = suma(PAGO.vueltas, "premio"), pag = suma(PAGO.vueltas, "total");
   tot.innerHTML = '<div class="pagoTot">'
     + '<div class="pt"><div class="n">' + fmt(aseg) + '</div><div class="l">Lo asegurado (tuyo pase lo que pase)</div></div>'
-    + '<div class="pt"><div class="n">' + fmt(prem) + '</div><div class="l">Premio ya pagado (dependía de la venta)</div></div>'
+    + '<div class="pt"><div class="n">' + fmt(prem) + '</div><div class="l">Premio por venta ya pagado (dependía de la venta)</div></div>'
     + '<div class="pt"><div class="n">' + fmt(pag) + '</div><div class="l">Ya te pagaron en total</div></div></div>';
+  var gan = $("mp_ganado");
+  if (gan) {
+    if (PAGO.ganado_comision !== undefined && PAGO.ganado_comision !== null) {
+      var gcT = Number(PAGO.ganado_comision) || 0, gpT = Number(PAGO.ganado_premio) || 0;
+      var entT = Number(PAGO.entregado) || 0;
+      var pendT = (PAGO.pendiente_entrega !== undefined && PAGO.pendiente_entrega !== null) ? Number(PAGO.pendiente_entrega) : (gcT + gpT - entT);
+      gan.innerHTML = '<div class="pagoTot" style="margin-top:10px">'
+        + '<div class="pt"><div class="n">' + fmt(gcT + gpT) + '</div><div class="l">Ganado en total (comisión ' + fmt(gcT) + ' + premio por venta ' + fmt(gpT) + ')</div></div>'
+        + '<div class="pt"><div class="n">' + fmt(entT) + '</div><div class="l">Entregado (Ernesto te lo puso en la mano y lo confirmó)</div></div>'
+        + '<div class="pt"><div class="n">' + fmt(Math.max(0, pendT)) + '</div><div class="l">' + (pendT > 0 ? "Te falta por recibir" : "Nada pendiente de entrega") + '</div></div></div>'
+        + '<div class="hint">Ganado es lo que el sistema calculó; entregado solo cuenta cuando el efectivo cambió de mano de verdad y Ernesto lo confirma.</div>';
+    } else gan.innerHTML = "";
+  }
   var nav = $("navPagoTxt");
   if (nav) nav.textContent = PAGO.vueltas.length
     ? "Asegurado: " + fmt(aseg) + " · ya te pagaron " + fmt(pag) + " en total."
     : "Lo que ya tienes asegurado, lo que depende de la venta y lo que ya te pagaron.";
   bs.innerHTML = vs.length ? vs.map(pagoFilaHtml).join("") : '<div class="hint">Todavía no tienes vueltas de saldo con pago calculado. Cuando una vuelta tuya nazca, su pago aparece aquí.</div>';
   bt.innerHTML = vt.length ? vt.map(pagoFilaHtml).join("") : '<div class="hint">Todavía no tienes vueltas de transferencia con pago calculado. Cuando una vuelta tuya nazca, su pago aparece aquí.</div>';
+  document.querySelectorAll("[data-ciclo-op]").forEach(function(b){
+    b.addEventListener("click", function(){ elegirPagoCicloMT(b); });
+  });
+}
+/* C2 · EL COBRO POR CICLO (A0/A/B) en palabras de calle: la tarjeta de
+   cada vuelta enseña SUS tres opciones con los montos que manda el
+   servidor (sin recalcular nada aquí), SU elección y el estado de su
+   adelanto. El identificador de la liquidación se lee de
+   liquidacion_id / id / liquidacion; si la puerta no lo manda, se ven
+   los montos y la elección, pero sin botones (degradación declarada). */
+function pagoCicloId(v){ return v.liquidacion_id || v.id || v.liquidacion || null; }
+function pagoEleccionTxt(e){
+  return e === "a0" ? "Al entregar el capital (adelanto sobre tu plan)"
+    : e === "ahora" ? "Ahora, con el descuento"
+    : e === "despues" ? "Al venderse, exacto" : null;
+}
+function pagoLineaCiclo(v){
+  if (!v) return "";
+  var trae = v.comision_ahora !== undefined || v.comision_despues !== undefined
+    || v.adelanto_monto !== undefined || v.eleccion_pago !== undefined;
+  if (!trae) return "";
+  var lid = pagoCicloId(v);
+  var gc = Number(v.ganado_comision !== undefined && v.ganado_comision !== null ? v.ganado_comision : v.comision_ciclo) || 0;
+  var vendidas = v.ahora && v.ahora.saldo_vendido !== undefined && v.ahora.saldo_vendido !== null ? (Number(v.ahora.saldo_vendido) || 0) : 0;
+  var sinCompras = gc === 0 && vendidas === 0;
+  var bloqueada = (Number(v.entregado_comision) || 0) > 0 || (Number(v.adelanto_entregado) || 0) > 0;
+  var elegida = v.eleccion_pago || null;
+  var h = "<br><b>¿Cómo quieres cobrar la comisión de esta vuelta?</b>";
+  if (elegida) h += "<br>Tu elección: <b>" + (pagoEleccionTxt(elegida) || elegida) + "</b>";
+  var botones = "", lineas = "";
+  function pieza(op, etiqueta, rango){
+    if (lid && !bloqueada) {
+      botones += '<button type="button" data-ciclo-op="' + op + '" data-lid="' + lid + '" data-plan="' + (v.recargas_plan !== undefined && v.recargas_plan !== null ? v.recargas_plan : "") + '"'
+        + (elegida === op ? ' class="activa"' : "") + '>' + etiqueta
+        + (rango ? '<span class="rango">' + rango + '</span>' : "") + '</button>';
+    } else {
+      lineas += "<br>" + (elegida === op ? "<b>" + etiqueta + "</b>" : etiqueta) + (rango ? "<br>" + rango : "");
+    }
+  }
+  if (sinCompras && v.adelanto_monto !== undefined && v.adelanto_monto !== null && (Number(v.adelanto_monto) || 0) > 0) {
+    var rango = "";
+    if (v.estimada_min !== undefined && v.estimada_min !== null && v.estimada_max !== undefined && v.estimada_max !== null)
+      rango = "Se estima entre " + fmt(Number(v.estimada_min) || 0) + " y " + fmt(Number(v.estimada_max) || 0) + " si cumples tu plan" + (v.recargas_plan ? " de " + v.recargas_plan + " recargas" : "") + ".";
+    pieza("a0", "Al entregar el capital: " + fmt(Number(v.adelanto_monto) || 0), rango);
+  }
+  if (v.comision_ahora !== undefined && v.comision_ahora !== null)
+    pieza("ahora", "Ahora: " + fmt(Number(v.comision_ahora) || 0) + (v.descuento_pct !== undefined && v.descuento_pct !== null ? " (te descuentan el " + String(v.descuento_pct).replace(".", ",") + " % por cobrar ya)" : ""));
+  if (v.comision_despues !== undefined && v.comision_despues !== null)
+    pieza("despues", "Al venderse: " + fmt(Number(v.comision_despues) || 0) + " exactos");
+  if (botones) h += '<div class="cicloBtns">' + botones + "</div>";
+  h += lineas;
+  if (bloqueada && (v.comision_ahora !== undefined || v.adelanto_monto !== undefined))
+    h += "<br>Tu elección ya quedó fija: Ernesto ya te entregó dinero de esta vuelta.";
+  if (!lid && (v.comision_ahora !== undefined || v.adelanto_monto !== undefined))
+    h += "<br>Los botones de esta vuelta se están activando: por ahora ves los montos y tu elección aquí.";
+  if (elegida === "a0" && (Number(v.adelanto_entregado) || 0) > 0)
+    h += "<br>Adelanto entregado: <b>" + fmt(Number(v.adelanto_entregado) || 0) + "</b> — se cuadra al cerrar el ciclo.";
+  if (v.cuadre_adelanto !== undefined && v.cuadre_adelanto !== null && gc > 0) {
+    var cu = Number(v.cuadre_adelanto) || 0;
+    if (cu > 0) h += "<br>Cuadre al cerrar el ciclo: te faltan <b>" + fmt(cu) + "</b> por completar.";
+    else if (cu < 0) h += "<br>Cuadre al cerrar el ciclo: el adelanto pasó por <b>" + fmt(-cu) + "</b> — ese exceso se descuenta de tu próximo ciclo.";
+    else h += "<br>Cuadre al cerrar el ciclo: el adelanto cuadró exacto.";
+  }
+  return h;
+}
+function elegirPagoCicloMT(btn){
+  if (!SESION || !btn) return;
+  var lid = btn.getAttribute("data-lid"), op = btn.getAttribute("data-ciclo-op"), plan = btn.getAttribute("data-plan");
+  var datos = { p_codigo: SESION, p_liquidacion_id: lid, p_opcion: op, p_prueba: false };
+  if (op === "a0") datos.p_recargas_plan = plan ? Number(plan) : null;
+  var fila = btn.closest ? btn.closest(".pagoRow") : null;
+  if (fila) fila.querySelectorAll("[data-ciclo-op]").forEach(function(b){ b.disabled = true; });
+  rpcChat("dinero_elegir_pago", datos).then(function(r){
+    var warn = $("mp_warn");
+    if (r && r.ok !== false) { cargarPago(); return; }
+    if (fila) fila.querySelectorAll("[data-ciclo-op]").forEach(function(b){ b.disabled = false; });
+    if (warn) { warn.style.display = "block"; warn.textContent = "No se pudo guardar tu elección ahora. Revisa tu conexión y tócalo otra vez: no se guardó nada."; }
+  });
 }
 function cargarPago(){
   if (!SESION) return;
