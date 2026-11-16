@@ -24,7 +24,33 @@ object OjoState {
     @Volatile var subidas: Int = 0
     @Volatile var sesionActiva: Boolean = false
     @Volatile var manos: Boolean = false
+
+    // ---- Notificaciones (v2.4): buffer EN MEMORIA, anillo de las últimas 50.
+    // Nada se persiste en disco: si el proceso muere, el buffer se pierde.
+    @Volatile var notifConectado: Boolean = false
+    private val bufferNotif = ArrayDeque<NotifItem>()
+
+    fun agregarNotif(item: NotifItem) {
+        synchronized(bufferNotif) {
+            bufferNotif.addLast(item)
+            while (bufferNotif.size > 50) bufferNotif.removeFirst()
+        }
+    }
+
+    fun ultimasNotif(n: Int): List<NotifItem> = synchronized(bufferNotif) {
+        bufferNotif.takeLast(n)
+    }
+
+    fun totalNotif(): Int = synchronized(bufferNotif) { bufferNotif.size }
 }
+
+data class NotifItem(
+    val paquete: String,
+    val app: String,
+    val titulo: String,
+    val texto: String,
+    val horaMs: Long
+)
 
 class MainActivity : Activity() {
     private lateinit var panelTxt: TextView
@@ -35,6 +61,7 @@ class MainActivity : Activity() {
         override fun run() {
             val manosVivas = ManosService.instancia != null || OjoState.manos
             val manosTxt = if (manosVivas) "ACTIVAS 🟢" else "INACTIVAS ⚪"
+            val notifTxt = if (OjoState.notifConectado) "ACTIVAS 🟢" else "SIN ACCESO ⚪"
             val puenteTxt = if (manosVivas) "conectado" else "en espera (activa las Manos)"
             val version = try {
                 @Suppress("DEPRECATION")
@@ -49,6 +76,7 @@ class MainActivity : Activity() {
                 "optimizada por Android"
             }
             panelTxt.text = "Manos: $manosTxt\nPuente: $puenteTxt" +
+                "\nNotificaciones: $notifTxt" +
                 "\nVersión: $version\nBatería: $batTxt"
             estadoTxt.text = OjoState.estado + "\nCapturas enviadas: " + OjoState.subidas
             handler.postDelayed(this, 1000)
@@ -94,6 +122,16 @@ class MainActivity : Activity() {
                 this@MainActivity.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
             }
         }
+        val bNotif = Button(this).apply {
+            text = "🔔  ACTIVAR / VER NOTIFICACIONES"
+            textSize = 19f
+            setPadding(0, 28, 0, 28)
+            setOnClickListener {
+                this@MainActivity.startActivity(
+                    Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)
+                )
+            }
+        }
         val etqHerramientas = TextView(this).apply {
             text = "Herramientas"
             textSize = 14f
@@ -125,6 +163,7 @@ class MainActivity : Activity() {
         raiz.addView(panelTxt)
         raiz.addView(expl)
         raiz.addView(bManos)
+        raiz.addView(bNotif)
         raiz.addView(etqHerramientas)
         raiz.addView(fila)
         raiz.addView(estadoTxt)
