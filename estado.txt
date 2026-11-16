@@ -19,3 +19,5 @@
 [18:06:47] Orden ejecutada; foto 'ahora' publicada
 [18:07:14] Orden recibida (6f1a3195)
 [18:07:24] Orden ejecutada; foto 'ahora' publicada
+[18:11:33] Orden recibida (943b4952)
+[18:11:50] Orden ejecutada; foto 'ahora' publicada
