@@ -1,6 +1,0 @@
-adb shell input tap 540 954
-sleep 3
-adb shell input text "$(printf '\x36\x34\x38\x39\x31\x33')"
-sleep 2
-adb shell input tap 540 1286
-sleep 6
