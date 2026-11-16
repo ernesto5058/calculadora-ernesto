@@ -7,3 +7,7 @@
 [18:48:23] Emulador arrancado (t+152s desde el inicio del script)
 [18:48:34] Tunel listo (t+163s)
 [18:48:34] Clave VNC cifrada lista (vnc.enc publicado en la rama)
+[18:48:35] Descargando la APK muse-v16...
+[18:48:48] APK instalada: Muse-oficial-16.apk (t+177s)
+[18:48:50] App lanzada: com.facebook.aura
+[18:49:01] App abierta en su puerta; foto publicada
