@@ -11,3 +11,6 @@
 [18:48:48] APK instalada: Muse-oficial-16.apk (t+177s)
 [18:48:50] App lanzada: com.facebook.aura
 [18:49:01] App abierta en su puerta; foto publicada
+[18:49:03] SESION VIVA: esperando ordenes por cmd.txt durante 85 min
+[18:49:27] Orden recibida (1ed90477)
+[18:49:30] Orden ejecutada; foto 'ahora' publicada
