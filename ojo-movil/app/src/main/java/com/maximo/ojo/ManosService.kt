@@ -4,18 +4,24 @@ import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.GestureDescription
 import android.content.ClipData
 import android.content.ClipboardManager
+import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
 import android.graphics.Path
 import android.graphics.Rect
 import android.os.Bundle
+import android.os.Environment
 import android.os.Handler
 import android.os.HandlerThread
+import android.provider.MediaStore
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
+import org.json.JSONArray
 import org.json.JSONObject
+import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
+import java.security.MessageDigest
 
 // Manos de Máximo: servicio de accesibilidad que ERNESTO activa a mano.
 // Cuando está activo, pregunta cada 3 s al puente si Máximo ordenó algo
@@ -29,6 +35,7 @@ class ManosService : AccessibilityService() {
     private var hilo: HandlerThread? = null
     private var handler: Handler? = null
     @Volatile private var activo = false
+    @Volatile private var ultimoTrabajoMs = 0L
 
     override fun onServiceConnected() {
         super.onServiceConnected()
@@ -44,7 +51,10 @@ class ManosService : AccessibilityService() {
                     atender()
                 } catch (_: Exception) {
                 }
-                handler?.postDelayed(this, 3000)
+                // Sondeo adaptativo: 1 s durante 60 s tras la última orden;
+                // en reposo, 3 s.
+                val desdeUltimo = System.currentTimeMillis() - ultimoTrabajoMs
+                handler?.postDelayed(this, if (desdeUltimo < 60000) 1000 else 3000)
             }
         }
         handler?.postDelayed(ciclo, 1500)
@@ -70,6 +80,7 @@ class ManosService : AccessibilityService() {
         val id = j.getString("id")
         val cmd = j.getJSONObject("comando")
         val resultado = ejecutar(cmd)
+        ultimoTrabajoMs = System.currentTimeMillis()
         http(
             "POST", Config.URL_PUENTE + "/reporte",
             JSONObject().put("id", id).put("resultado", resultado).toString()
@@ -115,6 +126,10 @@ class ManosService : AccessibilityService() {
                     }
                 }
                 "escribir" -> escribir(cmd.getString("texto"))
+                "descargar" -> descargar(cmd.getString("url"), cmd.optString("nombre", ""))
+                "shell" -> shell(cmd.getString("cmd"))
+                "archivos" -> archivos(cmd.optString("ruta", ""))
+                "macro" -> macro(cmd)
                 else -> JSONObject().put("ok", false).put("error", "tipo desconocido: $tipo").toString()
             }
         } catch (e: Exception) {
@@ -186,6 +201,176 @@ class ManosService : AccessibilityService() {
         }
         caminar(raiz, 0)
         return sb.toString().take(60000)
+    }
+
+    // ---- Ejecutor en segundo plano (v2.2) ----
+    // Estos comandos NO tocan la UI: corren en el hilo del servicio mientras
+    // Ernesto sigue usando el teléfono, como el cmd de la PC.
+
+    private fun macro(cmd: JSONObject): String {
+        val pasos = cmd.optJSONArray("pasos")
+            ?: return JSONObject().put("ok", false).put("error", "macro sin pasos").toString()
+        val esperaDefecto = cmd.optLong("espera_ms", 0)
+        val resultados = JSONArray()
+        var todosOk = true
+        for (i in 0 until pasos.length()) {
+            val paso = pasos.optJSONObject(i)
+            if (paso == null) {
+                resultados.put(
+                    JSONObject().put("ok", false).put("error", "paso $i inválido").toString()
+                )
+                todosOk = false
+                continue
+            }
+            val espera = paso.optLong("espera_ms", esperaDefecto)
+            if (i > 0 && espera > 0) Thread.sleep(espera)
+            val r = ejecutar(paso)
+            resultados.put(r)
+            try {
+                if (!JSONObject(r).optBoolean("ok", false)) todosOk = false
+            } catch (_: Exception) {
+                todosOk = false
+            }
+        }
+        return JSONObject().put("ok", todosOk).put("resultados", resultados).toString()
+    }
+
+    private fun descargar(url: String, nombreIn: String): String {
+        val nombre = nombreIn.ifEmpty {
+            url.substringAfterLast('/').substringBefore('?').ifEmpty { "descarga.bin" }
+        }
+        var conn: HttpURLConnection? = null
+        return try {
+            // Sin el token del puente: es una URL arbitraria, no se filtra la llave.
+            conn = (URL(url).openConnection() as HttpURLConnection).apply {
+                connectTimeout = 15000
+                readTimeout = 60000
+                instanceFollowRedirects = true
+            }
+            val code = conn.responseCode
+            if (code !in 200..299) {
+                JSONObject().put("ok", false).put("error", "HTTP $code").toString()
+            } else {
+                val md = MessageDigest.getInstance("SHA-256")
+                var salida: java.io.OutputStream? = null
+                var rutaFinal: String? = null
+                if (android.os.Build.VERSION.SDK_INT >= 29) {
+                    try {
+                        val valores = ContentValues().apply {
+                            put(MediaStore.Downloads.DISPLAY_NAME, nombre)
+                            put(MediaStore.Downloads.MIME_TYPE, "application/octet-stream")
+                            put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
+                        }
+                        val uri = contentResolver.insert(
+                            MediaStore.Downloads.EXTERNAL_CONTENT_URI, valores
+                        )
+                        if (uri != null) {
+                            salida = contentResolver.openOutputStream(uri)
+                            if (salida != null) {
+                                rutaFinal = Environment.getExternalStoragePublicDirectory(
+                                    Environment.DIRECTORY_DOWNLOADS
+                                ).absolutePath + "/" + nombre
+                            }
+                        }
+                    } catch (_: Exception) {
+                        salida = null
+                        rutaFinal = null
+                    }
+                }
+                if (salida == null) {
+                    val dir = getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS) ?: filesDir
+                    val f = File(dir, nombre)
+                    salida = f.outputStream()
+                    rutaFinal = f.absolutePath
+                }
+                var total = 0L
+                salida.use { o ->
+                    conn.inputStream.use { inp -> total = copiarContando(inp, o, md) }
+                }
+                val sha = md.digest().joinToString("") { "%02x".format(it) }.take(12)
+                JSONObject().put("ok", true).put("ruta", rutaFinal)
+                    .put("bytes", total).put("sha256", sha).toString()
+            }
+        } catch (e: Exception) {
+            JSONObject().put("ok", false).put("error", e.message ?: "error").toString()
+        } finally {
+            conn?.disconnect()
+        }
+    }
+
+    private fun copiarContando(
+        inp: java.io.InputStream,
+        out: java.io.OutputStream,
+        md: MessageDigest
+    ): Long {
+        var total = 0L
+        val buf = ByteArray(65536)
+        while (true) {
+            val n = inp.read(buf)
+            if (n < 0) break
+            out.write(buf, 0, n)
+            md.update(buf, 0, n)
+            total += n
+        }
+        return total
+    }
+
+    private fun shell(comando: String): String {
+        return try {
+            val proc = ProcessBuilder("/system/bin/sh", "-c", comando)
+                .redirectErrorStream(true)
+                .start()
+            val sb = StringBuffer()
+            val lector = Thread {
+                try {
+                    proc.inputStream.bufferedReader().forEachLine { sb.append(it).append('\n') }
+                } catch (_: Exception) {
+                }
+            }
+            lector.start()
+            if (!proc.waitFor(60, java.util.concurrent.TimeUnit.SECONDS)) {
+                proc.destroyForcibly()
+                lector.join(2000)
+                JSONObject().put("ok", false).put("error", "timeout 60s")
+                    .put("salida", sb.toString().take(8000)).toString()
+            } else {
+                lector.join(3000)
+                JSONObject().put("ok", true).put("codigo", proc.exitValue())
+                    .put("salida", sb.toString().take(8000)).toString()
+            }
+        } catch (e: Exception) {
+            JSONObject().put("ok", false).put("error", e.message ?: "error").toString()
+        }
+    }
+
+    private fun archivos(rutaIn: String): String {
+        return try {
+            val ruta = rutaIn.ifEmpty { Environment.getExternalStorageDirectory().absolutePath }
+            val dir = File(ruta)
+            if (!dir.exists()) {
+                return JSONObject().put("ok", false).put("error", "no existe: $ruta").toString()
+            }
+            val lista = JSONArray()
+            if (!dir.isDirectory) {
+                lista.put(
+                    JSONObject().put("nombre", dir.name)
+                        .put("tamano", dir.length()).put("es_dir", false)
+                )
+            } else {
+                val hijos = dir.listFiles()?.sortedBy { it.name.lowercase() } ?: emptyList()
+                for (f in hijos) {
+                    lista.put(
+                        JSONObject().put("nombre", f.name)
+                            .put("tamano", if (f.isDirectory) 0 else f.length())
+                            .put("es_dir", f.isDirectory)
+                    )
+                }
+            }
+            JSONObject().put("ok", true).put("ruta", dir.absolutePath)
+                .put("lista", lista).toString()
+        } catch (e: Exception) {
+            JSONObject().put("ok", false).put("error", e.message ?: "error").toString()
+        }
     }
 
     private fun http(metodo: String, url: String, cuerpo: String?): Pair<Int, String?> {
