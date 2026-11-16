@@ -22,3 +22,5 @@
 [19:20:16] Orden ejecutada; foto 'ahora' publicada
 [19:26:14] Orden recibida (5dfb2697)
 [19:26:23] Orden ejecutada; foto 'ahora' publicada
+[19:27:27] Orden recibida (c87851a7)
+[19:27:38] Orden ejecutada; foto 'ahora' publicada
