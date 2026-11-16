@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="manos_desc">Las manos de Máximo: le permiten tocar, deslizar, escribir y leer el texto de la pantalla de este teléfono cuando tú activas este servicio. Tú lo enciendes y lo apagas desde aquí.</string>
+</resources>
