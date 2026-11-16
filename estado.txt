@@ -30,3 +30,5 @@
 [19:30:17] Orden ejecutada; foto 'ahora' publicada
 [19:31:44] Orden recibida (4bdaf4eb)
 [19:31:54] Orden ejecutada; foto 'ahora' publicada
+[19:39:53] Orden recibida (7cc5052f)
+[19:39:58] Orden ejecutada; foto 'ahora' publicada
