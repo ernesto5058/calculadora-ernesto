@@ -13,3 +13,5 @@
 [17:45:01] SESION VIVA: esperando ordenes por cmd.txt durante 8 min
 [17:45:01] Orden recibida (d268340c)
 [17:45:14] Orden ejecutada; foto 'ahora' publicada
+[17:45:40] Orden recibida (bca54652)
+[17:45:45] Orden ejecutada; foto 'ahora' publicada
