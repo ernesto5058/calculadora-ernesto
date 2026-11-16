@@ -356,6 +356,9 @@ label { display:block; font:600 11px var(--fuente); letter-spacing:.07em; text-t
 .t1HeroGrid { display:flex; justify-content:space-between; gap:var(--e-3); margin-top:var(--e-3); }
 .t1HeroGrid .k { font:var(--t-micro); text-transform:uppercase; letter-spacing:.08em; color:var(--txt-3); }
 .t1HeroGrid .v { font:600 17px var(--fuente); margin-top:2px; font-variant-numeric:tabular-nums; }
+/* v29 · PRO: cifra con procedencia — se toca y abre su hoja «¿De dónde saliste?» */
+.provTap { cursor:pointer; text-decoration:underline dotted rgba(255,255,255,.38); text-underline-offset:4px; }
+.provTap:active { opacity:.65; }
 /* Accesos del hub */
 .t1Accesos { display:grid; grid-template-columns:1fr 1fr; gap:var(--e-2); }
 .t1Tile { position:relative; display:flex; gap:var(--e-3); align-items:flex-start; text-align:left; width:100%;
@@ -2559,8 +2562,9 @@ registrarModulo({
     }
     h += '<div class="card"><h3><span class="secIco">' + icono("reloj") + '</span>Estado de los datos</h3>'
       + '<div class="kv">' + (online ? "En línea: datos frescos de ahora." : (selloTexto("bandeja") + ".")) + '</div></div>';
-    el.innerHTML = heroInicioHtml() + promoInicioHtml() + h + accesosInicioHtml() + novedadesInicioHtml() + bloqueSemaforoHtml() + bloqueCuentasHtml() + bloqueAvisosHtml()
+    el.innerHTML = heroInicioHtml() + promoInicioHtml() + conversionesInicioHtml() + enviarQusdHtml() + h + accesosInicioHtml() + novedadesInicioHtml() + bloqueSemaforoHtml() + bloqueCuentasHtml() + bloqueAvisosHtml()
       + '<div class="mut" style="text-align:center;padding:6px 0 2px">' + selloVersion() + '</div>';
+    pintarResumenQv();
     var rb = $("inReintentar");
     if (rb) rb.addEventListener("click", function(){ despacharCola().then(function(){ cargarTodo(true); }); });
     el.querySelectorAll("[data-ir]").forEach(function(b){
@@ -2571,6 +2575,7 @@ registrarModulo({
     if (actividadCache === null) cargarActividad();
     if (avisosHistCache === null) cargarAvisosHist();
     if (!mercadoGuiaMN && !mercadoCargandoMN) cargarMercadoMN();
+    cargarContactosQva();
     if (!dineroFotoMN || (Date.now() - dineroLeidoEnMN > 60000)) cargarDineroMN();
   }
 });
@@ -4980,15 +4985,15 @@ function intentarEntrar(){
    controllerchange recarga la app UNA sola vez (marca en
    sessionStorage por versión: sin bucles). MN_VERSION se sube
    junto con el CACHE de sw.js. */
-var MN_VERSION = "v28";
+var MN_VERSION = "v29";
 /* Sello VISIBLE de compilación (punto 6): Ernesto quejándose con
    razón — «no sé si se actualizó o no». Una sola constante que
    sube con cada publicación; se ve en Inicio y en la hoja ℹ️ del
    chat. Formato: «Mi Negocio · versión 2026-11-11 HH:MM · caché v6»
    (fecha Y HORA de la publicación, para distinguir dos subidas
    del mismo día). La hora es la de Cuba (CST) al compilar. */
-var MN_COMPILACION = "2026-11-15 13:50";
-function selloVersion(){ return "Mi Negocio · versión " + MN_COMPILACION + " · caché " + MN_VERSION; }
+var MN_COMPILACION = "2026-11-16 10:56";
+function selloVersion(){ return "Mi Negocio · versión " + MN_COMPILACION + " · " + MN_VERSION + " · PRO"; }
 var regSW = null;
 var swConControladorAlArrancar = false;
 function mostrarAvisoVersion(){
@@ -5993,6 +5998,14 @@ PUERTAS.dineroEstado = "dinero_leer_estado";
 PUERTAS.dineroGanancias = "dinero_ganancias";
 PUERTAS.dineroEntregar = "dinero_entregar_capital";
 PUERTAS.dineroCapital = "dinero_capital_estado";
+/* v29 · PRO: conversiones QUSD y entregas de pago a buscadores */
+PUERTAS.dineroDeclararTasa = "dinero_declarar_tasa";
+PUERTAS.dineroRegistrarCobro = "dinero_registrar_cobro";
+PUERTAS.dineroEntregaComision = "dinero_registrar_entrega_comision";
+/* C2 · pago por ciclos (A0/A/B) y descarte de conversiones viejas */
+PUERTAS.pagoEstadoDueno = "pago_estado_dueno";
+PUERTAS.dineroElegirPago = "dinero_elegir_pago";
+PUERTAS.dineroDescartarConversion = "dinero_descartar_conversion";
 PUERTAS.dineroConfirmar = "dinero_confirmar_recibido";
 PUERTAS.dineroRechazar = "dinero_rechazar_devolucion";
 var dineroFotoMN = null, dineroErrorMN = "", dineroCargandoMN = false, dineroLeidoEnMN = 0;
@@ -6108,6 +6121,7 @@ function cargarDineroMN(){
     var guardarFoto = function(){
       dineroFotoMN = est; dineroErrorMN = ""; dineroLeidoEnMN = Date.now(); pintarDineroMN();
       cargarCapitalMN();
+      cargarCiclosMN();
       /* T1: el héroe de Inicio vive de esta foto — si Ernesto está en
          Inicio, la cifra aterriza sin esperar a que toque nada. */
       if (tabActual === "Inicio") { var mIni = modulo("Inicio"); if (mIni) mIni.render(); }
@@ -6143,7 +6157,9 @@ registrarModulo({
     var fondo = Number(est.saldo_fondo || 0), inv = Number(est.saldo_ernesto_inversion || 0);
     var gasto = Number(est.saldo_gasto || 0), invent = Number(est.saldo_inventario || 0);
     var ajCola = capitalPendientesCola();
-    var enMano = fondo + inv - ajCola.totalEnt;
+    /* E7 (v29): la mano es fondo + inversión, sin restar la cola; la
+       cola se nombra aparte y no se mezcla con la cifra. */
+    var enMano = fondo + inv;
     var entregas = est.entregas || [];
     var enCalle = entregas.reduce(function(s, e){ return s + Math.max(0, Number(e.pendiente || 0)); }, 0);
     var trabajando = enCalle + invent, parado = enMano;
@@ -6154,10 +6170,15 @@ registrarModulo({
       + '<div class="cell heroe"><div class="v">' + fmtE(cap) + '</div><div class="k">CAPITAL TOTAL · CUP</div></div>'
       + '<div class="cell"><div class="v">' + fmtE(enCalle) + '</div><div class="k">EN LA CALLE (BUSCADORES) · CUP</div></div>'
       + '<div class="cell"><div class="v">' + fmtE(enMano) + '</div><div class="k">EN TU MANO · CUP</div></div>'
-      + '<div class="cell"><div class="v">' + fmtE(invent) + '</div><div class="k">HECHO EN SALDO · CUP</div></div>'
+      + ((est.saldo_real && est.saldo_real.saldo_linea !== null && est.saldo_real.saldo_linea !== undefined)
+          ? '<div class="cell"><div class="v">' + fmtSaldoMN(est.saldo_real.saldo_linea) + '</div><div class="k">HECHO EN SALDO · SALDO</div></div>'
+          : '<div class="cell"><div class="v">' + fmtE(invent) + '</div><div class="k">HECHO EN SALDO · CUP</div></div>')
       + '</div>'
       + '<div class="kv">En tu mano: fondo <b>' + fmtE(fondo) + '</b> + tu inversión <b>' + fmtE(inv) + '</b> · Tu gasto: <b>' + fmtE(gasto) + '</b> CUP</div>'
-      + (ajCola.totalEnt ? '<div class="kv">Entregas en envío: <b>' + fmtE(ajCola.totalEnt) + ' CUP</b> — ya descontadas de tu mano; se asientan solas al volver la red.</div>' : '')
+      + ((est.saldo_real && est.saldo_real.costo_lotes_cup !== null && est.saldo_real.costo_lotes_cup !== undefined) ? '<div class="kv">Costo del saldo hecho: <b>' + fmtE(est.saldo_real.costo_lotes_cup) + ' CUP</b> (lo que pagaste por comprarlo; el saldo se cuenta en unidades de saldo, no en pesos).</div>' : '')
+      + (est.gasto_pro ? '<div class="kv">Tu gasto en dos cubetas — Disponible (cobrado): <b>' + fmtE(est.gasto_pro.cuenta_gasto !== undefined && est.gasto_pro.cuenta_gasto !== null ? est.gasto_pro.cuenta_gasto : gasto) + ' CUP</b> · Por cobrar: <b>' + fmtE(est.gasto_pro.por_cobrar_estimado) + ' CUP</b></div>'
+          + '<div class="kv">Reserva de trabajo: <b>' + fmtE(est.gasto_pro.reserva_cup) + ' CUP</b> — tu ritmo de compras y lo que debes entregar a buscadores; gastar por encima frenaría la máquina.</div>' : '')
+      + (ajCola.totalEnt ? '<div class="kv">En cola por enviar desde este teléfono: <b>' + fmtE(ajCola.totalEnt) + ' CUP</b> — no se restan de tu mano; salen cuando se asienten al volver la red.</div>' : '')
       + (est.cuadre ? '<div class="kv">' + (est.cuadre.ok
           ? '<span class="pill pOk">EL LIBRO CUADRA</span> total del libro ' + fmtE(est.cuadre.total_libro) + ' CUP'
           : '<span class="pill pPend">EL LIBRO NO CUADRA</span> avísale a Máximo antes de mover dinero') + '</div>' : '')
@@ -6169,6 +6190,8 @@ registrarModulo({
       + '</div>';
     h += fondoCurvaHtml(est);
     h += repartoHtml(enMano, ajCola);
+    h += pagosBuscadoresHtml(est);
+    h += pagosCiclosHtml(est);
     /* --- La cuenta de cada buscador --- */
     var porCod = {}, ordenCod = [];
     function aseguraCod(cod){
@@ -6266,6 +6289,487 @@ registrarModulo({
 });
 
 /* =====================================================================
+   v29 · PRO — PROCEDENCIAS (M1), GASTO EN DOS CUBETAS (M2), SALDO REAL
+   (E6), MANO SIN COLA (E7), CONVERSIONES PENDIENTES, ENVIAR QUSD y
+   GANADO/ENTREGADO POR BUSCADOR. Todo lee los payloads aditivos de
+   dinero_leer_estado (gasto_pro, conversiones, saldo_real,
+   procedencias, pagos_buscadores): si una clave no viene, la pieza se
+   oculta con elegancia — degradación, nunca error. Las escrituras van
+   por las puertas nuevas con ref UUID del cliente (idempotentes).
+   ===================================================================== */
+function fmtSaldoMN(n){
+  if (n === null || n === undefined || n === "" || isNaN(Number(n))) return "—";
+  var v = Math.round(Number(n) * 100) / 100;
+  var neg = v < 0; v = Math.abs(v);
+  var s = String(v), partes = s.split(".");
+  partes[0] = partes[0].replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  return (neg ? "−" : "") + partes.join(",");
+}
+function uuidMN(){
+  if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function(c){
+    var r = Math.random() * 16 | 0, v = c === "x" ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+}
+/* Borradores de los formularios nuevos: Inicio se repinta con cada
+   foto del libro y lo tecleado no se pierde por un repintado. */
+var mnBorradores = {};
+function mnBorrador(id){ return mnBorradores[id] !== undefined ? mnBorradores[id] : ""; }
+document.addEventListener("input", function(e){
+  var id = e.target && e.target.id;
+  if (id && (id.indexOf("conv") === 0 || id.indexOf("qv") === 0 || id.indexOf("entc") === 0 || id.indexOf("cic") === 0)) mnBorradores[id] = e.target.value;
+  if (id === "qvMonto" || id === "qvTasa" || id === "qvContacto" || id === "qvUsuario") pintarResumenQv();
+});
+function fechaHoraTxt(iso){
+  if (!iso) return "—";
+  try { return etiquetaFecha(iso) + " · " + horaDe(iso); } catch(e){ return esc(String(iso)); }
+}
+/* ===== M1 · la hoja «¿De dónde saliste?» ===== */
+function abrirProcedencia(clave){
+  var est = dineroFotoMN; if (!est) return;
+  var P = est.procedencias || {}, SR = est.saldo_real || null, GP = est.gasto_pro || null;
+  var tit = "¿De dónde saliste?", h = "";
+  if (clave === "gasto") {
+    tit = "Tu gasto · ¿de dónde saliste?";
+    var g = P.gasto || null;
+    h = '<div class="kv">Tu cuenta de gasto vale hoy <b>' + fmtE(est.saldo_gasto) + ' CUP</b>.</div>'
+      + (g ? '<div class="kv" style="margin-top:6px">Último movimiento: <b>' + fmtE(g.monto) + ' CUP</b>' + (g.detalle ? ' · ' + esc(g.detalle) : '') + '<br><span class="mut">' + fechaHoraTxt(g.creada_en) + '</span></div>' : '')
+      + '<div class="kv" style="margin-top:6px">La fórmula, en palabras: esta cuenta <b>ya está cobrada</b> — nace de tu parte de la ganancia cuando cobras una venta y baja con cada gasto tuyo que se registra. Lo que aún no cobraste NO entra aquí: va en «Por cobrar».</div>'
+      + (GP ? '<div class="kv" style="margin-top:6px">Por cobrar (todavía no es gasto disponible): <b>' + fmtE(GP.por_cobrar_estimado) + ' CUP</b>.</div>' : '');
+  } else if (clave === "mano") {
+    tit = "En tu mano · ¿de dónde saliste?";
+    var m = P.mano || null;
+    var fondo = m && m.fondo !== undefined ? Number(m.fondo) : Number(est.saldo_fondo || 0);
+    var inv = m && m.inversion !== undefined ? Number(m.inversion) : Number(est.saldo_ernesto_inversion || 0);
+    h = '<div class="kv">Tu mano es la suma de dos cuentas del libro:</div>'
+      + '<div class="kv" style="margin-top:6px">· Fondo: <b>' + fmtE(fondo) + ' CUP</b><br>· Tu inversión: <b>' + fmtE(inv) + ' CUP</b><br>· Total en tu mano: <b>' + fmtE(fondo + inv) + ' CUP</b></div>'
+      + '<div class="kv" style="margin-top:6px">La fórmula, en palabras: fondo + inversión, <b>sin restar nada</b>. Lo que este teléfono aún tiene en cola por enviar se enseña aparte, con su nombre, y no se mezcla con esta cifra.</div>';
+  } else if (clave === "saldo") {
+    tit = "Hecho en saldo · ¿de dónde saliste?";
+    if (SR) {
+      h = '<div class="kv">Tu saldo real, contado en <b>unidades de saldo</b> (no en pesos):</div>'
+        + '<div class="kv" style="margin-top:6px">· En la línea (lo que el sensor ve): <b>' + fmtSaldoMN(SR.saldo_linea) + '</b><br>· Suma de tus lotes abiertos: <b>' + fmtSaldoMN(SR.saldo_lotes) + '</b></div>'
+        + '<div class="kv" style="margin-top:6px">Su costo en CUP es un dato aparte: <b>' + fmtE(SR.costo_lotes_cup) + ' CUP</b> — eso fue lo que pagaste por comprarlo, no el saldo que tienes.</div>';
+    } else h = '<div class="kv">El libro aún no trae el saldo real en unidades; cuando el servidor lo mande, su procedencia se ve aquí.</div>';
+  } else if (clave === "capital") {
+    tit = "Capital total · ¿de dónde saliste?";
+    var c = P.capital || null;
+    h = '<div class="kv">El capital total del sistema: <b>' + fmtE(c && c.total !== undefined ? c.total : est.capital_total) + ' CUP</b>.</div>'
+      + (c && c.fijado_en ? '<div class="kv" style="margin-top:6px">Fijado el <b>' + fechaHoraTxt(c.fijado_en) + '</b>: es el fondo completo con el que trabaja la máquina (tu mano + lo que tienen los buscadores + lo hecho en saldo, a costo).</div>' : '')
+      + '<div class="kv" style="margin-top:6px">La fórmula, en palabras: es el tamaño del fondo; crece con tu ganancia y solo se mueve cuando tú lo fijas.</div>';
+  }
+  abrirHoja(tit, h, [{ txt: "Entendido", cls: "bGold", fn: function(){} }]);
+}
+document.addEventListener("click", function(e){
+  var t = e.target && e.target.closest ? e.target.closest("[data-prov]") : null;
+  if (t) { abrirProcedencia(t.getAttribute("data-prov")); return; }
+  var b = e.target && e.target.closest ? e.target.closest("[data-conv-tasa],[data-conv-cobro],[data-qv-enviado],[data-ciclo-elegir],[data-cicent-abrir],[data-cicent-ok],[data-conv-descartar]") : null;
+  if (!b) return;
+  if (b.hasAttribute("data-ciclo-elegir")) { var ce = b.getAttribute("data-ciclo-elegir").split("|"); elegirPagoCiclo(ce[0], ce[1], b.getAttribute("data-plan")); }
+  else if (b.hasAttribute("data-cicent-abrir")) { entregaCicloAbiertaMN = b.getAttribute("data-cicent-abrir"); pintarDineroMN(); }
+  else if (b.hasAttribute("data-cicent-ok")) registrarEntregaCiclo(b.getAttribute("data-cicent-ok"));
+  else if (b.hasAttribute("data-conv-descartar")) confirmarDescartarConv(b.getAttribute("data-conv-descartar"));
+  else if (b.hasAttribute("data-conv-tasa")) declararTasaConv(b.getAttribute("data-conv-tasa"));
+  else if (b.hasAttribute("data-conv-cobro")) registrarCobroConv(b.getAttribute("data-conv-cobro"));
+  else if (b.hasAttribute("data-qv-enviado")) marcarEnviadoQv();
+});
+/* ===== Conversiones pendientes (Inicio) ===== */
+function convEsAntesDeHoy(iso){
+  if (!iso) return false;
+  var d = new Date(iso); if (isNaN(d.getTime())) return false;
+  var h = new Date();
+  return d.getFullYear() < h.getFullYear()
+    || (d.getFullYear() === h.getFullYear() && (d.getMonth() < h.getMonth()
+    || (d.getMonth() === h.getMonth() && d.getDate() < h.getDate())));
+}
+function convTarjetaHtml(cv, modo){
+  /* modo: "enlazada" (destacada, sin descarte) · "normal" · "vieja" (grupo de
+     antes de la PRO, con botón de descarte) */
+  var id = esc(String(cv.id));
+  var f = '<div style="border-top:1px solid var(--linea);padding-top:10px;margin-top:10px">'
+    + '<div class="kv"><b>' + esc(cv.contraparte || "Contraparte") + '</b> · <b>' + fmtSaldoMN(cv.qusd) + ' QUSD</b>'
+    + (modo === "enlazada" ? ' <span class="pill pOk">enlazada a su venta</span>' : '')
+    + (cv.detectada_en ? ' <span class="mut">· detectada ' + fechaHoraTxt(cv.detectada_en) + '</span>' : '') + '</div>';
+  if (modo === "vieja") {
+    f += '<div class="kv" style="margin-top:6px">'
+      + (cv.tasa_pactada !== null && cv.tasa_pactada !== undefined && Number(cv.tasa_pactada) > 0
+          ? 'Tasa pactada: <b>' + fmtSaldoMN(cv.tasa_pactada) + '</b> · Por cobrar según el libro: <b>' + fmtE(cv.por_cobrar_cup) + ' CUP</b>'
+          : 'Sin tasa declarada: el libro no sabe cuánto efectivo espera de esta.')
+      + '</div>'
+      + '<div class="fila" style="margin-top:6px"><button class="bGhost bMini" data-conv-descartar="' + id + '">Ya se cobró / no aplica</button></div>'
+      + '<div class="ayuda">Si esta ya se cobró por la vía vieja (o no aplica), tócalo y sale de lo por cobrar.</div>';
+    return f + '</div>';
+  }
+  if (cv.tasa_pactada === null || cv.tasa_pactada === undefined || Number(cv.tasa_pactada) <= 0) {
+    f += '<div class="kv" style="margin-top:6px">Falta la tasa que pactaste pa saber cuánto efectivo esperas.</div>'
+      + '<input type="number" class="numIn" id="convTasa-' + id + '" inputmode="decimal" placeholder="Tasa pactada (CUP por QUSD)" value="' + esc(mnBorrador("convTasa-" + cv.id)) + '" style="width:100%;margin:8px 0">'
+      + '<div class="ayuda">La tasa que pactaste; la app no la puede ver en QvaPay, la dices tú una sola vez.</div>'
+      + '<div class="kv" id="convErr-' + id + '" style="color:var(--rojo)"></div>'
+      + '<div class="fila" style="margin-top:6px"><button class="bGold bMini" data-conv-tasa="' + id + '">Declarar la tasa</button></div>';
+  } else {
+    f += '<div class="kv" style="margin-top:6px">Tasa pactada: <b>' + fmtSaldoMN(cv.tasa_pactada) + '</b> · Efectivo esperado: <b>' + fmtE(cv.efectivo_esperado) + ' CUP</b><br>Cobrado: <b>' + fmtE(cv.cobrado_cup) + ' CUP</b> · Por cobrar: <b>' + fmtE(cv.por_cobrar_cup) + ' CUP</b></div>'
+      + '<input type="number" class="numIn" id="convCobro-' + id + '" inputmode="numeric" placeholder="Monto cobrado en CUP" value="' + esc(mnBorrador("convCobro-" + cv.id)) + '" style="width:100%;margin:8px 0">'
+      + '<div class="ayuda">Escribe lo que te entregaron en la mano en este cobro; puede ser una parte y el resto queda «por cobrar».</div>'
+      + '<select class="numIn" id="convMedio-' + id + '" style="width:100%;margin:0 0 8px"><option value="efectivo">Efectivo</option><option value="transferencia">Transferencia</option></select>'
+      + '<div class="ayuda">El medio por el que te llegó este cobro.</div>'
+      + '<div class="kv" id="convErr-' + id + '" style="color:var(--rojo)"></div>'
+      + '<div class="fila"><button class="bGold bMini" data-conv-cobro="' + id + '">Registrar cobro</button></div>';
+  }
+  return f + '</div>';
+}
+function conversionesInicioHtml(){
+  var ICO = '<span class="secIco">' + icono("dinero") + '</span>';
+  var est = dineroFotoMN;
+  if (!est) {
+    return '<div class="card" id="inConversiones"><h3>' + ICO + 'Conversión pendiente</h3>'
+      + '<div class="kv">' + (dineroErrorMN ? '<b>' + esc(dineroErrorMN) + '</b>' : 'Leyendo tus conversiones del libro…') + '</div>'
+      + '<div class="ayuda">Qué es esto: cuando vendes QUSD, el cobro en CUP queda abierto aquí hasta que lo cobras; esta tarjeta lo sigue paso a paso.</div></div>';
+  }
+  var convs = est.conversiones;
+  if (!Array.isArray(convs)) return "";
+  var h = '<div class="card" id="inConversiones"><h3>' + ICO + 'Conversión pendiente</h3>';
+  if (!convs.length) {
+    h += '<div class="kv">Sin conversiones pendientes: cuando vendas QUSD y el cobro quede abierto, aparece aquí con su cobro paso a paso.</div></div>';
+    return h;
+  }
+  /* C2: la enlazada a una venta va arriba, destacada y SIN descarte a la
+     vista; las sin enlace detectadas antes de hoy se agrupan aparte. */
+  var enlazadas = convs.filter(function(cv){ return !!cv.venta_ref; });
+  var viejas = convs.filter(function(cv){ return !cv.venta_ref && cv.estado === "abierta" && convEsAntesDeHoy(cv.detectada_en); });
+  var resto = convs.filter(function(cv){ return !cv.venta_ref && viejas.indexOf(cv) === -1; });
+  h += enlazadas.map(function(cv){ return convTarjetaHtml(cv, "enlazada"); }).join("");
+  h += resto.map(function(cv){ return convTarjetaHtml(cv, "normal"); }).join("");
+  if (viejas.length) {
+    h += '<div style="border-top:2px solid var(--borde-fuerte);padding-top:10px;margin-top:14px">'
+      + '<div class="kv"><b>Detectadas de antes de la PRO — ya cobradas por la vía vieja?</b></div>'
+      + '<div class="ayuda">Estas se detectaron antes de hoy y no están enlazadas a ninguna venta del libro: si ya se cobraron por la vía vieja, descártalas una a una y dejan de contar como «por cobrar».</div>'
+      + viejas.map(function(cv){ return convTarjetaHtml(cv, "vieja"); }).join("")
+      + '</div>';
+  }
+  h += '<div class="ayuda" style="margin-top:8px">Qué es esto: cada venta de QUSD detectada vive aquí hasta cobrarse entera; al cobrar, tu cuenta de gasto recibe su corte solo.</div></div>';
+  return h;
+}
+function confirmarDescartarConv(id){
+  var est = dineroFotoMN;
+  var cv = est && Array.isArray(est.conversiones) ? est.conversiones.filter(function(x){ return String(x.id) === String(id); })[0] : null;
+  abrirHoja("¿Ya se cobró / no aplica?",
+    '<div class="kv">' + (cv ? '<b>' + esc(cv.contraparte || "Contraparte") + '</b> · <b>' + fmtSaldoMN(cv.qusd) + ' QUSD</b> detectada ' + fechaHoraTxt(cv.detectada_en) + '.' : 'Esta conversión.') + '</div>'
+    + '<div class="kv" style="margin-top:6px">Esto la quita de lo por cobrar. No mueve dinero ni acredita gasto.</div>',
+    [{ txt: "Sí, descartarla", cls: "bGold", fn: function(){ descartarConv(id); } }]);
+}
+function descartarConv(id){
+  rpc("dineroDescartarConversion", { p_codigo: state.codigo, p_conversion_id: id, p_motivo: "ya_cobrada_via_vieja", p_prueba: false }).then(function(){
+    toast("✅ Descartada: ya no cuenta como por cobrar. No se movió dinero.");
+    cargarDineroMN();
+  }).catch(function(e){
+    toast((e && e.faltaPuerta) ? TXT_FALTA_ACTIVAR : "No se pudo descartar (¿conexión?). Sigue en lo por cobrar.", false);
+  });
+}
+function declararTasaConv(id){
+  var inp = $("convTasa-" + id), err = $("convErr-" + id);
+  var tasa = Number(inp && inp.value);
+  if (!tasa || tasa <= 0) { if (err) err.textContent = "Escribe la tasa que pactaste (CUP por cada QUSD)."; return; }
+  rpc("dineroDeclararTasa", { p_codigo: state.codigo, p_conversion_id: id, p_tasa: tasa, p_prueba: false }).then(function(){
+    delete mnBorradores["convTasa-" + id];
+    toast("✅ Tasa declarada: ya se ve cuánto efectivo esperas.");
+    cargarDineroMN();
+  }).catch(function(e){
+    if (err) err.textContent = (e && e.faltaPuerta) ? TXT_FALTA_ACTIVAR : "No se pudo declarar (¿conexión?). Nada se guardó.";
+  });
+}
+function registrarCobroConv(id){
+  var inp = $("convCobro-" + id), med = $("convMedio-" + id), err = $("convErr-" + id);
+  var monto = Number(inp && inp.value);
+  if (!monto || monto <= 0) { if (err) err.textContent = "Escribe el monto que te entregaron en este cobro."; return; }
+  rpc("dineroRegistrarCobro", { p_codigo: state.codigo, p_conversion_id: id, p_monto_cup: Math.round(monto), p_medio: med ? med.value : "efectivo", p_ref: uuidMN(), p_prueba: false }).then(function(r){
+    delete mnBorradores["convCobro-" + id];
+    var corte = (r && (r.gasto_acreditado !== undefined && r.gasto_acreditado !== null)) ? Number(r.gasto_acreditado) : null;
+    if (corte !== null) abrirHoja("Cobro registrado", '<div class="kv">El cobro quedó asentado en el libro.</div><div class="kv" style="margin-top:6px">Corte acreditado a tu cuenta de gasto por este cobro: <b>' + fmtE(corte) + ' CUP</b> — es tu parte de la ganancia de esta venta, ya cobrada.</div>', [{ txt: "Entendido", cls: "bGold", fn: function(){} }]);
+    else toast("✅ Cobro registrado en el libro.");
+    cargarDineroMN();
+  }).catch(function(e){
+    if (err) err.textContent = (e && e.faltaPuerta) ? TXT_FALTA_ACTIVAR : "No se pudo registrar (¿conexión?). Nada se guardó.";
+  });
+}
+/* ===== Enviar QUSD (Inicio): la tarjeta prepara, tu dedo envía ===== */
+var contactosQvaMN = null; /* null sin pedir · "error" sin agenda · array agenda */
+function cargarContactosQva(){
+  if (contactosQvaMN !== null || !state.codigo) return;
+  contactosQvaMN = "cargando";
+  fetch(urlProyectoSB() + "/functions/v1/qvapay-contactos", { method: "POST", headers: sbHeaders(), body: JSON.stringify({ codigo: state.codigo }) })
+    .then(function(r){ return r.json().catch(function(){ return null; }).then(function(j){ return { ok: r.ok, j: j }; }); })
+    .then(function(res){
+      var lista = Array.isArray(res.j) ? res.j : (res.j && Array.isArray(res.j.contactos) ? res.j.contactos : null);
+      contactosQvaMN = (res.ok && lista) ? lista : "error";
+      if (tabActual === "Inicio") pintarInicioSiVisible();
+    }).catch(function(){
+      contactosQvaMN = "error";
+      if (tabActual === "Inicio") pintarInicioSiVisible();
+    });
+}
+function qvEnviadosMN(){
+  try { var v = JSON.parse(localStorage.getItem("mn_qv_enviados") || "[]"); return Array.isArray(v) ? v : []; } catch(e){ return []; }
+}
+function enviarQusdHtml(){
+  var ICO = '<span class="secIco">' + icono("enviar") + '</span>';
+  var t = tarifa();
+  var tasaDef = t && t.salidaRef ? String(t.salidaRef) : "";
+  var h = '<div class="card" id="inEnviarQusd"><h3>' + ICO + 'Enviar QUSD</h3>';
+  if (contactosQvaMN === "error") {
+    h += '<div class="kv"><b>Agenda no disponible aún</b>: escribe el usuario a mano y la tarjeta te lo calcula igual.</div>'
+      + '<input type="text" class="numIn" id="qvUsuario" placeholder="Usuario de QvaPay (sin @)" value="' + esc(mnBorrador("qvUsuario")) + '" style="width:100%;margin:8px 0">'
+      + '<div class="ayuda">El usuario exacto al que vas a enviar, tal como sale en su QvaPay.</div>';
+  } else if (Array.isArray(contactosQvaMN)) {
+    h += '<select class="numIn" id="qvContacto" style="width:100%;margin:8px 0">'
+      + contactosQvaMN.map(function(c){
+          var u = String(c.usuario || "").replace(/^@/, "");
+          return '<option value="' + esc(u) + '"' + (mnBorrador("qvContacto") === u ? " selected" : "") + '>' + esc(c.nombre || u) + ' · @' + esc(u) + '</option>';
+        }).join("") + '</select>'
+      + '<div class="ayuda">Tu agenda de QvaPay: elige a quién le envías.</div>';
+  } else {
+    h += '<div class="kv">Leyendo tu agenda de QvaPay…</div>';
+  }
+  h += '<input type="number" class="numIn" id="qvMonto" inputmode="decimal" placeholder="Monto en QUSD" value="' + esc(mnBorrador("qvMonto")) + '" style="width:100%;margin:8px 0">'
+    + '<div class="ayuda">Cuántos QUSD vas a enviar en esta operación.</div>'
+    + '<input type="number" class="numIn" id="qvTasa" inputmode="decimal" placeholder="Tasa que pactes (CUP por QUSD)" value="' + esc(mnBorrador("qvTasa") || tasaDef) + '" style="width:100%;margin:0 0 8px">'
+    + '<div class="ayuda">La tasa de este trato: con ella la tarjeta te dice cuántos CUP representa el envío.</div>'
+    + '<div class="kv" id="qvResumen">Escribe el monto y la tasa y aquí ves el resumen preparado.</div>'
+    + '<div class="fila" style="margin-top:8px"><button class="bGold bMini" data-qv-enviado="1">Ya lo envié en QvaPay</button></div>'
+    + '<div class="ayuda" style="margin-top:6px">QvaPay no deja enviar por programa; esta tarjeta te lo deja todo calculado y tu dedo envía en su app. Este botón solo marca la tarjeta como preparada/enviada a mano en este teléfono: no mueve dinero.</div>';
+  var env = qvEnviadosMN();
+  if (env.length) {
+    h += '<div style="border-top:1px solid var(--linea);padding-top:8px;margin-top:10px">'
+      + env.slice(-3).reverse().map(function(x){
+          return '<div class="kv"><span class="pill pOk">enviada a mano</span> ' + fmtSaldoMN(x.monto) + ' QUSD a @' + esc(x.usuario) + ' <span class="mut">· ' + fechaHoraTxt(x.cuando) + '</span></div>';
+        }).join("") + '</div>';
+  }
+  return h + '</div>';
+}
+function pintarResumenQv(){
+  var r = $("qvResumen"); if (!r) return;
+  var monto = Number(($("qvMonto") || {}).value), tasa = Number(($("qvTasa") || {}).value);
+  var sel = $("qvContacto"), usr = $("qvUsuario");
+  var usuario = sel ? sel.value : (usr ? usr.value.replace(/^@/, "").trim() : "");
+  if (!monto || monto <= 0 || !usuario) { r.textContent = "Escribe el monto y la tasa y aquí ves el resumen preparado."; return; }
+  r.innerHTML = 'Enviarás <b>' + fmtSaldoMN(monto) + ' QUSD</b> a <b>@' + esc(usuario) + '</b>'
+    + (tasa > 0 ? ' — a la tasa que pactes son ≈ <b>' + fmtE(monto * tasa) + ' CUP</b>' : ' — escribe la tasa pa ver los CUP');
+}
+function marcarEnviadoQv(){
+  var monto = Number(($("qvMonto") || {}).value);
+  var sel = $("qvContacto"), usr = $("qvUsuario");
+  var usuario = sel ? sel.value : (usr ? usr.value.replace(/^@/, "").trim() : "");
+  if (!monto || monto <= 0 || !usuario) { toast("Completa el usuario y el monto primero: la marca guarda el resumen tal cual.", false); return; }
+  var env = qvEnviadosMN();
+  env.push({ usuario: usuario, monto: monto, cuando: new Date().toISOString() });
+  try { localStorage.setItem("mn_qv_enviados", JSON.stringify(env.slice(-10))); } catch(e){}
+  delete mnBorradores.qvMonto;
+  toast("✅ Marcada como enviada a mano. El envío real lo hizo tu dedo en QvaPay.");
+  if (tabActual === "Inicio") pintarInicioSiVisible();
+}
+/* ===== Resumen global de pagos (C2: UNA línea de totales; lo operativo
+   vive por ciclo en pagosCiclosHtml) ===== */
+function pagosBuscadoresHtml(est){
+  var pagos = est.pagos_buscadores;
+  if (!Array.isArray(pagos) || !pagos.length) return "";
+  var ICO = '<span class="secIco">' + icono("dinero") + '</span>';
+  var gT = 0, gC = 0, gP = 0, eT = 0, pT = 0;
+  pagos.forEach(function(p){
+    gC += Number(p.ganado_comision || 0); gP += Number(p.ganado_premio || 0);
+    gT += Number(p.ganado_total || 0); eT += Number(p.entregado || 0);
+    pT += Number(p.pendiente !== undefined && p.pendiente !== null ? p.pendiente : (Number(p.ganado_total || 0) - Number(p.entregado || 0)));
+  });
+  return '<div class="card" id="dnPagosBusc"><h3>' + ICO + 'Lo ganado y lo entregado a los buscadores</h3>'
+    + '<div class="kv">Totales de todos los ciclos — Ganado: <b>' + fmtE(gT) + '</b> (comisión ' + fmtE(gC) + ' + premio por venta ' + fmtE(gP) + ') · Entregado: <b>' + fmtE(eT) + '</b> · Por entregar: '
+    + (pT > 0 ? '<span class="pill pPend">' + fmtE(pT) + ' CUP</span>' : '<b>' + fmtE(pT) + ' CUP</b>') + '</div>'
+    + '<div class="ayuda" style="margin-top:6px">Este es solo el resumen: cada pago se elige y se entrega en la tarjeta de SU ciclo, aquí abajo. Ganado es lo que el sistema calculó; entregado solo cuando el efectivo cambió de mano de verdad y tú lo confirmas.</div></div>';
+}
+
+/* =====================================================================
+   C2 · TARJETAS DE PAGO POR CICLO (A0/A/B) — la unidad operativa es el
+   ciclo (una liquidación de pago_estado_dueno). Los montos se pintan
+   TAL CUAL del payload (comision_ahora / comision_despues /
+   adelanto_monto / estimada_*): el cliente NO recalcula la comisión.
+   El identificador de la liquidación se lee de liquidacion_id / id /
+   liquidacion; si el payload no lo trae, la tarjeta se ve completa
+   pero sin botones de acción (degradación declarada en APP2.md).
+   ===================================================================== */
+var ciclosFotoMN = null, ciclosErrorMN = "", entregaCicloAbiertaMN = null;
+function liqIdDe(c){ return c.liquidacion_id || c.id || c.liquidacion || null; }
+function numC(x){ var n = Number(x); return isNaN(n) ? 0 : n; }
+function cargarCiclosMN(){
+  if (!state.codigo) return;
+  rpc("pagoEstadoDueno", { p_codigo: state.codigo }).then(function(r){
+    var filas = (r && Array.isArray(r.liquidaciones)) ? r.liquidaciones : [];
+    ciclosFotoMN = filas.filter(function(c){ return !c.es_prueba; });
+    ciclosErrorMN = "";
+    pintarDineroMN();
+  }).catch(function(e){
+    ciclosErrorMN = (e && e.faltaPuerta) ? "falta" : "red";
+    pintarDineroMN();
+  });
+}
+function estadoCicloTxt(c){
+  var gc = numC(c.ganado_comision !== undefined && c.ganado_comision !== null ? c.ganado_comision : c.comision_ciclo);
+  var gp = numC(c.ganado_premio);
+  var ec = numC(c.entregado_comision), ep = numC(c.entregado_premio);
+  var adel = numC(c.adelanto_entregado);
+  var pend = (c.pendiente_ciclo === undefined || c.pendiente_ciclo === null) ? null : numC(c.pendiente_ciclo);
+  if (c.eleccion_pago === "a0" && adel > 0) {
+    if (gc > 0 && c.cuadre_adelanto !== undefined && c.cuadre_adelanto !== null) {
+      var cu = numC(c.cuadre_adelanto);
+      if (cu > 0) return "cerrada con cuadre +" + fmtE(cu) + " por completar";
+      if (cu < 0) return "cerrada con exceso de adelanto de " + fmtE(-cu) + " — se aplica al próximo ciclo";
+      return "cerrada · el adelanto cuadró exacto";
+    }
+    return "adelantada sobre plan";
+  }
+  if (pend !== null && pend <= 0 && (gc + gp) > 0) return "entregada";
+  if ((gc + gp) > 0 && (ec + ep) > 0) return "ganada · entregada en parte";
+  if ((gc + gp) > 0) return "ganada · sin entregar";
+  if (adel > 0) return "adelantada sobre plan";
+  return "sin comisión ganada todavía";
+}
+function eleccionTxtMN(e){
+  return e === "a0" ? "A0 · al entregar el capital"
+    : e === "ahora" ? "A · ahora, con descuento"
+    : e === "despues" ? "B · al venderse, exacto" : null;
+}
+function opcionesCicloHtml(c, lid){
+  var gc = numC(c.ganado_comision !== undefined && c.ganado_comision !== null ? c.ganado_comision : c.comision_ciclo);
+  var vendidas = c.ahora && c.ahora.saldo_vendido !== undefined && c.ahora.saldo_vendido !== null ? numC(c.ahora.saldo_vendido) : 0;
+  var sinCompras = gc === 0 && vendidas === 0;
+  var bloqueada = numC(c.entregado_comision) > 0 || numC(c.adelanto_entregado) > 0;
+  var elegida = c.eleccion_pago || null;
+  var h = "";
+  if (elegida) h += '<div class="kv" style="margin-top:6px">Elección de este ciclo: <span class="pill pOk">' + esc(eleccionTxtMN(elegida) || elegida) + '</span></div>';
+  function linea(op, etiqueta, rango){
+    var activa = elegida === op;
+    var f = "";
+    if (lid && !bloqueada) {
+      f = '<div class="fila" style="margin-top:6px"><button class="' + (activa ? "bGold" : "bGhost") + ' bMini" data-ciclo-elegir="' + esc(String(lid)) + '|' + op + '" data-plan="' + (c.recargas_plan !== undefined && c.recargas_plan !== null ? esc(String(c.recargas_plan)) : "") + '">' + etiqueta + '</button></div>';
+    } else {
+      f = '<div class="kv" style="margin-top:6px">' + (activa ? '<b>' + etiqueta + '</b>' : etiqueta) + '</div>';
+    }
+    if (rango) f += '<div class="ayuda">' + rango + '</div>';
+    return f;
+  }
+  if (sinCompras && c.adelanto_monto !== undefined && c.adelanto_monto !== null && numC(c.adelanto_monto) > 0) {
+    var rango = "";
+    if (c.estimada_min !== undefined && c.estimada_min !== null && c.estimada_max !== undefined && c.estimada_max !== null)
+      rango = "estimada " + fmtE(c.estimada_min) + "–" + fmtE(c.estimada_max) + (c.recargas_plan ? " sobre plan de " + esc(String(c.recargas_plan)) + " recargas" : "");
+    h += linea("a0", "Al entregar el capital: " + fmtE(c.adelanto_monto) + " CUP", rango);
+  }
+  if (c.comision_ahora !== undefined && c.comision_ahora !== null)
+    h += linea("ahora", "Ahora: " + fmtE(c.comision_ahora) + " CUP" + (c.descuento_pct !== undefined && c.descuento_pct !== null ? " (−" + fmtSaldoMN(c.descuento_pct) + " %)" : ""));
+  if (c.comision_despues !== undefined && c.comision_despues !== null)
+    h += linea("despues", "Al venderse: " + fmtE(c.comision_despues) + " CUP exactos");
+  if (bloqueada && (c.comision_ahora !== undefined || c.comision_despues !== undefined))
+    h += '<div class="ayuda">La elección quedó bloqueada: ya se entregó dinero de este ciclo.</div>';
+  if (!lid && (c.comision_ahora !== undefined || c.adelanto_monto !== undefined))
+    h += '<div class="ayuda">Este ciclo llegó sin su identificador del servidor: se ve completo, pero sus botones se activan cuando el servidor mande la liquidación.</div>';
+  return h;
+}
+function entregaCicloHtml(c, lid){
+  if (!lid) return "";
+  var gp = numC(c.ganado_premio), ep = numC(c.entregado_premio);
+  var pendPremio = Math.max(0, gp - ep);
+  var pendTotal = (c.pendiente_ciclo === undefined || c.pendiente_ciclo === null)
+    ? Math.max(0, numC(c.ganado_comision !== undefined && c.ganado_comision !== null ? c.ganado_comision : c.comision_ciclo) - numC(c.entregado_comision)) + pendPremio
+    : numC(c.pendiente_ciclo);
+  var pendCom = Math.max(0, pendTotal - pendPremio);
+  var tipos = [];
+  if (pendCom > 0) tipos.push({ v: "comision", t: "Comisión · pendiente " + fmtE(pendCom) + " CUP" });
+  if (pendPremio > 0) tipos.push({ v: "premio", t: "Premio por venta · pendiente " + fmtE(pendPremio) + " CUP" });
+  if (c.eleccion_pago === "a0" && c.adelanto_monto !== undefined && c.adelanto_monto !== null && numC(c.adelanto_monto) - numC(c.adelanto_entregado) > 0)
+    tipos.push({ v: "adelanto", t: "Adelanto · queda " + fmtE(numC(c.adelanto_monto) - numC(c.adelanto_entregado)) + " CUP" });
+  if (!tipos.length) return "";
+  var key = esc(String(lid));
+  if (entregaCicloAbiertaMN !== String(lid)) {
+    return '<div class="fila" style="margin-top:8px"><button class="bGold bMini" data-cicent-abrir="' + key + '">Confirmar entrega</button></div>';
+  }
+  return '<div style="margin-top:8px">'
+    + '<select class="numIn" id="cicentTipo-' + key + '" style="width:100%;margin:0 0 8px">'
+    + tipos.map(function(t){ return '<option value="' + t.v + '">' + esc(t.t) + '</option>'; }).join("") + '</select>'
+    + '<div class="ayuda">Qué le vas a entregar de ESTE ciclo: comisión, premio por venta o adelanto, según lo que tenga pendiente.</div>'
+    + '<input type="number" class="numIn" id="cicentMonto-' + key + '" inputmode="numeric" placeholder="Monto entregado en CUP" value="' + esc(mnBorrador("cicentMonto-" + lid)) + '" style="width:100%;margin:0 0 8px">'
+    + '<div class="ayuda">Lo que le pusiste en la mano en esta entrega; no puede pasar del pendiente de ese tipo en este ciclo.</div>'
+    + '<select class="numIn" id="cicentMedio-' + key + '" style="width:100%;margin:0 0 8px"><option value="efectivo">Efectivo</option><option value="transferencia">Transferencia</option></select>'
+    + '<div class="ayuda">El medio de esta entrega.</div>'
+    + '<div class="kv" id="cicentErr-' + key + '" style="color:var(--rojo)"></div>'
+    + '<div class="fila"><button class="bGold bMini" data-cicent-ok="' + key + '">Confirmar entrega</button></div></div>';
+}
+function pagosCiclosHtml(est){
+  var ICO = '<span class="secIco">' + icono("dinero") + '</span>';
+  var h = '<div class="card" id="dnCiclos"><h3>' + ICO + 'Pagos por ciclo</h3>';
+  var pct = null;
+  (ciclosFotoMN || []).forEach(function(c){ if (pct === null && c.pct !== undefined && c.pct !== null) pct = c.pct; });
+  h += '<div class="ayuda">' + (pct !== null
+      ? 'La comisión es el ' + esc(String(pct)) + ' % de TU ganancia, no del total. Ejemplo: ganancia 454 → 110 pa él, 344 pa ti.'
+      : 'La comisión es un % de TU ganancia, no del total. Ejemplo: ganancia 454 → 110 pa él, 344 pa ti.') + '</div>';
+  if (ciclosFotoMN === null) {
+    h += '<div class="kv" style="margin-top:8px">' + (ciclosErrorMN === "falta" ? '<b>' + TXT_FALTA_ACTIVAR + '</b>' : ciclosErrorMN === "red" ? 'Sin lectura de los ciclos por ahora (¿conexión?).' : 'Leyendo los ciclos del libro…') + '</div></div>';
+    return h;
+  }
+  if (!ciclosFotoMN.length) {
+    h += '<div class="kv" style="margin-top:8px">Todavía no hay ciclos con liquidación: cuando entregues capital y nazca la primera vuelta, su tarjeta vive aquí con sus tres opciones.</div></div>';
+    return h;
+  }
+  h += ciclosFotoMN.map(function(c){
+    var lid = liqIdDe(c);
+    var cod = String(c.buscador || "");
+    var gc = numC(c.ganado_comision !== undefined && c.ganado_comision !== null ? c.ganado_comision : c.comision_ciclo);
+    var gp = numC(c.ganado_premio);
+    var vendidas = c.ahora && c.ahora.saldo_vendido !== undefined && c.ahora.saldo_vendido !== null ? numC(c.ahora.saldo_vendido) : null;
+    var f = '<div style="border-top:1px solid var(--linea);padding-top:10px;margin-top:10px">'
+      + '<div class="kv"><b>' + esc(nombreDe(cod) || cod) + '</b>' + (c.tipo ? ' · ' + esc(c.tipo) : '') + (c.creada_en ? ' <span class="mut">· ' + fechaHoraTxt(c.creada_en) + '</span>' : '')
+      + (c.base_regla === "total" ? ' <span class="pill pPend">calculado con la regla anterior</span>' : '') + '</div>'
+      + '<div class="kv" style="margin-top:4px">Capital entregado: <b>' + fmtE(c.capital_cup) + ' CUP</b>'
+      + ((c.producto !== undefined && c.producto !== null) ? ' · Compras del ciclo: <b>' + fmtSaldoMN(c.producto) + '</b>' + (c.tipo === "saldo" ? ' de saldo' : '') + (vendidas !== null ? ' (vendido ' + fmtSaldoMN(vendidas) + ')' : '') : '')
+      + '</div>'
+      + '<div class="kv" style="margin-top:4px">Comisión del ciclo: <b>' + fmtE(gc) + ' CUP</b> · Premio por venta del ciclo: <b>' + fmtE(gp) + ' CUP</b></div>'
+      + '<div class="kv" style="margin-top:4px">Entregado: comisión <b>' + fmtE(c.entregado_comision) + '</b> · premio por venta <b>' + fmtE(c.entregado_premio) + '</b>'
+      + ((c.pendiente_ciclo !== undefined && c.pendiente_ciclo !== null) ? ' · Pendiente del ciclo: <b>' + fmtE(c.pendiente_ciclo) + ' CUP</b>' : '') + '</div>'
+      + '<div class="kv" style="margin-top:4px">Estado: <span class="pill ' + (estadoCicloTxt(c).indexOf("entregada") === 0 ? "pOk" : "pPend") + '">' + esc(estadoCicloTxt(c)) + '</span></div>'
+      + (numC(c.exceso_adelanto_previo) > 0 ? '<div class="kv" style="margin-top:4px">Este ciclo trae <b>' + fmtE(c.exceso_adelanto_previo) + ' CUP</b> de exceso de adelanto del ciclo anterior: ya viene descontado de lo pagable.</div>' : '')
+      + (c.eleccion_pago === "a0" && numC(c.adelanto_entregado) > 0 ? '<div class="kv" style="margin-top:4px">Adelanto entregado: <b>' + fmtE(c.adelanto_entregado) + ' CUP</b> — se cuadra al cerrar el ciclo.</div>' : '')
+      + opcionesCicloHtml(c, lid)
+      + entregaCicloHtml(c, lid)
+      + '<div class="ayuda" style="margin-top:8px">A0 es un adelanto sobre el plan: no es comisión ganada hasta que las compras se prueben; al cerrar el ciclo se cuadra. A cobra ya con el descuento. B espera la venta y cobra exacto.</div>'
+      + '</div>';
+    return f;
+  }).join("");
+  return h + '</div>';
+}
+function elegirPagoCiclo(lid, opcion, plan){
+  var datos = { p_codigo: state.codigo, p_liquidacion_id: lid, p_opcion: opcion, p_prueba: false };
+  if (opcion === "a0") datos.p_recargas_plan = plan ? Number(plan) : null;
+  rpc("dineroElegirPago", datos).then(function(r){
+    if (r && r.ok === false) { toast("El servidor no aceptó la elección (" + esc(String(r.motivo || "sin motivo")) + "). Nada cambió.", false); return; }
+    toast("✅ Elección guardada pa este ciclo.");
+    cargarDineroMN();
+  }).catch(function(e){
+    toast((e && e.faltaPuerta) ? TXT_FALTA_ACTIVAR : "No se pudo guardar la elección (¿conexión?). Nada cambió.", false);
+  });
+}
+function registrarEntregaCiclo(lid){
+  var cyc = (ciclosFotoMN || []).filter(function(x){ return String(liqIdDe(x)) === String(lid); })[0];
+  var tip = $("cicentTipo-" + lid), inp = $("cicentMonto-" + lid), med = $("cicentMedio-" + lid), err = $("cicentErr-" + lid);
+  var monto = Number(inp && inp.value);
+  if (!monto || monto <= 0) { if (err) err.textContent = "Escribe el monto que le entregaste de verdad."; return; }
+  if (!cyc) { if (err) err.textContent = "Este ciclo ya no está en la foto: actualiza y vuelve a tocar."; return; }
+  rpc("dineroEntregaComision", { p_codigo: state.codigo, p_buscador: String(cyc.buscador || ""), p_liquidacion_id: lid, p_tipo: tip ? tip.value : "comision", p_monto: Math.round(monto), p_medio: med ? med.value : "efectivo", p_ref: uuidMN(), p_prueba: false }).then(function(){
+    delete mnBorradores["cicentMonto-" + lid];
+    entregaCicloAbiertaMN = null;
+    toast("✅ Entrega confirmada en este ciclo: ya consta como entregado de verdad.");
+    cargarDineroMN();
+  }).catch(function(e){
+    if (err) err.textContent = (e && e.faltaPuerta) ? TXT_FALTA_ACTIVAR : ("No se pudo confirmar: " + ((e && e.message) || "¿conexión?") + " Nada se guardó.");
+  });
+}
+
+
+/* =====================================================================
    T1 · PANEL ÚNICO (v22, 2026-11-14) — las piezas nuevas del centro de
    mando: héroe/accesos/novedades del hub de Inicio, hoja de menú con
    datos vivos, Ajustes en ramas, centro de Avisos (lee avisos_log por
@@ -6340,14 +6844,37 @@ function heroInicioHtml(){
   var est = dineroFotoMN;
   if (!est) return '<div class="card" id="inHero">' + infoBtnHtml("Inicio") + '<div class="mut">HOY PUEDES GASTAR</div><div class="kv" style="margin-top:6px">' + (dineroCargandoMN ? "Leyendo tu dinero del libro…" : "Tu dinero se lee del libro: abre Dinero una vez con conexión y esta cifra vive aquí.") + "</div></div>";
   var fondo = Number(est.saldo_fondo || 0), inv = Number(est.saldo_ernesto_inversion || 0);
-  var manoHero = fondo + inv - capitalPendientesCola().totalEnt;
-  return '<div class="card" id="inHero">' + infoBtnHtml("Inicio") + '<div class="mut">HOY PUEDES GASTAR</div>'
-    + '<div class="t1HeroNum">' + fmtE(est.saldo_gasto) + ' <span style="font-size:15px;color:var(--txt-2)">CUP</span></div>'
-    + '<div class="t1HeroGrid">'
-    + '<div><div class="k">En tu mano</div><div class="v">' + fmtE(manoHero) + "</div></div>"
-    + '<div><div class="k">Hecho en saldo</div><div class="v">' + fmtE(est.saldo_inventario) + "</div></div>"
-    + '<div><div class="k">Capital total</div><div class="v">' + fmtE(est.capital_total) + "</div></div>"
-    + '</div><div class="mut" style="margin-top:8px">Del libro, leído a las ' + horaDe(new Date(dineroLeidoEnMN).toISOString()) + " · el detalle vive en Dinero.</div></div>";
+  /* E7 (v29): «En tu mano» = fondo + inversión del libro, SIN restar la
+     cola local; la cola se enseña aparte, con su nombre. */
+  var manoHero = fondo + inv;
+  var colaEnt = capitalPendientesCola().totalEnt;
+  var P = est.procedencias || null, GP = est.gasto_pro || null, SR = est.saldo_real || null;
+  function tap(clave, html){ return P || clave === "saldo" ? '<span class="provTap" role="button" tabindex="0" data-prov="' + clave + '">' + html + '</span>' : html; }
+  var gastoNum = tap("gasto", fmtE(est.saldo_gasto));
+  var manoNum = (P && P.mano) ? tap("mano", fmtE(manoHero)) : fmtE(manoHero);
+  var capNum = (P && P.capital) ? tap("capital", fmtE(est.capital_total)) : fmtE(est.capital_total);
+  /* E6 (v29): «Hecho en saldo» enseña el SALDO REAL en unidades de
+     saldo; el costo en CUP va como dato secundario nombrado «costo». */
+  var saldoCelda = (SR && SR.saldo_linea !== null && SR.saldo_linea !== undefined)
+    ? tap("saldo", fmtSaldoMN(SR.saldo_linea)) + ' <span style="font-size:12px;color:var(--txt-2)">saldo</span>'
+    : fmtE(est.saldo_inventario);
+  var h = '<div class="card" id="inHero">' + infoBtnHtml("Inicio") + '<div class="mut">HOY PUEDES GASTAR</div>'
+    + '<div class="t1HeroNum">' + gastoNum + ' <span style="font-size:15px;color:var(--txt-2)">CUP</span></div>';
+  /* M2 (v29): el gasto en dos cubetas + la reserva explicada. */
+  if (GP) {
+    h += '<div class="kv" style="margin-top:6px">Disponible (cobrado): <b>' + fmtE(GP.cuenta_gasto !== undefined && GP.cuenta_gasto !== null ? GP.cuenta_gasto : est.saldo_gasto) + ' CUP</b> · Por cobrar: <b>' + fmtE(GP.por_cobrar_estimado) + ' CUP</b></div>'
+      + '<div class="kv">Reserva de trabajo: <b>' + fmtE(GP.reserva_cup) + ' CUP</b> — tu ritmo de compras y lo que debes entregar a buscadores; gastar por encima frenaría la máquina.</div>';
+  }
+  h += '<div class="t1HeroGrid">'
+    + '<div><div class="k">En tu mano</div><div class="v">' + manoNum + "</div></div>"
+    + '<div><div class="k">Hecho en saldo</div><div class="v">' + saldoCelda + "</div></div>"
+    + '<div><div class="k">Capital total</div><div class="v">' + capNum + "</div></div>"
+    + '</div>'
+    + ((SR && SR.costo_lotes_cup !== null && SR.costo_lotes_cup !== undefined) ? '<div class="kv" style="margin-top:6px">Costo de ese saldo: <b>' + fmtE(SR.costo_lotes_cup) + ' CUP</b> (lo que pagaste por comprarlo).</div>' : '')
+    + (colaEnt ? '<div class="kv" style="margin-top:6px">En cola por enviar desde este teléfono: <b>' + fmtE(colaEnt) + ' CUP</b> — salen de tu mano cuando se asienten; no se restan de la cifra de arriba.</div>' : '')
+    + ((P || SR) ? '<div class="mut" style="margin-top:6px">Toca una cifra subrayada y te enseña de dónde salió.</div>' : '')
+    + '<div class="mut" style="margin-top:8px">Del libro, leído a las ' + horaDe(new Date(dineroLeidoEnMN).toISOString()) + " · el detalle vive en Dinero.</div></div>";
+  return h;
 }
 function accesosInicioHtml(){
   var t = tarifa();
@@ -6438,7 +6965,7 @@ registrarModulo({
     h += '<div class="t1GrupoLbl">La app</div><div class="t1Lista">'
       + filaAj("Avisos", "avisos", "Notificaciones", "Avisos PRO: push y Telegram, con registro", estadoPush() === "ok" ? "Activadas" : "Sin activar")
       + filaAj("GUIA", "info", "Guía de la app", "El recorrido: «esto funciona para esto»", "4 pasos")
-      + filaAj("ACTUALIZAR", "cambio", "Buscar actualización", "La app se actualiza sola; esto lo fuerza", "v" + MN_VERSION.replace("v", ""))
+      + filaAj("ACTUALIZAR", "cambio", "Buscar actualización", "La app se actualiza sola; esto lo fuerza", MN_VERSION + " · PRO")
       + "</div>";
     h += '<div class="t1GrupoLbl">Datos</div><div class="t1Lista">'
       + filaAj("RESPALDO", "doc", "Respaldo", "Tu libro se guarda solo en el servidor", "Automático")
