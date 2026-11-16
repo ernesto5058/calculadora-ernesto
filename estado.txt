@@ -5,3 +5,5 @@
 [18:47:44] ANDROID_AVD_HOME=/home/runner/.android/avd · AVDs segun el emulador: vivo 
 [18:47:44] AVD creado (t+113s)
 [18:48:23] Emulador arrancado (t+152s desde el inicio del script)
+[18:48:34] Tunel listo (t+163s)
+[18:48:34] Clave VNC cifrada lista (vnc.enc publicado en la rama)
