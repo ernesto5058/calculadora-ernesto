@@ -1,3 +1,4 @@
-adb shell am force-stop com.android.chrome
-adb shell monkey -p com.facebook.aura -c android.intent.category.LAUNCHER 1
-sleep 3
+adb shell input keyevent 11 15 11 12 15 10
+sleep 1
+adb shell input tap 540 1286
+sleep 4
