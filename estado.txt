@@ -15,3 +15,5 @@
 [18:04:44] Orden ejecutada; foto 'ahora' publicada
 [18:05:35] Orden recibida (588ea0e3)
 [18:05:41] Orden ejecutada; foto 'ahora' publicada
+[18:06:32] Orden recibida (d8cc61c8)
+[18:06:47] Orden ejecutada; foto 'ahora' publicada
