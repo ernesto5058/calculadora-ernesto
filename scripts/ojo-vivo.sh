@@ -19,6 +19,7 @@ mkdir -p "$ANDROID_AVD_HOME"
 export PATH="$PATH:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/emulator:$ANDROID_HOME/platform-tools"
 stamp(){ date -u +%H:%M:%S; }
 linea(){ echo "[$(stamp)] $*" | tee -a "$OUT/estado.txt"; }
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
 
 # ---------- publicacion en la rama ojo-vivo (rebase + reintentos) ----------
 git config --global user.name "ojo-vivo"
@@ -33,7 +34,7 @@ fi
 mkdir -p shots
 publicar(){
   { echo "== emulator.log (cola) =="; tail -n 25 "$OUT/emulator.log" 2>/dev/null; echo; echo "== sdk.log (cola) =="; tail -n 15 "$OUT/sdk.log" 2>/dev/null; } > "$OUT/logs.txt"
-  cp -a "$OUT/estado.txt" "$OUT/url.txt" "$OUT/ultimo-cmd.log" "$OUT/logs.txt" "$REPO_DIR/" 2>/dev/null || true
+  cp -a "$OUT/estado.txt" "$OUT/url.txt" "$OUT/ultimo-cmd.log" "$OUT/logs.txt" "$OUT/vnc.enc" "$REPO_DIR/" 2>/dev/null || true
   cp -a "$OUT/shots/." "$REPO_DIR/shots/" 2>/dev/null || true
   cd "$REPO_DIR"; git add -A
   if git diff --cached --quiet; then return 0; fi
@@ -117,6 +118,26 @@ done
 [ -n "$URL" ] || fallo "el tunel cloudflared no levanto"
 linea "Tunel listo (t+$(( $(date +%s)-T_INICIO ))s)"
 echo "$URL" > "$OUT/url.txt"
+# ---------- clave VNC cifrada pa el canal en vivo ----------
+# La rama ojo-vivo es publica: la clave viaja CIFRADA con la publica
+# versionada junto al script (ojo-vnc-pub.pem). Sin la privada (que vive
+# fuera de git) nadie puede leerla durante la sesion.
+VNC_PUB="$SCRIPT_DIR/ojo-vnc-pub.pem"
+if [ -f "$VNC_PUB" ]; then
+  printf '%s' "$VNCPASS" | openssl pkeyutl -encrypt -pubin -inkey "$VNC_PUB" -pkeyopt rsa_padding_mode:oaep -pkeyopt rsa_oaep_md:sha256 > "$OUT/vnc.raw" 2>/dev/null || true
+  if [ ! -s "$OUT/vnc.raw" ]; then
+    printf '%s' "$VNCPASS" | openssl rsautl -encrypt -pubin -inkey "$VNC_PUB" > "$OUT/vnc.raw" 2>/dev/null || true
+  fi
+  if [ -s "$OUT/vnc.raw" ]; then
+    base64 -w0 < "$OUT/vnc.raw" > "$OUT/vnc.enc"
+    linea "Clave VNC cifrada lista (vnc.enc publicado en la rama)"
+  else
+    linea "AVISO: no se pudo cifrar la clave VNC"
+  fi
+  rm -f "$OUT/vnc.raw"
+else
+  linea "AVISO: falta ojo-vnc-pub.pem junto al script; la clave va solo en el resumen"
+fi
 {
   echo "## Ojo Vivo - sesion en vivo"
   echo
