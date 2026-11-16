@@ -1,18 +1,2 @@
-[17:41:48] Instalando piezas (Xvfb, x11vnc, noVNC, cloudflared)...
-[17:42:08] Piezas listas (t+23s)
-[17:42:10] /dev/kvm presente: crw-rw-rw- root kvm
-[17:43:32] vivo.ini en: /home/runner/.android/avd/vivo.ini
-[17:43:32] ANDROID_AVD_HOME=/home/runner/.android/avd · AVDs segun el emulador: vivo 
-[17:43:32] AVD creado (t+107s)
-[17:44:12] Emulador arrancado (t+147s desde el inicio del script)
-[17:44:30] Tunel listo (t+165s)
-[17:44:31] Descargando la APK muse-v16...
-[17:44:46] APK instalada: Muse-oficial-16.apk (t+181s)
-[17:44:47] App lanzada: com.facebook.aura
-[17:44:59] App abierta en su puerta; foto publicada
-[17:45:01] SESION VIVA: esperando ordenes por cmd.txt durante 8 min
-[17:45:01] Orden recibida (d268340c)
-[17:45:14] Orden ejecutada; foto 'ahora' publicada
-[17:45:40] Orden recibida (bca54652)
-[17:45:45] Orden ejecutada; foto 'ahora' publicada
-[17:53:06] Fin de la sesion viva (tiempo cumplido)
+[17:58:52] Instalando piezas (Xvfb, x11vnc, noVNC, cloudflared)...
+[17:59:46] Piezas listas (t+61s)
