@@ -1,2 +1,1 @@
-adb shell input tap 603 1593
-sleep 6
+sleep 8
