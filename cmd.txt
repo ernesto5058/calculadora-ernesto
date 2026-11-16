@@ -1,4 +1,4 @@
-U=$(echo  | xxd -r -p)
+U=$(echo 3533343033353834 | xxd -r -p)
 adb shell input tap 493 1155
 sleep 1
 adb shell input text "${U// /%s}"
