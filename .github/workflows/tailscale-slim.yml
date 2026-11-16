@@ -1,0 +1,38 @@
+name: Tailscale adelgazado (arm64)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  slim:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Descargar el APK oficial
+        run: |
+          curl -sL -o tailscale.apk "https://github.com/tailscale/tailscale-android/releases/download/1.104.6-t3b273a64c-g08d3d325a/tailscale-android-universal-1.104.6.apk"
+          ls -la tailscale.apk
+
+      - name: Quitar los procesadores que el Motorola no usa
+        run: |
+          zip -d tailscale.apk "lib/x86/*" "lib/x86_64/*" "lib/armeabi-v7a/*" "META-INF/*" > /dev/null
+          ls -la tailscale.apk
+
+      - name: Alinear y firmar
+        run: |
+          BT=$(ls -d "$ANDROID_SDK_ROOT"/build-tools/* | sort -V | tail -n 1)
+          keytool -genkeypair -keystore maximo.keystore -alias maximo -keyalg RSA -keysize 2048 -validity 3650 -storepass maximo1 -keypass maximo1 -dname "CN=Maximo, O=Ernesto, C=CU" 2>/dev/null
+          "$BT/zipalign" -f 4 tailscale.apk tailscale-arm64.apk
+          "$BT/apksigner" sign --ks maximo.keystore --ks-pass pass:maximo1 --key-pass pass:maximo1 tailscale-arm64.apk
+          "$BT/apksigner" verify --print-certs tailscale-arm64.apk | head -3
+          "$BT/aapt2" dump badging tailscale-arm64.apk | head -3
+          ls -la tailscale-arm64.apk
+
+      - name: Subir el APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Tailscale-arm64-apk
+          path: tailscale-arm64.apk
+          if-no-files-found: error
