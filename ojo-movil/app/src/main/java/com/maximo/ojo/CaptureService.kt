@@ -49,6 +49,7 @@ class CaptureService : Service() {
         }
         if (proyeccion != null) return START_NOT_STICKY
         modo = intent?.getStringExtra("modo") ?: "unica"
+        val retraso = intent?.getLongExtra("retraso", 700L) ?: 700L
         val resultCode = intent?.getIntExtra("resultCode", 0) ?: 0
         @Suppress("DEPRECATION")
         val data: Intent? = intent?.getParcelableExtra("data")
@@ -113,7 +114,7 @@ class CaptureService : Service() {
 
         OjoState.sesionActiva = (modo == "sesion")
         if (modo == "unica") {
-            handler?.postDelayed({ capturarYSubir(fin = true) }, 700)
+            handler?.postDelayed({ capturarYSubir(fin = true) }, retraso)
         } else {
             val ciclo = object : Runnable {
                 override fun run() {
@@ -127,7 +128,7 @@ class CaptureService : Service() {
                     handler?.postDelayed(this, 3000)
                 }
             }
-            handler?.postDelayed(ciclo, 700)
+            handler?.postDelayed(ciclo, retraso)
         }
         return START_NOT_STICKY
     }
