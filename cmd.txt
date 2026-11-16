@@ -1,1 +1,2 @@
-sleep 8
+adb shell input tap 540 2090
+sleep 6
