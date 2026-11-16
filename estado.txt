@@ -5,3 +5,4 @@
 [17:43:32] ANDROID_AVD_HOME=/home/runner/.android/avd · AVDs segun el emulador: vivo 
 [17:43:32] AVD creado (t+107s)
 [17:44:12] Emulador arrancado (t+147s desde el inicio del script)
+[17:44:30] Tunel listo (t+165s)
