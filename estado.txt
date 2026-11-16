@@ -16,3 +16,5 @@
 [18:49:30] Orden ejecutada; foto 'ahora' publicada
 [19:17:28] Orden recibida (a952a4c4)
 [19:17:37] Orden ejecutada; foto 'ahora' publicada
+[19:18:53] Orden recibida (825ca9d3)
+[19:19:03] Orden ejecutada; foto 'ahora' publicada
