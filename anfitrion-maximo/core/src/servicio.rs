@@ -19,6 +19,25 @@
 //!
 //! Los servicios que la cadena abre por esta vía: InstallationProxy (sonda
 //! e instalación), AFC (subida) y HouseArrest (depósito en Tienda Máximo).
+//!
+//! **v2.5 — LA CAUSA RAÍZ, con nombre: «el StartSession que nunca se
+//! envió».** Hasta la v2.4, `abrir_servicio` hacía GetValue en claro y
+//! saltaba directo a `Idevice::start_session` — pero esa función del crate
+//! (idevice-0.1.68, lib.rs:651) **SOLO sube el TLS**: no envía ningún
+//! plist; asume la sesión ya negociada. Quien negocia es
+//! `LockdownClient::start_session` (lockdown.rs:243-296): GetValue →
+//! plist `{Label, Request: "StartSession", HostID, SystemBUID}` → exige
+//! `EnableSessionSSL == true` → guarda el SessionID → recién entonces el
+//! TLS. La cadena jamás mandaba ese plist (`dict_start_session` existía,
+//! con su forma probada, pero ningún camino vivo lo llamaba): el
+//! ClientHello caía sobre una conexión sin sesión, lockdownd reseteaba
+//! (errno 54) y la apertura moría en «tls handshake eof» — en la sonda,
+//! en cualquier transporte (hub, sesión fresca: daba igual). La vía 1 de
+//! la puerta y la réplica abrían porque ambas negocian completo. El
+//! arreglo es quirúrgico: `negociar_sesion` (abajo) corre la negociación
+//! entera sobre el canal, con la respuesta cruda en el registro, ANTES de
+//! subir el TLS — y un banco fija el orden GetValue → StartSession →
+//! StartService pa que ninguna versión futura lo pierda en silencio.
 
 use std::future::Future;
 use std::path::Path;
@@ -190,6 +209,99 @@ impl Intercambio for IntercambioIdevice<'_> {
     }
 }
 
+// ── La negociación de la sesión (v2.5: el StartSession que faltaba) ─────────
+
+/// Lo que `negociar_sesion` deja listo antes de subir el TLS.
+#[derive(Debug)]
+pub struct SesionNegociada {
+    /// iOS < 5 (el «legado» del crate): con rustls ese TLS viejo no se
+    /// soporta, igual que allá — el dato solo viaja a `start_session`.
+    pub legacy: bool,
+    /// El SessionID que lockdownd devolvió en la respuesta, si vino.
+    pub session_id: Option<String>,
+}
+
+/// **La negociación COMPLETA de la sesión lockdown**, espejo fiel de
+/// `LockdownClient::start_session` del crate (idevice-0.1.68,
+/// lockdown.rs:243-296), sobre el canal en claro:
+///
+/// 1. `GetValue ProductVersion` — tolerante como el del crate (su fallo no
+///    tumba nada: solo decide el legado, y sin respuesta se asume moderno).
+/// 2. El plist **StartSession** `{Label, Request, HostID, SystemBUID}` con
+///    la identidad del registro — su respuesta queda CRUDO en el registro
+///    de etapas; si trae `Error`, sube tal cual.
+/// 3. Se exige `EnableSessionSSL == true` y se guarda el `SessionID`.
+///
+/// Recién después de esto tiene sentido `Idevice::start_session`, que es
+/// SOLO el TLS (lib.rs:651). Sin este paso, el ClientHello cae sobre una
+/// conexión sin sesión y lockdownd la resetea (la muerte de la v2.4).
+pub async fn negociar_sesion(
+    io: &mut impl Intercambio,
+    label: &str,
+    host_id: &str,
+    system_buid: &str,
+    etapa: &str,
+) -> Result<SesionNegociada, String> {
+    // 1) GetValue previo (legado), tolerante.
+    let mut legacy = false;
+    let gv = dict_get_value(label, "ProductVersion");
+    if io.enviar(&gv).await.is_ok() {
+        if let Ok(resp) = io.recibir().await {
+            if let Some(v) = resp
+                .get("Value")
+                .and_then(|v| v.as_string())
+                .and_then(|s| s.split('.').next())
+                .and_then(|s| s.parse::<u8>().ok())
+            {
+                legacy = v < 5;
+            }
+        }
+    }
+
+    // 2) El StartSession, con su respuesta cruda al registro.
+    let ss = dict_start_session(label, host_id, system_buid);
+    io.enviar(&ss)
+        .await
+        .map_err(|e| format!("enviando el StartSession: {}", e))?;
+    let resp = io
+        .recibir()
+        .await
+        .map_err(|e| format!("leyendo la respuesta del StartSession: {}", e))?;
+    stage(&format!(
+        "ETAPA {}: respuesta StartSession cruda: {}",
+        etapa,
+        resumen_crudo(&dict_a_xml(&resp))
+    ));
+    if let Some(e) = resp.get("Error").and_then(|v| v.as_string()) {
+        return Err(format!(
+            "Apple se negó a abrir la sesión lockdown: {}",
+            e
+        ));
+    }
+    match resp.get("EnableSessionSSL").and_then(|v| v.as_boolean()) {
+        Some(true) => {}
+        _ => {
+            return Err(format!(
+                "la respuesta del StartSession no encendió el SSL de la sesión (EnableSessionSSL ausente o en false): {}",
+                resumen_crudo(&dict_a_xml(&resp))
+            ))
+        }
+    }
+    let session_id = resp
+        .get("SessionID")
+        .and_then(|v| v.as_string())
+        .map(|s| s.to_string());
+    stage(&format!(
+        "ETAPA {}: sesión lockdown NEGOCIADA{} — ahora sí, el TLS",
+        etapa,
+        match &session_id {
+            Some(id) => format!(" (SessionID {})", id),
+            None => String::new(),
+        }
+    ));
+    Ok(SesionNegociada { legacy, session_id })
+}
+
 // ── La negociación del StartService (la pieza que los bancos fijan) ─────────
 
 /// Pide el servicio por el canal ya abierto (sesión lockdown viva), con la
@@ -255,18 +367,23 @@ pub async fn negociar_start_service(
 // ── La apertura completa de un servicio sobre el provider del crate ────────
 
 /// Abre `servicio` de punta a punta: conexión lockdown nueva del provider →
-/// GetValue previo (legado, espejo del crate) → sesión + TLS del crate
-/// (`Idevice::start_session`) → StartService A MANO con escrow (ver
+/// **negociación completa de la sesión** (`negociar_sesion`: GetValue →
+/// StartSession, la respuesta cruda en el registro) → el TLS de
+/// `Idevice::start_session` → StartService A MANO con escrow (ver
 /// `negociar_start_service`) → conexión al puerto. Devuelve el stream listo
 /// pa `IdeviceService::from_stream` del cliente que corresponda. El error,
 /// cuando Apple se niega, trae su `Error` exacto.
 ///
-/// Por qué la sesión la abre el crate y no va un StartSession a mano antes:
-/// tras responder `EnableSessionSSL=true`, lockdownd solo acepta un
-/// ClientHello TLS en esa conexión — un segundo StartSession en claro la
-/// tumba. La respuesta cruda del StartSession ya queda registrada por la
-/// puerta (probe) en la misma corrida; la pieza que el crate descartaba y
-/// aquí sí se registra es la del StartService.
+/// v2.5 corrige aquí la causa raíz de la muerte de la cadena: hasta la
+/// v2.4 este flujo saltaba del GetValue al `dev.start_session` creyendo
+/// que el crate negociaba la sesión — y no: `Idevice::start_session` es
+/// SOLO el TLS (lib.rs:651), sin ningún plist. El StartSession lo negocia
+/// `LockdownClient::start_session` (lockdown.rs:243-296), y en este camino
+/// a mano lo manda `negociar_sesion` con `dict_start_session` — la pieza
+/// que existía desde la v2.3 sin que ningún camino vivo la llamara. Tras
+/// responder `EnableSessionSSL=true`, lockdownd espera el ClientHello en
+/// ESTA conexión: por eso el orden es plist primero, TLS después, y por
+/// eso sin el plist el ClientHello se comía un reseteo (errno 54).
 pub async fn abrir_servicio(
     provider: &AnfitrionProvider,
     pairing: &PairingFile,
@@ -281,34 +398,29 @@ pub async fn abrir_servicio(
         .await
         .map_err(|e| format!("conexión lockdown: {:?}", e))?;
 
-    // Legado (espejo del crate): GetValue ProductVersion en claro; si la
-    // respuesta no llega o no parsea, se sigue como dispositivo moderno. El
+    // La negociación COMPLETA de la sesión sobre el canal en claro
+    // (GetValue → StartSession con la identidad del registro). El
     // adaptador toma prestado `dev` solo pa este paso y lo suelta antes de
-    // que el crate suba la sesión.
-    let mut legacy = false;
-    {
+    // subir el TLS.
+    let sesion = {
         let mut io = IntercambioIdevice { dev: &mut dev };
-        let gv = dict_get_value(&label, "ProductVersion");
-        if io.enviar(&gv).await.is_ok() {
-            if let Ok(resp) = io.recibir().await {
-                if let Some(v) = resp
-                    .get("Value")
-                    .and_then(|v| v.as_string())
-                    .and_then(|s| s.split('.').next())
-                    .and_then(|s| s.parse::<u8>().ok())
-                {
-                    legacy = v < 5;
-                }
-            }
-        }
-    }
-
-    // La sesión + el TLS los sube el crate sobre ESTA conexión (su
-    // verificador y su configuración, los de siempre); lo que cambia es
-    // quién pide el servicio: el StartService va a mano, con escrow.
-    dev.start_session(pairing, legacy)
+        negociar_sesion(
+            &mut io,
+            &label,
+            &pairing.host_id,
+            &pairing.system_buid,
+            etapa,
+        )
         .await
-        .map_err(|e| format!("subiendo la sesión TLS: {:?}", e))?;
+    }
+    .map_err(|e| format!("negociando la sesión lockdown: {}", e))?;
+
+    // Recién con la sesión negociada, el TLS de `Idevice::start_session`
+    // (que es solo eso: el túnel, con el verificador y la configuración
+    // del crate); el StartService va a mano, con escrow, sobre ese túnel.
+    dev.start_session(pairing, sesion.legacy)
+        .await
+        .map_err(|e| format!("subiendo el TLS de la sesión: {:?}", e))?;
 
     let (port, ssl) = {
         let mut io = IntercambioIdevice { dev: &mut dev };
@@ -325,7 +437,7 @@ pub async fn abrir_servicio(
         .await
         .map_err(|e| format!("conectando al puerto {} de {}: {:?}", port, servicio, e))?;
     if ssl {
-        svc.start_session(pairing, legacy)
+        svc.start_session(pairing, sesion.legacy)
             .await
             .map_err(|e| format!("TLS del servicio {}: {:?}", servicio, e))?;
     }
@@ -660,5 +772,215 @@ mod tests {
             Err("InvalidService".to_string())
         );
         assert_eq!(io.enviados.len(), 2);
+    }
+
+    // ── v2.5: la negociación de la sesión (el StartSession que faltaba) ────
+
+    /// La respuesta del GetValue ProductVersion que el guion necesita.
+    fn resp_get_value() -> plist::Dictionary {
+        dict_con(&[(
+            "Value",
+            plist::Value::String("18.7.10".into()),
+        )])
+    }
+
+    /// La respuesta sana del StartSession: SSL encendido + SessionID.
+    fn resp_start_session_ok() -> plist::Dictionary {
+        dict_con(&[
+            ("EnableSessionSSL", plist::Value::Boolean(true)),
+            (
+                "SessionID",
+                plist::Value::String("SESION-BANCO-1".into()),
+            ),
+        ])
+    }
+
+    /// La respuesta del StartService con puerto (la misma forma que usan
+    /// los bancos de la negociación del servicio).
+    fn resp_con_puerto(puerto: i64) -> plist::Dictionary {
+        dict_con(&[
+            ("Port", plist::Value::Integer(puerto.into())),
+            ("EnableServiceSSL", plist::Value::Boolean(true)),
+        ])
+    }
+
+    /// La respuesta con el `Error` exacto de Apple.
+    fn resp_con_error(error: &str) -> plist::Dictionary {
+        dict_con(&[("Error", plist::Value::String(error.into()))])
+    }
+
+    /// Corre la negociación ENTERA (sesión + servicio) sobre el canal
+    /// guionizado y devuelve lo negociado.
+    fn negociar_todo(
+        io: &mut IntercambioFalso,
+    ) -> Result<(SesionNegociada, (u16, bool)), String> {
+        let rt = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap();
+        rt.block_on(async {
+            let sesion = negociar_sesion(
+                io,
+                "anfitrion-maximo",
+                "HOST-BANCO",
+                "BUID-BANCO",
+                "banco",
+            )
+            .await?;
+            let puerto = negociar_start_service(
+                io,
+                crate::probe::SERVICE_INSTALL,
+                None,
+                false,
+                "banco",
+            )
+            .await?;
+            Ok((sesion, puerto))
+        })
+    }
+
+    fn requests_de(io: &IntercambioFalso) -> Vec<String> {
+        io.enviados
+            .iter()
+            .map(|v| {
+                v.as_dictionary()
+                    .unwrap()
+                    .get("Request")
+                    .unwrap()
+                    .as_string()
+                    .unwrap()
+                    .to_string()
+            })
+            .collect()
+    }
+
+    /// **EL BANCO DE LA CAUSA RAÍZ (v2.5)**: la negociación completa sale
+    /// en el orden del protocolo — GetValue → **StartSession** →
+    /// StartService — y el StartSession lleva la identidad del registro
+    /// (HostID + SystemBUID). Si una versión futura pierde el StartSession
+    /// en silencio (la muerte de la v2.4), este banco la caza en el
+    /// laboratorio, no en el iPhone de Ernesto.
+    #[test]
+    fn negociacion_completa_en_orden_getvalue_startsession_startservice() {
+        let mut io = IntercambioFalso {
+            respuestas: VecDeque::from(vec![
+                resp_get_value(),
+                resp_start_session_ok(),
+                resp_con_puerto(4321),
+            ]),
+            enviados: Vec::new(),
+        };
+        let (sesion, (port, _ssl)) = negociar_todo(&mut io).unwrap();
+        assert!(!sesion.legacy, "iOS 18 no es legado");
+        assert_eq!(sesion.session_id.as_deref(), Some("SESION-BANCO-1"));
+        assert_eq!(port, 4321);
+        assert_eq!(
+            requests_de(&io),
+            ["GetValue", "StartSession", "StartService"],
+            "el orden de la negociación es el del protocolo"
+        );
+        let ss = io.enviados[1].as_dictionary().unwrap();
+        assert_eq!(
+            ss.get("HostID").and_then(|v| v.as_string()),
+            Some("HOST-BANCO")
+        );
+        assert_eq!(
+            ss.get("SystemBUID").and_then(|v| v.as_string()),
+            Some("BUID-BANCO")
+        );
+        assert_eq!(
+            ss.get("Label").and_then(|v| v.as_string()),
+            Some("anfitrion-maximo")
+        );
+    }
+
+    /// Si lockdownd se niega a abrir la sesión, su `Error` sube TAL CUAL y
+    /// ningún StartService se intenta sobre una sesión que no existe.
+    #[test]
+    fn start_session_con_error_sube_tal_cual_y_no_pide_servicio() {
+        let mut io = IntercambioFalso {
+            respuestas: VecDeque::from(vec![
+                resp_get_value(),
+                resp_con_error("InvalidHostID"),
+            ]),
+            enviados: Vec::new(),
+        };
+        let rt = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap();
+        let err = rt
+            .block_on(negociar_sesion(
+                &mut io,
+                "anfitrion-maximo",
+                "HOST-BANCO",
+                "BUID-BANCO",
+                "banco",
+            ))
+            .unwrap_err();
+        assert!(
+            err.contains("InvalidHostID"),
+            "el error es el de Apple: {}",
+            err
+        );
+        assert_eq!(
+            requests_de(&io),
+            ["GetValue", "StartSession"],
+            "sin sesión no se pide servicio"
+        );
+    }
+
+    /// Una respuesta de StartSession sin `EnableSessionSSL` en true NO es
+    /// una sesión: subir el TLS sobre eso sería repetir la v2.4.
+    #[test]
+    fn start_session_sin_enable_ssl_no_sube() {
+        let sin_ssl = dict_con(&[(
+            "SessionID",
+            plist::Value::String("SESION-BANCO-2".into()),
+        )]);
+        let mut io = IntercambioFalso {
+            respuestas: VecDeque::from(vec![resp_get_value(), sin_ssl]),
+            enviados: Vec::new(),
+        };
+        let rt = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap();
+        let err = rt
+            .block_on(negociar_sesion(
+                &mut io,
+                "anfitrion-maximo",
+                "HOST-BANCO",
+                "BUID-BANCO",
+                "banco",
+            ))
+            .unwrap_err();
+        assert!(
+            err.contains("EnableSessionSSL"),
+            "el error nombra lo que faltó: {}",
+            err
+        );
+        assert_eq!(io.enviados.len(), 2);
+    }
+
+    /// La forma del plist StartSession, fijada: la identidad del registro
+    /// viaja como la pide `LockdownClient::start_session` del crate.
+    #[test]
+    fn dict_start_session_lleva_la_identidad_del_registro() {
+        let d = dict_start_session("anfitrion-maximo", "HOST-X", "BUID-X");
+        let d = d.as_dictionary().unwrap();
+        assert_eq!(
+            d.get("Request").and_then(|v| v.as_string()),
+            Some("StartSession")
+        );
+        assert_eq!(
+            d.get("Label").and_then(|v| v.as_string()),
+            Some("anfitrion-maximo")
+        );
+        assert_eq!(d.get("HostID").and_then(|v| v.as_string()), Some("HOST-X"));
+        assert_eq!(
+            d.get("SystemBUID").and_then(|v| v.as_string()),
+            Some("BUID-X")
+        );
     }
 }

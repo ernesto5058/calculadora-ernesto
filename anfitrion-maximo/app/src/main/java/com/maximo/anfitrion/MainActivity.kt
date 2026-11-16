@@ -166,16 +166,22 @@ class MainActivity : Activity() {
         private const val KEK_ALIAS = "anfitrion_boveda_kek"
     }
 
-    // Paleta de la casa (DISENO-PRO): fondo oscuro, dorado SOLO en degradado.
-    private val bg = Color.rgb(10, 12, 16)
-    private val surface = Color.rgb(18, 22, 29)
-    private val line = Color.rgb(30, 38, 50)
-    private val ink = Color.rgb(233, 238, 244)
-    private val dim = Color.rgb(147, 161, 179)
+    // Paleta DISENO-PRO (tokens del sistema): oscuro azul-gris por capas,
+    // dorado SOLO en degradado/tinte, bordes de 1 px translúcidos.
+    private val bg = Color.rgb(11, 14, 19) // --bg-0
+    private val surface = Color.rgb(18, 22, 31) // --bg-1 (tarjetas)
+    private val bg2 = Color.rgb(26, 33, 48) // --bg-2 (inputs, superficie elevada)
+    private val line = Color.argb(18, 255, 255, 255) // --borde (≈7%)
+    private val lineStrong = Color.argb(31, 255, 255, 255) // --borde-fuerte (≈12%)
+    private val ink = Color.rgb(242, 245, 249) // --txt-1
+    private val dim = Color.rgb(163, 173, 188) // --txt-2 (≈62%)
+    private val faint = Color.rgb(118, 128, 143) // --txt-3 (≈40%)
     private val teal = Color.rgb(45, 212, 191)
-    private val red = Color.rgb(248, 113, 113)
-    private val goldA = Color.rgb(240, 208, 137)
-    private val goldB = Color.rgb(201, 150, 46)
+    private val red = Color.rgb(246, 70, 93) // --rojo desaturado
+    private val goldA = Color.rgb(245, 214, 123) // --dorado-claro
+    private val goldMid = Color.rgb(232, 184, 75) // --dorado
+    private val goldB = Color.rgb(201, 150, 46) // --dorado-oscuro
+    private val onGold = Color.rgb(26, 20, 4)
 
     private lateinit var statusView: TextView
     private lateinit var pairButton: Button
@@ -304,60 +310,182 @@ class MainActivity : Activity() {
 
     private fun dp(v: Int): Int = (v * resources.displayMetrics.density).toInt()
 
+    // ── Cara v2.5 (DISENO-PRO): héroe con la versión EN GRANDE y el
+    // contenido en TARJETAS por capas — visiblemente distinta de la lista
+    // plana de la v2.3/v2.4. Dorado solo en degradado/tinte, bordes de
+    // 1 px translúcidos, botones principales en píldora, rejilla 4/8. ──
+
+    /** Tarjeta del sistema: superficie --bg-1, radio 20, borde 1 px. */
+    private fun card(topMargin: Int): LinearLayout {
+        return LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(16), dp(16), dp(16), dp(16))
+            background = GradientDrawable().apply {
+                setColor(surface)
+                setStroke(dp(1), line)
+                cornerRadius = dp(20).toFloat()
+            }
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply { this.topMargin = dp(topMargin) }
+        }
+    }
+
+    /** Etiqueta de sección: micro (11 sp, 600, mayúsculas, --txt-3). */
+    private fun sectionLabel(text: String): TextView {
+        return TextView(this).apply {
+            this.text = text
+            setTextColor(faint)
+            textSize = 11f
+            typeface = Typeface.DEFAULT_BOLD
+            letterSpacing = 0.14f
+        }
+    }
+
+    /** Botón principal: píldora con el degradado dorado del sistema. */
+    private fun goldButton(text: String, onClick: () -> Unit): Button {
+        return Button(this).apply {
+            this.text = text
+            textSize = 17f
+            setTextColor(onGold)
+            typeface = Typeface.DEFAULT_BOLD
+            isAllCaps = false
+            elevation = dp(4).toFloat()
+            background = GradientDrawable(
+                GradientDrawable.Orientation.TL_BR,
+                intArrayOf(goldA, goldMid, goldB)
+            ).apply { cornerRadius = dp(26).toFloat() }
+            setOnClickListener { onClick() }
+        }
+    }
+
     private fun buildUi() {
+        window.statusBarColor = bg
+        window.navigationBarColor = bg
+
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setBackgroundColor(bg)
-            setPadding(dp(20), dp(24), dp(20), dp(20))
+            setPadding(dp(16), dp(20), dp(16), dp(24))
         }
 
+        // ── HÉROE: monograma dorado + título + LA VERSIÓN EN GRANDE ──────
+        // Regla de Ernesto pa la v2.5: la versión se reconoce de un vistazo.
+        // (Si cambia versionName en el Gradle, cambia también este número.)
+        val hero = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(16), dp(16), dp(16), dp(16))
+            background = GradientDrawable().apply {
+                setColor(surface)
+                setStroke(dp(1), line)
+                cornerRadius = dp(20).toFloat()
+            }
+        }
+        val heroLeft = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+        }
+        val monogram = TextView(this).apply {
+            text = "AM"
+            setTextColor(onGold)
+            textSize = 16f
+            typeface = Typeface.DEFAULT_BOLD
+            gravity = Gravity.CENTER
+            background = GradientDrawable(
+                GradientDrawable.Orientation.TL_BR,
+                intArrayOf(goldA, goldMid, goldB)
+            ).apply { cornerRadius = dp(14).toFloat() }
+        }
+        heroLeft.addView(monogram, LinearLayout.LayoutParams(dp(46), dp(46)))
         val title = TextView(this).apply {
             text = "Anfitrión Máximo"
             setTextColor(ink)
-            textSize = 26f
+            textSize = 20f
             typeface = Typeface.DEFAULT_BOLD
+            setPadding(0, dp(10), 0, 0)
         }
-        root.addView(title)
-
+        heroLeft.addView(title)
         val sub = TextView(this).apply {
-            text = "Empareja tu iPhone desde este teléfono, por cable y sin computadora. " +
-                "El registro que nace aquí es la semilla que Tienda Máximo importa en el iPhone."
+            text = "Empareja, firma e instala en tu iPhone por cable, " +
+                "sin computadora. El registro que nace aquí es la semilla " +
+                "que Tienda Máximo importa en el iPhone."
             setTextColor(dim)
-            textSize = 14f
-            setPadding(0, dp(6), 0, dp(16))
+            textSize = 12f
+            setPadding(0, dp(4), dp(8), 0)
         }
-        root.addView(sub)
+        heroLeft.addView(sub)
+        hero.addView(
+            heroLeft,
+            LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+        )
+        val heroVersion = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER_HORIZONTAL
+        }
+        val versionLabel = TextView(this).apply {
+            text = "VERSIÓN"
+            setTextColor(faint)
+            textSize = 10f
+            typeface = Typeface.DEFAULT_BOLD
+            letterSpacing = 0.18f
+            gravity = Gravity.CENTER
+        }
+        heroVersion.addView(versionLabel)
+        val versionBig = TextView(this).apply {
+            text = "2.5"
+            setTextColor(goldA)
+            textSize = 52f
+            typeface = Typeface.DEFAULT_BOLD
+            gravity = Gravity.CENTER
+        }
+        heroVersion.addView(versionBig)
+        val chip = TextView(this).apply {
+            text = "EDICIÓN SOLUCIÓN"
+            setTextColor(goldA)
+            textSize = 9f
+            typeface = Typeface.DEFAULT_BOLD
+            letterSpacing = 0.1f
+            gravity = Gravity.CENTER
+            setPadding(dp(8), dp(4), dp(8), dp(4))
+            background = GradientDrawable().apply {
+                setColor(Color.argb(36, 232, 184, 75)) // dorado al 14%
+                cornerRadius = dp(999).toFloat()
+            }
+        }
+        heroVersion.addView(
+            chip,
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply { topMargin = dp(4) }
+        )
+        hero.addView(heroVersion)
+        root.addView(hero)
 
         statusView = TextView(this).apply {
             setTextColor(dim)
             textSize = 15f
-            setPadding(0, 0, 0, dp(14))
+            setPadding(dp(4), dp(14), dp(4), 0)
         }
         root.addView(statusView)
 
-        pairButton = Button(this).apply {
-            text = "Emparejar"
-            textSize = 18f
-            setTextColor(Color.rgb(26, 20, 4))
-            typeface = Typeface.DEFAULT_BOLD
-            isAllCaps = false
-            background = GradientDrawable(
-                GradientDrawable.Orientation.LEFT_RIGHT, intArrayOf(goldA, goldB)
-            ).apply { cornerRadius = dp(14).toFloat() }
-            setOnClickListener { startPairing() }
-        }
-        root.addView(
+        // ── TARJETA: emparejar ────────────────────────────────────────────
+        val pairCard = card(14)
+        pairCard.addView(sectionLabel("EMPAREJAR EL IPHONE"))
+        pairButton = goldButton("Emparejar") { startPairing() }
+        pairCard.addView(
             pairButton,
             LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, dp(58)
-            )
+                LinearLayout.LayoutParams.MATCH_PARENT, dp(52)
+            ).apply { topMargin = dp(12) }
         )
 
         // Sonda asistida (diseño de Ernesto): la app confirma el enlace con
         // identidad, SUELTA el iPhone y abre la página WebUSB en Chrome; la
         // página empareja con el toque de Ernesto y esta app recoge el .plist.
         sondaButton = secondaryButton("Sonda asistida: emparejar con la página WebUSB") { openWebUsbProbe() }
-        root.addView(
+        pairCard.addView(
             sondaButton,
             LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
                 topMargin = dp(10)
@@ -371,34 +499,21 @@ class MainActivity : Activity() {
             textSize = 12f
             setPadding(0, dp(6), 0, 0)
         }
-        root.addView(sondaHint)
+        pairCard.addView(sondaHint)
 
         val hint = TextView(this).apply {
             text = "Conecta el iPhone por cable (directo USB-C a Lightning, o con el adaptador OTG), " +
                 "déjalo desbloqueado y, cuando lo pida, toca «Confiar» y mete tu código en el iPhone."
             setTextColor(dim)
             textSize = 13f
-            setPadding(0, dp(12), 0, dp(16))
+            setPadding(0, dp(12), 0, 0)
         }
-        root.addView(hint)
+        pairCard.addView(hint)
+        root.addView(pairCard)
 
-        // ── Fase 2: firmar e instalar (flujo de tres toques de Ernesto) ─────
-        val divider = View(this).apply {
-            setBackgroundColor(line)
-        }
-        root.addView(divider, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(1)).apply {
-            topMargin = dp(18); bottomMargin = dp(16)
-        })
-
-        val signTitle = TextView(this).apply {
-            text = "FIRMAR E INSTALAR EN EL IPHONE"
-            setTextColor(ink)
-            textSize = 15f
-            typeface = Typeface.DEFAULT_BOLD
-            letterSpacing = 0.06f
-        }
-        root.addView(signTitle)
-
+        // ── TARJETA: firmar e instalar (flujo de tres toques de Ernesto) ──
+        val signCard = card(12)
+        signCard.addView(sectionLabel("FIRMAR E INSTALAR EN EL IPHONE"))
         val signHint = TextView(this).apply {
             text = "Elige un .ipa de tu teléfono y la app lo firma con tu Apple ID y lo instala " +
                 "por el cable. La primera vez de cada app pide entrar con tu cuenta (la contraseña " +
@@ -408,10 +523,10 @@ class MainActivity : Activity() {
             textSize = 13f
             setPadding(0, dp(6), 0, dp(12))
         }
-        root.addView(signHint)
+        signCard.addView(signHint)
 
         elegirIpaButton = secondaryButton("Elegir IPA") { elegirIpa() }
-        root.addView(
+        signCard.addView(
             elegirIpaButton,
             LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
         )
@@ -422,21 +537,15 @@ class MainActivity : Activity() {
             setPadding(0, dp(8), 0, 0)
             visibility = View.GONE
         }
-        root.addView(ipaInfoView)
+        signCard.addView(ipaInfoView)
 
         // Login en la MISMA pantalla (solo aparece si la app no está en la bóveda).
         loginBlock = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             visibility = View.GONE
-            setPadding(0, dp(10), 0, 0)
+            setPadding(0, dp(12), 0, 0)
         }
-        val loginTitle = TextView(this).apply {
-            text = "TU APPLE ID (solo esta vez)"
-            setTextColor(dim)
-            textSize = 12f
-            letterSpacing = 0.12f
-        }
-        loginBlock.addView(loginTitle)
+        loginBlock.addView(sectionLabel("TU APPLE ID (SOLO ESTA VEZ)"))
         emailInput = darkInput("Correo de tu Apple ID", InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS)
         loginBlock.addView(emailInput, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(8) })
         passwordInput = darkInput("Contraseña", InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD)
@@ -450,21 +559,15 @@ class MainActivity : Activity() {
             setPadding(0, dp(6), 0, 0)
         }
         loginBlock.addView(loginNote)
-        root.addView(loginBlock)
+        signCard.addView(loginBlock)
 
         // 2FA en la misma pantalla (aparece solo cuando Apple lo pide).
         tfaBlock = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             visibility = View.GONE
-            setPadding(0, dp(10), 0, 0)
+            setPadding(0, dp(12), 0, 0)
         }
-        val tfaTitle = TextView(this).apply {
-            text = "CÓDIGO DE VERIFICACIÓN DE APPLE"
-            setTextColor(dim)
-            textSize = 12f
-            letterSpacing = 0.12f
-        }
-        tfaBlock.addView(tfaTitle)
+        tfaBlock.addView(sectionLabel("CÓDIGO DE VERIFICACIÓN DE APPLE"))
         tfaInput = darkInput("Código de 6 dígitos", InputType.TYPE_CLASS_NUMBER)
         tfaBlock.addView(tfaInput, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(8) })
         val tfaRow = LinearLayout(this).apply {
@@ -477,68 +580,50 @@ class MainActivity : Activity() {
         tfaRow.addView(enviarTfa, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { rightMargin = dp(6) })
         tfaRow.addView(cancelarTfaBtn, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { leftMargin = dp(6) })
         tfaBlock.addView(tfaRow)
-        root.addView(tfaBlock)
+        signCard.addView(tfaBlock)
 
-        signButton = Button(this).apply {
-            text = "Firmar e instalar"
-            textSize = 18f
-            setTextColor(Color.rgb(26, 20, 4))
-            typeface = Typeface.DEFAULT_BOLD
-            isAllCaps = false
-            background = GradientDrawable(
-                GradientDrawable.Orientation.LEFT_RIGHT, intArrayOf(goldA, goldB)
-            ).apply { cornerRadius = dp(14).toFloat() }
-            setOnClickListener { startSignInstall() }
-        }
-        root.addView(
+        signButton = goldButton("Firmar e instalar") { startSignInstall() }
+        signCard.addView(
             signButton,
-            LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(58)).apply {
+            LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(52)).apply {
                 topMargin = dp(12)
             }
         )
         signButton.isEnabled = false
+        root.addView(signCard)
 
-        val vaultTitle = TextView(this).apply {
-            text = "BÓVEDA SIN CONEXIÓN"
-            setTextColor(dim)
-            textSize = 12f
-            letterSpacing = 0.12f
-            setPadding(0, dp(16), 0, 0)
-        }
-        root.addView(vaultTitle)
+        // ── TARJETA: bóveda ───────────────────────────────────────────────
+        val vaultCard = card(12)
+        vaultCard.addView(sectionLabel("BÓVEDA SIN CONEXIÓN"))
         vaultListView = TextView(this).apply {
             text = "La bóveda está vacía: la primera app que instales con conexión queda guardada aquí."
             setTextColor(dim)
             textSize = 13f
-            setPadding(0, dp(6), 0, dp(14))
+            setPadding(0, dp(6), 0, 0)
         }
-        root.addView(vaultListView)
+        vaultCard.addView(vaultListView)
+        root.addView(vaultCard)
 
-        val logTitle = TextView(this).apply {
-            text = "REGISTRO DE ETAPAS"
-            setTextColor(dim)
-            textSize = 12f
-            letterSpacing = 0.12f
-        }
-        root.addView(logTitle)
-
+        // ── TARJETA: registro ─────────────────────────────────────────────
+        val logCard = card(12)
+        logCard.addView(sectionLabel("REGISTRO DE ETAPAS"))
         logView = TextView(this).apply {
             setTextColor(ink)
             textSize = 12f
             typeface = Typeface.MONOSPACE
             movementMethod = ScrollingMovementMethod()
             setTextIsSelectable(true)
-            setPadding(dp(10), dp(10), dp(10), dp(10))
+            setPadding(dp(12), dp(12), dp(12), dp(12))
             background = GradientDrawable().apply {
-                setColor(surface)
+                setColor(bg)
                 setStroke(dp(1), line)
-                cornerRadius = dp(10).toFloat()
+                cornerRadius = dp(14).toFloat()
             }
         }
         logScroll = ScrollView(this).apply {
             addView(logView)
         }
-        root.addView(
+        logCard.addView(
             logScroll,
             LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(190)).apply {
                 topMargin = dp(8)
@@ -548,18 +633,18 @@ class MainActivity : Activity() {
         val row = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER
-            setPadding(0, dp(14), 0, 0)
+            setPadding(0, dp(12), 0, 0)
         }
         sharePairingButton = secondaryButton("Compartir el registro de pairing") { sharePairing() }
         shareLogButton = secondaryButton("Compartir el registro de etapas") { shareLog() }
         row.addView(sharePairingButton, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { rightMargin = dp(6) })
         row.addView(shareLogButton, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { leftMargin = dp(6) })
-        root.addView(row)
+        logCard.addView(row)
 
         // Ruta 3 (multi-ruta): un pairing nacido en otra vía — la página WebUSB,
         // InstaladorPRO o una Pi — se importa aquí y queda listo pa compartir.
         val importButton = secondaryButton("Importar un registro nacido en otra vía") { importPairing() }
-        root.addView(
+        logCard.addView(
             importButton,
             LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
                 topMargin = dp(10)
@@ -572,12 +657,11 @@ class MainActivity : Activity() {
             textSize = 12f
             setPadding(0, dp(6), 0, 0)
         }
-        root.addView(importHint)
+        logCard.addView(importHint)
+        root.addView(logCard)
 
-        // v2.1 (hotfix): la raíz vive dentro de un ScrollView de página completa.
-        // La v2 sumó la sección de firmar + login + bóveda y el contenido dejó
-        // de caber en pantallas chicas: «Elegir IPA» quedaba cortado en el borde
-        // y la info/login/botón de firmar nacían bajo el corte, inalcanzables.
+        // La raíz vive dentro de un ScrollView de página completa (v2.1): el
+        // contenido no cabe en pantallas chicas y todo debe ser alcanzable.
         pageScroll = ScrollView(this).apply {
             isFillViewport = true
             setBackgroundColor(bg)
@@ -597,7 +681,7 @@ class MainActivity : Activity() {
     private fun secondaryButton(text: String, onClick: () -> Unit): Button {
         return Button(this).apply {
             this.text = text
-            textSize = 13f
+            textSize = 14f
             isAllCaps = false
             // Altura automática (v1.1): la altura fija de 50dp cortaba la segunda
             // línea de los textos largos y la solapaba con el contenido de abajo.
@@ -606,15 +690,15 @@ class MainActivity : Activity() {
             minimumHeight = dp(50)
             setTextColor(ink)
             background = GradientDrawable().apply {
-                setColor(surface)
-                setStroke(dp(1), line)
-                cornerRadius = dp(12).toFloat()
+                setColor(bg2)
+                setStroke(dp(1), lineStrong)
+                cornerRadius = dp(14).toFloat()
             }
             setOnClickListener { onClick() }
         }
     }
 
-    /** Campo de texto oscuro del sistema de diseño (login y código 2FA). */
+    /** Campo de texto del sistema de diseño (login y código 2FA). */
     private fun darkInput(hintText: String, inputType: Int): EditText {
         return EditText(this).apply {
             hint = hintText
@@ -622,11 +706,11 @@ class MainActivity : Activity() {
             setTextColor(ink)
             setHintTextColor(dim)
             textSize = 15f
-            setPadding(dp(12), dp(12), dp(12), dp(12))
+            setPadding(dp(14), dp(14), dp(14), dp(14))
             background = GradientDrawable().apply {
-                setColor(surface)
-                setStroke(dp(1), line)
-                cornerRadius = dp(10).toFloat()
+                setColor(bg2)
+                setStroke(dp(1), lineStrong)
+                cornerRadius = dp(14).toFloat()
             }
         }
     }

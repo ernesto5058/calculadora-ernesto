@@ -30,6 +30,16 @@
 //! abrir la sesión; jamás se guarda ni se escribe en el registro. El código
 //! 2FA lo pide el callback de isideload a Kotlin por JNI (bloqueante: la UI
 //! lo recoge en la misma pantalla y lo entrega por un latch).
+//!
+//! v2.5: la causa raíz de la muerte de la cadena NO era el transporte —
+//! era «el StartSession que nunca se envió» (ver `servicio.rs`):
+//! `abrir_servicio` saltaba del GetValue al TLS de
+//! `Idevice::start_session`, que es solo el túnel y no negocia sesión
+//! alguna. La negociación completa (GetValue → StartSession → TLS →
+//! StartService) vive ahora en `servicio::negociar_sesion` +
+//! `abrir_servicio`, con un banco que fija el orden. El transporte de la
+//! v2.4 (sesión mux propia de la cadena, hub solo detección) se queda:
+//! inocuo y ordenado.
 
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex, OnceLock};
