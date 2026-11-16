@@ -13,3 +13,5 @@
 [18:03:12] SESION VIVA: esperando ordenes por cmd.txt durante 30 min
 [18:04:39] Orden recibida (c8f322e1)
 [18:04:44] Orden ejecutada; foto 'ahora' publicada
+[18:05:35] Orden recibida (588ea0e3)
+[18:05:41] Orden ejecutada; foto 'ahora' publicada
