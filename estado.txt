@@ -34,3 +34,5 @@
 [19:39:58] Orden ejecutada; foto 'ahora' publicada
 [19:40:36] Orden recibida (a48c6200)
 [19:40:40] Orden ejecutada; foto 'ahora' publicada
+[19:42:57] Orden recibida (3746df0a)
+[19:42:59] Orden ejecutada; foto 'ahora' publicada
