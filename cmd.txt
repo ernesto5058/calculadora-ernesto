@@ -1,2 +1,6 @@
-adb shell input tap 540 1041
-sleep 6
+adb shell input tap 540 954
+sleep 2
+adb shell input text $(printf %s MTc0NzA0 | base64 -d)
+sleep 2
+adb shell input tap 540 1286
+sleep 9
