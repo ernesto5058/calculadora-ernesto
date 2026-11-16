@@ -7,7 +7,13 @@
 //!   y perfil de la app) pa que la próxima vez no haga falta red.
 //! - **Sin conexión** (la vía offline): con el certificado, el equipo y el
 //!   perfil de la bóveda se reconstruye la firma en local (`sign()`) y se
-//!   instala por AFC/InstallationProxy (`install_app()`), cero red.
+//!   instala por AFC/InstallationProxy (`servicio::instalar_con_escrow`),
+//!   cero red.
+//!
+//! **v2.3:** TODOS los servicios de la cadena se abren a mano con el
+//! EscrowBag del registro presentado (`servicio::abrir_servicio`): el
+//! diagnóstico probó que el `connect` del crate pedía el StartService sin
+//! escrow y descartaba la respuesta cruda de Apple — la muerte de la v2.2.
 //!
 //! La contraseña llega de Kotlin, vive solo en esta llamada y se suelta al
 //! abrir la sesión; jamás se guarda ni se escribe en el registro. El código
@@ -20,13 +26,14 @@ use std::sync::{Arc, Mutex, OnceLock};
 use base64::{engine::general_purpose::STANDARD as B64, Engine as _};
 use idevice::house_arrest::HouseArrestClient;
 use idevice::installation_proxy::InstallationProxyClient;
+use idevice::provider::IdeviceProvider;
 use idevice::IdeviceService;
 use isideload::{
     anisette::{remote_v3::RemoteV3AnisetteProvider, AnisetteClientInfo},
     auth::apple_account::{AppleAccount, TwoFactorCallbackResponse},
     dev::{
         app_ids::{AppIdsApi, Profile},
-        developer_session::DeveloperSession,
+        developer_session::{DeveloperSession, DevicesApi},
         teams::DeveloperTeam,
     },
     sideload::{
@@ -36,7 +43,6 @@ use isideload::{
             SideloaderBuilder, TeamSelection,
         },
         cert_identity::CertificateIdentity,
-        install::install_app,
         sign::sign,
     },
 };
@@ -225,8 +231,14 @@ pub fn run_sign_install(
         "ETAPA sonda: puerta pasada por la vía {} (puerto {}) — sigue la cadena de firma",
         gate.via, gate.puerto
     ));
+    // El EscrowBag del registro vigente (el nuevo si la puerta re-emparejó)
+    // viaja a TODA la cadena v2.3: cada servicio se abre a mano con él
+    // (módulo `servicio`), con su respuesta cruda en el registro.
+    let escrow_bag = crate::probe::parse_pair_record(&pairing_bytes)
+        .ok()
+        .and_then(|r| r.escrow_bag);
     if gate.escrow_necesario {
-        stage("ETAPA sonda: aviso — el servicio SOLO abrió presentando el EscrowBag. La pila de instalación de la cadena pide sus servicios sin escrow: si su propia sonda se niega a continuación, la causa es esa y queda registrada arriba con la respuesta cruda (llevar el escrow a toda la cadena es el paso siguiente)");
+        stage("ETAPA sonda: el servicio SOLO abrió presentando el EscrowBag — la cadena v2.3 lo presenta en TODOS sus servicios (InstallationProxy, AFC, HouseArrest) desde el primer intento");
     }
 
     // ── Etapa: conexión (transporte fresco + hub + proveedor) ──────────────
@@ -245,10 +257,23 @@ pub fn run_sign_install(
         .map_err(|e| err("interno", format!("no se pudo crear el runtime: {}", e)))?;
 
     rt.block_on(async move {
-        run_chain(provider, hub, ipa_path, email, password, hay_red, vault, pairing_bytes).await
+        run_chain(
+            provider,
+            hub,
+            ipa_path,
+            email,
+            password,
+            hay_red,
+            vault,
+            pairing_bytes,
+            escrow_bag,
+            gate.escrow_necesario,
+        )
+        .await
     })
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn run_chain(
     provider: AnfitrionProvider,
     _hub: HubHandle,
@@ -258,21 +283,43 @@ async fn run_chain(
     hay_red: bool,
     vault: Arc<VaultHandle>,
     pairing_bytes: Vec<u8>,
+    escrow_bag: Option<Vec<u8>>,
+    escrow_necesario: bool,
 ) -> Result<(), StageErr> {
     // ── Etapa: sonda del canal de instalación (antes de pedir nada) ────────
-    stage("ETAPA sonda: probando el canal de instalación con tu pairing (InstallationProxy)…");
+    // v2.3: el servicio se abre A MANO con el EscrowBag presentado
+    // (`servicio::abrir_servicio`) — la respuesta cruda de Apple queda en el
+    // registro y, si se niega, el error trae su `Error` exacto, no el opaco
+    // «missing Port» del connect del crate.
+    stage("ETAPA sonda: probando el canal de instalación con tu pairing (InstallationProxy, apertura a mano con escrow)…");
+    let pairing_file = provider.get_pairing_file().await.map_err(|e| {
+        err(
+            "sonda",
+            format!("el registro de pairing no se pudo interpretar: {:?}", e),
+        )
+    })?;
     {
-        let mut inst = InstallationProxyClient::connect(&provider)
+        let stream = crate::servicio::abrir_servicio(
+            &provider,
+            &pairing_file,
+            crate::probe::SERVICE_INSTALL,
+            escrow_bag.as_deref(),
+            escrow_necesario,
+            "sonda",
+        )
+        .await
+        .map_err(|e| {
+            err(
+                "sonda",
+                format!(
+                    "el iPhone no abrió el servicio de instalación con el pairing de la bóveda: {}. Revisa que el iPhone esté desbloqueado y el cable firme.",
+                    e
+                ),
+            )
+        })?;
+        let mut inst = InstallationProxyClient::from_stream(stream)
             .await
-            .map_err(|e| {
-                err(
-                    "sonda",
-                    format!(
-                        "el iPhone no abrió el servicio de instalación con el pairing de la bóveda: {:?}. Revisa que el iPhone esté desbloqueado y el cable firme.",
-                        e
-                    ),
-                )
-            })?;
+            .map_err(|e| err("sonda", format!("InstallationProxy no respondió: {:?}", e)))?;
         let apps = inst
             .get_apps(Some("User"), None)
             .await
@@ -313,7 +360,16 @@ async fn run_chain(
             "ETAPA boveda: la bóveda cubre esta app (perfil válido, quedan {} días) — ruta SIN conexión",
             dias
         ));
-        offline_sign_install(&provider, ipa_path, &main_bundle, &vault).await?;
+        offline_sign_install(
+            &provider,
+            &pairing_file,
+            ipa_path,
+            &main_bundle,
+            &vault,
+            escrow_bag.as_deref(),
+            escrow_necesario,
+        )
+        .await?;
     } else {
         if !hay_red {
             let motivo = match info {
@@ -332,6 +388,7 @@ async fn run_chain(
         stage("ETAPA boveda: la app necesita la ruta con conexión (login → firma → cosecha a la bóveda)");
         online_sign_install(
             &provider,
+            &pairing_file,
             ipa_path,
             &main_bundle,
             &app_nombre,
@@ -339,13 +396,24 @@ async fn run_chain(
             password,
             &vault,
             &pairing_bytes,
+            escrow_bag.as_deref(),
+            escrow_necesario,
         )
         .await?;
     }
 
     // ── Etapa: depósito en Tienda Máximo (si es la app destino) ────────────
     if main_bundle == BUNDLE_TIENDA {
-        deposit_pairing_in_tienda(&provider, &main_bundle, &vault, &pairing_bytes).await;
+        deposit_pairing_in_tienda(
+            &provider,
+            &pairing_file,
+            &main_bundle,
+            &vault,
+            &pairing_bytes,
+            escrow_bag.as_deref(),
+            escrow_necesario,
+        )
+        .await;
     }
 
     stage("LISTO: app firmada e instalada en el iPhone.");
@@ -354,9 +422,25 @@ async fn run_chain(
 
 // ── Ruta con conexión ─────────────────────────────────────────────────────────
 
+/// El error de la etapa «firma» con el consejo según la causa (el mismo
+/// mapa que la v2.2 aplicaba al error único de `Sideloader::install_app`).
+fn err_firma(e: &dyn std::fmt::Display) -> StageErr {
+    let texto = format!("{}", e);
+    let baja = texto.to_lowercase();
+    let consejo = if baja.contains("app id") {
+        "tu cuenta gratis llegó al tope de App IDs de la semana (10): espera unos días o desinstala apps firmadas que no uses."
+    } else if baja.contains("device") && baja.contains("regist") {
+        "el iPhone no quedó registrado en tu equipo: reintenta la instalación."
+    } else {
+        "deja el iPhone desbloqueado y conectado y reintenta; si se repite, comparte el registro de etapas."
+    };
+    err("firma", format!("{} — {}", texto, consejo))
+}
+
 #[allow(clippy::too_many_arguments)]
 async fn online_sign_install(
     provider: &AnfitrionProvider,
+    pairing_file: &idevice::pairing_file::PairingFile,
     ipa_path: &str,
     main_bundle: &str,
     app_nombre: &str,
@@ -364,6 +448,8 @@ async fn online_sign_install(
     password: &str,
     vault: &Arc<VaultHandle>,
     pairing_bytes: &[u8],
+    escrow_bag: Option<&[u8]>,
+    escrow_necesario: bool,
 ) -> Result<(), StageErr> {
     // ── Etapa: anisette ────────────────────────────────────────────────────
     stage("ETAPA anisette: pidiendo la identidad de máquina (servidor remoto v3, ADI de Windows)…");
@@ -477,27 +563,51 @@ async fn online_sign_install(
         ))
         .max_certs_behavior(MaxCertsBehavior::Prompt(max_certs))
         .build();
+    // v2.3: `Sideloader::install_app` instalaba por dentro con el connect
+    // del crate (AFC + InstallationProxy SIN escrow y con la respuesta cruda
+    // descartada — la muerte de la v2.2). Aquí la instalación se descompone
+    // en los pasos públicos del propio Sideloader (info del dispositivo →
+    // registro en el equipo → `sign_app`) y el traslado lo hace
+    // `servicio::instalar_con_escrow`, presentando el EscrowBag en los dos
+    // servicios y registrando cada respuesta de Apple.
+    let device_info = isideload::util::device::IdeviceInfo::from_device(provider)
+        .await
+        .map_err(|e| err_firma(&e))?;
+    let team = sideloader.get_team().await.map_err(|e| err_firma(&e))?;
     sideloader
-        .install_app(
-            provider,
+        .get_dev_session()
+        .ensure_device_registered(&team, &device_info.name, &device_info.udid, None)
+        .await
+        .map_err(|e| err_firma(&e))?;
+    let (signed_app_path, _special) = sideloader
+        .sign_app(
             PathBuf::from(ipa_path),
+            Some(team),
             false,
             Some(progreso),
             Some(pairing_bytes),
+            Some(&device_info.udid),
         )
         .await
-        .map_err(|e| {
-            let texto = format!("{}", e);
-            let baja = texto.to_lowercase();
-            let consejo = if baja.contains("app id") {
-                "tu cuenta gratis llegó al tope de App IDs de la semana (10): espera unos días o desinstala apps firmadas que no uses."
-            } else if baja.contains("device") && baja.contains("regist") {
-                "el iPhone no quedó registrado en tu equipo: reintenta la instalación."
-            } else {
-                "deja el iPhone desbloqueado y conectado y reintenta; si se repite, comparte el registro de etapas."
-            };
-            err("firma", format!("{} — {}", texto, consejo))
-        })?;
+        .map_err(|e| err_firma(&e))?;
+    stage("ETAPA firma: app firmada — instalando por el cable (AFC + InstallationProxy con el EscrowBag presentado)…");
+    crate::servicio::instalar_con_escrow(
+        provider,
+        pairing_file,
+        &signed_app_path,
+        escrow_bag,
+        escrow_necesario,
+        |pct| {
+            if pct == 0 || pct == 35 || pct == 70 {
+                stage(&format!("ETAPA instalacion: progreso {}%", pct));
+            }
+        },
+    )
+    .await
+    .map_err(|e| err_firma(&e))?;
+    // Espejo del Sideloader (delete_app_after_install): el .app firmado vive
+    // en un temporal que se barre tras instalar.
+    let _ = std::fs::remove_dir_all(&signed_app_path);
     stage("ETAPA firma: app instalada en el iPhone");
 
     // ── Etapa: cosecha a la bóveda (equipo + certificado + perfil) ─────────
@@ -605,11 +715,15 @@ async fn harvest(
 
 // ── Ruta sin conexión ─────────────────────────────────────────────────────────
 
+#[allow(clippy::too_many_arguments)]
 async fn offline_sign_install(
     provider: &AnfitrionProvider,
+    pairing_file: &idevice::pairing_file::PairingFile,
     ipa_path: &str,
     main_bundle: &str,
     vault: &Arc<VaultHandle>,
+    escrow_bag: Option<&[u8]>,
+    escrow_necesario: bool,
 ) -> Result<(), StageErr> {
     stage("ETAPA firma: reconstruyendo la firma SOLO con la bóveda (sin red)…");
     let equipo_raw = vault
@@ -734,13 +848,20 @@ async fn offline_sign_install(
     .map_err(|e| err("firma", format!("la firma sin conexión falló: {}", e)))?;
     stage("ETAPA firma: app firmada con el material de la bóveda");
 
-    stage("ETAPA instalacion: subiendo la app por el cable (AFC + InstallationProxy)…");
+    stage("ETAPA instalacion: subiendo la app por el cable (AFC + InstallationProxy, apertura a mano con el EscrowBag presentado)…");
     let signed_dir = app.bundle.bundle_dir.clone();
-    install_app(provider, &signed_dir, |pct| {
-        if pct == 0 || pct == 35 || pct == 70 {
-            stage(&format!("ETAPA instalacion: subida {}%", pct));
-        }
-    })
+    crate::servicio::instalar_con_escrow(
+        provider,
+        pairing_file,
+        &signed_dir,
+        escrow_bag,
+        escrow_necesario,
+        |pct| {
+            if pct == 0 || pct == 35 || pct == 70 {
+                stage(&format!("ETAPA instalacion: subida {}%", pct));
+            }
+        },
+    )
     .await
     .map_err(|e| err("instalacion", format!("la instalación por el cable falló: {}", e)))?;
     stage("ETAPA instalacion: app instalada en el iPhone (sin haber tocado la red)");
@@ -811,11 +932,15 @@ fn profile_entitlements(bytes: &[u8]) -> Result<plist::Dictionary, String> {
 /// depositado en sus Documentos por HouseArrest (los nombres que SideStore
 /// lee). Solo tenemos el registro lockdown — en iOS 18 es el que Tienda
 /// Máximo consume; el depósito es informativo y nunca tumba la instalación.
+#[allow(clippy::too_many_arguments)]
 async fn deposit_pairing_in_tienda(
     provider: &AnfitrionProvider,
+    pairing_file: &idevice::pairing_file::PairingFile,
     main_bundle: &str,
     vault: &Arc<VaultHandle>,
     pairing_bytes: &[u8],
+    escrow_bag: Option<&[u8]>,
+    escrow_necesario: bool,
 ) {
     stage("ETAPA tienda: depositando tu registro de pairing dentro de Tienda Máximo (HouseArrest)…");
     let team_id = vault
@@ -832,7 +957,18 @@ async fn deposit_pairing_in_tienda(
     };
     let installed_id = format!("{}.{}", main_bundle, team_id);
     let result: Result<(), String> = async {
-        let casa = HouseArrestClient::connect(provider)
+        // HouseArrest también se abre a mano con el escrow (v2.3): es el
+        // servicio que más lo necesita — toca contenedores de apps.
+        let stream = crate::servicio::abrir_servicio(
+            provider,
+            pairing_file,
+            crate::servicio::SERVICE_HOUSE_ARREST,
+            escrow_bag,
+            escrow_necesario,
+            "tienda",
+        )
+        .await?;
+        let casa = HouseArrestClient::from_stream(stream)
             .await
             .map_err(|e| format!("{:?}", e))?;
         let mut afc = casa

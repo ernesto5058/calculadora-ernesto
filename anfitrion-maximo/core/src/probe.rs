@@ -26,6 +26,15 @@
 //! La cadena solo se declara vencida cuando las cuatro vías quedaron
 //! registradas con su respuesta exacta. Si alguna abre el servicio, la
 //! cadena sigue por su camino normal (el provider del crate).
+//!
+//! **v2.3** suma dos piezas de diagnóstico/ciclo de vida:
+//! - **StopSession**: cuando un intento abre el servicio, la sesión lockdown
+//!   de ESE intento se cierra como manda el protocolo (antes se abandonaba
+//!   al caer la conexión) — discrimina la hipótesis de la sesión zombi.
+//! - **Réplica del crate**: tras pasar la puerta, se corre en conexión nueva
+//!   la secuencia EXACTA de `idevice` (sin QueryType, StartService sin Label
+//!   y sin escrow) registrando su respuesta cruda — discrimina si la forma
+//!   de la petición del crate es la causa de su negativa en la cadena.
 
 use std::io::{Read, Write};
 use std::sync::Arc;
@@ -314,6 +323,66 @@ fn tls_config(rec: &PairRecordInfo) -> Result<ClientConfig, String> {
     Ok(config)
 }
 
+// ── StopSession (v2.3): cerrar la sesión como manda el protocolo ────────────
+
+/// El `SessionID` de la respuesta cruda de StartSession, si vino.
+fn session_id_de(xml: &str) -> Option<String> {
+    let value: plist::Value = plist::from_bytes(xml.as_bytes()).ok()?;
+    value
+        .as_dictionary()?
+        .get("SessionID")?
+        .as_string()
+        .map(|s| s.to_string())
+}
+
+/// `StopSession` con el SessionID de la conexión: espejo del
+/// `stop_session` del crate, construido con el crate `plist`.
+pub fn stop_session_xml(session_id: &str) -> String {
+    let mut dict = plist::Dictionary::new();
+    dict.insert(
+        "Label".into(),
+        plist::Value::String("iphone-wasm".into()),
+    );
+    dict.insert(
+        "Request".into(),
+        plist::Value::String("StopSession".into()),
+    );
+    dict.insert(
+        "SessionID".into(),
+        plist::Value::String(session_id.to_string()),
+    );
+    let value = plist::Value::Dictionary(dict);
+    let mut buf: Vec<u8> = Vec::new();
+    match value.to_writer_xml(&mut buf) {
+        Ok(()) => String::from_utf8_lossy(&buf).to_string(),
+        Err(_) => String::new(),
+    }
+}
+
+/// Cierra la sesión lockdown de este intento tras un StartService con
+/// puerto. Es de cortesía protocolaria: su fallo jamás tumba el intento
+/// (la sesión cae con la conexión de todas formas), pero queda registrado.
+fn cerrar_sesion(
+    pipe: &mut MuxPipe,
+    rec: &PairRecordInfo,
+    con_ssl: bool,
+    session_id: &Option<String>,
+) {
+    let Some(id) = session_id else {
+        return;
+    };
+    match pedir_servicio(pipe, rec, con_ssl, &stop_session_xml(id)) {
+        Ok(resp) => stage(&format!(
+            "ETAPA sonda: StopSession enviado (la sesión de este intento queda cerrada) — respuesta cruda: {}",
+            resumen_crudo(&resp)
+        )),
+        Err(e) => stage(&format!(
+            "ETAPA sonda: aviso — el StopSession no se pudo enviar ({}); la sesión cae con la conexión",
+            e
+        )),
+    }
+}
+
 // ── Un intento completo sobre una conexión lockdown ──────────────────────────
 
 pub struct Intento {
@@ -400,6 +469,7 @@ fn intento(pipe: &mut MuxPipe, rec: &PairRecordInfo) -> Intento {
 
     // El StartService viaja por TLS si la sesión lo encendió, o en claro.
     let con_ssl = start_session_enable_ssl(&ss);
+    let session_id = session_id_de(&ss);
 
     // StartService directo.
     match pedir_servicio(pipe, rec, con_ssl, &start_service_xml(SERVICE_INSTALL)) {
@@ -410,6 +480,7 @@ fn intento(pipe: &mut MuxPipe, rec: &PairRecordInfo) -> Intento {
             ));
             if let Ok((port, _ssl)) = parse_start_service_response(&resp) {
                 out.port = Some(port);
+                cerrar_sesion(pipe, rec, con_ssl, &session_id);
                 return out;
             }
             let e = parse_lockdown_error_string(&resp)
@@ -444,6 +515,7 @@ fn intento(pipe: &mut MuxPipe, rec: &PairRecordInfo) -> Intento {
                     if let Ok((port, _ssl)) = parse_start_service_response(&resp) {
                         out.port = Some(port);
                         out.abrio_con_escrow = true;
+                        cerrar_sesion(pipe, rec, con_ssl, &session_id);
                         return out;
                     }
                     let e = parse_lockdown_error_string(&resp)
@@ -547,11 +619,26 @@ pub struct GateOk {
     pub puerto: u16,
 }
 
+/// La puerta completa: corre las vías 1–4 y, si alguna abre, remata con la
+/// réplica del crate (diagnóstico permanente de la v2.3; jamás tumba la
+/// puerta — su resultado solo se registra).
+pub fn gate(
+    fd: i32,
+    vault: &VaultHandle,
+    pairing_bytes: &mut Vec<u8>,
+) -> Result<GateOk, StageErr> {
+    let out = gate_vias(fd, vault, pairing_bytes)?;
+    if let Ok(rec) = parse_pair_record(pairing_bytes) {
+        replica_crate(fd, &rec);
+    }
+    Ok(out)
+}
+
 /// Corre la sonda manual completa. Si el re-pair renueva el registro,
 /// `pairing_bytes` queda actualizado y la bóveda sellada con el nuevo.
 /// Error = las cuatro vías registradas y vencidas, con el `Error` de Apple
 /// de cada una en el mensaje.
-pub fn gate(
+fn gate_vias(
     fd: i32,
     vault: &VaultHandle,
     pairing_bytes: &mut Vec<u8>,
@@ -754,6 +841,152 @@ pub fn gate(
     ))
 }
 
+// ── Réplica del crate (v2.3): la secuencia EXACTA de idevice, registrada ────
+
+fn dict_xml(d: plist::Dictionary) -> String {
+    let value = plist::Value::Dictionary(d);
+    let mut buf: Vec<u8> = Vec::new();
+    match value.to_writer_xml(&mut buf) {
+        Ok(()) => String::from_utf8_lossy(&buf).to_string(),
+        Err(_) => String::new(),
+    }
+}
+
+/// **El discriminador de la hipótesis H2 del diagnóstico, como diagnóstico
+/// permanente:** tras pasar la puerta, repite en una conexión nueva la
+/// secuencia EXACTA que `idevice` corre dentro de la cadena — GetValue en
+/// claro SIN QueryType previo, StartSession con el Label del provider, y un
+/// StartService `{Request, Service}` SIN Label y SIN EscrowBag — y registra
+/// la respuesta cruda. Si la réplica abre, la forma del crate es inocente y
+/// el fallo vive en otra capa (el hub); si se niega, su `Error` dice cuál
+/// pieza de la forma pesa. Nunca devuelve error: es un diagnóstico.
+fn replica_crate(fd: i32, rec: &PairRecordInfo) {
+    stage("ETAPA sonda: réplica del crate — pruebo su secuencia exacta (sin QueryType · StartService sin Label y sin escrow) en conexión nueva pa discriminar la causa de su negativa…");
+    let mut transport = match crate::pair::open_mux_transport(fd, "") {
+        Ok(t) => t,
+        Err((etapa, msg)) => {
+            stage(&format!(
+                "ETAPA sonda: la réplica no pudo abrir transporte («{}»: {}) — queda sin correr",
+                etapa, msg
+            ));
+            return;
+        }
+    };
+    let eps = transport.endpoints();
+    let mut pipe = match MuxPipe::connect(&mut transport, eps, LOCKDOWND_PORT) {
+        Ok(p) => p,
+        Err(e) => {
+            stage(&format!(
+                "ETAPA sonda: la réplica no pudo abrir la sesión mux ({}) — queda sin correr",
+                e
+            ));
+            return;
+        }
+    };
+
+    // GetValue en claro, sin QueryType antes (así entra el crate).
+    let mut gv = plist::Dictionary::new();
+    gv.insert(
+        "Label".into(),
+        plist::Value::String("anfitrion-maximo".into()),
+    );
+    gv.insert("Request".into(), plist::Value::String("GetValue".into()));
+    gv.insert(
+        "Key".into(),
+        plist::Value::String("ProductVersion".into()),
+    );
+    match pipe.request(&dict_xml(gv)) {
+        Ok(r) => stage(&format!(
+            "ETAPA sonda: réplica — respuesta GetValue cruda: {}",
+            resumen_crudo(&r)
+        )),
+        Err(e) => {
+            stage(&format!(
+                "ETAPA sonda: la réplica murió en el GetValue ({}) — la forma ni siquiera llegó a hablar",
+                e
+            ));
+            return;
+        }
+    }
+
+    // StartSession con el Label del provider, como el crate.
+    let mut ss = plist::Dictionary::new();
+    ss.insert(
+        "Label".into(),
+        plist::Value::String("anfitrion-maximo".into()),
+    );
+    ss.insert(
+        "Request".into(),
+        plist::Value::String("StartSession".into()),
+    );
+    ss.insert("HostID".into(), plist::Value::String(rec.host_id.clone()));
+    ss.insert(
+        "SystemBUID".into(),
+        plist::Value::String(rec.system_buid.clone()),
+    );
+    let ss_resp = match pipe.request(&dict_xml(ss)) {
+        Ok(r) => r,
+        Err(e) => {
+            stage(&format!(
+                "ETAPA sonda: la réplica murió en su StartSession ({})",
+                e
+            ));
+            return;
+        }
+    };
+    stage(&format!(
+        "ETAPA sonda: réplica — respuesta StartSession cruda: {}",
+        resumen_crudo(&ss_resp)
+    ));
+    if let Some(e) = parse_lockdown_error_string(&ss_resp) {
+        stage(&format!(
+            "ETAPA sonda: réplica — Apple dijo «{}» en el StartSession del crate: su sesión ni abre por esta vía",
+            e
+        ));
+        return;
+    }
+    let con_ssl = start_session_enable_ssl(&ss_resp);
+
+    // StartService SIN Label y SIN EscrowBag: el dict pelado del crate.
+    let mut sv = plist::Dictionary::new();
+    sv.insert(
+        "Request".into(),
+        plist::Value::String("StartService".into()),
+    );
+    sv.insert(
+        "Service".into(),
+        plist::Value::String(SERVICE_INSTALL.into()),
+    );
+    match pedir_servicio(&mut pipe, rec, con_ssl, &dict_xml(sv)) {
+        Ok(resp) => {
+            stage(&format!(
+                "ETAPA sonda: réplica — respuesta StartService cruda: {}",
+                resumen_crudo(&resp)
+            ));
+            if let Ok((port, _)) = parse_start_service_response(&resp) {
+                stage(&format!(
+                    "ETAPA sonda: réplica — el crate SÍ abriría por su forma (puerto {}): la forma de su petición es INOCENTE; su negativa en la cadena vive en otra capa (el hub o la sesión reutilizada)",
+                    port
+                ));
+            } else {
+                let e = parse_lockdown_error_string(&resp)
+                    .unwrap_or_else(|| "respuesta sin Port y sin clave Error".to_string());
+                stage(&format!(
+                    "ETAPA sonda: réplica — el crate se niega con «{}» ({}) usando SOLO su forma: queda discriminado en vivo",
+                    e,
+                    interpretacion(clase_error(&e))
+                ));
+            }
+        }
+        Err(e) => {
+            stage(&format!(
+                "ETAPA sonda: la réplica murió en transporte pidiendo el servicio ({})",
+                e
+            ));
+        }
+    }
+}
+
 // ── Bancos ────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
@@ -840,6 +1073,32 @@ mod tests {
         assert_eq!(clase_error("InvalidPairRecord"), ClaseError::Registro);
         assert_eq!(clase_error("InvalidService"), ClaseError::Servicio);
         assert_eq!(clase_error("AlgoRaro"), ClaseError::Otro);
+    }
+
+    #[test]
+    fn stop_session_xml_lleva_la_sesion() {
+        let xml = stop_session_xml("SESION-42");
+        let value: plist::Value = plist::from_bytes(xml.as_bytes()).unwrap();
+        let dict = value.as_dictionary().unwrap();
+        assert_eq!(
+            dict.get("Request").unwrap().as_string().unwrap(),
+            "StopSession"
+        );
+        assert_eq!(
+            dict.get("SessionID").unwrap().as_string().unwrap(),
+            "SESION-42"
+        );
+    }
+
+    #[test]
+    fn session_id_se_extrae_de_la_respuesta() {
+        let xml = r#"<?xml version="1.0" encoding="UTF-8"?>
+<plist version="1.0"><dict>
+<key>EnableSessionSSL</key><true/>
+<key>SessionID</key><string>ABC-123</string>
+</dict></plist>"#;
+        assert_eq!(session_id_de(xml).as_deref(), Some("ABC-123"));
+        assert_eq!(session_id_de("<plist></plist>"), None);
     }
 
     #[test]

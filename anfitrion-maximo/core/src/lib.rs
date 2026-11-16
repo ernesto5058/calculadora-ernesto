@@ -31,6 +31,7 @@ mod pair;
 mod probe;
 mod provider;
 mod record;
+mod servicio;
 mod signinstall;
 mod transport;
 mod vault;
@@ -92,6 +93,30 @@ pub fn stage(msg: &str) {
             }
         }
     }
+}
+
+/// Todas las líneas del registro de etapas tal cual viven en el sink, en
+/// orden (v2.3: el seguro del registro — ver `nativeStageLines`).
+pub fn stage_lines() -> Vec<String> {
+    sink()
+        .lock()
+        .unwrap_or_else(|p| p.into_inner())
+        .lines
+        .clone()
+}
+
+/// `RustBridge.nativeStageLines()` → el registro de etapas COMPLETO del sink,
+/// una línea por renglón. La UI lo usa al terminar la cadena pa añadir las
+/// líneas que el callback `onStage` haya perdido por el camino (dedupe por
+/// contador en Kotlin): ninguna línea cruda depende ya de un solo callback
+/// con fallos tragados.
+#[no_mangle]
+pub extern "system" fn Java_com_maximo_anfitrion_RustBridge_nativeStageLines(
+    mut env: JNIEnv,
+    _class: JClass,
+) -> jstring {
+    let text = stage_lines().join("\n");
+    jstring_out(&mut env, text)
 }
 
 fn reset_sink(env: &mut JNIEnv, logger: &JObject) {

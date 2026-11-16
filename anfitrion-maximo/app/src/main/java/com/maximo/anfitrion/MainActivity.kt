@@ -48,7 +48,15 @@ import org.json.JSONObject
 
 /** Recibe las etapas del núcleo Rust (JNI) y las pasa a la UI. */
 class StageLogger(private val cb: (String) -> Unit) {
+    /** Líneas entregadas por el callback en ESTA corrida (dedupe del seguro
+     *  del registro: al terminar la cadena se compara contra el total del
+     *  sink de Rust — `nativeStageLines` — y se añaden las que falten). */
+    @Volatile
+    var entregadas: Int = 0
+        private set
+
     fun onStage(line: String) {
+        entregadas++
         cb(line)
     }
 }
@@ -95,6 +103,13 @@ object RustBridge {
         fd: Int, ipaPath: String, email: String, password: String,
         hayRed: Boolean, tfaBridge: TfaBridge, logger: StageLogger
     ): String
+
+    /**
+     * El registro de etapas COMPLETO tal cual vive en el sink de Rust
+     * (v2.3, seguro del registro): al terminar la cadena, la UI añade las
+     * líneas que el callback `onStage` haya perdido por el camino.
+     */
+    external fun nativeStageLines(): String
 }
 
 /**
@@ -860,10 +875,24 @@ class MainActivity : Activity() {
                             "ERROR::usb::el descriptor del iPhone salió inválido (fd < 0)"
                         } else {
                             val logger = StageLogger { line -> appendLog(line) }
-                            RustBridge.nativeSignInstall(
+                            val res = RustBridge.nativeSignInstall(
                                 fd, ipa.absolutePath, email, password,
                                 hayRed(), tfaBridge, logger
                             )
+                            // Seguro del registro (v2.3): si el callback
+                            // onStage perdió alguna línea del núcleo, aquí
+                            // se añaden las que faltan (dedupe por contador
+                            // de entregadas contra el total del sink).
+                            try {
+                                val todas = RustBridge.nativeStageLines()
+                                    .split("\n").filter { it.isNotEmpty() }
+                                for (linea in todas.drop(logger.entregadas)) {
+                                    appendLog(linea)
+                                }
+                            } catch (e: Exception) {
+                                // El seguro jamás tumba la cadena.
+                            }
+                            res
                         }
                     } finally {
                         connection.close()
