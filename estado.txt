@@ -6,3 +6,7 @@
 [18:01:44] AVD creado (t+179s)
 [18:02:24] Emulador arrancado (t+219s desde el inicio del script)
 [18:02:38] Tunel listo (t+233s)
+[18:02:40] Descargando la APK muse-v16...
+[18:02:57] APK instalada: Muse-oficial-16.apk (t+252s)
+[18:02:59] App lanzada: com.facebook.aura
+[18:03:10] App abierta en su puerta; foto publicada
