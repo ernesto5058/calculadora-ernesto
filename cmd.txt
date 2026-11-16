@@ -1,7 +1,2 @@
-adb shell input tap 540 1462
+adb shell input tap 300 1355
 sleep 2
-adb shell input tap 628 2258
-sleep 4
-adb exec-out screencap -p > $RUNNER_TEMP/vivo-out/shots/chat.png
-adb shell input tap 803 2258
-sleep 4
