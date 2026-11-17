@@ -355,8 +355,12 @@
   .stChip.rev { background: rgba(76,195,255,.12); color: var(--mt-azul-claro); }
   .stChip.no { background: var(--rojo-suave); color: var(--rojo); }
   .pagoTot { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
-  .pagoTot .pt { flex: 1; min-width: 100px; background: var(--bg-0); border: 1px solid var(--borde); border-radius: 14px; padding: 10px 12px; text-align: center; }
-  .pagoTot .pt .n { font-family: var(--fuente-num); font-variant-numeric: tabular-nums; font-size: 22px; font-weight: 700; }
+  /* D1 (v38): la caja puede encoger (min-width:0; el mínimo de 100px
+     desbordaba la tarjeta) y el número va en una línea con el tamaño que
+     le pone pintarPago según su longitud — a 22px fijos «$1,200.00»
+     medía 119px contra 77px de caja y se cortaba (Ojo 2026-11-17). */
+  .pagoTot .pt { flex: 1; min-width: 0; overflow: hidden; background: var(--bg-0); border: 1px solid var(--borde); border-radius: 14px; padding: 10px 8px; text-align: center; }
+  .pagoTot .pt .n { font-family: var(--fuente-num); font-variant-numeric: tabular-nums; font-size: 22px; font-weight: 700; white-space: nowrap; }
   .pagoTot .pt .l { color: var(--txt-2); font-size: 12px; line-height: 1.35; }
   .pagoRow { padding: 12px 2px; border-bottom: 1px solid var(--linea); font-size: 15px; line-height: 1.55; }
   .pagoRow:last-child { border-bottom: none; }
@@ -3900,6 +3904,23 @@ function pagoLineaGanado(v){
   return "<br>Ganado en esta vuelta: <b>" + fmt(gc + gp) + "</b> (comisión " + fmt(gc) + " + premio por venta " + fmt(gp) + ") · Entregado: <b>" + fmt(ent) + "</b>"
     + (pend > 0 ? " · Te falta por recibir: <b>" + fmt(pend) + "</b>" : " · Nada pendiente de entrega.");
 }
+/* D1 (v38): tamaño de las cifras de .pagoTot según la longitud del
+   importe más largo DE LA FILA (las 3 cajitas al mismo tamaño). A 22px
+   fijos «$1,200.00» medía 119px contra 77px interiores de caja y se
+   cortaba (Ojo 2026-11-17). Avance tabular mono: 0,60 em/carácter;
+   interior de caja 85px → fs = 84/(0,63·n) garantiza que cabe hasta
+   $999,999.00 (12px), sin bajar del mínimo legible del sistema. */
+function pagoTotFs(n){
+  var fs = Math.floor(84 / (0.63 * Math.max(1, n)));
+  return Math.max(12, Math.min(22, fs));
+}
+function pagoTotHtml(celdas, estilo){
+  var n = celdas.reduce(function(a, c){ return Math.max(a, String(c[0]).length); }, 0);
+  var fs = pagoTotFs(n);
+  return '<div class="pagoTot"' + (estilo || "") + '>' + celdas.map(function(c){
+    return '<div class="pt"><div class="n" style="font-size:' + fs + 'px">' + c[0] + '</div><div class="l">' + c[1] + '</div></div>';
+  }).join("") + '</div>';
+}
 function pintarPago(){
   var tot = $("mp_totales"), bs = $("mp_saldo"), bt = $("mp_transf");
   if (!tot || !bs || !bt) return;
@@ -3908,20 +3929,22 @@ function pintarPago(){
   var vt = PAGO.vueltas.filter(function(v){ return v.tipo === "transferencia"; });
   function suma(arr, k){ return arr.reduce(function(a, v){ return a + (Number(v[k]) || 0); }, 0); }
   var aseg = suma(PAGO.vueltas, "fijo"), prem = suma(PAGO.vueltas, "premio"), pag = suma(PAGO.vueltas, "total");
-  tot.innerHTML = '<div class="pagoTot">'
-    + '<div class="pt"><div class="n">' + fmt(aseg) + '</div><div class="l">Lo asegurado (tuyo pase lo que pase)</div></div>'
-    + '<div class="pt"><div class="n">' + fmt(prem) + '</div><div class="l">Premio por venta ya pagado (dependía de la venta)</div></div>'
-    + '<div class="pt"><div class="n">' + fmt(pag) + '</div><div class="l">Ya te pagaron en total</div></div></div>';
+  tot.innerHTML = pagoTotHtml([
+    [fmt(aseg), "Lo asegurado (tuyo pase lo que pase)"],
+    [fmt(prem), "Premio por venta ya pagado (dependía de la venta)"],
+    [fmt(pag), "Ya te pagaron en total"]
+  ]);
   var gan = $("mp_ganado");
   if (gan) {
     if (PAGO.ganado_comision !== undefined && PAGO.ganado_comision !== null) {
       var gcT = Number(PAGO.ganado_comision) || 0, gpT = Number(PAGO.ganado_premio) || 0;
       var entT = Number(PAGO.entregado) || 0;
       var pendT = (PAGO.pendiente_entrega !== undefined && PAGO.pendiente_entrega !== null) ? Number(PAGO.pendiente_entrega) : (gcT + gpT - entT);
-      gan.innerHTML = '<div class="pagoTot" style="margin-top:10px">'
-        + '<div class="pt"><div class="n">' + fmt(gcT + gpT) + '</div><div class="l">Ganado en total (comisión ' + fmt(gcT) + ' + premio por venta ' + fmt(gpT) + ')</div></div>'
-        + '<div class="pt"><div class="n">' + fmt(entT) + '</div><div class="l">Entregado (Ernesto te lo puso en la mano y lo confirmó)</div></div>'
-        + '<div class="pt"><div class="n">' + fmt(Math.max(0, pendT)) + '</div><div class="l">' + (pendT > 0 ? "Te falta por recibir" : "Nada pendiente de entrega") + '</div></div></div>'
+      gan.innerHTML = pagoTotHtml([
+        [fmt(gcT + gpT), "Ganado en total (comisión " + fmt(gcT) + " + premio por venta " + fmt(gpT) + ")"],
+        [fmt(entT), "Entregado (Ernesto te lo puso en la mano y lo confirmó)"],
+        [fmt(Math.max(0, pendT)), pendT > 0 ? "Te falta por recibir" : "Nada pendiente de entrega"]
+      ], ' style="margin-top:10px"')
         + '<div class="hint">Ganado es lo que el sistema calculó; entregado solo cuenta cuando el efectivo cambió de mano de verdad y Ernesto lo confirma.</div>';
     } else gan.innerHTML = "";
   }
