@@ -555,6 +555,91 @@ select.numIn { text-align:left; font:500 16px var(--fuente); height:52px; }
 .recibo .recTramo:last-child { border-bottom:0; }
 .recibo .recTramo b { color:var(--txt-1); font-variant-numeric:tabular-nums; white-space:nowrap; }
 .recibo .recNota { font:var(--t-nota); color:var(--ambar); margin-top:var(--e-2); line-height:1.45; }
+/* ===== ENTREGAR DINERO · DIRECCIÓN DE ARTE (v35, 2026-11-16, segundo
+   veredicto del dueño: la v34 quedó «muy sencilla… ¿acaso no tienes
+   gusto?») — la sobriedad sin riqueza se veía vacía. Esta capa trae
+   DIRECCIÓN, no más restraint, con referencias nombradas:
+   · Revolut (detalle de pago): identidad primero — medallón con
+     iniciales + nombre — y detalles en filas rotuladas.
+   · Cash App (monto héroe): el monto ES la pantalla — mono tabular
+     gigante, tracking negativo, la moneda pequeña y ligera.
+   · Mercury (densidad elegante): capas con respiro, disciplina
+     tipográfica, el color solo significa estado o dinero.
+   · Apple Wallet (documento): el recibo como pase — cabecera de
+     marca, banda de total, perforación de ticket y sello-cuño.
+   SOLO presentación: ni un id, ni una puerta, ni una clase de
+   lógica se toca (dnAcciones/dnIrReparto/dnIrComision, entc*,
+   .recibo y sus hijos conservan nombre y contrato). */
+/* --- Banda héroe de la tarjeta: el total por entregar manda --- */
+.dnHero { position:relative; overflow:hidden; background:linear-gradient(158deg, var(--bg-3) 0%, var(--bg-2) 58%, var(--bg-1) 100%); border:1px solid var(--borde-fuerte); border-radius:var(--r-md); padding:var(--e-4); margin:var(--e-3) 0; box-shadow:inset 0 1px 0 rgba(255,255,255,.05), var(--sombra-1); }
+.dnHero::after { content:""; position:absolute; inset:0; background:radial-gradient(260px 130px at 88% -10%, rgba(45,212,191,.16), rgba(45,212,191,0) 70%); pointer-events:none; }
+.dnHeroLbl { position:relative; z-index:1; font:600 11px var(--fuente); letter-spacing:.09em; text-transform:uppercase; color:var(--txt-3); }
+.dnHeroNum { position:relative; z-index:1; font:800 40px/1.1 var(--fuente-num); font-variant-numeric:tabular-nums; letter-spacing:-.02em; color:var(--txt-1); margin-top:var(--e-1); }
+.dnHeroNum small { font:600 14px var(--fuente); color:var(--txt-3); letter-spacing:.04em; }
+.dnChips { position:relative; z-index:1; display:flex; flex-wrap:wrap; gap:var(--e-2); margin-top:var(--e-3); }
+.dnChip { display:inline-flex; align-items:center; gap:6px; padding:6px 10px; border-radius:999px; font:500 12px var(--fuente); color:var(--txt-2); border:1px solid var(--borde); background:rgba(255,255,255,.03); }
+.dnChip b { font:700 12.5px var(--fuente-num); font-variant-numeric:tabular-nums; }
+.dnChipT { background:var(--acento-suave); border-color:var(--acento-borde); }
+.dnChipT b { color:var(--acento); }
+.dnChipO { background:var(--dorado-suave); border-color:var(--dorado-borde); }
+.dnChipO b { color:var(--dorado-claro); }
+/* --- Filas de acción con más cuerpo: medallón en degradado --- */
+.accFila { padding:14px var(--e-4); background:linear-gradient(165deg, var(--bg-3), var(--bg-2)); box-shadow:inset 0 1px 0 rgba(255,255,255,.04), var(--sombra-1); }
+.accFila .accIco { width:44px; height:44px; border-radius:var(--r-md); background:linear-gradient(145deg, rgba(45,212,191,.22), rgba(56,189,248,.08)); box-shadow:inset 0 0 0 1px var(--acento-borde); }
+.accFila .accIco svg { width:22px; height:22px; }
+.accFila .accTx b { font-size:16px; }
+.accFila .accChev { stroke:var(--acento); }
+/* --- Fila de identidad: el buscador es una PERSONA, no un campo --- */
+.dnPends { margin-top:var(--e-2); }
+.pendId { align-items:center; padding:var(--e-3) 0; }
+.dnMed { flex:0 0 auto; display:inline-flex; }
+.dnMed .avatar { width:46px; height:46px; font-size:17px; box-shadow:0 0 0 2px var(--bg-1), 0 0 0 3.5px var(--borde-fuerte), 0 4px 10px rgba(2,4,8,.35); }
+.dnMed.g .avatar { width:50px; height:50px; font-size:19px; }
+.pendTx { flex:1; min-width:0; display:flex; flex-direction:column; gap:2px; }
+.pendNom { font:600 15px var(--fuente); color:var(--txt-1); display:flex; align-items:center; gap:var(--e-2); flex-wrap:wrap; }
+.pendDet { font:var(--t-nota); color:var(--txt-3); line-height:1.45; }
+.pendId .cant { font-size:19px; }
+/* --- Hoja: cabecera de identidad + monto héroe --- */
+.hojaId { display:flex; align-items:center; gap:var(--e-3); padding:var(--e-3); margin-top:var(--e-3); background:linear-gradient(165deg, var(--bg-3), var(--bg-2)); border:1px solid var(--borde); border-radius:var(--r-md); box-shadow:inset 0 1px 0 rgba(255,255,255,.04); }
+.hojaIdTx { flex:1; min-width:0; display:flex; flex-direction:column; gap:2px; }
+.hojaIdNom { font:700 16px var(--fuente); color:var(--txt-1); display:flex; align-items:center; gap:var(--e-2); flex-wrap:wrap; }
+.hojaIdDat { font:var(--t-nota); color:var(--txt-3); }
+.hojaIdPend { flex:0 0 auto; text-align:right; display:flex; flex-direction:column; gap:1px; }
+.hojaIdPend b { font:700 20px var(--fuente-num); font-variant-numeric:tabular-nums; color:var(--ambar); letter-spacing:-.01em; }
+.hojaIdPend b small { font:600 11px var(--fuente); color:var(--txt-3); }
+.hojaIdPend span { font:600 10px var(--fuente); letter-spacing:.08em; text-transform:uppercase; color:var(--txt-3); }
+.hojaChips { margin-top:var(--e-3); }
+.selPro { background:linear-gradient(170deg, var(--bg-3), var(--bg-2)); border-color:var(--borde-fuerte); }
+.montoHero { background:var(--bg-2); border:1px solid var(--borde-fuerte); border-radius:var(--r-md); padding:var(--e-2); box-shadow:inset 0 1px 0 rgba(255,255,255,.04); }
+.montoHero .montoIn { background:var(--bg-1); border-color:transparent; height:60px; font:800 30px var(--fuente-num); letter-spacing:-.02em; }
+.montoHero .step { height:60px; width:48px; background:var(--bg-1); font-size:24px; }
+/* --- Recibo como DOCUMENTO: marca, sello-cuño, banda y perforación --- */
+.recibo { padding:0; overflow:hidden; background:linear-gradient(172deg, var(--bg-3) 0%, var(--bg-2) 46%, var(--bg-1) 100%); border-radius:var(--r-lg); box-shadow:0 10px 28px rgba(2,4,8,.35), inset 0 1px 0 rgba(255,255,255,.05); }
+.recDocTop { display:flex; align-items:center; justify-content:space-between; gap:var(--e-2); padding:var(--e-3) var(--e-4); border-bottom:1px solid var(--linea); }
+.recMarca { display:inline-flex; align-items:center; gap:var(--e-2); font:700 12px var(--fuente); letter-spacing:.06em; text-transform:uppercase; color:var(--txt-1); }
+.recMarca i { font-style:normal; display:inline-flex; align-items:center; justify-content:center; width:24px; height:24px; border-radius:7px; background:var(--acento-grad); color:#06231F; font:800 11px var(--fuente); letter-spacing:0; }
+.recDocTit { font:600 10.5px var(--fuente); letter-spacing:.12em; text-transform:uppercase; color:var(--txt-3); }
+.recCuerpo { display:flex; align-items:center; gap:var(--e-3); padding:var(--e-4); }
+.recIdTx { flex:1; min-width:0; display:flex; flex-direction:column; gap:2px; }
+.recIdTx b { font:700 17px var(--fuente); color:var(--txt-1); }
+.recIdTx .recDe { margin-top:0; }
+.recSello { position:relative; flex:0 0 auto; width:86px; height:86px; border-radius:50%; border:2px solid var(--verde); color:var(--verde); background:rgba(47,191,113,.08); box-shadow:0 4px 14px rgba(2,4,8,.30); display:flex; align-items:center; justify-content:center; text-align:center; font:800 10px var(--fuente); letter-spacing:.13em; transform:rotate(-7deg); padding:6px; }
+.recSello::before { content:""; position:absolute; inset:5px; border-radius:50%; border:1.5px solid rgba(47,191,113,.50); pointer-events:none; }
+.recibo.parcial .recSello { border-color:var(--ambar); color:var(--ambar); background:rgba(240,185,11,.08); }
+.recibo.parcial .recSello::before { border-color:rgba(240,185,11,.50); }
+.recBanda { display:flex; align-items:baseline; justify-content:space-between; gap:var(--e-3); padding:var(--e-3) var(--e-4); background:rgba(47,191,113,.08); border-top:1px solid var(--linea); border-bottom:1px solid var(--linea); }
+.recibo.parcial .recBanda { background:rgba(240,185,11,.08); }
+.recBandaLbl { font:600 10.5px var(--fuente); letter-spacing:.11em; text-transform:uppercase; color:var(--txt-3); }
+.recibo .recMonto { margin-top:0; font:800 32px var(--fuente-num); letter-spacing:-.02em; }
+.recPerf { position:relative; border-top:2px dashed rgba(148,197,220,.20); margin:var(--e-3) 0 0; }
+.recPerf::before, .recPerf::after { content:""; position:absolute; top:-8px; width:16px; height:16px; border-radius:50%; background:var(--bg-1); }
+.recPerf::before { left:-9px; } .recPerf::after { right:-9px; }
+.recibo .recTramos { margin-top:0; padding:var(--e-2) var(--e-4) var(--e-1); }
+.recibo .recTramo { align-items:center; padding:8px 0; }
+.recIdx { flex:0 0 auto; width:21px; height:21px; border-radius:50%; border:1px solid var(--borde-fuerte); color:var(--txt-3); font:600 11px var(--fuente-num); display:inline-flex; align-items:center; justify-content:center; margin-right:var(--e-2); }
+.recTramoTx { flex:1; min-width:0; }
+.recibo .recNota { margin:0; padding:0 var(--e-4) var(--e-3); }
+.recPie { display:flex; align-items:center; justify-content:space-between; gap:var(--e-2); padding:var(--e-3) var(--e-4); border-top:1px solid var(--linea); font:var(--t-nota); color:var(--txt-3); }
 </style><script>window.SENTRY_CASA={app:"minegocio",version:"v23",dsn:"https://1454ae292cfdb8e358e88ec3d1fc1547@o4512419765354496.ingest.us.sentry.io/4512419769876480"};</script>
 <script defer crossorigin="anonymous" integrity="sha384-48iagrZwMa6wkDoJKNyCk4jgMHcOcsBK/DzZAJInl1ZhtunellJDCRNZuomfHefF" src="https://browser.sentry-cdn.com/8.38.0/bundle.min.js"></script>
 </head><body>
@@ -5045,7 +5130,7 @@ var MN_VERSION = "v29";
    chat. Formato: «Mi Negocio · versión 2026-11-11 HH:MM · caché v6»
    (fecha Y HORA de la publicación, para distinguir dos subidas
    del mismo día). La hora es la de Cuba (CST) al compilar. */
-var MN_COMPILACION = "2026-11-16 21:49";
+var MN_COMPILACION = "2026-11-16 22:03";
 function selloVersion(){ return "Mi Negocio · versión " + MN_COMPILACION + " · " + MN_VERSION + " · PRO"; }
 var regSW = null;
 var swConControladorAlArrancar = false;
@@ -6915,20 +7000,58 @@ function buscadoresConPendienteMN(est){
 function irAEnDineroMN(id){
   setTimeout(function(){ var n = $(id); if (n && n.scrollIntoView) n.scrollIntoView({ behavior: "smooth", block: "start" }); }, 40);
 }
+/* Identidad viva del buscador pa las filas-persona (v35): su medallón
+   con el color de SU perfil, su pill de estrellas y su dato vivo
+   (cupo y capital en la calle) — lo que ya trae la foto del dinero,
+   sin tocar ni una puerta. */
+function identidadBuscadorMN(cod, est){
+  var pill = "", datos = [];
+  ((est && est.estrellas) || []).forEach(function(s){
+    if (String(s.buscador || "") === String(cod) && s.estrellas !== null && s.estrellas !== undefined)
+      pill = '<span class="pill pOk">' + fmtEstrella(s.estrellas) + '★</span>';
+  });
+  ((est && est.asignaciones) || []).forEach(function(a){
+    if (String(a.buscador || "") === String(cod) && a.porciento !== null && a.porciento !== undefined)
+      datos.push('cupo ' + esc(String(a.porciento)) + ' %');
+  });
+  var calle = 0;
+  ((est && est.entregas) || []).forEach(function(e){
+    if (String(e.buscador || "") === String(cod)) calle += Math.max(0, Number(e.pendiente || 0));
+  });
+  if (calle > 0) datos.push(fmtE(calle) + ' CUP en la calle');
+  return { pill: pill, datos: datos.join(' · ') };
+}
+function medallonBuscadorMN(cod, nombre, grande){
+  return '<span class="dnMed' + (grande ? ' g' : '') + '">' + avatarHtml(nombre, (perfilDe(cod) || {}).avatar_color, null) + '</span>';
+}
 function accionesDineroHtml(enMano, est){
   var ICO = '<span class="secIco">' + icono("dinero") + '</span>';
   var CHEV = '<svg class="accChev" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg>';
-  var h = '<div class="card" id="dnAcciones"><h3>' + ICO + 'Entregar dinero</h3>'
-    + '<div class="ayuda">Las dos entregas que haces a mano: capital pa que el buscador trabaje, y la comisión que ya ganó, cuando el efectivo cambia de mano.</div>'
-    + '<button class="accFila" id="dnIrReparto"><span class="accIco">' + icono("cambio") + '</span><span class="accTx"><b>Repartir capital a un buscador</b><small>Sale de tu mano — hoy tienes ' + fmtE(enMano) + ' CUP — y entra al cupo de quien elijas; él lo ve en su Mi Trabajo.</small></span>' + CHEV + '</button>'
-    + '<button class="accFila" id="dnIrComision"><span class="accIco">' + icono("dinero") + '</span><span class="accTx"><b>Registrar entrega de comisión</b><small>Anota el efectivo que ya le pusiste en la mano a quien ganó su comisión o su premio por venta.</small></span>' + CHEV + '</button>';
   var conPend = buscadoresConPendienteMN(est);
+  var h = '<div class="card" id="dnAcciones"><h3>' + ICO + 'Entregar dinero</h3>'
+    + '<div class="ayuda">Las dos entregas que haces a mano: capital pa que el buscador trabaje, y la comisión que ya ganó, cuando el efectivo cambia de mano.</div>';
+  if (ciclosFotoMN !== null && conPend.length) {
+    var tC = 0, tP = 0, tT = 0;
+    conPend.forEach(function(b){ tC += b.comision; tP += b.premio; tT += b.total; });
+    h += '<div class="dnHero"><div class="dnHeroLbl">Total por entregar' + (conPend.length > 1 ? ' · ' + conPend.length + ' buscadores' : '') + '</div>'
+      + '<div class="dnHeroNum">' + fmtE(tT) + ' <small>CUP</small></div>'
+      + '<div class="dnChips">'
+      + (tC > 0 ? '<span class="dnChip dnChipT">Comisión <b>' + fmtE(tC) + '</b></span>' : '')
+      + (tP > 0 ? '<span class="dnChip dnChipO">Premio por venta <b>' + fmtE(tP) + '</b></span>' : '')
+      + '</div></div>';
+  }
+  h += '<button class="accFila" id="dnIrReparto"><span class="accIco">' + icono("cambio") + '</span><span class="accTx"><b>Repartir capital a un buscador</b><small>Sale de tu mano — hoy tienes ' + fmtE(enMano) + ' CUP — y entra al cupo de quien elijas; él lo ve en su Mi Trabajo.</small></span>' + CHEV + '</button>'
+    + '<button class="accFila" id="dnIrComision"><span class="accIco">' + icono("dinero") + '</span><span class="accTx"><b>Registrar entrega de comisión</b><small>Anota el efectivo que ya le pusiste en la mano a quien ganó su comisión o su premio por venta.</small></span>' + CHEV + '</button>';
   if (ciclosFotoMN === null) h += '<div class="ayuda" style="margin-top:var(--e-3)">Leyendo lo que debes entregar a cada buscador…</div>';
   else if (!conPend.length) h += '<div class="ayuda" style="margin-top:var(--e-3)">Ahora mismo no le debes comisión ni premio a nadie: todo lo ganado ya está entregado.</div>';
-  else h += '<div style="margin-top:var(--e-2)">' + conPend.map(function(b){
-      return '<div class="pendFila"><span class="quien">A <b>' + esc(b.nombre) + '</b> le debes entregar'
-        + (b.comision && b.premio ? '<br><span class="detalle">comisión ' + fmtE(b.comision) + ' + premio por venta ' + fmtE(b.premio) + '</span>' : (b.premio ? ' <span class="detalle">(premio por venta)</span>' : ' <span class="detalle">(comisión)</span>'))
-        + '</span><span class="cant">' + fmtE(b.total) + ' <small>CUP</small></span></div>';
+  else h += '<div class="dnPends">' + conPend.map(function(b){
+      var idn = identidadBuscadorMN(b.cod, est);
+      return '<div class="pendFila pendId">' + medallonBuscadorMN(b.cod, b.nombre, false)
+        + '<span class="pendTx"><span class="pendNom">' + esc(b.nombre) + (idn.pill ? ' ' + idn.pill : '') + '</span>'
+        + '<span class="pendDet">le debes entregar · '
+        + (b.comision && b.premio ? 'comisión ' + fmtE(b.comision) + ' + premio por venta ' + fmtE(b.premio) : (b.premio ? 'premio por venta' : 'comisión'))
+        + (idn.datos ? ' · ' + esc(idn.datos) : '') + '</span></span>'
+        + '<span class="cant">' + fmtE(b.total) + ' <small>CUP</small></span></div>';
     }).join("") + '</div>';
   if (entregaHojaMN) h += entregaHojaHtml(est);
   return h + '</div>';
@@ -6950,9 +7073,19 @@ function entregaHojaHtml(est){
   if (clave !== entregaHojaClaveMN) { entregaHojaClaveMN = clave; delete mnBorradores["entcMonto"]; }
   var pendTipo = tipo === "premio" ? p.premio : p.comision;
   var medioGuardado = mnBorrador("entcMedio");
+  var idnH = identidadBuscadorMN(sel.cod, est);
+  var idHeader = '<div class="hojaId">' + medallonBuscadorMN(sel.cod, sel.nombre, true)
+    + '<span class="hojaIdTx"><span class="hojaIdNom">' + esc(sel.nombre) + (idnH.pill ? ' ' + idnH.pill : '') + '</span>'
+    + (idnH.datos ? '<span class="hojaIdDat">' + esc(idnH.datos) + '</span>' : '') + '</span>'
+    + '<span class="hojaIdPend"><b>' + fmtE(sel.total) + ' <small>CUP</small></b><span>por entregar</span></span></div>'
+    + '<div class="dnChips hojaChips">'
+    + (p.comision > 0 ? '<span class="dnChip dnChipT">Comisión <b>' + fmtE(p.comision) + '</b></span>' : '')
+    + (p.premio > 0 ? '<span class="dnChip dnChipO">Premio por venta <b>' + fmtE(p.premio) + '</b></span>' : '')
+    + '</div>';
   return '<div class="hojaIn">'
     + '<div class="hojaTit2">Registrar entrega</div>'
     + '<div class="ayuda">Anota aquí el efectivo que YA le pusiste en la mano; el libro lo marca ENTREGADO y su pendiente baja.</div>'
+    + idHeader
     + '<label for="entcBuscador">Buscador</label>'
     + '<select class="selPro" id="entcBuscador">'
     + conPend.map(function(b){ return '<option value="' + esc(b.cod) + '"' + (b.cod === sel.cod ? " selected" : "") + '>' + esc(b.nombre) + ' · le debes ' + fmtE(b.total) + ' CUP</option>'; }).join("") + '</select>'
@@ -6962,7 +7095,7 @@ function entregaHojaHtml(est){
     + (p.premio > 0 ? '<option value="premio"' + (tipo === "premio" ? " selected" : "") + '>Premio por venta · pendiente ' + fmtE(p.premio) + ' CUP</option>' : '')
     + '</select>'
     + '<label for="entcMonto">Monto entregado</label>'
-    + '<div class="stepRow alta"><button class="step" data-step="-100" data-step-para="entcMonto" aria-label="Quitar 100">−</button>'
+    + '<div class="stepRow alta montoHero"><button class="step" data-step="-100" data-step-para="entcMonto" aria-label="Quitar 100">−</button>'
     + '<input type="text" class="numIn montoIn" id="entcMonto" inputmode="numeric" placeholder="Monto en CUP" value="' + esc(mnBorrador("entcMonto") || (pendTipo ? String(pendTipo) : "")) + '">'
     + '<button class="step" data-step="100" data-step-para="entcMonto" aria-label="Sumar 100">+</button></div>'
     + '<div class="ayuda">Viene lleno con todo el pendiente de ese tipo; cámbialo si le entregaste menos. Si el monto cruza varios ciclos, se reparte solo del más viejo al más nuevo y al final te enseña el desglose.</div>'
@@ -7018,13 +7151,17 @@ function registrarEntregaBuscadorMN(){
       if (e2) e2.textContent = "No se registró nada: " + (falloEn && falloEn.motivo === "red" ? "falló la conexión" : motivoEntregaTxtMN(falloEn)) + ". Nada cambió.";
       return;
     }
-    var tramos = hechos.map(function(x){ return '<div class="recTramo"><span>' + (x.fecha ? 'Ciclo de ' + fechaHoraTxt(x.fecha) : 'Ciclo') + '</span><b>' + fmtE(x.monto) + ' CUP</b></div>'; }).join("");
+    var tramos = hechos.map(function(x, i){ return '<div class="recTramo"><span class="recIdx">' + (i + 1) + '</span><span class="recTramoTx">' + (x.fecha ? 'Ciclo de ' + fechaHoraTxt(x.fecha) : 'Ciclo') + '</span><b>' + fmtE(x.monto) + ' CUP</b></div>'; }).join("");
     entregaHojaResMN = '<div class="recibo' + (falloEn ? ' parcial' : '') + '">'
-      + '<div class="recTop"><span class="pill pOk">REGISTRADO</span><span class="recMedio">' + (medio === "efectivo" ? "En efectivo" : "Por transferencia") + '</span></div>'
-      + '<div class="recMonto">' + fmtE(suma) + ' <small>CUP</small></div>'
-      + '<div class="recDe">de ' + (tipo === "premio" ? "premio por venta" : "comisión") + ' a <b>' + esc(nombre) + '</b></div>'
+      + '<div class="recDocTop"><span class="recMarca"><i>MN</i>Mi Negocio</span><span class="recDocTit">Recibo de entrega</span></div>'
+      + '<div class="recCuerpo">' + medallonBuscadorMN(cod, nombre, true)
+      + '<span class="recIdTx"><b>' + esc(nombre) + '</b><span class="recDe">de ' + (tipo === "premio" ? "premio por venta" : "comisión") + '</span></span>'
+      + '<span class="recSello">' + (falloEn ? 'PARCIAL' : 'REGISTRADO') + '</span></div>'
+      + '<div class="recBanda"><span class="recBandaLbl">Total entregado</span><span class="recMonto">' + fmtE(suma) + ' <small>CUP</small></span></div>'
+      + '<div class="recPerf"></div>'
       + (hechos.length > 1 ? '<div class="recTramos">' + tramos + '</div>' : '')
       + (falloEn ? '<div class="recNota">El resto (' + fmtE(monto - suma) + ' CUP) NO entró: ' + (falloEn.motivo === "red" ? "falló la conexión" : motivoEntregaTxtMN(falloEn)) + '.</div>' : '')
+      + '<div class="recPie"><span>' + (medio === "efectivo" ? "En efectivo" : "Por transferencia") + '</span><span>' + fechaHoraTxt(new Date().toISOString()) + '</span></div>'
       + '</div>';
     cargarDineroMN();
   });
