@@ -340,7 +340,7 @@
    base: sin costo, el número NO se inventa (se explica qué falta).
    ===================================================================== */
 const MERCADO_VERSION = "v2";
-const SELLO = "Mercado · versión 2026-11-15 08:29 · caché v4";
+const SELLO = "Mercado · versión 2026-11-16 22:25 · caché v5";
 const SB_URL = "https://otsudfgwpapkluusrlnj.supabase.co";
 const SB_KEY = "sb_publishable_Uchl5QnojJkZbXR5ar8vDg_5CXnqi_d"; // pública: solo lee por las puertas de mercado
 const LS_CLAVE = "mercado_cache_v1";
@@ -744,6 +744,26 @@ function lineaSenal(f) {
     '<div class="t-nota" style="color:var(--txt-3);margin-top:var(--e-1)">Foto ' + hora(f.recibida_en) + ' · vale hasta la próxima foto · toca para ver el Analista</div></button>';
 }
 
+/* v5 · Sugerencia pa la oferta A MANO (barrido lateral de la tarjeta
+   permanente del Asesor de Mi Negocio, CHEQUEO 126): con la puerta en
+   pausa, el precio sale de la foto — tasa = mejor venta del libro (la
+   regla determinista de la Mesa) y margen con la tarifa viva. El
+   TAMAÑO no se firma aquí: esta app lee por mercado_ultima_foto, que
+   no trae posición (línea/libro), y duplicar la regla de firmeza en
+   dos sitios es la deriva que la casa prohíbe — el vendible exacto,
+   con el peaje descontado, lo firma la tarjeta de Mi Negocio. */
+function sugerenciaManualHtml() {
+  const u = S.datos && S.datos.ultima ? S.datos.ultima : {};
+  const f = u.foto;
+  if (!f || num(f.etecsa_top_venta) === null) return "";
+  if (edadMin(f.recibida_en) > 20) return '<p class="t-nota" style="color:var(--ambar);margin-top:var(--e-2)">Pa crearla a mano: esta foto ya pasó de 20 minutos — espera la próxima pa usar su precio.</p>';
+  const tasa = num(f.etecsa_top_venta);
+  const salida = u.tarifa ? num(u.tarifa.salida_ref) : null;
+  const costo = u.config ? num(u.config.costo_ref360) : null;
+  let h = '<p class="t-sub" style="color:var(--txt-2);margin:var(--e-2) 0 0">Pa crearla <b>a mano</b> en QvaPay: vende <b>todo tu saldo vendible</b> a <b>' + fmtTasa(tasa) + '</b> saldo por QUSD (la mejor venta del libro · foto ' + hora(f.recibida_en) + ')</p>';
+  if (salida && costo) h += '<p class="t-nota" style="color:var(--txt-3);margin-top:var(--e-1)">Margen por recarga de 360 a esa tasa: ' + fmt(360 / tasa * salida - costo, 2) + ' CUP (tarifa viva: costo ' + fmt(costo, 0) + ' · salida ' + fmt(salida, 0) + '). El tamaño exacto — tu vendible con los 5 del peaje de ETECSA descontados — te lo firma la tarjeta del Asesor en Mi Negocio (Mercado).</p>';
+  return h;
+}
 function tarjetaControl() {
   const ac = accionesActual();
   let interior = "";
@@ -754,6 +774,7 @@ function tarjetaControl() {
   } else if (ac.pausadas) {
     interior = '<div class="etiqueta" style="color:var(--ambar)">ACCIONES EN PAUSA · FRENO DE SEGURIDAD</div>' +
       '<p class="t-sub" style="color:var(--txt-2);margin:var(--e-2) 0">' + esc(ac.pausa_motivo || "El freno pausó las acciones.") + '</p>' +
+      sugerenciaManualHtml() +
       '<button type="button" class="btn dorado bloque" id="btnReanudar">Reanudar acciones</button>';
   } else {
     interior = '<div class="etiqueta">BOTÓN BLINDADO · ACTIVO</div>' +
