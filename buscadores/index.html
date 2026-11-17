@@ -368,6 +368,20 @@
   .cicloBtns button:active { transform: scale(.98); }
   .cicloBtns button:disabled { opacity: .55; cursor: wait; }
   .cicloBtns .rango { display: block; font-size: 13px; font-weight: 400; color: var(--txt-2); margin-top: 2px; }
+  /* Oleada PRO v37 · cadena de dinero: PLANO premium (sin 3D, sin
+     degradados decorativos): un paso de tono + hairline, cifras
+     tabulares, el color solo significa estado. */
+  .cadenaPRO { background: var(--bg-0); border: 1px solid var(--borde); border-radius: 14px; padding: 12px 14px; margin-top: 10px; }
+  .cadenaPRO > b { font-size: 15px; }
+  .cadenaPasos { color: var(--txt-2); font-size: 13.5px; line-height: 1.5; margin: 4px 0 6px; }
+  .cadenaFila { display: flex; justify-content: space-between; gap: 12px; padding: 5px 0; border-top: 1px solid var(--linea); font-size: 14.5px; }
+  .cadenaFila span { color: var(--txt-2); }
+  .cadenaFila b { font-family: var(--fuente-num); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .cadenaFila.total b { font-size: 17px; }
+  .cadenaNota { color: var(--txt-2); font-size: 13.5px; line-height: 1.5; margin-top: 6px; }
+  .topeBar { height: 10px; border-radius: 999px; background: rgba(0,0,0,.10); margin-top: 10px; overflow: hidden; }
+  .topeFill { height: 100%; border-radius: 999px; background: var(--dorado); }
+  .topeAviso { background: var(--ambar-suave); color: var(--txt-1); border: 1px solid rgba(176,125,16,.35); border-radius: 12px; padding: 10px 12px; font-size: 14px; line-height: 1.5; margin-top: 10px; }
   .adjScrim { display: none; position: fixed; inset: 0; z-index: 55; background: rgba(10,12,16,.42); }
   .adjScrim.abierta { display: block; }
   .adjHojaPRO { position: fixed; left: 0; right: 0; bottom: 0; top: auto; margin: 0 auto; max-width: 560px; z-index: 56; border-radius: 20px 20px 0 0; padding: 10px 10px calc(14px + env(safe-area-inset-bottom)); }
@@ -451,7 +465,7 @@
       <h2><svg class="ic" aria-hidden="true"><use href="#i-phone"/></svg> Saldo — ¿cuánto cobro?</h2>
       <div class="hint">Cobras <b>tu % según tus estrellas</b> del excedente de cada recarga de 360 que consigas. Tu nivel y tu % viven en «Mi panel».</div>
       <button type="button" class="hintBtn" data-hint="h_calc_s">ⓘ ¿Cómo se calcula?</button>
-      <div class="hintFull hide" id="h_calc_s">Consigues una recarga de 360 y cobras tu % según tus estrellas del excedente: lo que se gana por encima del precio que pagaste. Pon el precio que lograste y la app te dice tu parte al momento. Entre más barato consigas la recarga, más cobras tú.</div>
+      <div class="hintFull hide" id="h_calc_s">Consigues una recarga de 360 y cobras tu % según tus estrellas del excedente: lo que se gana por encima del precio que pagaste. Pon el precio que lograste y la app te dice tu parte estimada al momento; tu pago final se cuadra por ciclo en «Mi pago», con la cadena completa de tu ciclo. Entre más barato consigas la recarga, más cobras tú.</div>
       <label>Precio que conseguiste por la recarga de 360 (CUP)</label>
       <input type="number" id="s_precio" inputmode="decimal" placeholder="Ej: 950">
       <div class="chips">
@@ -472,9 +486,9 @@
 
     <div class="card">
       <h2><svg class="ic" aria-hidden="true"><use href="#i-bank"/></svg> Transferencia — ¿cuánto cobro?</h2>
-      <div class="hint">Cobras <b>tu % según tus estrellas</b> de la ganancia de la vuelta completa, cuando la vuelta cierra. Tu nivel y tu % viven en «Mi panel».</div>
+      <div class="hint">Esta calculadora te da un <b>estimado al momento</b> con tu % según tus estrellas. Tu pago final no sale de aquí: se cuadra <b>por ciclo</b> en «Mi pago», con la cadena completa de tu ciclo. Tu nivel y tu % viven en «Mi panel».</div>
       <button type="button" class="hintBtn" data-hint="h_calc_t">ⓘ ¿Cómo se calcula?</button>
-      <div class="hintFull hide" id="h_calc_t">Traes a una persona conocida que cambia efectivo por transferencia. Cobras tu % según tus estrellas de la ganancia de la vuelta completa, cuando la vuelta cierra. Solo se aceptan tratos <b>al 25% o más</b>: por debajo, la app te avisa y no hay trato.</div>
+      <div class="hintFull hide" id="h_calc_t">Traes a una persona conocida que cambia efectivo por transferencia. La calculadora estima tu comisión con tu % según tus estrellas; tu pago final se cuadra por ciclo en «Mi pago»: ganancia de tu ciclo → tu % del ciclo → redondeo a la decena (el 5 baja) → menos lo que se recupera → lo que te pagan. Solo se aceptan tratos <b>al 25% o más</b>: por debajo, la app te avisa y no hay trato.</div>
       <label>Efectivo que entrega la persona (CUP)</label>
       <input type="number" id="t_ef" inputmode="decimal" placeholder="Ej: 5000">
       <label>¿Al cuánto es el trato? (<span id="t_pct_lab">30</span>%)</label>
@@ -709,7 +723,7 @@
     <button type="button" class="volverBtn" id="mp_volver"><svg class="ic" aria-hidden="true"><use href="#i-back"/></svg> Mi panel</button>
     <div class="card">
       <h2><svg class="ic" aria-hidden="true"><use href="#i-cash"/></svg> Mi pago</h2>
-      <div class="hint">Tu pago por vuelta, en claro: lo <b>asegurado</b> es tuyo pase lo que pase con la venta; el <b>premio por venta</b> depende de cómo se venda, y aquí ves también lo que <b>ya te pagaron</b>.</div>
+      <div class="hint">Tu pago por vuelta, en claro: lo <b>asegurado</b> es tuyo pase lo que pase con la venta; el <b>premio por venta</b> depende de cómo se venda, y aquí ves también lo que <b>ya te pagaron</b>. En cada ciclo ves además tu <b>cadena de pago</b> completa — ganancia de tu ciclo → tu % → redondeo a la decena (el 5 baja) → menos lo que se recupera → lo que te pagan —, tu <b>por recuperar</b> si quedó un cuadre de un ciclo anterior, y tu <b>avance contra el tope</b> del ciclo: exactamente lo mismo que ve Ernesto, con tus números.</div>
       <div class="warn" id="mp_warn"></div>
       <div id="mp_totales"></div>
       <div id="mp_ganado"></div>
@@ -1084,7 +1098,7 @@ function calcTransf(){
   }
   ok.style.display = "none"; res.style.display = "block";
   $("t_fee").textContent = fmt(r.fee);
-  $("t_det").innerHTML = "La persona recibe " + fmtN(r.recibe) + " por transferencia · la vuelta gana " + fmtN(r.ganancia) + " CUP · tu " + esc(T.pctTransf) + "% = tu comisión.<br>Se paga cuando la vuelta cierra.";
+  $("t_det").innerHTML = "La persona recibe " + fmtN(r.recibe) + " por transferencia · la vuelta gana " + fmtN(r.ganancia) + " CUP · tu " + esc(T.pctTransf) + "% = tu comisión estimada.<br>Tu pago final se cuadra por ciclo en «Mi pago», con la cadena completa de tu ciclo.";
 }
 
 /* ===== Sesión: login único con validación real ===== */
@@ -1252,7 +1266,7 @@ function tarifaText(){
     : TARIFA_FUENTE === "publicada" ? "<b>Tarifa publicada</b> (respaldo: la viva no respondió)"
     : "<b>⚠ RESPALDO</b> — tarifa guardada en la app, sin conexión: puede estar vieja";
   return fuente + (DATA.actualizado ? " (" + esc(DATA.actualizado) + ")" : "") +
-    " · Saldo: cobras el <b>" + T.pctSaldo + "%</b> del excedente · Transferencia: el <b>" + T.pctTransf + "%</b> de la ganancia, mínimo al <b>" + T.pisoTransf + "%</b>" +
+    " · Saldo: estimas cobrar el <b>" + T.pctSaldo + "%</b> del excedente · Transferencia: el <b>" + T.pctTransf + "%</b> de la ganancia, mínimo al <b>" + T.pisoTransf + "%</b> · Es un estimado: tu pago final se cuadra por ciclo en «Mi pago»" +
     " · Bonos: <b>" + fmt(T.bonoSaldoMonto) + "</b> con " + T.bonoSaldoMeta + " recargas/semana · <b>" + fmt(T.bonoTransfMonto) + "</b> con " + T.bonoTransfMeta + " tratos/semana";
 }
 
@@ -3659,6 +3673,7 @@ function fmtFechaCorta(iso){
   return d.getDate() + " de " + meses[d.getMonth()] + " · " + p(d.getHours()) + ":" + p(d.getMinutes());
 }
 function estadoEspera(e){
+  if (e.estado === "fuera_de_ciclo" || e.fuera_de_ciclo === true || e.excedido === true) return { txt: "Fuera de ciclo, a revisar con Ernesto", cls: "rev" };
   if (e.estado === "abierta") return { txt: "Esperando que llegue el SMS", cls: "esp" };
   if (e.estado === "cumplida") return { txt: "Asentada", cls: "okk" };
   if (e.estado === "vencida") return { txt: "Ernesto la está revisando", cls: "rev" };
@@ -3704,9 +3719,11 @@ function pintarEsperas(){
     var tasa = (e.tipo === "saldo" && e.tasa_pactada)
       ? "<br>Tasa de tu parte: " + fmtMilesT3(Math.round(Number(e.tasa_pactada) * 360)) + " CUP por recarga de 360" : "";
     var vueltas = Number(e.vueltas) > 0 ? "<br>De esta espera nació tu vuelta." : "";
+    var fuera = (e.estado === "fuera_de_ciclo" || e.fuera_de_ciclo === true || e.excedido === true)
+      ? '<div class="topeAviso">Esta compra pasó el tope de tu ciclo y quedó <b>fuera de ciclo, a revisar con Ernesto</b>. No se perdió ni se asentó en silencio: queda marcada para cuadrarla con él.</div>' : "";
     return '<div class="espRow"><div class="espTop"><b>' + (e.tipo === "saldo" ? "Vuelta de saldo" : "Vuelta de transferencia") + '</b>'
       + '<span class="stChip ' + st.cls + '">' + st.txt + '</span></div>'
-      + '<div class="espDet">' + monto + tasa + vueltas + "<br>" + fmtFechaCorta(e.creada_en) + "</div></div>";
+      + '<div class="espDet">' + monto + tasa + vueltas + "<br>" + fmtFechaCorta(e.creada_en) + "</div>" + fuera + "</div>";
   }).join("");
 }
 function esperasCacheSet(){ try { localStorage.setItem("busc_esperas_cache", JSON.stringify({ codigo: SESION, datos: ESPERAS })); } catch(e){} }
@@ -3747,12 +3764,17 @@ function enviarParte(){
     btn.disabled = false;
     if (r && r.ok) {
       okEl.style.display = "block";
-      okEl.textContent = "Parte enviado: tu espera nació por " + fmtMilesT3(r.cantidad_esperada) + (esSaldo ? " de saldo." : " CUP de transferencia.") + " Cuando llegue su prueba, se asienta sola y la ves aquí como «Asentada».";
+      okEl.textContent = (r.fuera_de_ciclo === true || r.excedido === true)
+        ? "Parte enviado, pero pasó el tope de tu ciclo: quedó fuera de ciclo, a revisar con Ernesto. Queda marcado para cuadrarlo con él, sin asentarse en silencio."
+        : "Parte enviado: tu espera nació por " + fmtMilesT3(r.cantidad_esperada) + (esSaldo ? " de saldo." : " CUP de transferencia.") + " Cuando llegue su prueba, se asienta sola y la ves aquí como «Asentada».";
       $("ep_total").value = ""; if (esSaldo) $("ep_tasa").value = ""; else $("ep_pct").value = "";
       cargarEsperas();
     } else if (r && r.motivo === "supera_tu_efectivo") {
       if (ESPERAS) { ESPERAS.libre = r.libre; ESPERAS.en_mano = r.en_mano; ESPERAS.comprometido = r.comprometido; pintarEsperas(); }
       fallo("Te pasas de tu efectivo: según el servidor tienes " + fmtMilesT3(r.libre) + " CUP libres para operar. Revisa el total: no se creó ninguna espera.");
+    } else if (r && (r.motivo === "fuera_de_ciclo" || r.motivo === "supera_tope_ciclo" || r.motivo === "tope_ciclo")) {
+      cargarEsperas();
+      fallo("Ese parte pasa el tope de tu ciclo: quedó fuera de ciclo, a revisar con Ernesto. No se asentó en silencio: queda marcado para cuadrarlo con él.");
     } else if (r && r.motivo === "tasa_invalida") fallo("Esa tasa no vale: tiene que ser mayor que cero.");
     else fallo("No se pudo enviar el parte ahora. Revisa tu conexión y tócalo otra vez: no se creó ninguna espera.");
   });
@@ -3766,7 +3788,7 @@ function pagoCacheGet(){
 }
 function pagoLineaPremio(v){
   var premio = Number(v.premio) || 0, redondeo = Number(v.redondeo) || 0;
-  if (premio > 0) return "Premio por venta: ya te pagaron <b>" + fmt(premio) + "</b> por la venta" + (redondeo > 0 ? " (con " + fmt(redondeo) + " de ajuste en efectivo)" : "") + ".";
+  if (premio > 0) return "Premio por venta: ya te pagaron <b>" + fmt(premio) + "</b> por la venta" + (redondeo > 0 ? " (con " + fmt(redondeo) + " de ajuste de redondeo ya aplicado en ese pago)" : "") + ".";
   if (v.estado === "vendido_sin_premio") return "Premio por venta: esta vuelta se vendió sin dejarlo.";
   return "Premio por venta: todavía depende de la venta — se sabe cuando Ernesto venda.";
 }
@@ -3774,7 +3796,96 @@ function pagoFilaHtml(v){
   return '<div class="pagoRow"><span class="prF">' + fmtFechaCorta(v.creada_en) + "</span><br>"
     + "Lo asegurado: <b>" + fmt(Number(v.fijo) || 0) + "</b> · es tuyo pase lo que pase con la venta.<br>"
     + pagoLineaPremio(v) + "<br>Ya te pagaron en total: <b>" + fmt(Number(v.total) || 0) + "</b>"
-    + pagoLineaGanado(v) + pagoLineaCiclo(v) + "</div>";
+    + pagoLineaGanado(v) + pagoLineaCadena(v) + pagoLineaRecuperar(v) + pagoLineaTope(v) + pagoLineaCiclo(v) + "</div>";
+}
+/* ===== OLEADA PRO · CADENA DE DINERO (v37 · MT2 portadora) =====
+   El buscador ve EXACTAMENTE lo mismo que ve Ernesto, con sus
+   números: los campos vienen de pago_mi_estado por liquidación
+   (reparto / por_recuperar / tope, contrato congelado 2026-11-17).
+   MT2 (corrección tras supervisora, mecanismo SERVIDOR-PRO2 §4):
+   esos tres bloques viajan SOLO en la liquidación portadora de la
+   entrega — la de mayor (creada_en, id) — marcada con
+   reparto_portador: true; las demás traen los tres en null y
+   reparto_portador: false. La app los lee ÚNICAMENTE de la
+   portadora: la cadena se enseña UNA vez por entrega, no por
+   vuelta. Sin portadora (payload viejo), no se pinta ningún bloque
+   de reparto/por-recuperar/tope y no se inventa ninguna cifra.
+   Si un campo no viene, su bloque NO se pinta: la app degrada sin
+   romperse y jamás inventa una cifra. Nada se recalcula aquí: la
+   cadena solo enseña los números que manda el servidor. */
+function pagoEsPortadora(v){
+  return !!(v && v.reparto_portador === true);
+}
+function fmtPctPRO(n){
+  var s = String(Number(n));
+  return s.replace(".", ",");
+}
+function pagoLineaCadena(v){
+  if (!pagoEsPortadora(v)) return "";
+  if (!v || !v.reparto || typeof v.reparto !== "object") return "";
+  var r = v.reparto;
+  if (r.ganancia_ciclo === undefined || r.ganancia_ciclo === null) return "";
+  /* es_proyeccion: true (ciclo abierto) = proyección, no resta
+     recuperación y el pago NO es firme. Firme solo con false. */
+  var esProy = r.es_proyeccion !== false;
+  var pct = (r.pct_buscador !== undefined && r.pct_buscador !== null) ? fmtPctPRO(r.pct_buscador) : "26,2";
+  var h = '<div class="cadenaPRO"><b>Tu cadena de pago de este ciclo' + (esProy ? ' (proyección)' : '') + '</b>'
+    + '<div class="cadenaPasos">ganancia de tu ciclo → tu ' + pct + '% → redondeo a la decena (el 5 baja)' + (esProy ? ' → lo que te pagarían (proyección)' : ' → menos lo que se recupera → lo que te pagan') + '</div>';
+  h += '<div class="cadenaFila"><span>Ganancia de tu ciclo</span><b>' + fmt(Number(r.ganancia_ciclo) || 0) + '</b></div>';
+  if (r.comision_bruta !== undefined && r.comision_bruta !== null)
+    h += '<div class="cadenaFila"><span>Tu ' + pct + '% de esa ganancia</span><b>' + fmt(Number(r.comision_bruta) || 0) + '</b></div>';
+  if (r.comision_redondeada !== undefined && r.comision_redondeada !== null)
+    h += '<div class="cadenaFila"><span>Tras el redondeo a la decena (el 5 baja)</span><b>' + fmt(Number(r.comision_redondeada) || 0) + '</b></div>';
+  if (r.recuperacion_aplicada !== undefined && r.recuperacion_aplicada !== null && (Number(r.recuperacion_aplicada) || 0) > 0)
+    h += '<div class="cadenaFila"><span>Menos lo que se recupera en este ciclo</span><b>−' + fmt(Number(r.recuperacion_aplicada) || 0) + '</b></div>';
+  if (r.pago_buscador !== undefined && r.pago_buscador !== null)
+    h += '<div class="cadenaFila total"><span>' + (esProy ? 'Lo que te pagarían (proyección)' : 'Lo que te pagan') + '</span><b>' + fmt(Number(r.pago_buscador) || 0) + '</b></div>';
+  if (esProy)
+    h += '<div class="cadenaNota">Es una proyección: tu ciclo sigue abierto y todavía no se resta lo que se recupera. El pago firme se sabe cuando el ciclo cierre.</div>';
+  if ((r.libre_ernesto !== undefined && r.libre_ernesto !== null) || (r.reinversion_fondo !== undefined && r.reinversion_fondo !== null)) {
+    h += '<div class="cadenaNota">El resto de la ganancia también tiene su camino, el mismo que ve Ernesto:';
+    if (r.libre_ernesto !== undefined && r.libre_ernesto !== null)
+      h += ' la parte libre de Ernesto es <b>' + fmt(Number(r.libre_ernesto) || 0) + '</b>' + ((r.pct_libre !== undefined && r.pct_libre !== null) ? ' (su ' + fmtPctPRO(r.pct_libre) + '%)' : '');
+    if (r.reinversion_fondo !== undefined && r.reinversion_fondo !== null)
+      h += (r.libre_ernesto !== undefined && r.libre_ernesto !== null ? ' y' : '') + ' vuelven al fondo <b>' + fmt(Number(r.reinversion_fondo) || 0) + '</b>' + ((r.pct_reinversion !== undefined && r.pct_reinversion !== null) ? ' (el ' + fmtPctPRO(r.pct_reinversion) + '% de reinversión, la parte mayor)' : ' de reinversión') + '.';
+    else h += '.';
+    h += '</div>';
+  }
+  return h + '</div>';
+}
+function pagoLineaRecuperar(v){
+  if (!pagoEsPortadora(v)) return "";
+  if (!v || !v.por_recuperar || typeof v.por_recuperar !== "object") return "";
+  var p = v.por_recuperar;
+  if (p.total === undefined || p.total === null || (Number(p.total) || 0) <= 0) return "";
+  var tot = Number(p.total) || 0, rec = Number(p.recuperado) || 0;
+  var res = (p.restante !== undefined && p.restante !== null) ? (Number(p.restante) || 0) : Math.max(0, tot - rec);
+  var h = '<div class="cadenaPRO"><b>Por recuperar de un ciclo anterior (cuadre)</b>'
+    + '<div class="cadenaFila"><span>En total</span><b>' + fmt(tot) + '</b></div>'
+    + '<div class="cadenaFila"><span>Ya recuperado</span><b>' + fmt(rec) + '</b></div>'
+    + '<div class="cadenaFila"><span>Te queda por cuadrar</span><b>' + fmt(res) + '</b></div>';
+  if (p.ritmo !== undefined && p.ritmo !== null && (Number(p.ritmo) || 0) > 0 && res > 0)
+    h += '<div class="cadenaFila"><span>Ritmo: se descuenta de tu comisión</span><b>' + fmt(Number(p.ritmo) || 0) + ' por ciclo</b></div>';
+  h += '<div class="cadenaNota">Es un cuadre entre ciclos, sin drama: lo que se recupera va a reinversión — vuelve al fondo y sigue trabajando para los próximos ciclos.</div></div>';
+  return h;
+}
+function pagoLineaTope(v){
+  if (!pagoEsPortadora(v)) return "";
+  if (!v || !v.tope || typeof v.tope !== "object") return "";
+  var t = v.tope;
+  if (t.capital_entrega === undefined || t.capital_entrega === null) return "";
+  var ent = Number(t.capital_entrega) || 0, com = Number(t.capital_comprado) || 0;
+  var queda = (t.capital_restante !== undefined && t.capital_restante !== null) ? (Number(t.capital_restante) || 0) : (ent - com);
+  var pctBar = ent > 0 ? Math.max(0, Math.min(100, Math.round(com / ent * 100))) : 0;
+  var h = '<div class="cadenaPRO"><b>Avance contra el tope de tu ciclo</b>'
+    + '<div class="cadenaFila"><span>Capital que te entregaron</span><b>' + fmt(ent) + '</b></div>'
+    + '<div class="cadenaFila"><span>Llevas comprado</span><b>' + fmt(com) + '</b></div>'
+    + '<div class="cadenaFila"><span>Te queda por comprar</span><b>' + fmt(Math.max(0, queda)) + '</b></div>'
+    + '<div class="topeBar"><div class="topeFill" style="width:' + pctBar + '%"></div></div>'
+    + '<div class="cadenaNota">' + pctBar + '% del capital de este ciclo ya está comprado.</div>';
+  if (t.excedido)
+    h += '<div class="topeAviso">Una compra tuya pasó el tope de este ciclo y quedó <b>fuera de ciclo, a revisar con Ernesto</b>. No se perdió ni se asentó en silencio: queda marcada para cuadrarla con él.</div>';
+  return h + '</div>';
 }
 /* v29 · PRO (barrido M3): ganado / entregado / pendiente por vuelta y
    en total, con los campos aditivos de pago_mi_estado (ganado_comision,
