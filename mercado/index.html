@@ -340,7 +340,7 @@
    base: sin costo, el número NO se inventa (se explica qué falta).
    ===================================================================== */
 const MERCADO_VERSION = "v2";
-const SELLO = "Mercado · versión 2026-11-16 22:25 · caché v5";
+const SELLO = "Mercado · versión 2026-11-16 22:34 · caché v6";
 const SB_URL = "https://otsudfgwpapkluusrlnj.supabase.co";
 const SB_KEY = "sb_publishable_Uchl5QnojJkZbXR5ar8vDg_5CXnqi_d"; // pública: solo lee por las puertas de mercado
 const LS_CLAVE = "mercado_cache_v1";
@@ -756,6 +756,7 @@ function sugerenciaManualHtml() {
   const u = S.datos && S.datos.ultima ? S.datos.ultima : {};
   const f = u.foto;
   if (!f || num(f.etecsa_top_venta) === null) return "";
+  if (!f.libro_ok) return '<p class="t-nota" style="color:var(--ambar);margin-top:var(--e-2)">Pa crearla a mano: esta foto no trae el libro validado — sin libro no firmo precio; espera la próxima foto.</p>';
   if (edadMin(f.recibida_en) > 20) return '<p class="t-nota" style="color:var(--ambar);margin-top:var(--e-2)">Pa crearla a mano: esta foto ya pasó de 20 minutos — espera la próxima pa usar su precio.</p>';
   const tasa = num(f.etecsa_top_venta);
   const salida = u.tarifa ? num(u.tarifa.salida_ref) : null;
