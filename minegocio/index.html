@@ -502,6 +502,59 @@ label { display:block; font:600 11px var(--fuente); letter-spacing:.07em; text-t
 .termVentaFila b { font-variant-numeric:tabular-nums; }
 .fondoCurvaBox { background:var(--bg-2); border:1px solid var(--borde); border-radius:var(--r-md); padding:10px; }
 .fondoCurvaBox svg { display:block; width:100%; height:72px; }
+/* ===== ENTREGAR DINERO · REDISEÑO (2026-11-16, veredicto del dueño:
+   la foto de la ruta manual salió «horrorosa») — degradado cian
+   chillón a todo ancho, selectores-barra con el texto cortado,
+   spinner nativo de escritorio y banner verde sólido tapando la
+   navegación. Esta capa pone la superficie en el lenguaje de la
+   consola: filas de acción con icono de trazo y chevron, campos
+   con etiqueta y selector propio, monto con stepper y recibo
+   sobrio dentro del flujo. BARRIDO a toda la app: .bGold deja el
+   degradado (pasa a tinte + borde + texto del acento, la familia
+   de .tab.activa), el toast deja el bloque verde/rojo sólido
+   (cristal oscuro con filete semántico, flotando SOBRE la barra
+   de pestañas) y ningún input numérico enseña el spinner.
+   SOLO presentación: ni un id, ni una clase de lógica se toca. */
+.bGold { background:var(--acento-suave); color:var(--acento); border:1px solid var(--acento-borde); box-shadow:none; }
+button:disabled { opacity:.45; cursor:default; }
+#toast { border:1px solid var(--borde-fuerte); border-left:3px solid var(--verde); text-align:left; font:600 14px var(--fuente); padding:12px 14px; bottom:calc(var(--tabbar-h) + env(safe-area-inset-bottom) + var(--e-3)); }
+input[type="number"]::-webkit-outer-spin-button, input[type="number"]::-webkit-inner-spin-button { -webkit-appearance:none; margin:0; }
+input[type="number"] { -moz-appearance:textfield; appearance:textfield; }
+select { background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%237FA6B8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 14px center; padding-right:42px; }
+select.numIn { text-align:left; font:500 16px var(--fuente); height:52px; }
+.selPro { width:100%; height:52px; margin:0; text-align:left; font:500 16px var(--fuente); }
+.montoIn { height:52px; font:700 22px var(--fuente-num); text-align:center; }
+.montoIn::placeholder { font:500 15px var(--fuente); color:var(--txt-3); }
+.stepRow.alta .step { height:52px; }
+.accFila { display:flex; align-items:center; gap:var(--e-3); text-align:left; background:var(--bg-2); border:1px solid var(--borde); padding:var(--e-3); }
+.accFila .accIco { flex:0 0 auto; width:40px; height:40px; border-radius:var(--r-sm); background:var(--acento-suave); display:flex; align-items:center; justify-content:center; }
+.accFila .accIco svg { width:20px; height:20px; fill:none; stroke:var(--acento); stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; }
+.accFila .accTx { flex:1; min-width:0; }
+.accFila .accTx b { display:block; font:600 15px var(--fuente); color:var(--txt-1); }
+.accFila .accTx small { display:block; font:var(--t-nota); color:var(--txt-2); line-height:1.45; margin-top:2px; }
+.accFila .accChev { flex:0 0 auto; width:18px; height:18px; fill:none; stroke:var(--txt-3); stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+.pendFila { display:flex; align-items:baseline; justify-content:space-between; gap:var(--e-3); padding:var(--e-2) 0; border-bottom:1px solid var(--linea); }
+.pendFila:last-child { border-bottom:0; }
+.pendFila .quien { min-width:0; font:var(--t-sub); color:var(--txt-2); line-height:1.45; }
+.pendFila .quien b { color:var(--txt-1); }
+.pendFila .detalle { color:var(--txt-3); }
+.pendFila .cant { flex:0 0 auto; font:700 17px var(--fuente-num); font-variant-numeric:tabular-nums; color:var(--ambar); white-space:nowrap; }
+.pendFila .cant small { font:600 11px var(--fuente); color:var(--txt-3); }
+.hojaIn { border-top:1px solid var(--linea); margin-top:var(--e-3); padding-top:var(--e-3); }
+.hojaIn .hojaTit2 { font:600 15px var(--fuente); color:var(--txt-1); margin-bottom:var(--e-1); }
+.recibo { background:var(--bg-2); border:1px solid rgba(47,191,113,.35); border-radius:var(--r-md); padding:var(--e-3); margin-top:var(--e-3); }
+.recibo.parcial { border-color:rgba(240,185,11,.40); }
+.recibo .recTop { display:flex; align-items:center; justify-content:space-between; gap:var(--e-2); }
+.recibo .recMedio { font:var(--t-nota); color:var(--txt-3); }
+.recibo .recMonto { font:700 26px var(--fuente-num); font-variant-numeric:tabular-nums; letter-spacing:-.01em; margin-top:var(--e-2); }
+.recibo .recMonto small { font:600 13px var(--fuente); color:var(--txt-3); letter-spacing:0; }
+.recibo .recDe { font:var(--t-sub); color:var(--txt-2); margin-top:2px; }
+.recibo .recDe b { color:var(--txt-1); }
+.recibo .recTramos { margin-top:var(--e-2); }
+.recibo .recTramo { display:flex; align-items:baseline; justify-content:space-between; gap:var(--e-3); padding:6px 0; border-bottom:1px solid var(--linea); font:var(--t-sub); color:var(--txt-2); }
+.recibo .recTramo:last-child { border-bottom:0; }
+.recibo .recTramo b { color:var(--txt-1); font-variant-numeric:tabular-nums; white-space:nowrap; }
+.recibo .recNota { font:var(--t-nota); color:var(--ambar); margin-top:var(--e-2); line-height:1.45; }
 </style><script>window.SENTRY_CASA={app:"minegocio",version:"v23",dsn:"https://1454ae292cfdb8e358e88ec3d1fc1547@o4512419765354496.ingest.us.sentry.io/4512419769876480"};</script>
 <script defer crossorigin="anonymous" integrity="sha384-48iagrZwMa6wkDoJKNyCk4jgMHcOcsBK/DzZAJInl1ZhtunellJDCRNZuomfHefF" src="https://browser.sentry-cdn.com/8.38.0/bundle.min.js"></script>
 </head><body>
@@ -929,7 +982,7 @@ function horaDe(iso){
 }
 function toast(msg, ok){
   var t = $("toast"); if (!t) return;
-  t.textContent = msg; t.style.background = ok === false ? "var(--rojo)" : "var(--verde)";
+  t.textContent = msg; t.style.borderLeftColor = ok === false ? "var(--rojo)" : "var(--verde)";
   t.style.display = "block"; setTimeout(function(){ t.style.display = "none"; }, 2800);
 }
 /* Sello «hace X min» de una pestaña para el aviso offline. */
@@ -4992,7 +5045,7 @@ var MN_VERSION = "v29";
    chat. Formato: «Mi Negocio · versión 2026-11-11 HH:MM · caché v6»
    (fecha Y HORA de la publicación, para distinguir dos subidas
    del mismo día). La hora es la de Cuba (CST) al compilar. */
-var MN_COMPILACION = "2026-11-16 21:35";
+var MN_COMPILACION = "2026-11-16 21:49";
 function selloVersion(){ return "Mi Negocio · versión " + MN_COMPILACION + " · " + MN_VERSION + " · PRO"; }
 var regSW = null;
 var swConControladorAlArrancar = false;
@@ -6087,7 +6140,8 @@ function repartoHtml(enMano, aj){
     if (repartoAbiertoMN === c.buscador) {
       h += '<div style="margin:6px 0 10px">'
         + '<div class="fila"><button class="bGhost bMini" data-chipent="5000">5.000</button><button class="bGhost bMini" data-chipent="10000">10.000</button><button class="bGhost bMini" data-chipent="15000">15.000</button></div>'
-        + '<input type="number" class="numIn" id="entMonto" inputmode="numeric" placeholder="Monto en CUP (múltiplos de 500)" style="width:100%;margin:8px 0">'
+        + '<label for="entMonto">Monto a entregar</label>'
+        + '<input type="text" class="numIn montoIn" id="entMonto" inputmode="numeric" placeholder="Monto en CUP (múltiplos de 500)" style="width:100%">'
         + '<div class="kv" id="entErr" style="color:var(--rojo)"></div>'
         + '<div class="fila"><button class="bGold bMini" id="entConfirmar">Entregar</button><button class="bGhost bMini" id="entCancelar">Cancelar</button></div>'
         + '</div>';
@@ -6378,6 +6432,19 @@ function abrirProcedencia(clave){
 document.addEventListener("click", function(e){
   var t = e.target && e.target.closest ? e.target.closest("[data-prov]") : null;
   if (t) { abrirProcedencia(t.getAttribute("data-prov")); return; }
+  /* Stepper de montos (rediseño Entregar dinero): suma/resta sobre el
+     input nombrado SIN repintar ni tocar el foco — solo value + el
+     evento input que ya captura el borrador (OJO-115). */
+  var st = e.target && e.target.closest ? e.target.closest("[data-step]") : null;
+  if (st) {
+    var inpSt = $(st.getAttribute("data-step-para"));
+    if (inpSt) {
+      var vSt = Math.max(0, (Math.round(Number(inpSt.value)) || 0) + Number(st.getAttribute("data-step")));
+      inpSt.value = vSt ? String(vSt) : "";
+      inpSt.dispatchEvent(new Event("input", { bubbles: true }));
+    }
+    return;
+  }
   var b = e.target && e.target.closest ? e.target.closest("[data-conv-tasa],[data-conv-cobro],[data-qv-enviado],[data-ciclo-elegir],[data-cicent-abrir],[data-cicent-ok],[data-conv-descartar]") : null;
   if (!b) return;
   if (b.hasAttribute("data-ciclo-elegir")) { var ce = b.getAttribute("data-ciclo-elegir").split("|"); elegirPagoCiclo(ce[0], ce[1], b.getAttribute("data-plan")); }
@@ -6703,13 +6770,17 @@ function entregaCicloHtml(c, lid){
     return '<div class="fila" style="margin-top:8px"><button class="bGold bMini" data-cicent-abrir="' + key + '">Confirmar entrega</button></div>';
   }
   return '<div style="margin-top:8px">'
-    + '<select class="numIn" id="cicentTipo-' + key + '" style="width:100%;margin:0 0 8px">'
+    + '<label for="cicentTipo-' + key + '">Qué le entregas de este ciclo</label>'
+    + '<select class="selPro" id="cicentTipo-' + key + '">'
     + tipos.map(function(t){ return '<option value="' + t.v + '">' + esc(t.t) + '</option>'; }).join("") + '</select>'
-    + '<div class="ayuda">Qué le vas a entregar de ESTE ciclo: comisión, premio por venta o adelanto, según lo que tenga pendiente.</div>'
-    + '<input type="number" class="numIn" id="cicentMonto-' + key + '" inputmode="numeric" placeholder="Monto entregado en CUP" value="' + esc(mnBorrador("cicentMonto-" + lid)) + '" style="width:100%;margin:0 0 8px">'
+    + '<div class="ayuda">Comisión, premio por venta o adelanto, según lo que tenga pendiente en este ciclo.</div>'
+    + '<label for="cicentMonto-' + key + '">Monto entregado</label>'
+    + '<div class="stepRow alta"><button class="step" data-step="-100" data-step-para="cicentMonto-' + key + '" aria-label="Quitar 100">−</button>'
+    + '<input type="text" class="numIn montoIn" id="cicentMonto-' + key + '" inputmode="numeric" placeholder="Monto en CUP" value="' + esc(mnBorrador("cicentMonto-" + lid)) + '">'
+    + '<button class="step" data-step="100" data-step-para="cicentMonto-' + key + '" aria-label="Sumar 100">+</button></div>'
     + '<div class="ayuda">Lo que le pusiste en la mano en esta entrega; no puede pasar del pendiente de ese tipo en este ciclo.</div>'
-    + '<select class="numIn" id="cicentMedio-' + key + '" style="width:100%;margin:0 0 8px"><option value="efectivo">Efectivo</option><option value="transferencia">Transferencia</option></select>'
-    + '<div class="ayuda">El medio de esta entrega.</div>'
+    + '<label for="cicentMedio-' + key + '">Medio</label>'
+    + '<select class="selPro" id="cicentMedio-' + key + '"><option value="efectivo">Efectivo</option><option value="transferencia">Transferencia</option></select>'
     + '<div class="kv" id="cicentErr-' + key + '" style="color:var(--rojo)"></div>'
     + '<div class="fila"><button class="bGold bMini" data-cicent-ok="' + key + '">Confirmar entrega</button></div></div>';
 }
@@ -6846,31 +6917,31 @@ function irAEnDineroMN(id){
 }
 function accionesDineroHtml(enMano, est){
   var ICO = '<span class="secIco">' + icono("dinero") + '</span>';
+  var CHEV = '<svg class="accChev" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg>';
   var h = '<div class="card" id="dnAcciones"><h3>' + ICO + 'Entregar dinero</h3>'
-    + '<div class="ayuda">Las dos entregas que haces a mano, sin buscar por la pantalla: capital pa que el buscador trabaje, y la comisión que ya ganó, cuando el efectivo cambia de mano.</div>'
-    + '<div style="margin-top:10px"><button class="bGold" id="dnIrReparto" style="width:100%">Repartir capital a un buscador</button>'
-    + '<div class="ayuda">Sale de tu mano — hoy tienes <b>' + fmtE(enMano) + ' CUP</b> — y entra al cupo de quien elijas; él lo ve en su Mi Trabajo.</div></div>'
-    + '<div style="margin-top:12px"><button class="bGold" id="dnIrComision" style="width:100%">Registrar entrega de comisión</button>';
+    + '<div class="ayuda">Las dos entregas que haces a mano: capital pa que el buscador trabaje, y la comisión que ya ganó, cuando el efectivo cambia de mano.</div>'
+    + '<button class="accFila" id="dnIrReparto"><span class="accIco">' + icono("cambio") + '</span><span class="accTx"><b>Repartir capital a un buscador</b><small>Sale de tu mano — hoy tienes ' + fmtE(enMano) + ' CUP — y entra al cupo de quien elijas; él lo ve en su Mi Trabajo.</small></span>' + CHEV + '</button>'
+    + '<button class="accFila" id="dnIrComision"><span class="accIco">' + icono("dinero") + '</span><span class="accTx"><b>Registrar entrega de comisión</b><small>Anota el efectivo que ya le pusiste en la mano a quien ganó su comisión o su premio por venta.</small></span>' + CHEV + '</button>';
   var conPend = buscadoresConPendienteMN(est);
-  if (ciclosFotoMN === null) h += '<div class="ayuda">Leyendo lo que debes entregar a cada buscador…</div>';
-  else if (!conPend.length) h += '<div class="ayuda">Ahora mismo no le debes comisión ni premio a nadie: todo lo ganado ya está entregado.</div>';
-  else h += '<div class="ayuda">' + conPend.map(function(b){
-      return 'A <b>' + esc(b.nombre) + '</b> le debes entregar <b>' + fmtE(b.total) + ' CUP</b>'
-        + (b.comision && b.premio ? ' (comisión ' + fmtE(b.comision) + ' + premio por venta ' + fmtE(b.premio) + ')' : (b.premio ? ' (premio por venta)' : ' (comisión)'));
-    }).join(' · ') + '.</div>';
-  h += '</div>';
+  if (ciclosFotoMN === null) h += '<div class="ayuda" style="margin-top:var(--e-3)">Leyendo lo que debes entregar a cada buscador…</div>';
+  else if (!conPend.length) h += '<div class="ayuda" style="margin-top:var(--e-3)">Ahora mismo no le debes comisión ni premio a nadie: todo lo ganado ya está entregado.</div>';
+  else h += '<div style="margin-top:var(--e-2)">' + conPend.map(function(b){
+      return '<div class="pendFila"><span class="quien">A <b>' + esc(b.nombre) + '</b> le debes entregar'
+        + (b.comision && b.premio ? '<br><span class="detalle">comisión ' + fmtE(b.comision) + ' + premio por venta ' + fmtE(b.premio) + '</span>' : (b.premio ? ' <span class="detalle">(premio por venta)</span>' : ' <span class="detalle">(comisión)</span>'))
+        + '</span><span class="cant">' + fmtE(b.total) + ' <small>CUP</small></span></div>';
+    }).join("") + '</div>';
   if (entregaHojaMN) h += entregaHojaHtml(est);
   return h + '</div>';
 }
 function entregaHojaHtml(est){
-  if (ciclosFotoMN === null) return '<div style="margin-top:10px"><div class="kv">Leyendo los ciclos del libro…</div></div>';
+  if (ciclosFotoMN === null) return '<div class="hojaIn"><div class="kv">Leyendo los ciclos del libro…</div></div>';
   var conPend = buscadoresConPendienteMN(est);
   var sel = null;
   conPend.forEach(function(b){ if (b.cod === entregaHojaMN.buscador) sel = b; });
   if (!sel) sel = conPend[0] || null;
-  if (!sel) return '<div style="margin-top:10px"><div class="kv">A nadie le debes comisión ni premio ahora mismo.</div>'
+  if (!sel) return '<div class="hojaIn"><div class="kv">A nadie le debes comisión ni premio ahora mismo.</div>'
     + (entregaHojaResMN || "")
-    + '<div class="fila" style="margin-top:8px"><button class="bGhost" id="entcCancelar">Cerrar</button></div></div>';
+    + '<div class="filaBtns"><button class="bGhost" id="entcCancelar">Cerrar</button></div></div>';
   entregaHojaMN.buscador = sel.cod;
   var p = pendienteBuscadorMN(sel.cod);
   var tipoGuardado = mnBorrador("entcTipo");
@@ -6879,20 +6950,27 @@ function entregaHojaHtml(est){
   if (clave !== entregaHojaClaveMN) { entregaHojaClaveMN = clave; delete mnBorradores["entcMonto"]; }
   var pendTipo = tipo === "premio" ? p.premio : p.comision;
   var medioGuardado = mnBorrador("entcMedio");
-  return '<div style="margin-top:10px;border-top:1px solid var(--linea);padding-top:10px">'
-    + '<div class="kv"><b>Registrar entrega</b> — anota aquí el efectivo que YA le pusiste en la mano; el libro lo marca ENTREGADO y su pendiente baja.</div>'
-    + '<select class="numIn" id="entcBuscador" style="width:100%;margin:8px 0">'
+  return '<div class="hojaIn">'
+    + '<div class="hojaTit2">Registrar entrega</div>'
+    + '<div class="ayuda">Anota aquí el efectivo que YA le pusiste en la mano; el libro lo marca ENTREGADO y su pendiente baja.</div>'
+    + '<label for="entcBuscador">Buscador</label>'
+    + '<select class="selPro" id="entcBuscador">'
     + conPend.map(function(b){ return '<option value="' + esc(b.cod) + '"' + (b.cod === sel.cod ? " selected" : "") + '>' + esc(b.nombre) + ' · le debes ' + fmtE(b.total) + ' CUP</option>'; }).join("") + '</select>'
-    + '<select class="numIn" id="entcTipo" style="width:100%;margin:0 0 8px">'
+    + '<label for="entcTipo">Qué le entregas</label>'
+    + '<select class="selPro" id="entcTipo">'
     + (p.comision > 0 ? '<option value="comision"' + (tipo === "comision" ? " selected" : "") + '>Comisión · pendiente ' + fmtE(p.comision) + ' CUP</option>' : '')
     + (p.premio > 0 ? '<option value="premio"' + (tipo === "premio" ? " selected" : "") + '>Premio por venta · pendiente ' + fmtE(p.premio) + ' CUP</option>' : '')
     + '</select>'
-    + '<input type="number" class="numIn" id="entcMonto" inputmode="numeric" placeholder="Monto entregado en CUP" value="' + esc(mnBorrador("entcMonto") || (pendTipo ? String(pendTipo) : "")) + '" style="width:100%;margin:0 0 8px">'
+    + '<label for="entcMonto">Monto entregado</label>'
+    + '<div class="stepRow alta"><button class="step" data-step="-100" data-step-para="entcMonto" aria-label="Quitar 100">−</button>'
+    + '<input type="text" class="numIn montoIn" id="entcMonto" inputmode="numeric" placeholder="Monto en CUP" value="' + esc(mnBorrador("entcMonto") || (pendTipo ? String(pendTipo) : "")) + '">'
+    + '<button class="step" data-step="100" data-step-para="entcMonto" aria-label="Sumar 100">+</button></div>'
     + '<div class="ayuda">Viene lleno con todo el pendiente de ese tipo; cámbialo si le entregaste menos. Si el monto cruza varios ciclos, se reparte solo del más viejo al más nuevo y al final te enseña el desglose.</div>'
-    + '<select class="numIn" id="entcMedio" style="width:100%;margin:8px 0"><option value="efectivo"' + (medioGuardado !== "transferencia" ? " selected" : "") + '>Efectivo</option><option value="transferencia"' + (medioGuardado === "transferencia" ? " selected" : "") + '>Transferencia</option></select>'
+    + '<label for="entcMedio">Medio</label>'
+    + '<select class="selPro" id="entcMedio"><option value="efectivo"' + (medioGuardado !== "transferencia" ? " selected" : "") + '>Efectivo</option><option value="transferencia"' + (medioGuardado === "transferencia" ? " selected" : "") + '>Transferencia</option></select>'
     + '<div class="kv" id="entcErr" style="color:var(--rojo)"></div>'
     + (entregaHojaResMN || "")
-    + '<div class="fila"><button class="bGold" id="entcOk"' + (entregaRegistrandoMN ? " disabled" : "") + '>' + (entregaRegistrandoMN ? "Registrando…" : "Registrar entrega") + '</button><button class="bGhost" id="entcCancelar">Cancelar</button></div>'
+    + '<div class="filaBtns"><button class="bGold" id="entcOk"' + (entregaRegistrandoMN ? " disabled" : "") + '>' + (entregaRegistrandoMN ? "Registrando…" : "Registrar entrega") + '</button><button class="bGhost" id="entcCancelar">Cancelar</button></div>'
     + '</div>';
 }
 function abrirEntregaHojaMN(cod){
@@ -6940,12 +7018,14 @@ function registrarEntregaBuscadorMN(){
       if (e2) e2.textContent = "No se registró nada: " + (falloEn && falloEn.motivo === "red" ? "falló la conexión" : motivoEntregaTxtMN(falloEn)) + ". Nada cambió.";
       return;
     }
-    var desglose = hechos.map(function(x){ return fmtE(x.monto) + (x.fecha ? " del ciclo de " + fechaHoraTxt(x.fecha) : ""); }).join(" · ");
-    entregaHojaResMN = '<div class="kv" style="margin:8px 0"><span class="pill pOk">REGISTRADO</span> <b>' + fmtE(suma) + ' CUP</b> de ' + (tipo === "premio" ? "premio" : "comisión") + ' a <b>' + esc(nombre) + '</b>'
-      + (hechos.length > 1 ? ' — ' + desglose : '')
-      + (falloEn ? '. El resto (' + fmtE(monto - suma) + ' CUP) NO entró: ' + (falloEn.motivo === "red" ? "falló la conexión" : motivoEntregaTxtMN(falloEn)) + '.' : '.') + '</div>';
-    if (falloEn) toast("Se registró una parte; el resto no entró.", false);
-    else toast("✅ Entrega registrada a " + nombre + ": ya consta como entregado.");
+    var tramos = hechos.map(function(x){ return '<div class="recTramo"><span>' + (x.fecha ? 'Ciclo de ' + fechaHoraTxt(x.fecha) : 'Ciclo') + '</span><b>' + fmtE(x.monto) + ' CUP</b></div>'; }).join("");
+    entregaHojaResMN = '<div class="recibo' + (falloEn ? ' parcial' : '') + '">'
+      + '<div class="recTop"><span class="pill pOk">REGISTRADO</span><span class="recMedio">' + (medio === "efectivo" ? "En efectivo" : "Por transferencia") + '</span></div>'
+      + '<div class="recMonto">' + fmtE(suma) + ' <small>CUP</small></div>'
+      + '<div class="recDe">de ' + (tipo === "premio" ? "premio por venta" : "comisión") + ' a <b>' + esc(nombre) + '</b></div>'
+      + (hechos.length > 1 ? '<div class="recTramos">' + tramos + '</div>' : '')
+      + (falloEn ? '<div class="recNota">El resto (' + fmtE(monto - suma) + ' CUP) NO entró: ' + (falloEn.motivo === "red" ? "falló la conexión" : motivoEntregaTxtMN(falloEn)) + '.</div>' : '')
+      + '</div>';
     cargarDineroMN();
   });
 }
