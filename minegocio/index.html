@@ -4487,6 +4487,87 @@ function asesorCuadreHtml(cq){
   h += '<div class="t1PosFila"><span class="k">Vuelve a inversión</span><span class="v">' + fmt(Number(cq.vuelve_inversion)) + ' <span style="font:600 11px var(--fuente);color:var(--txt-3)">CUP</span></span></div>';
   return h;
 }
+/* ===== v38 · TARJETA PERMANENTE DEL ASESOR (CHEQUEO 126) =====
+   Vive arriba de los segmentos de Mercado, visible al entrar sin
+   tocar nada: el ESTADO de la puerta (guia_ernesto.puerta, con el
+   motivo del servidor — jamás hardcodeado) y la OFERTA A MANO
+   completa: vender TODO el saldo. El tamaño nace de la línea:
+   vendible = ⌊línea − comprometido⌋ − 5 del peaje de ETECSA, y los
+   QUSD que caen van a la tasa sugerida (top_venta de la foto, la
+   regla determinista de la Mesa; margen con la tarifa viva). Sin
+   posición firme (libro↔sensor no acuerdan) NO se firma tamaño;
+   con foto vieja (>20 min, el veto de la puerta) no se firman
+   números. La tarjeta no crea ofertas ni toca la puerta: lee y
+   avisa — el fallo que cura es que Ernesto se enteró de la pausa
+   del 2026-11-15 PREGUNTANDO. */
+function fmtED(n){ if (n === null || n === undefined) return "—"; n = Number(n); if (isNaN(n)) return "—"; var neg = n < 0; var a = Math.abs(n); var ent = Math.floor(a); var dec = Math.round((a - ent) * 100); if (dec === 100) { ent += 1; dec = 0; } var s = String(ent), out = ""; while (s.length > 3) { out = "." + s.slice(-3) + out; s = s.slice(0, -3); } return (neg ? "−" : "") + s + out + "," + (dec < 10 ? "0" : "") + dec; }
+function fmtEN(n){ if (n === null || n === undefined) return "—"; n = Number(n); if (isNaN(n)) return "—"; return fmtED(Math.round(n)).split(",")[0]; }
+function asesorEstadoHtml(){
+  var g = mercadoGuiaMN, f = mercadoFotoMN;
+  var h = '<div class="card" id="mcAsesorEstado"><h3><span class="secIco">' + icono("tarifa") + '</span>Asesor · estado y oferta a mano</h3>';
+  if (!g) {
+    h += '<div class="kv">' + (mercadoErrorMN === "falta" ? TXT_FALTA_ACTIVAR : "Leyendo el estado de la puerta…") + '</div></div>';
+    return h;
+  }
+  var pu = g.puerta || {};
+  if (pu.detenidas) {
+    h += '<div class="offBanner" style="display:block">⛔ ACCIONES DETENIDAS: la puerta no publica nada hasta que la reanudes. La lectura del mercado sigue viva.</div>';
+  } else if (pu.pausadas) {
+    h += '<div style="margin-top:2px"><span class="pill pPend">PUERTA EN PAUSA</span></div>'
+      + '<div class="kv" style="margin-top:6px"><b>El Asesor no está trabajando</b>: la API de QvaPay está caída pa crear ofertas.</div>'
+      + (pu.motivo ? '<div class="kv">' + esc(pu.motivo) + '</div>' : "")
+      + '<div class="kv">Mientras tanto crea tu oferta <b>a mano</b> en QvaPay con los números de aquí abajo.</div>';
+  } else {
+    h += '<div style="margin-top:2px"><span class="pill pOk">PUERTA AUTOMÁTICA ACTIVA</span></div>'
+      + '<div class="kv" style="margin-top:6px">El Asesor está trabajando: prepara las ofertas y las sube con tu toque. Si prefieres crearla a mano, usa estos números.</div>';
+  }
+  if (!f) {
+    h += '<div class="mut" style="margin-top:8px">Leyendo la foto del mercado…</div></div>';
+    return h;
+  }
+  if (!f.fresca || Number(f.edad_s) > 1200) {
+    h += '<div style="margin-top:10px"><span class="pill pPend">FOTO VIEJA</span></div>'
+      + '<div class="kv" style="margin-top:6px">La última foto es ' + (f.recibida_en ? "de las " + hora12(f.recibida_en) : "vieja") + ' (' + edadTxtMN(f.edad_s) + '): con una foto vieja no firmo números. La lectura corre cada ~1 min: dale a Actualizar.</div></div>';
+    return h;
+  }
+  var calc = g.calculo || {};
+  var pos = calc.posicion || g.posicion || {};
+  function pv(k){ return pos[k] !== null && pos[k] !== undefined ? pos[k] : (g.posicion || {})[k]; }
+  var tasa = Number(f.top_venta);
+  h += '<div class="mut" style="margin-top:10px">TU OFERTA A MANO · VENDER TODO EL SALDO</div>';
+  if (isNaN(tasa) || tasa <= 0) {
+    h += '<div class="kv" style="margin-top:6px">La foto de ahora no trae precio de venta operable: sin tasa no hay oferta que firmar.</div></div>';
+    return h;
+  }
+  h += '<div class="t1PosFila"><span class="k">Tasa</span><span class="v">' + fmtED(tasa) + ' <span style="font:600 11px var(--fuente);color:var(--txt-3)">SALDO POR QUSD</span></span></div>';
+  var linea = pv("linea_saldo"), libro = pv("libro_saldo");
+  if (libro === null || libro === undefined) libro = pv("lotes_saldo");
+  var comp = Number(pv("comprometido_saldo") || 0);
+  if (linea === null || linea === undefined) {
+    h += '<div class="kv" style="margin-top:6px">Sin lectura de tu línea: no firmo el tamaño de la oferta.</div>';
+  } else if (pos.firme !== true) {
+    h += '<div class="kv" style="margin-top:6px">⚠ <b>Sin tamaño firmado</b>: tu libro y tu línea no acuerdan ahora (línea ' + fmtED(linea) + ' · libro ' + fmtED(libro) + ').</div>'
+      + (pos.firme_texto ? '<div class="kv">' + esc(pos.firme_texto) + '</div>' : "");
+  } else {
+    var vendible = Math.max(0, Math.floor(Number(linea) - comp) - 5);
+    if (vendible <= 0) {
+      h += '<div class="kv" style="margin-top:6px">Sin saldo vendible ahora: de tu línea de ' + fmtED(linea) + ' no queda nada pa vender tras el peaje de ETECSA.</div>';
+    } else {
+      var qusd = vendible / tasa;
+      var tar = g.tarifa || {};
+      var salida = Number((state.tarifaViva && state.tarifaViva.salidaRef) || tar.salida_ref);
+      var costo = Number(tar.costo_ref360);
+      h += '<div class="t1PosFila"><span class="k">Saldo a vender</span><span class="v">' + fmtEN(vendible) + ' <span style="font:600 11px var(--fuente);color:var(--txt-3)">DE SALDO</span></span></div>'
+        + '<div class="t1PosFila"><span class="k">QUSD que caen</span><span class="v">$' + fmtED(qusd) + ' <span style="font:600 11px var(--fuente);color:var(--txt-3)">QUSD</span></span></div>'
+        + ((salida > 0 && costo > 0) ? '<div class="t1PosFila"><span class="k">Margen por 360</span><span class="v">' + fmtED(360 / tasa * salida - costo) + ' <span style="font:600 11px var(--fuente);color:var(--txt-3)">CUP</span></span></div>' : "")
+        + '<div class="mut" style="margin-top:6px">De tu línea de ' + fmtED(linea) + (pv("linea_en") ? ' (leída ' + esc(fechaLegibleMN(pv("linea_en"))) + ')' : '') + ': ya van descontados los 5 del peaje de ETECSA' + (comp > 0 ? ' y ' + fmtED(comp) + ' comprometidos en ofertas vivas' : '') + '.</div>'
+        + ((pu.tope_oferta && qusd > Number(pu.tope_oferta)) ? '<div class="kv" style="margin-top:6px">Ojo: por la puerta saldría limitado por el tope de ' + fmtEN(pu.tope_oferta) + ' QUSD; a mano la creas completa.</div>' : "");
+    }
+  }
+  h += '<div class="mut" style="margin-top:6px">Foto ' + (f.recibida_en ? "de las " + hora12(f.recibida_en) : "") + ' · ' + edadTxtMN(f.edad_s) + ' · la tasa es la mejor venta del libro.</div>';
+  h += "</div>";
+  return h;
+}
 function mercadoAsesorHtml(g){
   var h = '<div class="card" id="mcAsesor"><h3><span class="secIco">' + icono("tarifa") + '</span>Asesor</h3>';
   if (!g) {
@@ -4567,6 +4648,7 @@ registrarModulo({
       h += '<div class="kv" style="margin-top:6px">' + (mercadoErrorMN === "falta" ? TXT_FALTA_ACTIVAR : (online ? "Leyendo la foto vigente del mercado…" : "Sin conexión y todavía no hay foto guardada del mercado.")) + "</div>";
     }
     h += "</div>";
+    h += asesorEstadoHtml();
     h += '<div class="t1Seg" role="tablist">'
       + '<button data-seg="libro" class="' + (mercadoSegMN === "libro" ? "on" : "") + '">Libro</button>'
       + '<button data-seg="posicion" class="' + (mercadoSegMN === "posicion" ? "on" : "") + '">Posición</button>'
