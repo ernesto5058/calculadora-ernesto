@@ -1,0 +1,20 @@
+name: Firmar atajo (Apple sign)
+on:
+  workflow_dispatch:
+jobs:
+  firmar:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Convertir a plist binario y firmar con la herramienta de Apple
+        run: |
+          mkdir -p firmador/salida
+          plutil -convert binary1 firmador/entrada/maximo-sms-v3-unsigned.shortcut -o firmador/salida/binario.shortcut
+          shortcuts sign --mode anyone --input firmador/salida/binario.shortcut --output firmador/salida/maximo-sms-v3.shortcut
+          ls -l firmador/salida/
+          head -c 4 firmador/salida/maximo-sms-v3.shortcut
+      - uses: actions/upload-artifact@v4
+        with:
+          name: atajo-firmado
+          path: firmador/salida/maximo-sms-v3.shortcut
+          retention-days: 1
