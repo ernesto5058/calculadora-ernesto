@@ -4510,7 +4510,9 @@ function asesorEstadoHtml(){
     return h;
   }
   var pu = g.puerta || {};
-  var puLeida = pu.pausadas !== undefined || pu.detenidas !== undefined;
+  /* «Leída» = pausadas llegó como BOOLEANO (el servidor lo emite
+     siempre con coalesce). null/ausente = sin leer: jamás ACTIVA. */
+  var puLeida = typeof pu.pausadas === "boolean";
   if (pu.detenidas) {
     h += '<div class="offBanner" style="display:block">⛔ ACCIONES DETENIDAS: la puerta no publica nada hasta que la reanudes. La lectura del mercado sigue viva.</div>';
   } else if (pu.pausadas) {
@@ -4537,7 +4539,7 @@ function asesorEstadoHtml(){
      Cualquier pata que falte (o la edad que no llegue) = no se
      firman números, cada causa con su nombre. */
   var edadF = Number(f.edad_s);
-  if (f.libro_ok === false) {
+  if (f.libro_ok !== true) {
     h += '<div style="margin-top:10px"><span class="pill pPend">SIN LIBRO</span></div>'
       + '<div class="kv" style="margin-top:6px">La foto de ahora no trae el libro validado: sin libro no firmo números. La lectura corre cada ~1 min: dale a Actualizar.</div></div>';
     return h;
