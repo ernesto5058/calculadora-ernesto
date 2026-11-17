@@ -4992,7 +4992,7 @@ var MN_VERSION = "v29";
    chat. Formato: «Mi Negocio · versión 2026-11-11 HH:MM · caché v6»
    (fecha Y HORA de la publicación, para distinguir dos subidas
    del mismo día). La hora es la de Cuba (CST) al compilar. */
-var MN_COMPILACION = "2026-11-16 10:56";
+var MN_COMPILACION = "2026-11-16 21:35";
 function selloVersion(){ return "Mi Negocio · versión " + MN_COMPILACION + " · " + MN_VERSION + " · PRO"; }
 var regSW = null;
 var swConControladorAlArrancar = false;
@@ -6188,6 +6188,7 @@ registrarModulo({
       + '<div class="mut">Leído del libro a las ' + horaDe(new Date(dineroLeidoEnMN).toISOString()) + '.</div>'
       + '<div class="fila" style="margin-top:8px"><button class="bGold bMini" id="dnAct">Actualizar</button></div>'
       + '</div>';
+    h += accionesDineroHtml(enMano, est);
     h += fondoCurvaHtml(est);
     h += repartoHtml(enMano, ajCola);
     h += pagosBuscadoresHtml(est);
@@ -6220,6 +6221,7 @@ registrarModulo({
         + (x.gan ? '<div class="kv"><b>Él ganó ' + fmtE(x.gan.acumulado.comision) + ' · Tú ganaste ' + fmtE(x.gan.acumulado.ganancia_ernesto) + ' de él</b> (acumulado)</div>'
                   + ((Number(x.gan.semana.comision) || Number(x.gan.semana.ganancia_ernesto)) ? '<div class="kv">Esta semana: él ' + fmtE(x.gan.semana.comision) + ' · tú ' + fmtE(x.gan.semana.ganancia_ernesto) + ' CUP</div>' : '')
                  : '<div class="kv">Ganancias en pareja: — (el libro aún no cierra vueltas de este buscador)</div>')
+        + atajosBuscadorHtmlMN(x.cod)
         + '</div>';
     });
     if (!ordenCod.length) h += '<div class="card"><div class="kv">El libro todavía no trae buscadores con asignación.</div></div>';
@@ -6253,10 +6255,22 @@ registrarModulo({
       + '<div class="kv">· Los saldos se <b>calculan</b> del libro de movimientos: nadie escribe un saldo a mano.</div>'
       + '<div class="kv">· <b>Nada se borra</b>: cada movimiento queda anotado en el libro.</div>'
       + '<div class="kv">· Lo que se reparte va <b>cerrado en billetes</b> (múltiplos de 500); la diferencia queda en tu parte.</div>'
-      + '<div class="kv">· La comisión nace <b>solo de ganancia positiva</b> y se paga al registrarse la devolución en especie, al por ciento de las estrellas del buscador.</div>'
+      + '<div class="kv">· La comisión es el <b>por ciento de TU ganancia</b> (no del total), nace solo si la ganancia es positiva y se paga <b>por ciclo</b>: queda entregada cuando registras la entrega del efectivo arriba, en «Entregar dinero».</div>'
       + '</div>';
     el.innerHTML = h;
     var ba = $("dnAct"); if (ba) ba.addEventListener("click", cargarDineroMN);
+    var accIr = $("dnIrReparto"); if (accIr) accIr.addEventListener("click", function(){ irAEnDineroMN("dnReparto"); });
+    var accIc = $("dnIrComision"); if (accIc) accIc.addEventListener("click", function(){ abrirEntregaHojaMN(""); });
+    var accEb = $("entcBuscador"); if (accEb) accEb.addEventListener("change", function(){ entregaHojaMN = { buscador: accEb.value }; entregaHojaResMN = ""; pintarDineroMN(); });
+    var accEt = $("entcTipo"); if (accEt) accEt.addEventListener("change", function(){ pintarDineroMN(); });
+    var accOk = $("entcOk"); if (accOk) accOk.addEventListener("click", registrarEntregaBuscadorMN);
+    var accEx = $("entcCancelar"); if (accEx) accEx.addEventListener("click", function(){ entregaHojaMN = null; entregaHojaResMN = ""; pintarDineroMN(); });
+    el.querySelectorAll("[data-atajo-reparto]").forEach(function(b){
+      b.addEventListener("click", function(){ repartoAbiertoMN = b.getAttribute("data-atajo-reparto"); pintarDineroMN(); irAEnDineroMN("dnReparto"); });
+    });
+    el.querySelectorAll("[data-atajo-comision]").forEach(function(b){
+      b.addEventListener("click", function(){ abrirEntregaHojaMN(b.getAttribute("data-atajo-comision")); });
+    });
     el.querySelectorAll("[data-entregar]").forEach(function(b){
       b.addEventListener("click", function(){ repartoAbiertoMN = b.getAttribute("data-entregar"); pintarDineroMN(); });
     });
@@ -6758,7 +6772,8 @@ function registrarEntregaCiclo(lid){
   var monto = Number(inp && inp.value);
   if (!monto || monto <= 0) { if (err) err.textContent = "Escribe el monto que le entregaste de verdad."; return; }
   if (!cyc) { if (err) err.textContent = "Este ciclo ya no está en la foto: actualiza y vuelve a tocar."; return; }
-  rpc("dineroEntregaComision", { p_codigo: state.codigo, p_buscador: String(cyc.buscador || ""), p_liquidacion_id: lid, p_tipo: tip ? tip.value : "comision", p_monto: Math.round(monto), p_medio: med ? med.value : "efectivo", p_ref: uuidMN(), p_prueba: false }).then(function(){
+  rpc("dineroEntregaComision", { p_codigo: state.codigo, p_buscador: String(cyc.buscador || ""), p_liquidacion_id: lid, p_tipo: tip ? tip.value : "comision", p_monto: Math.round(monto), p_medio: med ? med.value : "efectivo", p_ref: uuidMN(), p_prueba: false }).then(function(r){
+    if (r && r.ok === false) { if (err) err.textContent = "No se registró: " + motivoEntregaTxtMN(r) + ". Nada cambió."; return; }
     delete mnBorradores["cicentMonto-" + lid];
     entregaCicloAbiertaMN = null;
     toast("✅ Entrega confirmada en este ciclo: ya consta como entregado de verdad.");
@@ -6766,6 +6781,179 @@ function registrarEntregaCiclo(lid){
   }).catch(function(e){
     if (err) err.textContent = (e && e.faltaPuerta) ? TXT_FALTA_ACTIVAR : ("No se pudo confirmar: " + ((e && e.message) || "¿conexión?") + " Nada se guardó.");
   });
+}
+
+/* =====================================================================
+   RUTA MANUAL DE ENTREGAS (2026-11-16) — lo que Ernesto hace a mano con
+   el dinero de los buscadores, A LA VISTA desde Dinero: una tarjeta de
+   acciones tras el héroe («Entregar dinero»: Repartir capital y
+   Registrar entrega de comisión) y atajos en la tarjeta de cada
+   buscador. La entrega de comisión se registra POR BUSCADOR, como
+   Ernesto piensa («le entregué 500 a Briku»): la hoja reparte el monto
+   entre sus ciclos con pendiente, del más viejo al más nuevo, llamando
+   la puerta de siempre (dinero_registrar_entrega_comision) una vez por
+   ciclo con su tope espejo del servidor, y al final enseña el desglose.
+   Ninguna respuesta ok:false se pinta como éxito, ni aquí ni por ciclo.
+   ===================================================================== */
+var entregaHojaMN = null, entregaHojaResMN = "", entregaHojaClaveMN = "", entregaRegistrandoMN = false;
+function motivoEntregaTxtMN(r){
+  if (!r) return "el servidor no respondió";
+  if (r.motivo === "excede_pendiente_ciclo") return "ese monto pasa lo pendiente de ese ciclo" + (r.pendiente_ciclo_tipo !== undefined && r.pendiente_ciclo_tipo !== null ? " (quedan " + fmtE(r.pendiente_ciclo_tipo) + " CUP de ese tipo)" : "");
+  if (r.motivo === "codigo_admin_no_valido") return "tu código de dueño no validó";
+  if (r.motivo === "monto_invalido") return "el monto no es válido";
+  if (r.motivo === "liquidacion_no_existe") return "ese ciclo ya no está en el libro";
+  return "el servidor no aceptó (" + String(r.motivo || "sin motivo") + ")";
+}
+function pendienteTipoCicloMN(c, tipo){
+  var gc = numC(c.ganado_comision !== undefined && c.ganado_comision !== null ? c.ganado_comision : c.comision_ciclo);
+  var gp = numC(c.ganado_premio), ec = numC(c.entregado_comision), ep = numC(c.entregado_premio);
+  if (tipo === "premio") return Math.max(0, gp - ep);
+  var base = gc;
+  if (c.eleccion_pago === "ahora" && c.comision_ahora !== undefined && c.comision_ahora !== null) base = numC(c.comision_ahora);
+  else if (c.eleccion_pago === "a0") base = Math.max(0, gc - numC(c.adelanto_entregado));
+  return Math.max(0, base - numC(c.exceso_adelanto_previo) - ec);
+}
+function ciclosDeBuscadorMN(cod){
+  var out = [];
+  (ciclosFotoMN || []).forEach(function(c){
+    if (String(c.buscador || "") !== String(cod)) return;
+    var lid = liqIdDe(c); if (!lid) return;
+    out.push({ lid: String(lid), creada_en: c.creada_en || "", pendComision: pendienteTipoCicloMN(c, "comision"), pendPremio: pendienteTipoCicloMN(c, "premio") });
+  });
+  out.sort(function(a, b){ return String(a.creada_en) < String(b.creada_en) ? -1 : (String(a.creada_en) > String(b.creada_en) ? 1 : 0); });
+  return out;
+}
+function pendienteBuscadorMN(cod){
+  var t = { comision: 0, premio: 0, total: 0 };
+  ciclosDeBuscadorMN(cod).forEach(function(f){ t.comision += f.pendComision; t.premio += f.pendPremio; });
+  t.total = t.comision + t.premio;
+  return t;
+}
+function buscadoresConPendienteMN(est){
+  var vistos = {}, out = [];
+  function agrega(cod){
+    if (!cod || vistos[cod]) return; vistos[cod] = true;
+    var p = pendienteBuscadorMN(cod);
+    if (p.total > 0) out.push({ cod: cod, nombre: nombreDe(cod) || cod, comision: p.comision, premio: p.premio, total: p.total });
+  }
+  (ciclosFotoMN || []).forEach(function(c){ agrega(String(c.buscador || "")); });
+  ((est && est.pagos_buscadores) || []).forEach(function(p){ agrega(String(p.buscador || "")); });
+  out.sort(function(a, b){ return b.total - a.total; });
+  return out;
+}
+function irAEnDineroMN(id){
+  setTimeout(function(){ var n = $(id); if (n && n.scrollIntoView) n.scrollIntoView({ behavior: "smooth", block: "start" }); }, 40);
+}
+function accionesDineroHtml(enMano, est){
+  var ICO = '<span class="secIco">' + icono("dinero") + '</span>';
+  var h = '<div class="card" id="dnAcciones"><h3>' + ICO + 'Entregar dinero</h3>'
+    + '<div class="ayuda">Las dos entregas que haces a mano, sin buscar por la pantalla: capital pa que el buscador trabaje, y la comisión que ya ganó, cuando el efectivo cambia de mano.</div>'
+    + '<div style="margin-top:10px"><button class="bGold" id="dnIrReparto" style="width:100%">Repartir capital a un buscador</button>'
+    + '<div class="ayuda">Sale de tu mano — hoy tienes <b>' + fmtE(enMano) + ' CUP</b> — y entra al cupo de quien elijas; él lo ve en su Mi Trabajo.</div></div>'
+    + '<div style="margin-top:12px"><button class="bGold" id="dnIrComision" style="width:100%">Registrar entrega de comisión</button>';
+  var conPend = buscadoresConPendienteMN(est);
+  if (ciclosFotoMN === null) h += '<div class="ayuda">Leyendo lo que debes entregar a cada buscador…</div>';
+  else if (!conPend.length) h += '<div class="ayuda">Ahora mismo no le debes comisión ni premio a nadie: todo lo ganado ya está entregado.</div>';
+  else h += '<div class="ayuda">' + conPend.map(function(b){
+      return 'A <b>' + esc(b.nombre) + '</b> le debes entregar <b>' + fmtE(b.total) + ' CUP</b>'
+        + (b.comision && b.premio ? ' (comisión ' + fmtE(b.comision) + ' + premio por venta ' + fmtE(b.premio) + ')' : (b.premio ? ' (premio por venta)' : ' (comisión)'));
+    }).join(' · ') + '.</div>';
+  h += '</div>';
+  if (entregaHojaMN) h += entregaHojaHtml(est);
+  return h + '</div>';
+}
+function entregaHojaHtml(est){
+  if (ciclosFotoMN === null) return '<div style="margin-top:10px"><div class="kv">Leyendo los ciclos del libro…</div></div>';
+  var conPend = buscadoresConPendienteMN(est);
+  var sel = null;
+  conPend.forEach(function(b){ if (b.cod === entregaHojaMN.buscador) sel = b; });
+  if (!sel) sel = conPend[0] || null;
+  if (!sel) return '<div style="margin-top:10px"><div class="kv">A nadie le debes comisión ni premio ahora mismo.</div>'
+    + (entregaHojaResMN || "")
+    + '<div class="fila" style="margin-top:8px"><button class="bGhost" id="entcCancelar">Cerrar</button></div></div>';
+  entregaHojaMN.buscador = sel.cod;
+  var p = pendienteBuscadorMN(sel.cod);
+  var tipoGuardado = mnBorrador("entcTipo");
+  var tipo = ((tipoGuardado === "premio" && p.premio > 0) || (tipoGuardado === "comision" && p.comision > 0)) ? tipoGuardado : (p.comision > 0 ? "comision" : "premio");
+  var clave = sel.cod + "|" + tipo;
+  if (clave !== entregaHojaClaveMN) { entregaHojaClaveMN = clave; delete mnBorradores["entcMonto"]; }
+  var pendTipo = tipo === "premio" ? p.premio : p.comision;
+  var medioGuardado = mnBorrador("entcMedio");
+  return '<div style="margin-top:10px;border-top:1px solid var(--linea);padding-top:10px">'
+    + '<div class="kv"><b>Registrar entrega</b> — anota aquí el efectivo que YA le pusiste en la mano; el libro lo marca ENTREGADO y su pendiente baja.</div>'
+    + '<select class="numIn" id="entcBuscador" style="width:100%;margin:8px 0">'
+    + conPend.map(function(b){ return '<option value="' + esc(b.cod) + '"' + (b.cod === sel.cod ? " selected" : "") + '>' + esc(b.nombre) + ' · le debes ' + fmtE(b.total) + ' CUP</option>'; }).join("") + '</select>'
+    + '<select class="numIn" id="entcTipo" style="width:100%;margin:0 0 8px">'
+    + (p.comision > 0 ? '<option value="comision"' + (tipo === "comision" ? " selected" : "") + '>Comisión · pendiente ' + fmtE(p.comision) + ' CUP</option>' : '')
+    + (p.premio > 0 ? '<option value="premio"' + (tipo === "premio" ? " selected" : "") + '>Premio por venta · pendiente ' + fmtE(p.premio) + ' CUP</option>' : '')
+    + '</select>'
+    + '<input type="number" class="numIn" id="entcMonto" inputmode="numeric" placeholder="Monto entregado en CUP" value="' + esc(mnBorrador("entcMonto") || (pendTipo ? String(pendTipo) : "")) + '" style="width:100%;margin:0 0 8px">'
+    + '<div class="ayuda">Viene lleno con todo el pendiente de ese tipo; cámbialo si le entregaste menos. Si el monto cruza varios ciclos, se reparte solo del más viejo al más nuevo y al final te enseña el desglose.</div>'
+    + '<select class="numIn" id="entcMedio" style="width:100%;margin:8px 0"><option value="efectivo"' + (medioGuardado !== "transferencia" ? " selected" : "") + '>Efectivo</option><option value="transferencia"' + (medioGuardado === "transferencia" ? " selected" : "") + '>Transferencia</option></select>'
+    + '<div class="kv" id="entcErr" style="color:var(--rojo)"></div>'
+    + (entregaHojaResMN || "")
+    + '<div class="fila"><button class="bGold" id="entcOk"' + (entregaRegistrandoMN ? " disabled" : "") + '>' + (entregaRegistrandoMN ? "Registrando…" : "Registrar entrega") + '</button><button class="bGhost" id="entcCancelar">Cancelar</button></div>'
+    + '</div>';
+}
+function abrirEntregaHojaMN(cod){
+  entregaHojaMN = { buscador: cod || "" };
+  entregaHojaResMN = "";
+  pintarDineroMN();
+  irAEnDineroMN("dnAcciones");
+}
+function registrarEntregaBuscadorMN(){
+  if (entregaRegistrandoMN || !entregaHojaMN) return;
+  var cod = entregaHojaMN.buscador;
+  var tipEl = $("entcTipo"), inp = $("entcMonto"), medEl = $("entcMedio"), err = $("entcErr");
+  var tipo = tipEl ? tipEl.value : "comision";
+  var monto = Math.round(Number(inp && inp.value));
+  var medio = medEl ? medEl.value : "efectivo";
+  function falla(m){ if (err) err.textContent = m; }
+  if (!monto || monto <= 0) return falla("Escribe el monto que le entregaste de verdad.");
+  var filas = ciclosDeBuscadorMN(cod).filter(function(f){ return (tipo === "premio" ? f.pendPremio : f.pendComision) > 0; });
+  var totalPend = filas.reduce(function(s, f){ return s + (tipo === "premio" ? f.pendPremio : f.pendComision); }, 0);
+  if (!filas.length || totalPend <= 0) return falla("Este buscador ya no tiene pendiente de ese tipo en la foto: toca Actualizar y revisa.");
+  if (monto > totalPend) return falla("Su pendiente de " + (tipo === "premio" ? "premio" : "comisión") + " es " + fmtE(totalPend) + " CUP: no se registra más de lo que se le debe.");
+  var restante = monto, hechos = [], falloEn = null, cadena = Promise.resolve();
+  filas.forEach(function(f){
+    var tramo = Math.min(restante, tipo === "premio" ? f.pendPremio : f.pendComision);
+    if (tramo <= 0) return;
+    restante -= tramo;
+    cadena = cadena.then(function(){
+      if (falloEn) return null;
+      return rpc("dineroEntregaComision", { p_codigo: state.codigo, p_buscador: cod, p_liquidacion_id: f.lid, p_tipo: tipo, p_monto: tramo, p_medio: medio, p_ref: uuidMN(), p_prueba: false }).then(function(r){
+        if (r && r.ok === false) { falloEn = r; return; }
+        hechos.push({ monto: tramo, fecha: f.creada_en });
+      }).catch(function(e){ falloEn = { motivo: "red", error: e }; });
+    });
+  });
+  entregaRegistrandoMN = true; entregaHojaResMN = ""; pintarDineroMN();
+  cadena.then(function(){
+    entregaRegistrandoMN = false;
+    delete mnBorradores["entcMonto"];
+    var nombre = nombreDe(cod) || cod;
+    var suma = hechos.reduce(function(s, x){ return s + x.monto; }, 0);
+    if (!hechos.length) {
+      entregaHojaResMN = "";
+      pintarDineroMN();
+      var e2 = $("entcErr");
+      if (e2) e2.textContent = "No se registró nada: " + (falloEn && falloEn.motivo === "red" ? "falló la conexión" : motivoEntregaTxtMN(falloEn)) + ". Nada cambió.";
+      return;
+    }
+    var desglose = hechos.map(function(x){ return fmtE(x.monto) + (x.fecha ? " del ciclo de " + fechaHoraTxt(x.fecha) : ""); }).join(" · ");
+    entregaHojaResMN = '<div class="kv" style="margin:8px 0"><span class="pill pOk">REGISTRADO</span> <b>' + fmtE(suma) + ' CUP</b> de ' + (tipo === "premio" ? "premio" : "comisión") + ' a <b>' + esc(nombre) + '</b>'
+      + (hechos.length > 1 ? ' — ' + desglose : '')
+      + (falloEn ? '. El resto (' + fmtE(monto - suma) + ' CUP) NO entró: ' + (falloEn.motivo === "red" ? "falló la conexión" : motivoEntregaTxtMN(falloEn)) + '.' : '.') + '</div>';
+    if (falloEn) toast("Se registró una parte; el resto no entró.", false);
+    else toast("✅ Entrega registrada a " + nombre + ": ya consta como entregado.");
+    cargarDineroMN();
+  });
+}
+function atajosBuscadorHtmlMN(cod){
+  var p = ciclosFotoMN === null ? { total: 0 } : pendienteBuscadorMN(cod);
+  return '<div class="fila" style="margin-top:8px"><button class="bGhost" data-atajo-reparto="' + esc(cod) + '">Repartir capital</button>'
+    + (p.total > 0 ? '<button class="bGold" data-atajo-comision="' + esc(cod) + '">Entregar comisión · ' + fmtE(p.total) + '</button>' : '')
+    + '</div>';
 }
 
 
