@@ -4510,13 +4510,21 @@ function asesorEstadoHtml(){
     return h;
   }
   var pu = g.puerta || {};
+  var puLeida = pu.pausadas !== undefined || pu.detenidas !== undefined;
   if (pu.detenidas) {
     h += '<div class="offBanner" style="display:block">⛔ ACCIONES DETENIDAS: la puerta no publica nada hasta que la reanudes. La lectura del mercado sigue viva.</div>';
   } else if (pu.pausadas) {
+    /* La CAUSA sale SOLO del motivo del servidor (pausa_motivo):
+       la tarjeta afirma el estado («no está trabajando», lo que el
+       dueño mandó oír) y jamás inventa el porqué — el día que la
+       pausa sea por otra razón, el texto sigue siendo verdad. */
     h += '<div style="margin-top:2px"><span class="pill pPend">PUERTA EN PAUSA</span></div>'
-      + '<div class="kv" style="margin-top:6px"><b>El Asesor no está trabajando</b>: la API de QvaPay está caída pa crear ofertas.</div>'
-      + (pu.motivo ? '<div class="kv">' + esc(pu.motivo) + '</div>' : "")
+      + '<div class="kv" style="margin-top:6px"><b>El Asesor no está trabajando.</b></div>'
+      + (pu.motivo ? '<div class="kv">' + esc(pu.motivo) + '</div>' : '<div class="kv">La puerta está en pausa (el servidor no dio el motivo).</div>')
       + '<div class="kv">Mientras tanto crea tu oferta <b>a mano</b> en QvaPay con los números de aquí abajo.</div>';
+  } else if (!puLeida) {
+    h += '<div style="margin-top:2px"><span class="pill pPend">ESTADO SIN LEER</span></div>'
+      + '<div class="kv" style="margin-top:6px">No pude leer el estado de la puerta en esta carga: no afirmo ni que trabaja ni que está en pausa. Dale a Actualizar.</div>';
   } else {
     h += '<div style="margin-top:2px"><span class="pill pOk">PUERTA AUTOMÁTICA ACTIVA</span></div>'
       + '<div class="kv" style="margin-top:6px">El Asesor está trabajando: prepara las ofertas y las sube con tu toque. Si prefieres crearla a mano, usa estos números.</div>';
@@ -4525,9 +4533,18 @@ function asesorEstadoHtml(){
     h += '<div class="mut" style="margin-top:8px">Leyendo la foto del mercado…</div></div>';
     return h;
   }
-  if (!f.fresca || Number(f.edad_s) > 1200) {
+  /* Foto usable = la del servidor: libro_ok Y fresca Y <20 min.
+     Cualquier pata que falte (o la edad que no llegue) = no se
+     firman números, cada causa con su nombre. */
+  var edadF = Number(f.edad_s);
+  if (f.libro_ok === false) {
+    h += '<div style="margin-top:10px"><span class="pill pPend">SIN LIBRO</span></div>'
+      + '<div class="kv" style="margin-top:6px">La foto de ahora no trae el libro validado: sin libro no firmo números. La lectura corre cada ~1 min: dale a Actualizar.</div></div>';
+    return h;
+  }
+  if (!f.fresca || isNaN(edadF) || edadF >= 1200) {
     h += '<div style="margin-top:10px"><span class="pill pPend">FOTO VIEJA</span></div>'
-      + '<div class="kv" style="margin-top:6px">La última foto es ' + (f.recibida_en ? "de las " + hora12(f.recibida_en) : "vieja") + ' (' + edadTxtMN(f.edad_s) + '): con una foto vieja no firmo números. La lectura corre cada ~1 min: dale a Actualizar.</div></div>';
+      + '<div class="kv" style="margin-top:6px">' + (isNaN(edadF) ? "La foto no trae su edad: no firmo números sin saber de cuándo es." : 'La última foto es ' + (f.recibida_en ? "de las " + hora12(f.recibida_en) : "vieja") + ' (' + edadTxtMN(f.edad_s) + '): con una foto vieja no firmo números.') + ' La lectura corre cada ~1 min: dale a Actualizar.</div></div>';
     return h;
   }
   var calc = g.calculo || {};
@@ -4542,9 +4559,12 @@ function asesorEstadoHtml(){
   h += '<div class="t1PosFila"><span class="k">Tasa</span><span class="v">' + fmtED(tasa) + ' <span style="font:600 11px var(--fuente);color:var(--txt-3)">SALDO POR QUSD</span></span></div>';
   var linea = pv("linea_saldo"), libro = pv("libro_saldo");
   if (libro === null || libro === undefined) libro = pv("lotes_saldo");
-  var comp = Number(pv("comprometido_saldo") || 0);
-  if (linea === null || linea === undefined) {
+  var compRaw = pv("comprometido_saldo");
+  var comp = Number(compRaw);
+  if (linea === null || linea === undefined || isNaN(Number(linea))) {
     h += '<div class="kv" style="margin-top:6px">Sin lectura de tu línea: no firmo el tamaño de la oferta.</div>';
+  } else if (compRaw === null || compRaw === undefined || isNaN(comp)) {
+    h += '<div class="kv" style="margin-top:6px">⚠ <b>Sin tamaño firmado</b>: falta el dato de saldo comprometido en ofertas vivas — sin él no sé cuánto de tu línea ya está en la calle.</div>';
   } else if (pos.firme !== true) {
     h += '<div class="kv" style="margin-top:6px">⚠ <b>Sin tamaño firmado</b>: tu libro y tu línea no acuerdan ahora (línea ' + fmtED(linea) + ' · libro ' + fmtED(libro) + ').</div>'
       + (pos.firme_texto ? '<div class="kv">' + esc(pos.firme_texto) + '</div>' : "");
