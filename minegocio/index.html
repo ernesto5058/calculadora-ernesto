@@ -689,6 +689,21 @@ select.numIn { text-align:left; font:500 16px var(--fuente); height:52px; }
 .recIdx { background:none; box-shadow:none; }
 .recSello { background:rgba(47,191,113,.07); box-shadow:none; filter:none; text-shadow:none; }
 .recibo.parcial .recSello { background:rgba(240,185,11,.07); }
+/* ===== CADENA DE DINERO · REPARTO POR CICLO (v41, 2026-11-17) —
+   plano premium v37: filas etiqueta→valor con hairlines, número
+   héroe (el PAGO FINAL) en tinta plana tabular, color solo = estado
+   (ámbar en la alerta de tope, teal en la acción). Solo presenta lo
+   que el servidor manda en reparto/por_recuperar/tope: si el campo
+   no viene, la pieza no se pinta — jamás un número inventado. */
+.repCadena { margin-top:var(--e-2); border-top:1px solid var(--linea); padding-top:var(--e-2); }
+.repTit { font:600 11px var(--fuente); letter-spacing:.09em; text-transform:uppercase; color:var(--txt-3); margin-bottom:2px; }
+.repFila { display:flex; align-items:baseline; justify-content:space-between; gap:var(--e-3); padding:6px 0; border-bottom:1px solid var(--linea); font:var(--t-sub); color:var(--txt-2); }
+.repFila b { color:var(--txt-1); font-variant-numeric:tabular-nums; white-space:nowrap; }
+.repFila.final { border-bottom:0; padding-top:8px; }
+.repFila.final span { font:600 15px var(--fuente); color:var(--txt-1); }
+.repFila.final b { font:700 22px var(--fuente-num); font-variant-numeric:tabular-nums; letter-spacing:-.01em; }
+.repVias { display:flex; flex-wrap:wrap; gap:var(--e-2); margin-top:var(--e-2); }
+.topeAlerta { border:1px solid rgba(240,185,11,.40); background:rgba(240,185,11,.07); border-radius:var(--r-md); padding:var(--e-3); margin-top:var(--e-2); }
 </style><script>window.SENTRY_CASA={app:"minegocio",version:"v23",dsn:"https://1454ae292cfdb8e358e88ec3d1fc1547@o4512419765354496.ingest.us.sentry.io/4512419769876480"};</script>
 <script defer crossorigin="anonymous" integrity="sha384-48iagrZwMa6wkDoJKNyCk4jgMHcOcsBK/DzZAJInl1ZhtunellJDCRNZuomfHefF" src="https://browser.sentry-cdn.com/8.38.0/bundle.min.js"></script>
 </head><body>
@@ -5283,7 +5298,7 @@ var MN_VERSION = "v29";
    chat. Formato: «Mi Negocio · versión 2026-11-11 HH:MM · caché v6»
    (fecha Y HORA de la publicación, para distinguir dos subidas
    del mismo día). La hora es la de Cuba (CST) al compilar. */
-var MN_COMPILACION = "2026-11-16 22:44";
+var MN_COMPILACION = "2026-11-17 11:30";
 function selloVersion(){ return "Mi Negocio · versión " + MN_COMPILACION + " · " + MN_VERSION + " · PRO"; }
 var regSW = null;
 var swConControladorAlArrancar = false;
@@ -6299,6 +6314,8 @@ PUERTAS.dineroElegirPago = "dinero_elegir_pago";
 PUERTAS.dineroDescartarConversion = "dinero_descartar_conversion";
 PUERTAS.dineroConfirmar = "dinero_confirmar_recibido";
 PUERTAS.dineroRechazar = "dinero_rechazar_devolucion";
+/* v41 · cadena de dinero: re-atribuir a Ernesto una espera fuera de ciclo */
+PUERTAS.dineroReatribuirEspera = "dinero_reatribuir_espera";
 var dineroFotoMN = null, dineroErrorMN = "", dineroCargandoMN = false, dineroLeidoEnMN = 0;
 /* v27 · REPARTO DE CAPITAL: la foto por buscador (dinero_capital_estado)
    y los ajustes de la cola: lo que Ernesto ya mandó y aún viaja se
@@ -6480,10 +6497,12 @@ registrarModulo({
       + '<div class="mut">Leído del libro a las ' + horaDe(new Date(dineroLeidoEnMN).toISOString()) + '.</div>'
       + '<div class="fila" style="margin-top:8px"><button class="bGold bMini" id="dnAct">Actualizar</button></div>'
       + '</div>';
+    h += alertasTopeHtml(est);
     h += accionesDineroHtml(enMano, est);
     h += fondoCurvaHtml(est);
     h += repartoHtml(enMano, ajCola);
     h += pagosBuscadoresHtml(est);
+    h += recuperacionesHtml(est);
     h += pagosCiclosHtml(est);
     /* --- La cuenta de cada buscador --- */
     var porCod = {}, ordenCod = [];
@@ -6639,9 +6658,14 @@ function abrirProcedencia(clave){
   if (clave === "gasto") {
     tit = "Tu gasto · ¿de dónde saliste?";
     var g = P.gasto || null;
+    /* v41: tu parte libre la manda el servidor (porciento de su parte);
+       sin ese campo, la hoja no enseña ningún porciento inventado. */
+    var parteLibre = repNumMN(est.porciento_gasto_su_parte !== undefined ? est.porciento_gasto_su_parte
+      : (est.porciento_gasto !== undefined ? est.porciento_gasto : (GP ? GP.porciento_gasto : null)));
     h = '<div class="kv">Tu cuenta de gasto vale hoy <b>' + fmtE(est.saldo_gasto) + ' CUP</b>.</div>'
       + (g ? '<div class="kv" style="margin-top:6px">Último movimiento: <b>' + fmtE(g.monto) + ' CUP</b>' + (g.detalle ? ' · ' + esc(g.detalle) : '') + '<br><span class="mut">' + fechaHoraTxt(g.creada_en) + '</span></div>' : '')
       + '<div class="kv" style="margin-top:6px">La fórmula, en palabras: esta cuenta <b>ya está cobrada</b> — nace de tu parte de la ganancia cuando cobras una venta y baja con cada gasto tuyo que se registra. Lo que aún no cobraste NO entra aquí: va en «Por cobrar».</div>'
+      + (parteLibre !== null ? '<div class="kv" style="margin-top:6px">Tu parte libre de la ganancia es hoy el <b>' + fmtPctMN(parteLibre) + ' %</b> — el porciento lo manda el servidor; el resto de la ganancia va al buscador y a la reinversión del fondo.</div>' : '')
       + (GP ? '<div class="kv" style="margin-top:6px">Por cobrar (todavía no es gasto disponible): <b>' + fmtE(GP.por_cobrar_estimado) + ' CUP</b>.</div>' : '');
   } else if (clave === "mano") {
     tit = "En tu mano · ¿de dónde saliste?";
@@ -6683,8 +6707,9 @@ document.addEventListener("click", function(e){
     }
     return;
   }
-  var b = e.target && e.target.closest ? e.target.closest("[data-conv-tasa],[data-conv-cobro],[data-qv-enviado],[data-ciclo-elegir],[data-cicent-abrir],[data-cicent-ok],[data-conv-descartar]") : null;
+  var b = e.target && e.target.closest ? e.target.closest("[data-conv-tasa],[data-conv-cobro],[data-qv-enviado],[data-ciclo-elegir],[data-cicent-abrir],[data-cicent-ok],[data-conv-descartar],[data-tope-reatribuir]") : null;
   if (!b) return;
+  if (b.hasAttribute("data-tope-reatribuir")) { reatribuirEsperaMN(b.getAttribute("data-tope-reatribuir")); return; }
   if (b.hasAttribute("data-ciclo-elegir")) { var ce = b.getAttribute("data-ciclo-elegir").split("|"); elegirPagoCiclo(ce[0], ce[1], b.getAttribute("data-plan")); }
   else if (b.hasAttribute("data-cicent-abrir")) { entregaCicloAbiertaMN = b.getAttribute("data-cicent-abrir"); pintarDineroMN(); }
   else if (b.hasAttribute("data-cicent-ok")) registrarEntregaCiclo(b.getAttribute("data-cicent-ok"));
@@ -6991,12 +7016,13 @@ function opcionesCicloHtml(c, lid){
 }
 function entregaCicloHtml(c, lid){
   if (!lid) return "";
-  var gp = numC(c.ganado_premio), ep = numC(c.entregado_premio);
-  var pendPremio = Math.max(0, gp - ep);
-  var pendTotal = (c.pendiente_ciclo === undefined || c.pendiente_ciclo === null)
-    ? Math.max(0, numC(c.ganado_comision !== undefined && c.ganado_comision !== null ? c.ganado_comision : c.comision_ciclo) - numC(c.entregado_comision)) + pendPremio
-    : numC(c.pendiente_ciclo);
-  var pendCom = Math.max(0, pendTotal - pendPremio);
+  /* MN2: el desglose por tipo sale de pendiente_comision /
+     pendiente_premio del servidor (dinero_ciclo_json), jamás de
+     ganado − entregado en el cliente (eso ignoraba premio_ya_pagado
+     y comision_nacida_pagada y fabricaba deuda fantasma). Sin los
+     campos del servidor, este ciclo no ofrece tipos de entrega. */
+  var pendPremio = (c.pendiente_premio === undefined || c.pendiente_premio === null) ? 0 : Math.max(0, numC(c.pendiente_premio));
+  var pendCom = (c.pendiente_comision === undefined || c.pendiente_comision === null) ? 0 : Math.max(0, numC(c.pendiente_comision));
   var tipos = [];
   if (pendCom > 0) tipos.push({ v: "comision", t: "Comisión · pendiente " + fmtE(pendCom) + " CUP" });
   if (pendPremio > 0) tipos.push({ v: "premio", t: "Premio por venta · pendiente " + fmtE(pendPremio) + " CUP" });
@@ -7022,6 +7048,165 @@ function entregaCicloHtml(c, lid){
     + '<div class="kv" id="cicentErr-' + key + '" style="color:var(--rojo)"></div>'
     + '<div class="fila"><button class="bGold bMini" data-cicent-ok="' + key + '">Confirmar entrega</button></div></div>';
 }
+/* =====================================================================
+   v41 · CADENA DE DINERO (Oleada PRO, 2026-11-17) — el REPARTO del ciclo
+   tal cual lo deriva el servidor (campos del contrato congelado:
+   reparto / por_recuperar / tope por liquidación; alertas_tope y
+   recuperaciones en dinero_leer_estado). La app SOLO presenta: no
+   recalcula la comisión ni la deuda, no maquilla cifras y, si un campo
+   no viene (servidor aún sin aplicar), la pieza se omite sin romperse.
+   MN2 (2026-11-17): la deuda por ciclo sale SOLO de pendiente_comision
+   / pendiente_premio que dinero_ciclo_json ya deriva en el servidor —
+   el reparto es desglose informativo por ENTREGA, nunca base del
+   pendiente (derivar de él fabricó el fantasma cazado por la
+   supervisora adversarial: 2.775 enseñados contra 54 reales).
+   MN3 (2026-11-17): DEDUPLICACIÓN del render — reparto / por_recuperar
+   / tope son POR ENTREGA y el servidor (corrección S2) los manda SOLO
+   en la liquidación portadora (reparto_portador: true; las demás los
+   traen en null). La app los lee ÚNICAMENTE de la portadora: sin
+   portadora en el payload (payload viejo), ningún bloque se pinta y
+   ningún agregado los suma — sin inventar. El reparto de un ciclo
+   abierto trae es_proyeccion: true y se nombra «proyección»; el
+   «pago» firme solo se nombra cuando es_proyeccion es false.
+   ===================================================================== */
+function fmtPctMN(x){
+  if (x === null || x === undefined || isNaN(Number(x))) return null;
+  return String(Number(x)).replace(".", ",");
+}
+function repNumMN(x){ return (x === undefined || x === null || isNaN(Number(x))) ? null : Number(x); }
+/* MN3: la señal que manda es reparto_portador (corrección S2 del
+   servidor): solo la liquidación portadora de la entrega trae los
+   bloques; cualquier otra lectura duplicaría el reparto por entrega. */
+function esPortadoraMN(c){ return !!c && c.reparto_portador === true; }
+function repartoCicloHtml(c){
+  if (!esPortadoraMN(c)) return "";
+  var r = c.reparto;
+  if (!r || typeof r !== "object") return "";
+  var gan = repNumMN(r.ganancia_ciclo), cb = repNumMN(r.comision_bruta), cr = repNumMN(r.comision_redondeada);
+  var rec = repNumMN(r.recuperacion_aplicada), pago = repNumMN(r.pago_buscador);
+  var lib = repNumMN(r.libre_ernesto), rei = repNumMN(r.reinversion_fondo);
+  if (gan === null && cb === null && pago === null) return "";
+  var pb = fmtPctMN(r.pct_buscador), pl = fmtPctMN(r.pct_libre), pr = fmtPctMN(r.pct_reinversion);
+  var esProy = r.es_proyeccion === true, esFirme = r.es_proyeccion === false;
+  var h = '<div class="repCadena"><div class="repTit">Reparto de este ciclo' + (esProy ? ' · proyección' : '') + '</div>';
+  if (gan !== null) h += '<div class="repFila"><span>Ganancia del ciclo</span><b>' + fmtE(gan) + ' CUP</b></div>';
+  if (cb !== null) h += '<div class="repFila"><span>Comisión del buscador' + (pb ? ' (' + pb + ' % de la ganancia)' : '') + '</span><b>' + fmtE(cb) + ' CUP</b></div>';
+  if (cr !== null) h += '<div class="repFila"><span>Redondeada a la decena (el 5 baja)</span><b>' + fmtE(cr) + ' CUP</b></div>';
+  if (rec !== null && rec > 0) {
+    h += '<div class="repFila"><span>Menos recuperación de su deuda</span><b>−' + fmtE(rec) + ' CUP</b></div>';
+    if (cr !== null) h += '<div class="repFila"><span>Queda tras la recuperación</span><b>' + fmtE(cr - rec) + ' CUP</b></div>';
+  }
+  if (pago !== null) h += '<div class="repFila final"><span>' + (esProy ? 'Pago proyectado al buscador' : esFirme ? 'Pago final al buscador' : 'Pago al buscador') + '</span><b>' + fmtE(pago) + ' CUP</b></div>';
+  if (lib !== null || rei !== null) {
+    h += '<div class="repVias">'
+      + (lib !== null ? '<span class="dnChip">Tu parte libre' + (pl ? ' (' + pl + ' %)' : '') + ' <b>' + fmtE(lib) + '</b></span>' : '')
+      + (rei !== null ? '<span class="dnChip dnChipT">Al fondo · reinversión' + (pr ? ' (' + pr + ' %' + (rec !== null && rec > 0 ? ' + lo recuperado' : '') + ')' : '') + ' <b>' + fmtE(rei) + '</b></span>' : '')
+      + '</div>';
+  }
+  if (esProy) h += '<div class="ayuda" style="margin-top:6px">Esto es una <b>proyección</b>: el ciclo sigue abierto y todavía no es un pago firme; el pago se confirma cuando el ciclo cierre.</div>';
+  h += '<div class="ayuda" style="margin-top:6px">La ganancia se reparte en tres vías: el buscador, tu parte libre y la reinversión al fondo — la reinversión siempre es la mayor. Sin ganancia no hay comisión.</div>';
+  return h + '</div>';
+}
+function porRecuperarHtml(c){
+  if (!esPortadoraMN(c)) return "";
+  var p = c.por_recuperar;
+  if (!p || typeof p !== "object") return "";
+  var tot = repNumMN(p.total), recu = repNumMN(p.recuperado), rest = repNumMN(p.restante), rit = repNumMN(p.ritmo);
+  if (tot === null || tot <= 0) return "";
+  return '<div class="repCadena"><div class="repTit">Por recuperar de este buscador</div>'
+    + '<div class="repFila"><span>Deuda por recuperar</span><b>' + fmtE(tot) + ' CUP</b></div>'
+    + (recu !== null ? '<div class="repFila"><span>Ya recuperado (sumó a la reinversión)</span><b>' + fmtE(recu) + ' CUP</b></div>' : '')
+    + (rest !== null ? '<div class="repFila"><span>Quedan por recuperar</span><b>' + fmtE(rest) + ' CUP</b></div>' : '')
+    + (rit !== null ? '<div class="ayuda" style="margin-top:6px">Se descuentan hasta <b>' + fmtE(rit) + ' CUP por ciclo</b> de su comisión, y cada peso recuperado suma a la reinversión del fondo.</div>' : '')
+    + '</div>';
+}
+function topeCicloHtml(c){
+  if (!esPortadoraMN(c)) return "";
+  var t = c.tope;
+  if (!t || typeof t !== "object") return "";
+  var ent = repNumMN(t.capital_entrega), comp = repNumMN(t.capital_comprado), rest = repNumMN(t.capital_restante);
+  if (ent === null && comp === null && !t.excedido) return "";
+  var h = '<div class="kv" style="margin-top:4px">Tope del ciclo: capital entregado <b>' + fmtE(ent) + ' CUP</b>'
+    + (comp !== null ? ' · comprado <b>' + fmtE(comp) + '</b>' : '')
+    + (rest !== null ? ' · le queda <b>' + fmtE(rest) + '</b>' : '') + '</div>';
+  if (t.excedido) h += '<div class="kv" style="margin-top:4px"><span class="pill pPend">TOPE EXCEDIDO</span> este ciclo compró por encima del capital entregado.</div>';
+  return h;
+}
+/* Recuperaciones por buscador (dinero_leer_estado.recuperaciones):
+   acepta lista [{buscador,total,recuperado,restante,ritmo}] u objeto
+   por código; campos con su nombre del contrato o el de la tabla. */
+function recuperacionesHtml(est){
+  var recs = est && est.recuperaciones;
+  var filas = [];
+  if (Array.isArray(recs)) filas = recs.map(function(x){ return Object.assign({ buscador: x && x.buscador }, x || {}); });
+  else if (recs && typeof recs === "object") Object.keys(recs).forEach(function(k){ var x = recs[k] || {}; filas.push(Object.assign({ buscador: k }, x)); });
+  filas = filas.filter(function(x){
+    var tot = repNumMN(x.total !== undefined ? x.total : x.monto_total);
+    return tot !== null && tot > 0;
+  });
+  if (!filas.length) return "";
+  var ICO = '<span class="secIco">' + icono("dinero") + '</span>';
+  var h = '<div class="card" id="dnRecuperaciones"><h3>' + ICO + 'Por recuperar de los buscadores</h3>';
+  h += filas.map(function(x){
+    var tot = repNumMN(x.total !== undefined ? x.total : x.monto_total);
+    var recu = repNumMN(x.recuperado !== undefined ? x.recuperado : x.monto_recuperado);
+    var rest = repNumMN(x.restante);
+    if (rest === null && tot !== null && recu !== null) rest = tot - recu;
+    var rit = repNumMN(x.ritmo !== undefined ? x.ritmo : x.ritmo_por_ciclo);
+    var cod = String(x.buscador || "");
+    return '<div class="repFila"><span><b>' + esc(nombreDe(cod) || cod) + '</b> · total <b>' + fmtE(tot) + ' CUP</b>'
+      + (rit !== null ? ' · ritmo ' + fmtE(rit) + ' por ciclo' : '')
+      + (recu !== null ? ' · ya recuperado ' + fmtE(recu) : '') + '</span>'
+      + (rest !== null ? '<b>quedan ' + fmtE(rest) + ' CUP</b>' : '') + '</div>';
+  }).join("");
+  h += '<div class="ayuda" style="margin-top:6px">Cada ciclo descuenta hasta el ritmo de la comisión del buscador, y lo recuperado suma a la reinversión del fondo.</div>';
+  return h + '</div>';
+}
+/* Alerta de TOPE (dinero_leer_estado.alertas_tope): esperas que
+   llegaron fuera de ciclo. La re-atribución va por su puerta con el
+   candado de la casa: ok:false enseña el motivo real, jamás un éxito. */
+function alertasTopeHtml(est){
+  var al = (est && Array.isArray(est.alertas_tope)) ? est.alertas_tope : [];
+  if (!al.length) return "";
+  var ICO = '<span class="secIco">' + icono("avisos") + '</span>';
+  var h = '<div class="card" id="dnAlertasTope"><h3>' + ICO + 'Aviso de tope: esperas fuera de ciclo</h3>'
+    + '<div class="ayuda">Estas esperas llegaron cuando su buscador ya no tenía capital de ciclo pa cubrirlas: quedaron marcadas, no asentadas a ciegas. Si en realidad son tuyas, re-atribúyelas a ti con un toque.</div>';
+  h += al.map(function(a){
+    var cod = String(a.buscador || "");
+    var id = String(a.espera_id || "");
+    return '<div class="topeAlerta"><div class="kv"><b>' + esc(nombreDe(cod) || cod) + '</b> · espera de <b>' + fmtE(a.monto_capital) + ' CUP</b>'
+      + (repNumMN(a.exceso) !== null ? ' · exceso sobre el tope: <b>' + fmtE(a.exceso) + ' CUP</b>' : '')
+      + (a.creada_en ? ' <span class="mut">· ' + fechaHoraTxt(a.creada_en) + '</span>' : '') + '</div>'
+      + '<div class="kv" id="topeErr-' + esc(id) + '" style="color:var(--rojo)"></div>'
+      + (id ? '<div class="fila" style="margin-top:6px"><button class="bGold bMini" data-tope-reatribuir="' + esc(id) + '">Re-atribuir a Ernesto</button></div>' : '')
+      + '</div>';
+  }).join("");
+  return h + '</div>';
+}
+function motivoReatribuirTxtMN(r){
+  if (!r) return "el servidor no respondió";
+  if (r.motivo === "codigo_admin_no_valido") return "tu código de dueño no validó";
+  if (r.motivo === "espera_no_existe") return "esa espera ya no está en el libro";
+  if (r.motivo === "espera_no_marcada") return "esa espera no está marcada como fuera de ciclo";
+  return "el servidor no aceptó (" + String(r.motivo || "sin motivo") + ")";
+}
+function reatribuirEsperaMN(id){
+  if (!id) return;
+  rpc("dineroReatribuirEspera", { p_codigo: state.codigo, p_espera_id: id, p_prueba: false }).then(function(r){
+    if (r && r.ok === false) {
+      var err = $("topeErr-" + id);
+      if (err) err.textContent = "No se re-atribuyó: " + motivoReatribuirTxtMN(r) + ". Nada cambió.";
+      else toast("No se re-atribuyó: " + motivoReatribuirTxtMN(r) + ". Nada cambió.", false);
+      return;
+    }
+    toast("✅ Espera re-atribuida a ti: salió de la alerta de tope.");
+    cargarDineroMN();
+  }).catch(function(e){
+    var err = $("topeErr-" + id);
+    var msg = (e && e.faltaPuerta) ? TXT_FALTA_ACTIVAR : "No se pudo re-atribuir (¿conexión?). Nada cambió.";
+    if (err) err.textContent = msg; else toast(msg, false);
+  });
+}
 function pagosCiclosHtml(est){
   var ICO = '<span class="secIco">' + icono("dinero") + '</span>';
   var h = '<div class="card" id="dnCiclos"><h3>' + ICO + 'Pagos por ciclo</h3>';
@@ -7030,6 +7215,27 @@ function pagosCiclosHtml(est){
   h += '<div class="ayuda">' + (pct !== null
       ? 'La comisión es el ' + esc(String(pct)) + ' % de TU ganancia, no del total. Ejemplo: ganancia 454 → 110 pa él, 344 pa ti.'
       : 'La comisión es un % de TU ganancia, no del total. Ejemplo: ganancia 454 → 110 pa él, 344 pa ti.') + '</div>';
+  /* v41: la reinversión que estos ciclos ya acreditaron al fondo,
+     sumada de los repartos que manda el servidor (sin reparto, nada).
+     MN3: SOLO la liquidación portadora de cada entrega alimenta la
+     suma — el reparto es por entrega; sumarlo por liquidación lo
+     multiplicaba (la supervisora cazó 6.075 enseñados vs 1.308).
+     MN4 (2026-11-17, supervisora ronda 2 · Ataque 6.3): «acreditada»
+     suma SOLO portadoras con es_proyeccion === false (ciclo cerrado,
+     reinversión firme). La de un ciclo ABIERTO (es_proyeccion: true)
+     todavía NO está acreditada: va en línea aparte y nombrada
+     «proyectada». Sin marca del servidor (campo ausente), no se
+     acredita nada: no se afirma lo que el servidor no marcó firme. */
+  var reiTot = 0, reiHay = false, reiProy = 0, reiProyHay = false;
+  (ciclosFotoMN || []).forEach(function(c){
+    if (!esPortadoraMN(c) || !c.reparto) return;
+    var rv = repNumMN(c.reparto.reinversion_fondo);
+    if (rv === null) return;
+    if (c.reparto.es_proyeccion === false) { reiTot += rv; reiHay = true; }
+    else if (c.reparto.es_proyeccion === true) { reiProy += rv; reiProyHay = true; }
+  });
+  if (reiHay) h += '<div class="kv" style="margin-top:6px">Reinversión acreditada al fondo por estos ciclos: <b>' + fmtE(reiTot) + ' CUP</b> (la parte mayor de cada ganancia + lo recuperado de deudas).</div>';
+  if (reiProyHay) h += '<div class="kv" style="margin-top:6px">Reinversión proyectada de ciclos aún abiertos (todavía no acreditada): <b>' + fmtE(reiProy) + ' CUP</b>.</div>';
   if (ciclosFotoMN === null) {
     h += '<div class="kv" style="margin-top:8px">' + (ciclosErrorMN === "falta" ? '<b>' + TXT_FALTA_ACTIVAR + '</b>' : ciclosErrorMN === "red" ? 'Sin lectura de los ciclos por ahora (¿conexión?).' : 'Leyendo los ciclos del libro…') + '</div></div>';
     return h;
@@ -7056,6 +7262,9 @@ function pagosCiclosHtml(est){
       + '<div class="kv" style="margin-top:4px">Estado: <span class="pill ' + (estadoCicloTxt(c).indexOf("entregada") === 0 ? "pOk" : "pPend") + '">' + esc(estadoCicloTxt(c)) + '</span></div>'
       + (numC(c.exceso_adelanto_previo) > 0 ? '<div class="kv" style="margin-top:4px">Este ciclo trae <b>' + fmtE(c.exceso_adelanto_previo) + ' CUP</b> de exceso de adelanto del ciclo anterior: ya viene descontado de lo pagable.</div>' : '')
       + (c.eleccion_pago === "a0" && numC(c.adelanto_entregado) > 0 ? '<div class="kv" style="margin-top:4px">Adelanto entregado: <b>' + fmtE(c.adelanto_entregado) + ' CUP</b> — se cuadra al cerrar el ciclo.</div>' : '')
+      + repartoCicloHtml(c)
+      + porRecuperarHtml(c)
+      + topeCicloHtml(c)
       + opcionesCicloHtml(c, lid)
       + entregaCicloHtml(c, lid)
       + '<div class="ayuda" style="margin-top:8px">A0 es un adelanto sobre el plan: no es comisión ganada hasta que las compras se prueben; al cerrar el ciclo se cuadra. A cobra ya con el descuento. B espera la venta y cobra exacto.</div>'
@@ -7114,13 +7323,20 @@ function motivoEntregaTxtMN(r){
   return "el servidor no aceptó (" + String(r.motivo || "sin motivo") + ")";
 }
 function pendienteTipoCicloMN(c, tipo){
-  var gc = numC(c.ganado_comision !== undefined && c.ganado_comision !== null ? c.ganado_comision : c.comision_ciclo);
-  var gp = numC(c.ganado_premio), ec = numC(c.entregado_comision), ep = numC(c.entregado_premio);
-  if (tipo === "premio") return Math.max(0, gp - ep);
-  var base = gc;
-  if (c.eleccion_pago === "ahora" && c.comision_ahora !== undefined && c.comision_ahora !== null) base = numC(c.comision_ahora);
-  else if (c.eleccion_pago === "a0") base = Math.max(0, gc - numC(c.adelanto_entregado));
-  return Math.max(0, base - numC(c.exceso_adelanto_previo) - ec);
+  /* MN2 (corrección tras SUPERVISORA-PRO, 2026-11-17): el pendiente de
+     cada tipo ES el que el servidor ya deriva por liquidación en
+     dinero_ciclo_json — pendiente_comision / pendiente_premio — y se
+     lee tal cual. CERO aritmética de deuda en el cliente: ni
+     reparto.pago_buscador − entregado (el reparto es POR ENTREGA y se
+     repite en cada liquidación de la entrega: derivar de él fabricó
+     el fantasma de 2.775 contra 54 reales) ni ganado − entregado
+     (ignora lo nacido pagado). El reparto queda solo como desglose
+     informativo de la cadena. Si el servidor no manda el campo, el
+     pendiente de ese tipo se trata como no enseñable (0): jamás se
+     inventa una deuda derivándola aquí. */
+  var campo = tipo === "premio" ? c.pendiente_premio : c.pendiente_comision;
+  if (campo === undefined || campo === null) return 0;
+  return Math.max(0, numC(campo));
 }
 function ciclosDeBuscadorMN(cod){
   var out = [];
