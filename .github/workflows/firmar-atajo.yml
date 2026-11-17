@@ -1,6 +1,11 @@
 name: Firmar atajo (Apple sign)
 on:
   workflow_dispatch:
+  push:
+    branches: [firmador]
+    paths:
+      - 'firmador/**'
+      - '.github/workflows/firmar-atajo.yml'
 jobs:
   firmar:
     runs-on: macos-latest
