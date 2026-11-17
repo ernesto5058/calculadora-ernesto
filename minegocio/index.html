@@ -640,6 +640,73 @@ select.numIn { text-align:left; font:500 16px var(--fuente); height:52px; }
 .recTramoTx { flex:1; min-width:0; }
 .recibo .recNota { margin:0; padding:0 var(--e-4) var(--e-3); }
 .recPie { display:flex; align-items:center; justify-content:space-between; gap:var(--e-2); padding:var(--e-3) var(--e-4); border-top:1px solid var(--linea); font:var(--t-nota); color:var(--txt-3); }
+/* ===== ENTREGAR DINERO · PROFUNDIDAD 3D (v36, 2026-11-16, tercer
+   veredicto del dueño sobre la v35: «mete algo más usual en la
+   programación, más duro, 3D — algo que se pase y se vea el diseño
+   bien duro») — la v35 tenía dirección pero seguía PLANA: degradados
+   con una sombrita. Esta capa construye PROFUNDIDAD FÍSICA con el
+   CSS moderno usual en apps top (sin WebGL ni librerías: fluido en
+   el iPhone XR) y UNA SOLA LUZ pa toda la superficie: entra por
+   arriba-izquierda — los brillos viven en los bordes superior e
+   izquierdo y TODAS las sombras caen abajo-derecha. Esa consistencia
+   es lo que separa el 3D de verdad de las sombras pegadas.
+   · HÉROE = losa elevada: sombra en 3 capas, brillo de cristal
+     diagonal (::before) y el número en degradado vertical de metal
+     (background-clip:text) con drop-shadow de grabado.
+   · RECIBO = objeto apoyado en la tarjeta: sombra amplia de objeto,
+     luz en el borde superior y sheen de papel en su fondo.
+   · PERFORACIÓN con pared: las muescas llevan sombra interna y
+     degradado hacia abajo-derecha (la pared del corte) y el rasgado
+     deja un filete de luz bajo la línea de puntos.
+   · SELLO = estampado en relieve SIN box-shadow inset sobre el
+     círculo rotado (la maraña de la v35, CHEQUEO 123): anillo
+     interior ::before (la técnica limpia), halo de tinta ::after,
+     tinta en radial desigual (más cargada donde pega la luz), letras
+     en bajorrelieve con text-shadow y la sombra de contacto por
+     drop-shadow, que sigue la forma real del anillo rotado.
+   · MEDALLÓN = disco con luz: highlight interno arriba, sombra
+     interna abajo, anillo metálico en capas e iniciales grabadas
+     (el fondo del avatar viene inline por perfil: la profundidad
+     entra por sombras, no por fondo).
+   · POZO del monto = hueco tallado (inset) con los steppers como
+     botones físicos elevados; su :focus CONSERVA el anillo de foco
+     sumado al hueco (CHEQUEO 115: el foco no se toca).
+   · CHIPS = ranuras hundidas en la losa (inset), no pegatinas.
+   · BARRIDO de la misma pantalla: botones y steppers físicos en
+     TODA la familia de entregas de Dinero (#pgDinero: la tarjeta,
+     la hoja de Repartir y los formularios de entrega por ciclo) —
+     que ninguna pieza del mismo apartado quede plana al lado de
+     las duras.
+   SOLO presentación: ni un id, ni una puerta, ni un texto cambia. */
+.dnHero { background:linear-gradient(152deg, #263D57 0%, var(--bg-3) 40%, var(--bg-2) 76%, var(--bg-1) 100%); box-shadow:inset 0 1px 0 rgba(255,255,255,.10), inset 1px 0 0 rgba(255,255,255,.04), inset 0 -1px 0 rgba(2,4,8,.45), 0 1px 2px rgba(2,4,8,.45), 0 8px 16px rgba(2,4,8,.38), 0 20px 38px rgba(2,4,8,.30); }
+.dnHero::before { content:""; position:absolute; inset:0; background:linear-gradient(112deg, rgba(255,255,255,.11) 0%, rgba(255,255,255,.035) 34%, rgba(255,255,255,0) 58%); pointer-events:none; }
+.dnHeroNum { background:linear-gradient(180deg, #FFFFFF 0%, #EAF5F9 38%, #BCD3DE 78%, #9FBCCB 100%); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; color:transparent; filter:drop-shadow(0 2px 2px rgba(2,4,8,.45)); }
+.dnHeroNum small { -webkit-text-fill-color:var(--txt-3); }
+.dnChip { box-shadow:inset 0 1px 3px rgba(2,4,8,.45), inset 0 -1px 0 rgba(255,255,255,.05); }
+.accFila { background:linear-gradient(158deg, #243A52 0%, var(--bg-3) 46%, var(--bg-2) 100%); box-shadow:inset 0 1px 0 rgba(255,255,255,.08), inset 0 -1px 0 rgba(2,4,8,.40), 0 1px 2px rgba(2,4,8,.42), 0 10px 20px rgba(2,4,8,.30); }
+.accFila .accIco { background:linear-gradient(145deg, rgba(94,234,212,.30) 0%, rgba(45,212,191,.16) 42%, rgba(56,189,248,.10) 100%); box-shadow:inset 0 1px 0 rgba(255,255,255,.22), inset 0 -3px 6px rgba(2,4,8,.28), inset 0 0 0 1px var(--acento-borde), 0 4px 8px rgba(2,4,8,.38); }
+.accFila .accIco svg { filter:drop-shadow(0 1px 1px rgba(2,4,8,.45)); }
+.dnMed .avatar { border-color:rgba(255,255,255,.18); box-shadow:inset 0 1px 1px rgba(255,255,255,.35), inset 0 -4px 8px rgba(2,4,8,.38), 0 0 0 2px var(--bg-1), 0 0 0 3.5px rgba(148,197,220,.30), 1px 2px 3px rgba(2,4,8,.35), 0 6px 12px rgba(2,4,8,.48); text-shadow:0 1px 0 rgba(255,255,255,.16), 0 -1px 1px rgba(2,4,8,.45); }
+.hojaId { background:linear-gradient(158deg, #243A52 0%, var(--bg-3) 48%, var(--bg-2) 100%); box-shadow:inset 0 1px 0 rgba(255,255,255,.08), inset 0 -1px 0 rgba(2,4,8,.38), 0 1px 2px rgba(2,4,8,.40), 0 8px 16px rgba(2,4,8,.28); }
+.selPro { background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%237FA6B8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E"), linear-gradient(168deg, #22374E 0%, var(--bg-2) 100%); background-repeat:no-repeat; background-position:right 14px center, 0 0; box-shadow:inset 0 1px 0 rgba(255,255,255,.07), inset 0 -1px 0 rgba(2,4,8,.35), 0 2px 5px rgba(2,4,8,.35); }
+.montoHero { background:linear-gradient(160deg, #22374E 0%, var(--bg-3) 55%, var(--bg-2) 100%); box-shadow:inset 0 1px 0 rgba(255,255,255,.08), inset 0 -1px 0 rgba(2,4,8,.40), 0 1px 2px rgba(2,4,8,.42), 0 8px 16px rgba(2,4,8,.30); }
+.montoHero .montoIn { background:linear-gradient(180deg, #0A141F 0%, var(--bg-1) 34%); border:1px solid rgba(2,4,8,.45); box-shadow:inset 0 3px 8px rgba(2,4,8,.55), inset 0 -1px 0 rgba(255,255,255,.05); text-shadow:0 1px 2px rgba(2,4,8,.5); }
+.montoHero .montoIn:focus { border-color:var(--acento-borde); box-shadow:inset 0 3px 8px rgba(2,4,8,.55), inset 0 -1px 0 rgba(255,255,255,.05), 0 0 0 3px var(--acento-suave); }
+#pgDinero .stepRow .step { background:linear-gradient(180deg, #2A435F 0%, var(--bg-3) 55%, #1B2C40 100%); border:1px solid var(--borde-fuerte); box-shadow:inset 0 1px 0 rgba(255,255,255,.12), inset 0 -1px 0 rgba(2,4,8,.40), 0 3px 7px rgba(2,4,8,.42); }
+#pgDinero .bGold { background:linear-gradient(180deg, rgba(45,212,191,.24) 0%, rgba(45,212,191,.13) 55%, rgba(56,189,248,.10) 100%); box-shadow:inset 0 1px 0 rgba(255,255,255,.16), inset 0 -1px 0 rgba(2,4,8,.30), 0 1px 2px rgba(2,4,8,.40), 0 6px 14px rgba(2,4,8,.32); }
+#pgDinero .bGhost { background:linear-gradient(180deg, var(--bg-3) 0%, var(--bg-2) 100%); box-shadow:inset 0 1px 0 rgba(255,255,255,.07), inset 0 -1px 0 rgba(2,4,8,.35), 0 2px 5px rgba(2,4,8,.35); }
+.recibo { background:linear-gradient(115deg, rgba(255,255,255,.075) 0%, rgba(255,255,255,.015) 34%, rgba(255,255,255,0) 55%), linear-gradient(170deg, #243A52 0%, var(--bg-2) 44%, var(--bg-1) 100%); border:1px solid rgba(148,197,220,.13); box-shadow:0 1px 2px rgba(2,4,8,.50), 0 10px 22px rgba(2,4,8,.45), 0 30px 54px rgba(2,4,8,.38), inset 0 1px 0 rgba(255,255,255,.10), inset 1px 0 0 rgba(255,255,255,.035), inset 0 -1px 0 rgba(2,4,8,.50); }
+.recMarca i { box-shadow:inset 0 1px 0 rgba(255,255,255,.35), inset 0 -1px 0 rgba(2,4,8,.25), 0 2px 5px rgba(2,4,8,.35); }
+.recBanda { box-shadow:inset 0 2px 5px rgba(2,4,8,.35), inset 0 -1px 0 rgba(255,255,255,.05); }
+.recibo .recMonto { background:linear-gradient(180deg, #FFFFFF 0%, #EAF5F9 40%, #BCD3DE 80%, #9FBCCB 100%); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; color:transparent; filter:drop-shadow(0 1px 1px rgba(2,4,8,.40)); }
+.recibo .recMonto small { -webkit-text-fill-color:var(--txt-3); }
+.recPerf { box-shadow:0 1px 0 rgba(255,255,255,.05); }
+.recPerf::before, .recPerf::after { background:radial-gradient(circle at 36% 30%, var(--bg-1) 58%, #0B141F 100%); box-shadow:inset -2px -3px 4px rgba(2,4,8,.55), inset 1px 1px 1px rgba(255,255,255,.04); }
+.recIdx { background:linear-gradient(180deg, var(--bg-3), var(--bg-2)); box-shadow:inset 0 1px 0 rgba(255,255,255,.08), 0 1px 2px rgba(2,4,8,.40); }
+.recSello { background:radial-gradient(circle at 34% 28%, rgba(47,191,113,.20) 0%, rgba(47,191,113,.07) 52%, rgba(47,191,113,.13) 100%); box-shadow:none; filter:drop-shadow(1px 3px 3px rgba(2,4,8,.45)); text-shadow:0 1px 0 rgba(255,255,255,.20), 0 -1px 1px rgba(2,4,8,.40); }
+.recSello::after { content:""; position:absolute; inset:-6px; border-radius:50%; border:1px solid rgba(47,191,113,.28); pointer-events:none; }
+.recibo.parcial .recSello { background:radial-gradient(circle at 34% 28%, rgba(240,185,11,.20) 0%, rgba(240,185,11,.07) 52%, rgba(240,185,11,.13) 100%); }
+.recibo.parcial .recSello::after { border-color:rgba(240,185,11,.28); }
 </style><script>window.SENTRY_CASA={app:"minegocio",version:"v23",dsn:"https://1454ae292cfdb8e358e88ec3d1fc1547@o4512419765354496.ingest.us.sentry.io/4512419769876480"};</script>
 <script defer crossorigin="anonymous" integrity="sha384-48iagrZwMa6wkDoJKNyCk4jgMHcOcsBK/DzZAJInl1ZhtunellJDCRNZuomfHefF" src="https://browser.sentry-cdn.com/8.38.0/bundle.min.js"></script>
 </head><body>
