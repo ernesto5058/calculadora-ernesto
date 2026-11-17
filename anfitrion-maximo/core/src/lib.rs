@@ -34,6 +34,7 @@ mod provider;
 mod record;
 mod servicio;
 mod signinstall;
+mod supervisor;
 mod transport;
 mod vault;
 

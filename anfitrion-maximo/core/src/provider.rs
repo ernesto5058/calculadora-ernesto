@@ -20,6 +20,10 @@ use idevice::{Idevice, IdeviceError};
 
 use crate::cadena::CadenaHandle;
 
+/// Clonable pa el supervisor (v2.6): el paso supervisado recibe un clon
+/// del handle vigente en cada intento; si el supervisor re-prepara el
+/// transporte, el proveedor del paso siguiente es el de la sesión nueva.
+#[derive(Clone)]
 pub struct AnfitrionProvider {
     cadena: CadenaHandle,
     pairing_bytes: Vec<u8>,

@@ -40,6 +40,18 @@
 //! `abrir_servicio`, con un banco que fija el orden. El transporte de la
 //! v2.4 (sesión mux propia de la cadena, hub solo detección) se queda:
 //! inocuo y ordenado.
+//!
+//! **v2.6 — EL SUPERVISOR USB** (módulo `supervisor`): la corrida viva de
+//! la v2.5 probó la negociación y murió a los ~2,6 s con `bulk OUT: No
+//! such device (os error 19)` — el iPhone se cayó del bus a mitad de
+//! escritura y la IPA no quedó instalada. Desde la v2.6, la preparación
+//! de la cadena, la sonda del canal y la instalación corren bajo el
+//! supervisor: ante una desconexión (ENODEV) registra el intento, espera
+//! 1,5 s, RE-PREPARA el transporte desde cero con `preparar_proveedor`
+//! (la misma preparación inicial: hub que detecta y suelta + transporte
+//! fresco + sesión mux fresca) y reintenta el paso — máximo 3 intentos
+//! por paso; agotados, la cadena falla con el registro completo de
+//! intentos. Cualquier otro error sigue su camino sin reintentar.
 
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex, OnceLock};
@@ -223,6 +235,41 @@ pub fn vault_covers(ipa_path: &str, vault: &VaultHandle) -> String {
 
 /// Punto de entrada síncrono (lo llama JNI en un hilo de trabajo).
 /// `password` puede venir vacío cuando la bóveda cubre la app (ruta offline).
+/// Prepara el proveedor de la cadena DESDE CERO (v2.4, y la
+/// re-preparación del supervisor en la v2.6): el hub de detección saluda
+/// al iPhone, purga el nacimiento y CIERRA soltando la interfaz; después,
+/// un transporte fresco abre la sesión mux PROPIA de la cadena (saludo de
+/// la vía 1 + purga). Es la preparación inicial de la corrida Y la que el
+/// supervisor repite tras una desconexión: el mismo camino probado —
+/// re-enumerar por el fd y el SET_CONFIGURATION que reinicia la sesión
+/// mux del iPhone incluidos. Sobre la sesión nueva, cada servicio
+/// re-negocia su StartSession como siempre (`servicio::abrir_servicio`).
+fn preparar_proveedor(fd: i32, pairing_bytes: &[u8]) -> Result<AnfitrionProvider, StageErr> {
+    stage("ETAPA conexion: preparando el cable (descriptores, configuración, claim)…");
+    {
+        // Detección/latido: el hub saluda (su línea de sesión abierta es la
+        // prueba de que el cable y el mux viven tras la puerta)…
+        let transport = crate::pair::open_mux_transport(fd, "")?;
+        let eps = transport.endpoints();
+        let hub = spawn_hub(transport, eps).map_err(|e| err("conexion", e))?;
+        // …purga su estado (tras el SET_CONFIGURATION del pairing, ningún
+        // frame ni ID de sesiones muertas queda con dueño)…
+        hub.purge().map_err(|e| err("conexion", e))?;
+        // …y se cierra soltando la interfaz ANTES de que la cadena abra la
+        // suya: el hub nunca es transporte de la cadena.
+        hub.shutdown().map_err(|e| err("conexion", e))?;
+        stage("ETAPA conexion: hub de detección purgado y cerrado — la cadena NO viaja sobre el hub");
+    }
+    // La sesión de la cadena: transporte fresco (SET_CONFIGURATION que
+    // reinicia la sesión mux del iPhone) + saludo de la vía 1 + purga del
+    // resto del saludo. Todos los servicios de `run_chain` cuelgan de ella.
+    let transport = crate::pair::open_mux_transport(fd, "")?;
+    let eps = transport.endpoints();
+    let cadena = spawn_cadena(transport, eps).map_err(|e| err("conexion", e))?;
+    stage("ETAPA conexion: sesión mux FRESCA de la cadena abierta (la secuencia que la puerta probó)");
+    Ok(AnfitrionProvider::new(cadena, pairing_bytes.to_vec()))
+}
+
 pub fn run_sign_install(
     fd: i32,
     ipa_path: &str,
@@ -271,30 +318,15 @@ pub fn run_sign_install(
     // handshake eof, 2/2 en vivo). El hub arrastra estado mux sucio entre
     // sesiones; la puerta, en cambio, abre el servicio SIEMPRE sobre su
     // secuencia fresca. La v2.4 copia ese camino pa toda la cadena.
-    stage("ETAPA conexion: preparando el cable (descriptores, configuración, claim)…");
-    {
-        // Detección/latido: el hub saluda (su línea de sesión abierta es la
-        // prueba de que el cable y el mux viven tras la puerta)…
-        let transport = crate::pair::open_mux_transport(fd, "")?;
-        let eps = transport.endpoints();
-        let hub = spawn_hub(transport, eps).map_err(|e| err("conexion", e))?;
-        // …purga su estado (tras el SET_CONFIGURATION del pairing, ningún
-        // frame ni ID de sesiones muertas queda con dueño)…
-        hub.purge().map_err(|e| err("conexion", e))?;
-        // …y se cierra soltando la interfaz ANTES de que la cadena abra la
-        // suya: el hub nunca es transporte de la cadena.
-        hub.shutdown().map_err(|e| err("conexion", e))?;
-        stage("ETAPA conexion: hub de detección purgado y cerrado — la cadena NO viaja sobre el hub");
-    }
-    // La sesión de la cadena: transporte fresco (SET_CONFIGURATION que
-    // reinicia la sesión mux del iPhone) + saludo de la vía 1 + purga del
-    // resto del saludo. Todos los servicios de `run_chain` cuelgan de ella.
-    let transport = crate::pair::open_mux_transport(fd, "")?;
-    let eps = transport.endpoints();
-    let cadena = spawn_cadena(transport, eps).map_err(|e| err("conexion", e))?;
-    stage("ETAPA conexion: sesión mux FRESCA de la cadena abierta (la secuencia que la puerta probó)");
-
-    let provider = AnfitrionProvider::new(cadena, pairing_bytes.clone());
+    // v2.6: la preparación corre BAJO EL SUPERVISOR — si el iPhone se cae
+    // del bus al preparar, se espera a que vuelva y se prepara de nuevo
+    // desde cero, hasta 3 intentos registrados (módulo `supervisor`).
+    let mut sup = crate::supervisor::Supervisor::nuevo();
+    let provider = sup
+        .preparar("conexion", || {
+            preparar_proveedor(fd, &pairing_bytes).map_err(|(_, mensaje)| mensaje)
+        })
+        .map_err(|mensaje| err("conexion", mensaje))?;
 
     let rt = tokio::runtime::Builder::new_multi_thread()
         .worker_threads(2)
@@ -305,6 +337,8 @@ pub fn run_sign_install(
     rt.block_on(async move {
         run_chain(
             provider,
+            fd,
+            sup,
             ipa_path,
             email,
             password,
@@ -318,9 +352,57 @@ pub fn run_sign_install(
     })
 }
 
+/// EL PASO «sonda» de la cadena, aislado pa que el supervisor (v2.6)
+/// pueda reintentarlo ENTERO sobre un transporte re-preparado: interpreta
+/// el registro de pairing, abre InstallationProxy a mano con el EscrowBag
+/// presentado (`servicio::abrir_servicio`) y le pide las apps de usuario.
+/// Devuelve el `PairingFile` ya interpretado, que la corrida reusa. Los
+/// mensajes son los de siempre (sin la etiqueta de etapa, que pone quien
+/// llama); la desconexión se reconoce por su firma ENODEV dentro del
+/// texto, la presente el servicio que la presente.
+async fn paso_sonda(
+    provider: &AnfitrionProvider,
+    escrow_bag: Option<&[u8]>,
+    escrow_necesario: bool,
+) -> Result<idevice::pairing_file::PairingFile, String> {
+    let pairing_file = provider
+        .get_pairing_file()
+        .await
+        .map_err(|e| format!("el registro de pairing no se pudo interpretar: {:?}", e))?;
+    let stream = crate::servicio::abrir_servicio(
+        provider,
+        &pairing_file,
+        crate::probe::SERVICE_INSTALL,
+        escrow_bag,
+        escrow_necesario,
+        "sonda",
+    )
+    .await
+    .map_err(|e| {
+        format!(
+            "el iPhone no abrió el servicio de instalación con el pairing de la bóveda: {}. Revisa que el iPhone esté desbloqueado y el cable firme.",
+            e
+        )
+    })?;
+    let mut inst = InstallationProxyClient::from_stream(stream)
+        .await
+        .map_err(|e| format!("InstallationProxy no respondió: {:?}", e))?;
+    let apps = inst
+        .get_apps(Some("User"), None)
+        .await
+        .map_err(|e| format!("InstallationProxy no respondió: {:?}", e))?;
+    stage(&format!(
+        "ETAPA sonda: canal sano — el iPhone responde y reporta {} apps de usuario instaladas",
+        apps.len()
+    ));
+    Ok(pairing_file)
+}
+
 #[allow(clippy::too_many_arguments)]
 async fn run_chain(
-    provider: AnfitrionProvider,
+    mut provider: AnfitrionProvider,
+    fd: i32,
+    mut sup: crate::supervisor::Supervisor,
     ipa_path: &str,
     email: &str,
     password: &str,
@@ -335,44 +417,21 @@ async fn run_chain(
     // (`servicio::abrir_servicio`) — la respuesta cruda de Apple queda en el
     // registro y, si se niega, el error trae su `Error` exacto, no el opaco
     // «missing Port» del connect del crate.
+    // La RE-PREPARACIÓN del supervisor: la misma `preparar_proveedor` que
+    // abrió la cadena — transporte fresco + sesión mux fresca desde cero.
+    // Si un paso cae por desconexión, el supervisor la corre, sustituye
+    // el proveedor y reintenta el paso sobre la sesión nueva.
+    let mut repreparar = || -> Result<AnfitrionProvider, String> {
+        preparar_proveedor(fd, &pairing_bytes).map_err(|(_, mensaje)| mensaje)
+    };
     stage("ETAPA sonda: probando el canal de instalación con tu pairing (InstallationProxy, apertura a mano con escrow)…");
-    let pairing_file = provider.get_pairing_file().await.map_err(|e| {
-        err(
-            "sonda",
-            format!("el registro de pairing no se pudo interpretar: {:?}", e),
-        )
-    })?;
-    {
-        let stream = crate::servicio::abrir_servicio(
-            &provider,
-            &pairing_file,
-            crate::probe::SERVICE_INSTALL,
-            escrow_bag.as_deref(),
-            escrow_necesario,
-            "sonda",
-        )
+    let pairing_file = sup
+        .ejecutar("sonda", &mut provider, &mut repreparar, |prov| {
+            let bag = escrow_bag.as_deref();
+            async move { paso_sonda(&prov, bag, escrow_necesario).await }
+        })
         .await
-        .map_err(|e| {
-            err(
-                "sonda",
-                format!(
-                    "el iPhone no abrió el servicio de instalación con el pairing de la bóveda: {}. Revisa que el iPhone esté desbloqueado y el cable firme.",
-                    e
-                ),
-            )
-        })?;
-        let mut inst = InstallationProxyClient::from_stream(stream)
-            .await
-            .map_err(|e| err("sonda", format!("InstallationProxy no respondió: {:?}", e)))?;
-        let apps = inst
-            .get_apps(Some("User"), None)
-            .await
-            .map_err(|e| err("sonda", format!("InstallationProxy no respondió: {:?}", e)))?;
-        stage(&format!(
-            "ETAPA sonda: canal sano — el iPhone responde y reporta {} apps de usuario instaladas",
-            apps.len()
-        ));
-    }
+        .map_err(|mensaje| err("sonda", mensaje))?;
 
     // ── Etapa: bóveda — decidir la ruta ────────────────────────────────────
     stage("ETAPA boveda: leyendo el IPA y consultando la bóveda…");
@@ -405,7 +464,9 @@ async fn run_chain(
             dias
         ));
         offline_sign_install(
-            &provider,
+            &mut provider,
+            &mut sup,
+            &mut repreparar,
             &pairing_file,
             ipa_path,
             &main_bundle,
@@ -431,7 +492,9 @@ async fn run_chain(
         }
         stage("ETAPA boveda: la app necesita la ruta con conexión (login → firma → cosecha a la bóveda)");
         online_sign_install(
-            &provider,
+            &mut provider,
+            &mut sup,
+            &mut repreparar,
             &pairing_file,
             ipa_path,
             &main_bundle,
@@ -483,7 +546,9 @@ fn err_firma(e: &dyn std::fmt::Display) -> StageErr {
 
 #[allow(clippy::too_many_arguments)]
 async fn online_sign_install(
-    provider: &AnfitrionProvider,
+    provider: &mut AnfitrionProvider,
+    sup: &mut crate::supervisor::Supervisor,
+    repreparar: &mut dyn FnMut() -> Result<AnfitrionProvider, String>,
     pairing_file: &idevice::pairing_file::PairingFile,
     ipa_path: &str,
     main_bundle: &str,
@@ -614,7 +679,7 @@ async fn online_sign_install(
     // registro en el equipo → `sign_app`) y el traslado lo hace
     // `servicio::instalar_con_escrow`, presentando el EscrowBag en los dos
     // servicios y registrando cada respuesta de Apple.
-    let device_info = isideload::util::device::IdeviceInfo::from_device(provider)
+    let device_info = isideload::util::device::IdeviceInfo::from_device(&*provider)
         .await
         .map_err(|e| err_firma(&e))?;
     let team = sideloader.get_team().await.map_err(|e| err_firma(&e))?;
@@ -635,18 +700,30 @@ async fn online_sign_install(
         .await
         .map_err(|e| err_firma(&e))?;
     stage("ETAPA firma: app firmada — instalando por el cable (AFC + InstallationProxy con el EscrowBag presentado)…");
-    crate::servicio::instalar_con_escrow(
-        provider,
-        pairing_file,
-        &signed_app_path,
-        escrow_bag,
-        escrow_necesario,
-        |pct| {
-            if pct == 0 || pct == 35 || pct == 70 {
-                stage(&format!("ETAPA instalacion: progreso {}%", pct));
-            }
-        },
-    )
+    // v2.6: la instalación corre BAJO EL SUPERVISOR — fue instalando
+    // cuando la v2.5 murió por ENODEV. Si el cable se cae a mitad de
+    // subida, el supervisor re-prepara el transporte y la instalación se
+    // reintenta ENTERA (la subida AFC es idempotente: PublicStaging se
+    // reescribe y la instalación se re-pide; el iPhone no queda a medias).
+    sup.ejecutar("instalacion", provider, repreparar, |prov| {
+        let bag = escrow_bag;
+        let ruta = &signed_app_path;
+        async move {
+            crate::servicio::instalar_con_escrow(
+                &prov,
+                pairing_file,
+                ruta,
+                bag,
+                escrow_necesario,
+                |pct| {
+                    if pct == 0 || pct == 35 || pct == 70 {
+                        stage(&format!("ETAPA instalacion: progreso {}%", pct));
+                    }
+                },
+            )
+            .await
+        }
+    })
     .await
     .map_err(|e| err_firma(&e))?;
     // Espejo del Sideloader (delete_app_after_install): el .app firmado vive
@@ -761,7 +838,9 @@ async fn harvest(
 
 #[allow(clippy::too_many_arguments)]
 async fn offline_sign_install(
-    provider: &AnfitrionProvider,
+    provider: &mut AnfitrionProvider,
+    sup: &mut crate::supervisor::Supervisor,
+    repreparar: &mut dyn FnMut() -> Result<AnfitrionProvider, String>,
     pairing_file: &idevice::pairing_file::PairingFile,
     ipa_path: &str,
     main_bundle: &str,
@@ -894,18 +973,28 @@ async fn offline_sign_install(
 
     stage("ETAPA instalacion: subiendo la app por el cable (AFC + InstallationProxy, apertura a mano con el EscrowBag presentado)…");
     let signed_dir = app.bundle.bundle_dir.clone();
-    crate::servicio::instalar_con_escrow(
-        provider,
-        pairing_file,
-        &signed_dir,
-        escrow_bag,
-        escrow_necesario,
-        |pct| {
-            if pct == 0 || pct == 35 || pct == 70 {
-                stage(&format!("ETAPA instalacion: subida {}%", pct));
-            }
-        },
-    )
+    // v2.6: también aquí la instalación corre BAJO EL SUPERVISOR (misma
+    // medicina que en la ruta con conexión: re-preparar y reintentar la
+    // instalación entera si el cable se cae a mitad de subida).
+    sup.ejecutar("instalacion", provider, repreparar, |prov| {
+        let bag = escrow_bag;
+        let ruta = &signed_dir;
+        async move {
+            crate::servicio::instalar_con_escrow(
+                &prov,
+                pairing_file,
+                ruta,
+                bag,
+                escrow_necesario,
+                |pct| {
+                    if pct == 0 || pct == 35 || pct == 70 {
+                        stage(&format!("ETAPA instalacion: subida {}%", pct));
+                    }
+                },
+            )
+            .await
+        }
+    })
     .await
     .map_err(|e| err("instalacion", format!("la instalación por el cable falló: {}", e)))?;
     stage("ETAPA instalacion: app instalada en el iPhone (sin haber tocado la red)");

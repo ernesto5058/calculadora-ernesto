@@ -310,7 +310,7 @@ class MainActivity : Activity() {
 
     private fun dp(v: Int): Int = (v * resources.displayMetrics.density).toInt()
 
-    // ── Cara v2.5 (DISENO-PRO): héroe con la versión EN GRANDE y el
+    // ── Cara v2.6 (DISENO-PRO): héroe con la versión EN GRANDE y el
     // contenido en TARJETAS por capas — visiblemente distinta de la lista
     // plana de la v2.3/v2.4. Dorado solo en degradado/tinte, bordes de
     // 1 px translúcidos, botones principales en píldora, rejilla 4/8. ──
@@ -371,7 +371,7 @@ class MainActivity : Activity() {
         }
 
         // ── HÉROE: monograma dorado + título + LA VERSIÓN EN GRANDE ──────
-        // Regla de Ernesto pa la v2.5: la versión se reconoce de un vistazo.
+        // Regla de Ernesto pa la v2.6: la versión se reconoce de un vistazo.
         // (Si cambia versionName en el Gradle, cambia también este número.)
         val hero = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
@@ -433,7 +433,7 @@ class MainActivity : Activity() {
         }
         heroVersion.addView(versionLabel)
         val versionBig = TextView(this).apply {
-            text = "2.5"
+            text = "2.6"
             setTextColor(goldA)
             textSize = 52f
             typeface = Typeface.DEFAULT_BOLD
@@ -441,7 +441,7 @@ class MainActivity : Activity() {
         }
         heroVersion.addView(versionBig)
         val chip = TextView(this).apply {
-            text = "EDICIÓN SOLUCIÓN"
+            text = "EDICIÓN SUPERVISOR"
             setTextColor(goldA)
             textSize = 9f
             typeface = Typeface.DEFAULT_BOLD
