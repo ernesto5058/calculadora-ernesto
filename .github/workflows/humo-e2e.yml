@@ -42,7 +42,7 @@ jobs:
 
       - name: Subir la evidencia de los fallos como artefacto
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: humo-e2e-fallos
           path: humo-e2e/test-results

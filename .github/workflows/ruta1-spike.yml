@@ -55,14 +55,14 @@ jobs:
           ls -lh TiendaMaximo-ruta1-spike.ipa
 
       - name: Subir IPA del spike
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ruta1-spike-ipa
           path: tienda-maximo/spike/TiendaMaximo-ruta1-spike.ipa
 
       - name: Subir log del spike
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ruta1-spike-log
           path: tienda-maximo/spike/build.log
