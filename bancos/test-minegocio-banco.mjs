@@ -62,6 +62,23 @@ function crear(extra){
   /* v43: extra.url permite probar los deep links (?tab=…) tal como
      llegan del push; sin ella, la URL de producción de siempre. */
   const dom = new JSDOM(html, { url: (extra && extra.url) || "https://ernesto5058.github.io/calculadora-ernesto/minegocio/", runScripts: "dangerously", pretendToBeVisual: true, beforeParse(w){
+    if (extra && extra.ahoraFija) {
+      /* RELOJ CONGELADO (bomba de tiempo cazada el 2026-11-18): los
+         bloques de Contabilidad siembran tratos con fechas fijas de la
+         semana del 2026-11-09 y la app calcula «esta semana / la
+         anterior / el mes» contra el reloj real — al rodar la semana,
+         F1-12/F1-13/F2-5/F2-8 caían en local y en CI sin que el código
+         cambiara (y el 1.º de diciembre habrían caído también los del
+         mes). Con el reloj de la ventana fijo en la era del fixture,
+         esos chequeos quedan deterministas pa siempre. */
+      const RealDate = w.Date;
+      const fijaMs = new RealDate(extra.ahoraFija).getTime();
+      class FechaFija extends RealDate {
+        constructor(...args) { super(...(args.length ? args : [fijaMs])); }
+        static now() { return fijaMs; }
+      }
+      w.Date = FechaFija;
+    }
     if (extra && extra.preState) { try { w.localStorage.setItem("minegocio_v1", JSON.stringify(extra.preState)); } catch(e){} }
     if (extra && extra.ls) { for (const k in extra.ls) { try { w.localStorage.setItem(k, extra.ls[k]); } catch(e){} } }
     if (extra && extra.push404) { R.pushResp = "pgrst202"; } else { R.pushResp = "ok"; }
@@ -893,7 +910,10 @@ function pestaña(w, nombre){
 /* ===== 20. FASE 1 · CONTABILIDAD (prueba, panel, libro, por pagar) ===== */
 {
   const cerca = (a, b) => Math.abs(Number(a) - Number(b)) <= 0.01;
-  const hoyISO = new Date().toISOString();
+  /* Era del fixture: miércoles 2026-11-12 — «esta semana» = 9–15 nov
+     (r2/r3/r7), «la anterior» = 2–8 nov (r1), el mes = noviembre. El
+     reloj de la ventana va congelado a este instante (ahoraFija). */
+  const hoyISO = "2026-11-12T15:00:00.000Z";
   R.chat = true; R.tarifaVivaOk = true;
   R.usuarios = [ { codigo: "BUSCA-001", nombre: "BUSCA-001", activo: true }, { codigo: "BUSCA-002", nombre: "BUSCA-002", activo: true } ];
   R.reportes = [
@@ -906,7 +926,7 @@ function pestaña(w, nombre){
     { id: "r7", codigo: "BUSCA-001", nombre: "BUSCA-001", tipo: "saldo", cantidad: 10, precio: 1000, porc: null, telefono: "5", nota: "", estado: "aprobado", comision: 246.70, comision_pagada_en: null, creado: hoyISO }
   ];
   const preConta = { codigo: adminValido, foto: { reportes: [], ayudas: [], usuarios: [], datos: null, cuando: "", publicar: [], borrados: [], tarifaPanel: null, mercado: null }, calc: { saldo: { salida: 950, costo: 1040, tasa: 320, saldo: 3600 }, transf: { efectivo: 5000, porc: 30, libro: 1130, salida: 950 }, busc: { precio: 0, tasaVenta: 0, efectivo: 0, porc: 0, libro: 0, salida: 0 } }, cola: [], sellos: {}, tarifaViva: null, tarifaVivaEn: "", publicarPendiente: null };
-  const { w } = crear({ preState: preConta });
+  const { w } = crear({ preState: preConta, ahoraFija: hoyISO });
   await sleep(350);
   const d = w.document;
   ok(w.PUERTAS.marcarPrueba === "admin_marcar_prueba", "F1-1 la puerta nueva está registrada: PUERTAS.marcarPrueba = admin_marcar_prueba");
@@ -1042,7 +1062,8 @@ function pestaña(w, nombre){
 
 /* ===== 21. REDISEÑO PRO v7 ===== */
 {
-  const hoyISO21 = new Date().toISOString();
+  /* Misma era congelada del bloque 20 (ver ahoraFija en crear). */
+  const hoyISO21 = "2026-11-12T15:00:00.000Z";
   R.chat = true; R.tarifaVivaOk = true; R.noPersistePago = false;
   R.usuarios = [ { codigo: "BUSCA-001", nombre: "BUSCA-001", activo: true }, { codigo: "BUSCA-002", nombre: "BUSCA-002", activo: true } ];
   const fixture21 = () => [
@@ -1056,7 +1077,7 @@ function pestaña(w, nombre){
   ];
   const preConta21 = () => ({ codigo: adminValido, foto: { reportes: [], ayudas: [], usuarios: [], datos: null, cuando: "", publicar: [], borrados: [], tarifaPanel: null, mercado: null }, calc: { saldo: { salida: 950, costo: 1040, tasa: 320, saldo: 3600 }, transf: { efectivo: 5000, porc: 30, libro: 1130, salida: 950 }, busc: { precio: 0, tasaVenta: 0, efectivo: 0, porc: 0, libro: 0, salida: 0 } }, cola: [], sellos: {}, tarifaViva: null, tarifaVivaEn: "", publicarPendiente: null });
   R.reportes = fixture21();
-  const { w } = crear({ preState: preConta21() });
+  const { w } = crear({ preState: preConta21(), ahoraFija: hoyISO21 });
   await sleep(350);
   const d = w.document;
   pestaña(w, "Contabilidad");
@@ -1085,7 +1106,7 @@ function pestaña(w, nombre){
   w.close();
   /* F2-7 · CERO DATOS: el panel muestra su forma final vacío */
   R.reportes = [];
-  const cero21 = crear({ preState: preConta21() });
+  const cero21 = crear({ preState: preConta21(), ahoraFija: hoyISO21 });
   await sleep(350);
   pestaña(cero21.w, "Contabilidad");
   await sleep(80);
@@ -1095,7 +1116,7 @@ function pestaña(w, nombre){
   cero21.w.close();
   /* F2-8 · SEMANA A LA BAJA: un solo trato de la semana pasada */
   R.reportes = [ { id: "r1", codigo: "BUSCA-001", nombre: "BUSCA-001", tipo: "saldo", cantidad: 100, precio: 1000, porc: null, telefono: "5", nota: "", estado: "aprobado", comision: 2467, comision_pagada_en: "2026-11-06T10:00:00.000Z", creado: "2026-11-05T10:00:00.000Z" } ];
-  const baja21 = crear({ preState: preConta21() });
+  const baja21 = crear({ preState: preConta21(), ahoraFija: hoyISO21 });
   await sleep(350);
   pestaña(baja21.w, "Contabilidad");
   await sleep(80);
