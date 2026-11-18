@@ -413,6 +413,10 @@ label { display:block; font:600 11px var(--fuente); letter-spacing:.07em; text-t
 .t1Seg { display:flex; background:var(--bg-1); border:1px solid var(--borde); border-radius:var(--r-md); padding:4px; gap:4px; margin-bottom:var(--e-3); }
 .t1Seg button { flex:1; padding:9px 0; border:0; border-radius:var(--r-sm); background:none; font:700 13.5px var(--fuente); color:var(--txt-2); cursor:pointer; transition:all var(--anim-rapida); }
 .t1Seg button.on { background:var(--dorado-grad); color:var(--txt-sobre-dorado); box-shadow:var(--sombra-dorada); }
+/* v43: el segmento de sección del Mercado (Asesor | Analista) va
+   FIJO arriba (sticky): el cambio de vista siempre a un toque,
+   sin menús ni hojas, visible al entrar y al bajar la pantalla. */
+.t1SegSeccion { position:sticky; top:calc(env(safe-area-inset-top, 0px) + 6px); z-index:40; box-shadow:var(--sombra-1); }
 /* v26: la barra era una fila flex donde «Subirla» (botón base
    width:100%) aplastaba el texto a una columna y lo tapaba. Ahora el
    texto va a todo ancho arriba y los botones en su fila (rejilla 4/8),
@@ -483,7 +487,7 @@ label { display:block; font:600 11px var(--fuente); letter-spacing:.07em; text-t
 .termPanel .k { font:700 12.5px var(--fuente); letter-spacing:.02em; color:var(--txt-2); margin-bottom:6px; display:flex; align-items:center; gap:6px; }
 .termPanel .k svg { width:15px; height:15px; fill:none; stroke:currentColor; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; }
 .termPanelOro .k { color:var(--dorado); }
-.termPanelTeal .k { color:#2DD4BF; }
+.termPanelTeal .k { color:var(--verde); } /* v43: fuera el teal — el alza se lee en verde semántico */
 .termPanel canvas { display:block; width:100%; }
 .termPanel .termLeyenda { display:flex; gap:14px; font:600 11px var(--fuente); color:var(--txt-2); margin-top:5px; }
 .termLeyenda .pto { display:inline-block; width:7px; height:7px; border-radius:50%; margin-right:5px; }
@@ -2790,6 +2794,8 @@ registrarModulo({
     el.querySelectorAll("[data-ir]").forEach(function(b){
       b.addEventListener("click", function(){ irA(b.getAttribute("data-ir")); });
     });
+    var bRegG = $("inRegGasto");
+    if (bRegG) bRegG.addEventListener("click", function(){ formRegistrarGasto(); });
   },
   alMostrar: function(){
     if (actividadCache === null) cargarActividad();
@@ -4687,12 +4693,34 @@ function descartarAsesorMN(){
     asesorSugerencia = null; pintarTabs(); cargarMercadoMN();
   }).catch(function(){ toast("No se pudo descartar (¿sin conexión?).", false); });
 }
+/* ===== v43 · EL ANALISTA VISIBLE OTRA VEZ =====
+   En v42 la Terminal quedó hija de Mercado sin puerta visible y
+   Ernesto dejó de encontrar «el analista del mercado con las
+   gráficas». Asesor (módulo Mercado) y Analista (módulo Terminal)
+   viven en la MISMA pestaña: este segmento fijo arriba cambia de
+   vista con UN toque, sin menús ni hojas. Ninguna función se
+   mueve: solo nace la puerta. */
+function segMercadoHtml(vista){
+  return '<div class="t1Seg t1SegSeccion" role="tablist" aria-label="Vista del mercado">'
+    + '<button data-vista-mercado="asesor" class="' + (vista === "asesor" ? "on" : "") + '">Asesor</button>'
+    + '<button data-vista-mercado="analista" class="' + (vista === "analista" ? "on" : "") + '">Analista</button></div>';
+}
+function montarSegMercado(el){
+  if (!el) return;
+  el.querySelectorAll("[data-vista-mercado]").forEach(function(b){
+    b.addEventListener("click", function(){
+      var v = b.getAttribute("data-vista-mercado");
+      if (v === "analista" && tabActual !== "Terminal") irA("Terminal");
+      else if (v === "asesor" && tabActual !== "Mercado") irA("Mercado");
+    });
+  });
+}
 registrarModulo({
   id: "Mercado", tab: "Mercado", icono: "mercado",
   render: function(){
     var el = $("pgMercado"); if (!el) return;
     var f = mercadoFotoMN, g = mercadoGuiaMN;
-    var h = (!online ? '<div class="offBanner" style="display:block">' + selloTexto("mercado") + ".</div>" : "");
+    var h = segMercadoHtml("asesor") + (!online ? '<div class="offBanner" style="display:block">' + selloTexto("mercado") + ".</div>" : "");
     h += '<div class="card"><div class="row"><h3 style="margin:0"><span class="secIco">' + icono("mercado") + '</span>Mercado en vivo</h3><span style="margin-left:auto;display:inline-flex;gap:6px;align-items:center"><button class="bGhost bMini" id="mcAct">Actualizar</button>' + infoBtnHtml("Mercado") + '</span></div>';
     if (f) {
       var chipHora = f.recibida_en ? hora12(f.recibida_en) : edadTxtMN(f.edad_s);
@@ -4716,6 +4744,7 @@ registrarModulo({
     el.querySelectorAll("[data-seg]").forEach(function(b){
       b.addEventListener("click", function(){ mercadoSegMN = b.getAttribute("data-seg"); pintarMercado(); });
     });
+    montarSegMercado(el);
     var bs = $("mcSubirla"); if (bs) bs.addEventListener("click", subirAsesorMN);
     var bd = $("mcDescartar"); if (bd) bd.addEventListener("click", descartarAsesorMN);
   },
@@ -4736,7 +4765,7 @@ registrarModulo({
 /* ===== TERMINAL v25 · Módulo Terminal (sección propia de primer nivel) =====
    Terminal profesional: velas agregadas en el cliente desde la serie
    de fotos de la puerta guia_terminal, bandas de profundidad del
-   libro con resplandor (ámbar venta arriba · teal compra abajo),
+   libro con resplandor (ámbar venta arriba · verde compra abajo),
    líneas de equilibrio/tarifa/cima/costo con chip a la derecha,
    medias móviles, ventas propias, presión, Momentum y MACD en
    canvas 2D vanilla (sin librerías), la Insight del Asesor con su
@@ -5027,12 +5056,12 @@ function dibujarTerminalMN(){
   var pad = (mx - mn) * 0.08; mn -= pad; mx += pad;
   var padR = 116, plotW = W - padR, plotH = H - 18;
   function Y(v){ return 8 + (mx - v) / (mx - mn) * plotH; }
-  /* Resplandor de liquidez (maqueta v25): ámbar arriba, teal abajo */
+  /* Resplandor de liquidez (maqueta v25): ámbar arriba, verde abajo (v43: semántica de dinero) */
   var gArr = ctx.createLinearGradient(0, 0, 0, H * 0.42);
   gArr.addColorStop(0, "rgba(245,176,77,.17)"); gArr.addColorStop(1, "rgba(245,176,77,0)");
   ctx.fillStyle = gArr; ctx.fillRect(0, 0, plotW, H * 0.42);
   var gAbj = ctx.createLinearGradient(0, H * 0.58, 0, H);
-  gAbj.addColorStop(0, "rgba(45,212,191,0)"); gAbj.addColorStop(1, "rgba(45,212,191,.17)");
+  gAbj.addColorStop(0, "rgba(47,191,113,0)"); gAbj.addColorStop(1, "rgba(47,191,113,.17)");
   ctx.fillStyle = gAbj; ctx.fillRect(0, H * 0.58, plotW, H * 0.42);
   /* Bandas de profundidad detrás del gráfico, con borde suave */
   var libro = d.libro || {};
@@ -5054,11 +5083,11 @@ function dibujarTerminalMN(){
     });
   }
   pintaBandas(libro.escalera_venta, "245,176,77");
-  pintaBandas(libro.escalera_compra, "45,212,191");
+  pintaBandas(libro.escalera_compra, "47,191,113");
   /* Etiquetas de liquidez sobre el resplandor */
   ctx.font = "600 11px sans-serif"; ctx.textBaseline = "middle";
   if ((libro.escalera_venta || []).length) { ctx.fillStyle = "rgba(245,176,77,.92)"; ctx.fillText("Liquidez de venta", 10, 15); }
-  if ((libro.escalera_compra || []).length) { ctx.fillStyle = "rgba(45,212,191,.92)"; ctx.fillText("Liquidez de compra", 10, H - 11); }
+  if ((libro.escalera_compra || []).length) { ctx.fillStyle = "rgba(47,191,113,.92)"; ctx.fillText("Liquidez de compra", 10, H - 11); }
   /* Rejilla tenue (los valores viven en los chips de la derecha) */
   for (var gi = 0; gi <= 4; gi++) {
     var gv = mn + (mx - mn) * gi / 4, gy = Y(gv);
@@ -5070,8 +5099,8 @@ function dibujarTerminalMN(){
   velas.forEach(function(v, i){
     var x = slot * i + slot / 2;
     var sube = v.c >= v.o;
-    ctx.strokeStyle = sube ? "#2DD4BF" : "#E5534B";
-    ctx.fillStyle = sube ? "#2DD4BF" : "#E5534B";
+    ctx.strokeStyle = sube ? "#2FBF71" : "#F6465D";
+    ctx.fillStyle = sube ? "#2FBF71" : "#F6465D";
     ctx.beginPath(); ctx.moveTo(x, Y(v.h)); ctx.lineTo(x, Y(v.l)); ctx.stroke();
     var yO = Y(v.o), yC = Y(v.c);
     ctx.fillRect(x - bw / 2, Math.min(yO, yC), bw, Math.max(1, Math.abs(yC - yO)));
@@ -5088,7 +5117,7 @@ function dibujarTerminalMN(){
     ctx.stroke(); ctx.lineWidth = 1;
   }
   pintaEma(TERM_MATH.ema(cierres, 9), "rgba(245,176,77,.85)");
-  pintaEma(TERM_MATH.ema(cierres, 21), "rgba(45,212,191,.8)");
+  pintaEma(TERM_MATH.ema(cierres, 21), "rgba(56,189,248,.8)"); /* v43: azul indicador (familia MACD); el teal salió de las gráficas */
   /* Líneas punteadas con chip a la derecha (maqueta v25) */
   function chipTerm(y, txt, color, minY){
     ctx.font = "600 11px sans-serif";
@@ -5153,7 +5182,7 @@ function dibujarMiniMN(id, tipo){
     mom.forEach(function(v, i){
       if (v === null) return;
       var x = i / mom.length * W, hh = Math.abs(v) / mxa * (H / 2 - 3);
-      ctx.fillStyle = v >= 0 ? "#2DD4BF" : "#E5534B";
+      ctx.fillStyle = v >= 0 ? "#2FBF71" : "#F6465D";
       ctx.fillRect(x, v >= 0 ? y0 - hh : y0, bw, Math.max(1, hh));
     });
     ctx.strokeStyle = "rgba(148,197,220,.25)"; ctx.beginPath(); ctx.moveTo(0, y0); ctx.lineTo(W, y0); ctx.stroke();
@@ -5164,7 +5193,7 @@ function dibujarMiniMN(id, tipo){
     var y02 = H / 2;
     r.hist.forEach(function(v, i){
       var x = i / r.hist.length * W, hh = Math.abs(v) / mxa2 * (H / 2 - 3);
-      ctx.fillStyle = v >= 0 ? "rgba(45,212,191,.45)" : "rgba(229,83,75,.45)";
+      ctx.fillStyle = v >= 0 ? "rgba(47,191,113,.45)" : "rgba(246,70,93,.45)";
       ctx.fillRect(x, v >= 0 ? y02 - hh : y02, Math.max(1, W / r.hist.length * 0.7), Math.max(1, hh));
     });
     function linea(arr, color){
@@ -5190,7 +5219,11 @@ function montarTerminalMN(){
   });
   var bsv = $("termSubirViva"); if (bsv) bsv.addEventListener("click", subirAsesorMN);
   var bsi = $("termSubirInsight"); if (bsi) bsi.addEventListener("click", subirAsesorMN);
-  if (!termDatosMN && !termCargandoMN && tabActual === "Terminal") cargarTerminalMN();
+  /* v43 (CHEQUEO 137): tras un ERROR de la puerta, el render NO
+     reintenta solo — el bucle cargar→error→pintar→cargar quemaba
+     CPU/red sin pausa. Reintenta la entrada a la vista (alMostrar)
+     o el botón Actualizar, nunca el pintado. */
+  if (!termDatosMN && !termCargandoMN && !termErrorMN && tabActual === "Terminal") cargarTerminalMN();
   if (termDatosMN && typeof requestAnimationFrame === "function") {
     requestAnimationFrame(function(){ dibujarTerminalMN(); dibujarMiniMN("termMomCanvas", "mom"); dibujarMiniMN("termMacdCanvas", "macd"); });
   }
@@ -5200,7 +5233,8 @@ registrarModulo({
   id: "Terminal", tab: "Terminal", icono: "terminal",
   render: function(){
     var el = $("pgTerminal"); if (!el) return;
-    el.innerHTML = terminalHtmlMN();
+    el.innerHTML = segMercadoHtml("analista") + terminalHtmlMN();
+    montarSegMercado(el);
     montarTerminalMN();
   },
   alMostrar: function(){
@@ -5309,14 +5343,14 @@ function intentarEntrar(){
    controllerchange recarga la app UNA sola vez (marca en
    sessionStorage por versión: sin bucles). MN_VERSION se sube
    junto con el CACHE de sw.js. */
-var MN_VERSION = "v30";
+var MN_VERSION = "v31";
 /* Sello VISIBLE de compilación (punto 6): Ernesto quejándose con
    razón — «no sé si se actualizó o no». Una sola constante que
    sube con cada publicación; se ve en Inicio y en la hoja ℹ️ del
    chat. Formato: «Mi Negocio · versión 2026-11-11 HH:MM · caché v6»
    (fecha Y HORA de la publicación, para distinguir dos subidas
    del mismo día). La hora es la de Cuba (CST) al compilar. */
-var MN_COMPILACION = "2026-11-17 21:17";
+var MN_COMPILACION = "2026-11-18 04:05";
 function selloVersion(){ return "Mi Negocio · versión " + MN_COMPILACION + " · " + MN_VERSION + " · PRO"; }
 var regSW = null;
 var swConControladorAlArrancar = false;
@@ -5374,6 +5408,7 @@ function init(){
   var search0 = location.search;
   try {
     var tabUrl = new URLSearchParams(search0).get("tab");
+    if (tabUrl === "Analista") tabUrl = "Terminal"; /* v43: «Analista» es el nombre de Ernesto pa la Terminal de gráficas */
     if (tabUrl && modulo(tabUrl)) {
       tabDePush = tabUrl;
       history.replaceState(null, "", location.pathname + location.hash);
@@ -6325,6 +6360,7 @@ PUERTAS.dineroCapital = "dinero_capital_estado";
 /* v29 · PRO: conversiones QUSD y entregas de pago a buscadores */
 PUERTAS.dineroDeclararTasa = "dinero_declarar_tasa";
 PUERTAS.dineroRegistrarCobro = "dinero_registrar_cobro";
+PUERTAS.dineroRegistrarGasto = "dinero_registrar_gasto_idem";
 PUERTAS.dineroEntregaComision = "dinero_registrar_entrega_comision";
 /* C2 · pago por ciclos (A0/A/B) y descarte de conversiones viejas */
 PUERTAS.pagoEstadoDueno = "pago_estado_dueno";
@@ -6852,6 +6888,94 @@ function registrarCobroConv(id){
     cargarDineroMN();
   }).catch(function(e){
     if (err) err.textContent = (e && e.faltaPuerta) ? TXT_FALTA_ACTIVAR : "No se pudo registrar (¿conexión?). Nada se guardó.";
+  });
+}
+/* ===== Registrar gasto (v43): la tarjeta «Mi gasto» por fin tiene
+   su botón, como en la maqueta aprobada. La vía es
+   dinero_registrar_gasto_idem: el servidor valida el monto contra
+   el saldo libre del libro (Σ de movimientos de la cuenta gasto) y
+   el reintento con el mismo p_cliente_id NO duplica — la respuesta
+   puede perderse en la red; el gasto queda una sola vez. El folio
+   es PEGAJOSO (supervisora v43 ronda 1): vive en localStorage
+   hasta que el servidor CONFIRMA; si la app se cierra con un
+   registro sin confirmar, al reabrir se reusa el MISMO folio y
+   el servidor responde «duplicado» en vez de cobrar dos veces. == */
+var gastoOpIdMN = null, gastoGuardandoMN = false;
+var GASTO_FOLIO_KEY = "mn_gasto_folio_v1";
+var GASTO_HUELLA_KEY = "mn_gasto_folio_huella";
+var gastoAvisoCambioMN = false;
+function gastoFolioGuardadoMN(){ try { return localStorage.getItem(GASTO_FOLIO_KEY) || ""; } catch(e){ return ""; } }
+function gastoGuardarFolioMN(id){ try { if (id) localStorage.setItem(GASTO_FOLIO_KEY, id); else { localStorage.removeItem(GASTO_FOLIO_KEY); localStorage.removeItem(GASTO_HUELLA_KEY); } } catch(e){} }
+function gastoHuellaGuardadaMN(){ try { return localStorage.getItem(GASTO_HUELLA_KEY) || ""; } catch(e){ return ""; } }
+function gastoGuardarHuellaMN(h){ try { localStorage.setItem(GASTO_HUELLA_KEY, h); } catch(e){} }
+function formRegistrarGasto(){
+  var est = dineroFotoMN;
+  var libre = est ? Number(est.saldo_gasto || 0) : null;
+  var folioPrevio = gastoFolioGuardadoMN();
+  gastoAvisoCambioMN = false;
+  if (!gastoOpIdMN) { gastoOpIdMN = folioPrevio || uuidMN(); gastoGuardarFolioMN(gastoOpIdMN); }
+  $("hojaTit").textContent = "Registrar gasto";
+  var tx = $("hojaTxt"); tx.style.display = "block";
+  tx.innerHTML = '<div class="kv">Sale de tu cuenta de gasto — la que se llena sola con tu parte de cada cobro. No toca el fondo ni el capital de trabajo.</div>'
+    + (libre !== null
+      ? '<div class="kv" style="margin-top:6px">Hoy puedes gastar: <b>' + fmtE(libre) + ' CUP</b>.</div>'
+      : '<div class="kv" style="margin-top:6px">Tu libro aún no se leyó en esta visita: al guardar, el servidor valida el monto contra tu gasto real.</div>')
+    + (folioPrevio ? '<div class="kv" style="margin-top:6px">Quedó un registro anterior sin confirmar: se reintenta con el mismo folio, así el gasto entra una sola vez.</div>' : '')
+    + '<label for="gMonto">Monto (CUP)</label><input id="gMonto" type="text" inputmode="numeric" placeholder="Ej.: 500">'
+    + '<label for="gNota">Nota (opcional)</label><input id="gNota" type="text" placeholder="¿En qué fue? Queda en tu libro">'
+    + '<label for="gMedio">¿Cómo salió?</label><select id="gMedio"><option value="efectivo">Efectivo</option><option value="transferencia">Transferencia</option></select>'
+    + '<div class="kv" id="gErr" style="color:var(--rojo);display:none"></div>';
+  var cont = $("hojaBtns"); cont.innerHTML = "";
+  var b = document.createElement("button"); b.className = "bGold"; b.textContent = "Registrar gasto";
+  b.addEventListener("click", function(){ enviarGastoMN(b); });
+  cont.appendChild(b);
+  var c = document.createElement("button"); c.className = "bGhost"; c.textContent = "Cancelar";
+  c.addEventListener("click", cerrarHoja); cont.appendChild(c);
+  $("hojaFondo").style.display = "block";
+}
+function enviarGastoMN(btn){
+  if (gastoGuardandoMN) return;
+  var err = $("gErr");
+  function falla(msg){ if (err) { err.textContent = msg; err.style.display = "block"; } }
+  var monto = Number(String(($("gMonto") || {}).value || "").replace(/[^\d]/g, ""));
+  var nota = String(($("gNota") || {}).value || "").trim();
+  var medio = ($("gMedio") || {}).value || "efectivo";
+  var est = dineroFotoMN;
+  var libre = est ? Number(est.saldo_gasto || 0) : null;
+  if (!monto || monto <= 0 || Math.floor(monto) !== monto) { falla("Escribe el monto del gasto en pesos enteros (ej.: 500)."); return; }
+  if (libre !== null && monto > libre) { falla("Ese monto pasa de lo que hoy puedes gastar (" + fmtE(libre) + " CUP). Baja el monto o espera al próximo cobro."); return; }
+  /* La huella del folio: si un registro quedó sin confirmar y ahora
+     los datos CAMBIAN, no es el mismo gasto — avisar antes de gastar
+     otro folio (el patrón de las llaves de idempotencia serias). */
+  var huella = monto + "|" + medio + "|" + nota;
+  var hPrev = gastoHuellaGuardadaMN();
+  if (hPrev && hPrev !== huella && !gastoAvisoCambioMN) {
+    gastoAvisoCambioMN = true;
+    falla("Cambiaste los datos de un registro que quedó sin confirmar. Si aquel sí entró, este sería OTRO gasto. Revisa tu Actividad y, si estás seguro, toca Registrar otra vez.");
+    return;
+  }
+  if (gastoAvisoCambioMN) { gastoOpIdMN = uuidMN(); gastoGuardarFolioMN(gastoOpIdMN); gastoAvisoCambioMN = false; }
+  gastoGuardarHuellaMN(huella);
+  gastoGuardandoMN = true;
+  if (btn) { btn.disabled = true; btn.textContent = "Registrando…"; }
+  rpc("dineroRegistrarGasto", { p_codigo: state.codigo, p_monto: monto, p_concepto: nota ? nota : null, p_medio: medio, p_cliente_id: gastoOpIdMN, p_prueba: false }).then(function(r){
+    gastoGuardandoMN = false;
+    gastoOpIdMN = null;
+    gastoGuardarFolioMN("");
+    cerrarHoja();
+    var queda = (r && r.saldo_gasto !== undefined && r.saldo_gasto !== null) ? Number(r.saldo_gasto) : null;
+    toast((r && r.duplicado)
+      ? "✅ Ese gasto ya estaba registrado: no se duplicó." + (queda !== null ? " Te quedan " + fmtE(queda) + " CUP libres." : "")
+      : "✅ Gasto registrado en tu libro." + (queda !== null ? " Te quedan " + fmtE(queda) + " CUP libres." : ""));
+    cargarDineroMN();
+  }).catch(function(e){
+    gastoGuardandoMN = false;
+    if (btn) { btn.disabled = false; btn.textContent = "Registrar gasto"; }
+    var m = (e && e.message) || "";
+    if (e && e.faltaPuerta) falla("Falta activar esta puerta en tu base: avísale a Máximo.");
+    else if (/insuficiente/i.test(m)) falla("El servidor dice que ese monto pasa de tu gasto libre de hoy. Actualiza tu dinero y revisa la cifra.");
+    else if (/codigo/i.test(m)) falla("Tu código no se reconoció en el servidor: sal y vuelve a entrar.");
+    else falla("No llegó la confirmación del servidor. Tu folio quedó guardado en este teléfono: al reintentar se usa el mismo y el gasto entra una sola vez, aunque el primer intento sí haya llegado.");
   });
 }
 /* ===== Enviar QUSD (Inicio): la tarjeta prepara, tu dedo envía ===== */
@@ -7687,7 +7811,7 @@ function heroInicioHtml(){
       ? 'Tu parte libre es el <b>' + fmtPctMN(pctLibre) + ' %</b> de la ganancia de cada ciclo: entra sola a esta cuenta cuando registras un cobro. El resto va al buscador y a la reinversión del fondo.'
       : 'Tu parte libre de la ganancia de cada ciclo entra sola a esta cuenta cuando registras un cobro; el resto va al buscador y a la reinversión del fondo.')
     + '</div>'
-    + '<button class="bGhost" data-ir="Dinero" style="margin-top:10px">Ver el detalle en Dinero</button>'
+    + '<div class="fila" style="margin-top:10px;gap:8px"><button class="bGold" id="inRegGasto">Registrar gasto</button><button class="bGhost" data-ir="Dinero">Ver el detalle en Dinero</button></div>'
     + '<div class="mut" style="margin-top:8px">Del libro, leído a las ' + horaDe(new Date(dineroLeidoEnMN).toISOString()) + " · el detalle vive en Dinero.</div></div>";
   return h;
 }
