@@ -11,7 +11,10 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" href="icon-192.png">
 <link rel="stylesheet" href="./tema-pro.css">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<link rel="preconnect" href="https://otsudfgwpapkluusrlnj.supabase.co">
+<!-- v46 · WEBPERF: supabase-js ya no viaja en el cascarón; lo inyecta
+     rtCargarCliente() bajo demanda en el primer uso del chat en vivo. -->
 <style>
 /* ===== MI NEGOCIO · REDISEÑO PRO (v42) =====
    Identidad aprobada por Ernesto el 2026-11-17 sobre su maqueta:
@@ -3351,9 +3354,9 @@ function volverEquipo(){
    (ADMIN↔buscador). El otro lado, si tiene ESE chat abierto,
    recarga el hilo al momento. El timbre NO lleva texto: el
    contenido sigue viajando solo por las puertas RPC con código.
-   El cliente supabase-js entra por el CDN oficial fijado en el
-   cascarón; si no carga o no conecta, degrada en silencio al
-   refresco de 3 s. */
+   El cliente supabase-js entra por el CDN oficial, cargado bajo
+   demanda en el primer uso (v46); si no carga o no conecta, degrada
+   en silencio al refresco de 3 s. */
 function urlProyectoSB(){ return SB_RPC.split("/rest/v1/")[0]; }
 function hashParChat(a, b){
   var s = [String(a), String(b)].sort().join("|");
@@ -3361,11 +3364,29 @@ function hashParChat(a, b){
   for (var i = 0; i < s.length; i++){ var c = s.charCodeAt(i); h1 = ((h1 * 33) ^ c) >>> 0; h2 = ((h2 * 31) ^ c) >>> 0; }
   return "chat-" + h1.toString(16) + h2.toString(16);
 }
-var rtCliente = null, rtCanal = null, rtPara = null;
+var rtCliente = null, rtCanal = null, rtPara = null, rtCargando = false;
+/* v46 · WEBPERF: supabase-js ya NO viaja en el cascarón (eran ~25 KiB
+   en el camino crítico pa un cliente que solo usa el timbre en tiempo
+   real del chat). Se inyecta bajo demanda en el primer rtAsegurar()
+   sin cliente; mientras tanto los llamadores degradan al refresco
+   de 3 s, tal como ya hacían si el CDN no cargaba. Al terminar de
+   cargar, si hay un chat abierto, se suscribe solo. */
+function rtCargarCliente(){
+  if (rtCargando || (window.supabase && window.supabase.createClient)) return;
+  rtCargando = true;
+  try {
+    var s = document.createElement("script");
+    s.src = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js";
+    s.onload = function(){ rtCargando = false; if (rtAsegurar() && chatCon) rtSuscribir(chatCon); };
+    s.onerror = function(){ rtCargando = false; };
+    document.head.appendChild(s);
+  } catch(e){ rtCargando = false; }
+}
 function rtAsegurar(){
   if (rtCliente) return rtCliente;
   try {
     if (window.supabase && window.supabase.createClient) rtCliente = window.supabase.createClient(urlProyectoSB(), SB_KEY);
+    else rtCargarCliente();
   } catch(e){ rtCliente = null; }
   return rtCliente;
 }
@@ -6051,11 +6072,6 @@ function descargarRespaldo(){
 }
 
 /* ===== AVISOS (Web Push propio) ===== */
-function plataformaPush(){
-  if (/iphone|ipad|ipod/i.test(navigator.userAgent || "")) return "ios";
-  if (/android/i.test(navigator.userAgent || "")) return "android";
-  return "web";
-}
 /* Avisos por ETAPAS con estados honestos (ronda 2): antes UN solo
    catch culpaba al permiso de cualquier fallo, incluido que la
    puerta registrar_push_admin aún no exista (paquete sin activar).
@@ -6145,11 +6161,6 @@ function bloqueAvisosHtml(){
 
 /* ===== MÓDULO CIERRE ===== */
 var cierresCache = null;
-function lunesDe(iso){
-  var d = new Date(iso + "T12:00:00"); var dow = (d.getDay() + 6) % 7; d.setDate(d.getDate() - dow);
-  function p(n){ return (n < 10 ? "0" : "") + n; }
-  return d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate());
-}
 function generarCierreActual(){
   var ini = semanaActual().inicio;
   rpc("generarCierre", { p_codigo: state.codigo, p_semana_inicio: ini }).then(function(r){
