@@ -31,7 +31,7 @@ jobs:
           ls -la tailscale-arm64.apk
 
       - name: Subir el APK
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: Tailscale-arm64-apk
           path: tailscale-arm64.apk
