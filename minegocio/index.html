@@ -14,7 +14,11 @@
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <link rel="preconnect" href="https://otsudfgwpapkluusrlnj.supabase.co">
 <!-- v46 · WEBPERF: supabase-js ya no viaja en el cascarón; lo inyecta
-     rtCargarCliente() bajo demanda en el primer uso del chat en vivo. -->
+     rtCargarCliente() bajo demanda en el primer uso del chat en vivo.
+     v47 · SENSOR OFFLINE-FIRST: la atribución de recargas enseña su
+     estado en la propia sección (guardada en el teléfono / ya subió /
+     rechazo del servidor accionable con Reintentar y Quitar de la
+     cola) y la cola no admite dos ops pa el mismo SMS. CHEQUEO 143. -->
 <style>
 /* ===== MI NEGOCIO · REDISEÑO PRO (v42) =====
    Identidad aprobada por Ernesto el 2026-11-17 sobre su maqueta:
@@ -1532,6 +1536,20 @@ function encolar(accion){
   if (!accion.estado) accion.estado = "pendiente";
   if (accion.intentos == null) accion.intentos = 0;
   if (!accion.creada) accion.creada = accion.cuando || new Date().toISOString();
+  /* v47 · SENSOR OFFLINE: una misma recarga no entra dos veces a
+     la cola (doble toque en Registrar/Confirmar o las dos vías a
+     la vez). El servidor protege el dinero por folio, pero un
+     segundo folio distinto nacería condenado a «ese sms ya fue
+     atribuido» y quedaría zombi ocupando la cola: si ya hay una
+     op del mismo tipo pa ese SMS, se devuelve la ya guardada. */
+  if ((accion.tipo === "smsAtribuir" || accion.tipo === "smsDesatribuir") && accion.smsId != null) {
+    var yaSmsOp = (state.cola || []).filter(function(x){ return x && x.tipo === accion.tipo && String(x.smsId) === String(accion.smsId); })[0];
+    if (yaSmsOp) { toastSmsEnColaMN(yaSmsOp); return yaSmsOp; }
+  }
+  /* v47 (supervisora): el deshacer recién encolado apaga al momento
+     la marca «ya subió» de ese SMS — nada de enseñar «asentada» y
+     «deshacer guardado» a la vez. */
+  if (accion.tipo === "smsDesatribuir" && accion.smsId != null) delete smsRecienMN[String(accion.smsId)];
   state.cola.push(accion); guardar(); pintarInicioSiVisible();
 }
 function ejecutarAccion(a){
@@ -1601,9 +1619,19 @@ function ejecutarAccion(a){
     case "pagado": return rpc("marcarPagado", { p_codigo: cod, p_id: a.id });
     case "entregarCapital": return rpc("dineroEntregar", { p_codigo: cod, p_buscador: a.buscador, p_monto: a.monto, p_bolsillo: "efectivo", p_cliente_id: a.opId, p_prueba: false });
     case "smsAtribuir": return rpc("dineroSmsAtribuir", { p_codigo: cod, p_sms_id: a.smsId, p_tipo: a.tipoAtr, p_buscador_codigo: a.buscador || null, p_pago_cup: (a.pago != null ? a.pago : null), p_qusd: (a.qusd != null ? a.qusd : null), p_folio: a.opId, p_posible_espera_id: a.posibleEsperaId || null })
-      .then(function(r){ cargarSinAtribuirMN(); return r; });
+      .then(function(r){
+        /* v47 (supervisora): un 200 con ok:false NO es éxito — el
+           patrón existe en estas puertas y tragarlo sacaba la op
+           de la cola y pintaba un «Ya subió» falso. Como en
+           confirmarParte: se lanza con el motivo y la op se queda. */
+        if (r && r.ok === false) throw new Error(r.motivo || r.error || "el servidor no aceptó la atribución");
+        cargarSinAtribuirMN(); return r;
+      });
     case "smsDesatribuir": return rpc("dineroSmsDesatribuir", { p_codigo: cod, p_sms_id: a.smsId, p_folio: a.opId })
-      .then(function(r){ cargarSinAtribuirMN(); return r; });
+      .then(function(r){
+        if (r && r.ok === false) throw new Error(r.motivo || r.error || "el servidor no aceptó deshacer la atribución");
+        cargarSinAtribuirMN(); return r;
+      });
     case "confirmarDevolucion": return rpc("dineroConfirmar", { p_codigo: cod, p_devolucion: a.id });
     case "rechazarDevolucion": return rpc("dineroRechazar", { p_codigo: cod, p_devolucion: a.id });
     case "prueba": return rpc("marcarPrueba", { p_codigo: cod, p_id: a.id, p_prueba: a.prueba });
@@ -1655,6 +1683,11 @@ function despacharCola(){
         if (a.tipo === "pagado") huboPagado = true;
         if (a.tipo !== "calcTarifa") huboVisible = true;
         var i = state.cola.indexOf(a); if (i >= 0) state.cola.splice(i, 1);
+        /* v47: la atribución que SÍ subió se marca «recién» pa que
+           la sección enseñe el «ya subió» con nombre y monto; el
+           deshacer confirmado limpia la marca. */
+        if (a.tipo === "smsAtribuir") smsRecienMN[String(a.smsId)] = true;
+        if (a.tipo === "smsDesatribuir") delete smsRecienMN[String(a.smsId)];
         if (a.tipo === "publicar") {
           state.publicarPendiente = null;
           state.foto.publicados = {};
@@ -2819,7 +2852,8 @@ registrarModulo({
       + '</div>';
     if (pendEnvio > 0) {
       var listaOps = state.cola.slice(0, 8).map(function(a){
-        return '<div class="kv">' + descOp(a) + ' — <b>' + (a.estado === "enviando" ? "enviando…" : "guardado en tu teléfono") + '</b>'
+        return '<div class="kv">' + descOp(a) + ' — <b>' + (a.estado === "fallida" ? "⚠ no se pudo enviar" : a.estado === "enviando" ? "enviando…" : "guardado en tu teléfono") + '</b>'
+          + (a.estado === "fallida" && a.ultimoError ? ' <span class="mut">(' + esc(a.ultimoError) + ')</span>' : '')
           + (a.intentos ? ' <span class="mut">(' + a.intentos + ' intento' + (a.intentos > 1 ? 's' : '') + ')</span>' : '') + '</div>';
       }).join("");
       h += '<div class="card"><h3><span class="secIco">' + icono("enviar") + '</span>Pendientes de enviar: ' + pendEnvio + '</h3>'
@@ -2844,6 +2878,12 @@ registrarModulo({
     });
     el.querySelectorAll("[data-smsconfirmar]").forEach(function(n){
       n.addEventListener("click", function(ev){ if (ev) ev.stopPropagation(); confirmarEsperaSmsMN(n.getAttribute("data-smsconfirmar")); });
+    });
+    el.querySelectorAll("[data-smsreintentar]").forEach(function(n){
+      n.addEventListener("click", function(){ reintentarSmsOpMN(n.getAttribute("data-smsreintentar")); });
+    });
+    el.querySelectorAll("[data-smsdescartar]").forEach(function(n){
+      n.addEventListener("click", function(){ descartarSmsOpMN(n.getAttribute("data-smsdescartar")); });
     });
   },
   alMostrar: function(){
@@ -5686,7 +5726,7 @@ var MN_VERSION = "v31";
    chat. Formato: «Mi Negocio · versión 2026-11-11 HH:MM · caché v6»
    (fecha Y HORA de la publicación, para distinguir dos subidas
    del mismo día). La hora es la de Cuba (CST) al compilar. */
-var MN_COMPILACION = "2026-11-18 04:05";
+var MN_COMPILACION = "2026-11-18 17:52";
 function selloVersion(){ return "Mi Negocio · versión " + MN_COMPILACION + " · " + MN_VERSION + " · PRO"; }
 var regSW = null;
 var swConControladorAlArrancar = false;
@@ -7340,8 +7380,20 @@ function enviarGastoMN(btn){
    oculta al momento (optimista) y el servidor asienta por los
    rieles de dinero cuando la cola despacha; si la puerta falla,
    la acción queda pendiente y visible en «Pendientes de enviar»,
-   jamás un sello fantasma. ===== */
+   jamás un sello fantasma.
+   v47 · SENSOR OFFLINE-FIRST (orden de Ernesto 2026-11-18): la
+   sección enseña el estado de la cola EN LA PROPIA TARJETA —
+   «Guardada en este teléfono» (pendiente de mandar), «Ya subió»
+   (asentada, con su marca smsRecienMN) y el rechazo REAL del
+   servidor como aviso accionable: la op fallida enseña el motivo
+   que devolvió la puerta (las excepciones de dinero_sms_atribuir
+   llegan por rpc como error con mensaje) con Reintentar (resetea
+   intentos y despacha) y Quitar de la cola (la fila vuelve a la
+   lista pa atribuirla de otra forma). La tarjeta ya no desaparece
+   cuando todas las filas están en cola: mientras haya una op del
+   Sensor en la cola o una subida recién confirmada, se pinta. == */
 var sinAtribuirMN = null, sinAtribuirCargandoMN = false;
+var smsRecienMN = {};
 function cargarSinAtribuirMN(){
   if (!state.codigo || sinAtribuirCargandoMN) return;
   sinAtribuirCargandoMN = true;
@@ -7354,6 +7406,14 @@ function cargarSinAtribuirMN(){
 }
 function smsEnColaMN(smsId, tipo){
   return (state.cola || []).some(function(a){ return a && a.tipo === tipo && String(a.smsId) === String(smsId); });
+}
+/* v47 (supervisora R2): el aviso al re-encolar sobre una op viva
+   distingue la FALLIDA — despacharCola la salta por diseño, así
+   que prometer «se asienta sola al sincronizar» sería falso: a
+   esa se le enseña su salida (Reintentar / Quitar de la cola). */
+function toastSmsEnColaMN(op){
+  if (op && op.estado === "fallida") toast("⚠ Esa recarga no se pudo asentar antes: en su tarjeta tienes Reintentar o Quitar de la cola.");
+  else toast("📱 Esa recarga ya está guardada en este teléfono: se asienta sola al sincronizar.");
 }
 function sinAtribuirVisiblesMN(){
   if (!sinAtribuirMN) return [];
@@ -7382,11 +7442,61 @@ function buscadoresConCicloMN(){
   });
   return Object.keys(porCod).map(function(k){ return porCod[k]; }).filter(function(b){ return b.pendiente > 0; });
 }
+function smsColaOpsMN(){
+  return (state.cola || []).filter(function(a){ return a && (a.tipo === "smsAtribuir" || a.tipo === "smsDesatribuir"); });
+}
+function smsFilaCualquieraMN(smsId){
+  var listas = [(sinAtribuirMN && sinAtribuirMN.pendientes) || [], (sinAtribuirMN && sinAtribuirMN.atribuidas) || []];
+  for (var i = 0; i < listas.length; i++) {
+    var f = listas[i].filter(function(x){ return String(x.sms_id) === String(smsId); })[0];
+    if (f) return f;
+  }
+  return null;
+}
+function smsColaHtmlMN(){
+  return smsColaOpsMN().map(function(a){
+    var f = smsFilaCualquieraMN(a.smsId);
+    var que = f ? ('+' + fmtSaldoMN(f.monto) + ' saldo del ' + esc(f.contraparte || "—")) : "una recarga";
+    if (a.tipo === "smsDesatribuir") que = "el deshacer de " + que;
+    if (a.estado === "fallida") {
+      return '<div class="kv" style="margin-top:6px">⚠ <b>No se pudo asentar</b> ' + que + '.'
+        + (a.ultimoError ? ' El servidor dijo: «' + esc(a.ultimoError) + '».' : '')
+        + '<div class="fila" style="margin-top:6px"><button class="bGold bMini" data-smsreintentar="' + a.opId + '">Reintentar</button>'
+        + '<button class="bGhost bMini" data-smsdescartar="' + a.opId + '">Quitar de la cola</button></div>'
+        + '<div class="ayuda">Si la quitas de la cola, la recarga vuelve a la lista pa atribuirla de otra forma. Nada se pierde.</div></div>';
+    }
+    return '<div class="kv" style="margin-top:6px">📱 <b>Guardada en este teléfono</b>: ' + que + ' — se manda sola cuando vuelva la conexión.</div>';
+  }).join("");
+}
+function smsRecienHtmlMN(){
+  if (!sinAtribuirMN) return "";
+  return (sinAtribuirMN.atribuidas || []).filter(function(f){ return smsRecienMN[String(f.sms_id)] && !smsEnColaMN(f.sms_id, "smsDesatribuir"); }).map(function(f){
+    return '<div class="kv" style="margin-top:6px">✅ <b>Ya subió</b>: +' + fmtSaldoMN(f.monto) + ' saldo del ' + esc(f.contraparte || "—") + ' quedó asentada en el servidor.</div>';
+  }).join("");
+}
+function reintentarSmsOpMN(opId){
+  var a = (state.cola || []).filter(function(x){ return x && x.opId === opId; })[0];
+  if (!a) return;
+  a.estado = "pendiente"; a.intentos = 0; delete a.ultimoError; guardar();
+  toast("📤 Reintentando: se asienta en cuanto el servidor responda.");
+  despacharCola(); pintarInicioSiVisible();
+}
+function descartarSmsOpMN(opId){
+  var i = -1;
+  (state.cola || []).forEach(function(x, j){ if (x && x.opId === opId) i = j; });
+  if (i < 0) return;
+  state.cola.splice(i, 1); guardar();
+  toast("La recarga volvió a la lista: atribúyela de nuevo cuando quieras.");
+  cargarSinAtribuirMN(); pintarInicioSiVisible();
+}
 function recargasSinAtribuirHtml(){
   var filas = sinAtribuirVisiblesMN();
-  if (!filas.length) return "";
+  var extra = smsColaHtmlMN() + smsRecienHtmlMN();
+  if (!filas.length && !extra) return "";
   var h = '<div class="card" id="inSinAtribuir"><h3><span class="secIco">' + icono("bandeja") + '</span>Recargas sin atribuir</h3>'
-    + '<div class="mut" style="margin-bottom:6px">Entraron por SMS y nadie las ha reclamado todavía: toca una y di de quién fue. Sin atribuir no cuentan en ningún capital.</div>';
+    + (filas.length
+      ? '<div class="mut" style="margin-bottom:6px">Entraron por SMS y nadie las ha reclamado todavía: toca una y di de quién fue. Sin atribuir no cuentan en ningún capital.</div>'
+      : '<div class="mut" style="margin-bottom:6px">El estado de tus registros de recargas en este teléfono:</div>');
   var diaAnt = "";
   filas.forEach(function(f){
     var dia = etiquetaFecha(f.recibido_en);
@@ -7401,11 +7511,13 @@ function recargasSinAtribuirHtml(){
         + '<button class="bGold bMini" data-smsconfirmar="' + f.sms_id + '">Confirmar</button></div>';
     }
   });
-  return h + '</div>';
+  return h + extra + '</div>';
 }
 function confirmarEsperaSmsMN(smsId){
   var fila = (sinAtribuirMN ? sinAtribuirMN.pendientes : []).filter(function(f){ return String(f.sms_id) === String(smsId); })[0];
   if (!fila || !fila.posible_espera_id) return;
+  var opYaConf = (state.cola || []).filter(function(x){ return x && x.tipo === "smsAtribuir" && String(x.smsId) === String(fila.sms_id); })[0];
+  if (opYaConf) { toastSmsEnColaMN(opYaConf); return; }
   encolar({ tipo: "smsAtribuir", smsId: fila.sms_id, tipoAtr: "buscador", posibleEsperaId: fila.posible_espera_id });
   toast("✅ Recarga marcada contra esa espera en este teléfono: se confirma al sincronizar.");
   despacharCola();
@@ -7456,6 +7568,8 @@ function syncAtribucionMN(){
 }
 function enviarAtribucionMN(btn){
   var fila = atribFilaMN; if (!fila) return;
+  var opYaForm = (state.cola || []).filter(function(x){ return x && x.tipo === "smsAtribuir" && String(x.smsId) === String(fila.sms_id); })[0];
+  if (opYaForm) { atribFilaMN = null; cerrarHoja(); toastSmsEnColaMN(opYaForm); return; }
   var err = $("aErr");
   function falla(msg){ if (err) { err.textContent = msg; err.style.display = "block"; } }
   var tipo = ($("aTipo") || {}).value || "mia";

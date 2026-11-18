@@ -558,7 +558,7 @@ function pestaña(w, nombre){
 /* ===== 10. SERVICE WORKER: scope y caché propios ===== */
 {
   const sw = fs.readFileSync(REPO + "minegocio/sw.js", "utf8");
-  ok(sw.includes('CACHE = "minegocio-v46"'), "MN-50 SW con caché propio minegocio-v46 (v31 · PRO + ruta manual + rediseño Entregar dinero + dirección de arte v35 + plano premium v37, 3D retirado + tarjeta permanente del Asesor v38 + cadena de dinero v41 + rediseño PRO v42: 4 pestañas y tarjeta Mi gasto + v43: Registrar gasto y Analista visible, CHEQUEOS 126/135/136 + v44: Recargas sin atribuir, CHEQUEO 139 + v45: Chat PRO — tarjetas parte/tarifa, difusión, cabecera viva + v46: WebPerf — supabase-js bajo demanda, CHEQUEO 141)");
+  ok(sw.includes('CACHE = "minegocio-v47"'), "MN-50 SW con caché propio minegocio-v47 (v31 · PRO + ruta manual + rediseño Entregar dinero + dirección de arte v35 + plano premium v37, 3D retirado + tarjeta permanente del Asesor v38 + cadena de dinero v41 + rediseño PRO v42: 4 pestañas y tarjeta Mi gasto + v43: Registrar gasto y Analista visible, CHEQUEOS 126/135/136 + v44: Recargas sin atribuir, CHEQUEO 139 + v45: Chat PRO — tarjetas parte/tarifa, difusión, cabecera viva + v46: WebPerf — supabase-js bajo demanda, CHEQUEO 141 + v47: Sensor offline-first — estado de la atribución en la sección y cola sin duplicados por SMS, CHEQUEO 143)");
   ok(sw.includes("SKIP_WAITING") && sw.includes('addEventListener("message"'), "MN-50b el SW acepta SKIP_WAITING por mensaje (forzar activación desde la app)");
   ok(!sw.includes("mitrabajo"), "MN-51 el SW de Mi Negocio no toca el de Mi Trabajo");
   /* v38 · Tarjeta permanente del Asesor (CHEQUEO 126): el estado de
@@ -729,11 +729,11 @@ function pestaña(w, nombre){
   ok(chat.querySelectorAll("[data-vplay]").length === 3 && chat.querySelectorAll(".vozOnda i").length === 72, "R2-25 cada reproductor trae su ▶ circular y su onda de 24 picos");
   ok(typeof w.mejorMimeVoz === "function" && typeof w.hashParChat === "function" && typeof w.rtTimbre === "function", "R2-26 existen mejorMimeVoz, hashParChat y rtTimbre");
   ok(w.hashParChat("ADMIN", "BUSC-1") === w.hashParChat("BUSC-1", "ADMIN") && w.hashParChat("ADMIN", "BUSC-1") !== w.hashParChat("ADMIN", "BUSC-2"), "R2-27 el canal del timbre es el mismo para la pareja en ambos sentidos y distinto por pareja");
-  ok(w.selloVersion() === "Mi Negocio · versión 2026-11-18 04:05 · v31 · PRO", "R2-28 sello de versión exacto: «" + w.selloVersion() + "»");
+  ok(w.selloVersion() === "Mi Negocio · versión 2026-11-18 17:52 · v31 · PRO", "R2-28 sello de versión exacto: «" + w.selloVersion() + "»");
   ok(chat.textContent.includes("cada 3 s"), "R2-29 la ayuda del chat dice el refresco nuevo de 3 s (ya no 15 s)");
   pestaña(w, "Inicio");
   await sleep(120);
-  ok(d.getElementById("pgInicio").textContent.includes("Mi Negocio · versión 2026-11-18 04:05 · v31 · PRO"), "R2-30 el sello de versión se ve en Inicio");
+  ok(d.getElementById("pgInicio").textContent.includes("Mi Negocio · versión 2026-11-18 17:52 · v31 · PRO"), "R2-30 el sello de versión se ve en Inicio");
   w.close();
   R.chatMsgs = [];
 }
