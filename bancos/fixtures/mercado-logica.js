@@ -41,6 +41,7 @@ export function ofertaValida(o) {
   const r = ratioDe(o);
   if (r === null || r <= 0 || r >= TRAMPA_RATIO) return false;
   if (o.mine === true) return false;
+  if (o.excluida === true) return false;
   return true;
 }
 

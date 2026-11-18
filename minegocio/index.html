@@ -2550,7 +2550,7 @@ function tarjetaTarifaVivaHTML(){
       + '<div class="tv3-row" style="justify-content:flex-start;align-items:baseline;gap:8px;margin-top:5px"><span class="tv3-hero">' + fmt(Number(t ? t.ingresoRef360 : 0)) + '</span><span style="font-weight:700;color:var(--txt-2)">CUP</span></div>'
       + '<div class="tv3-small">Libro por QUSD: <b class="tv3-b">' + fmt(Number(t ? t.libroRef : 0)) + '</b> · tu salida: <b class="tv3-b">' + fmt(Number(t ? t.salidaRef : 0)) + "</b></div>"
       + '<div class="tv3-lbl" style="margin-top:14px">El mercado ahora · foto de hace ' + esc(String(f.edad_min)) + ' min</div>'
-      + '<div class="tv3-row" style="margin-top:8px"><span class="tv3-small">Saldo ETECSA · venta (nivel de 20)</span><b class="tv3-b">≈ ' + fmt(Number(f.nivel20 != null ? f.nivel20 : f.promedio_venta)) + '</b></div>'
+      + '<div class="tv3-row" style="margin-top:8px"><span class="tv3-small">Saldo ETECSA · venta (' + (f.nivel20 != null ? "nivel de 20" : "promedio") + ')</span><b class="tv3-b">≈ ' + fmt(Number(f.nivel20 != null ? f.nivel20 : f.promedio_venta)) + '</b></div>'
       + '<div class="tv3-hair"></div>'
       + '<div class="tv3-row"><span class="tv3-small">QUSD por transferencia · BANK_CUP</span><b class="tv3-b">≈ ' + fmt(Number(f.bankcup_promedio)) + "</b></div>";
     var intl = m.inteligencia || {};
