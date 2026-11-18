@@ -39,7 +39,7 @@ jobs:
     timeout-minutes: 50
     steps:
       - name: Descargar el repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Preparar el laboratorio
         run: |

@@ -23,7 +23,7 @@ jobs:
       image: semgrep/semgrep
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Escanear con las reglas del proyecto
         continue-on-error: true

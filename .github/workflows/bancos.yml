@@ -57,7 +57,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Descargar el repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Node 24 (el mismo de los bancos locales)
         uses: actions/setup-node@v4
