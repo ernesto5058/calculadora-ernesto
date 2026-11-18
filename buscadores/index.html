@@ -240,6 +240,18 @@
   .micBtn .ic { width: 20px; height: 20px; }
   .fijadoBar { display: none; background: var(--dorado-suave); border: 1px solid var(--dorado-borde); color: var(--dorado-claro); border-radius: 12px; padding: 9px 12px; font-size: 13px; margin-bottom: 10px; overflow-wrap: anywhere; }
   .tempLinea { display: none; color: var(--txt-3); font-size: 12px; margin-bottom: 8px; }
+  /* ===== v39 · CHAT PRO: presión larga, tarjetas, cabecera viva ===== */
+  .prensando { opacity: .72; }
+  .cabEstado { color: var(--txt-2); font-size: 12.5px; margin-top: 1px; }
+  .cabEstado b { color: var(--txt-1); }
+  .parteBtn { display: flex; align-items: center; justify-content: center; gap: 8px; width: calc(100% - 24px); min-height: 48px; margin: 10px 12px 0; padding: 12px; border-radius: 14px; background: var(--dorado-suave); border: 1px solid var(--dorado-borde); color: var(--txt-1); font-weight: 700; font-size: 15px; cursor: pointer; }
+  .parteBtn:active { background: var(--dorado-borde); }
+  .tarjChat { background: var(--bg-2); border: 1px solid var(--borde-fuerte); border-radius: 14px; padding: 10px 12px; min-width: 210px; max-width: 280px; }
+  .tarjChat .tarjTit { font-weight: 800; font-size: 14.5px; margin-bottom: 4px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .tarjChat .tarjDet { font-size: 13.5px; line-height: 1.5; color: var(--txt-1); }
+  .tarjChat .tarjDet span { color: var(--txt-2); }
+  .parteHoja input { width: 100%; margin: 4px 0 8px; }
+  .parteHoja label { font-size: 13px; font-weight: 600; color: var(--txt-2); }
   .msgSistema { text-align: center; color: var(--txt-2); font-size: 12.5px; margin: 12px auto; background: var(--bg-2); border-radius: var(--r-pildora); padding: 6px 14px; max-width: 88%; }
   .msg .cita { display: block; border-left: 3px solid var(--dorado); background: var(--dorado-suave); border-radius: 6px; padding: 5px 8px; margin-bottom: 6px; font-size: 12.5px; opacity: .9; overflow-wrap: anywhere; }
   .msg .eliminado { font-style: italic; opacity: .75; }
@@ -397,7 +409,21 @@
   #guiaBox .gBtns .go { margin-top: 0; flex: 1; }
   .guiaRing { outline: 3px solid rgba(232,184,75,.95) !important; outline-offset: 3px; border-radius: 14px; animation: guiaPulso 1.2s ease-in-out infinite; position: relative; z-index: 65; }
   @keyframes guiaPulso { 0%,100% { box-shadow: 0 0 0 0 rgba(232,184,75,.45); } 50% { box-shadow: 0 0 0 9px rgba(232,184,75,0); } }
-</style><script>window.SENTRY_CASA={app:"mitrabajo",version:"1.8.0",dsn:"https://c55f15054776babcf29ee7023c77f250@o4512419765354496.ingest.us.sentry.io/4512419773087744"};</script>
+  /* ===== PULIDO OJO · Chat PRO v39 (solo presentación) =====
+     1) La fila de búsqueda vive en flujo normal, con fondo propio y
+        por encima del hilo; el hilo gana aire arriba (también al
+        hacer scroll hasta el inicio) pa que la primera burbuja se
+        lea entera y nunca quede bajo la fila. */
+  .chatBuscarRow { position: relative; z-index: 3; background: #FFFFFF; }
+  .hiloWA { padding-top: 16px; scroll-padding-top: 16px; }
+  /* 2) Placeholder del compositor: dos líneas completas en vacío
+        (line-height y altura fijas; el compositor es estático, sin
+        auto-crecimiento que romper). */
+  .compBox textarea { line-height: 1.35; height: 58px; padding: 6px 0; }
+  /* 3) Menú de presión larga: hoja fija SOBRE la barra de pestañas
+        (mismo patrón que .adjHojaPRO), con scroll interno si no cabe. */
+  .chatCard .menuMsg { position: fixed; left: 8px; right: 8px; bottom: calc(84px + env(safe-area-inset-bottom)); top: auto; z-index: 57; max-width: 544px; margin: 0 auto; max-height: 52vh; overflow-y: auto; box-shadow: 0 14px 34px rgba(0,0,0,.25); }
+</style><script>window.SENTRY_CASA={app:"mitrabajo",version:"1.9.0",dsn:"https://c55f15054776babcf29ee7023c77f250@o4512419765354496.ingest.us.sentry.io/4512419773087744"};</script>
 <script defer crossorigin="anonymous" integrity="sha384-48iagrZwMa6wkDoJKNyCk4jgMHcOcsBK/DzZAJInl1ZhtunellJDCRNZuomfHefF" src="https://browser.sentry-cdn.com/8.38.0/bundle.min.js"></script>
 </head>
 <body>
@@ -580,10 +606,11 @@
         <div class="chatHeadTx">
           <div class="chatNom">Ernesto</div>
           <div class="cpres" id="c_pres">Ernesto · —</div>
+          <div class="cabEstado" id="c_estado" style="display:none"></div>
         </div>
         <button type="button" class="chatIco" id="c_info" aria-label="Qué significan los estados"><svg class="ic" aria-hidden="true"><use href="#i-help"/></svg></button>
       </div>
-      <div class="hint" id="c_estados" style="display:none">Tus mensajes, como en WhatsApp: <b>✓</b> enviado (salió de tu app y quedó guardado) · <b>✓✓</b> entregado (el panel de Ernesto recibió el mensaje) · <b>✓✓ Visto</b> (Ernesto abrió el chat y lo leyó) · <b>🕐</b> en cola (guardado en tu teléfono: sale solo cuando vuelva la conexión) · <b>⚠️ No se pudo enviar</b> (la app lo intentó 3 veces: toca el mensaje para reintentar). Foto: toca el clip 📎 y elige «Foto o vídeo» (o «Cámara» para hacerla al momento); con «Documento» mandas un archivo. La foto y el texto salen en UN solo mensaje. Toca un mensaje para responder, reaccionar ❤️👍😂👏🔥, o editar/eliminar los tuyos.</div>
+      <div class="hint" id="c_estados" style="display:none">Tus mensajes, como en WhatsApp: <b>✓</b> enviado (salió de tu app y quedó guardado) · <b>✓✓</b> entregado (el panel de Ernesto recibió el mensaje) · <b>✓✓ Visto</b> (Ernesto abrió el chat y lo leyó) · <b>🕐</b> en cola (guardado en tu teléfono: sale solo cuando vuelva la conexión) · <b>⚠️ No se pudo enviar</b> (la app lo intentó 3 veces: toca el mensaje para reintentar). Foto: toca el clip 📎 y elige «Foto o vídeo» (o «Cámara» para hacerla al momento); con «Documento» mandas un archivo. La foto y el texto salen en UN solo mensaje. Mantén presionado un mensaje para responder, reaccionar ❤️👍😂👏🔥, o editar/eliminar los tuyos.</div>
       <div class="fijadoBar" id="c_fijado"></div>
       <div class="tempLinea" id="c_temp"></div>
       <div class="chatBuscarRow">
@@ -599,6 +626,31 @@
         <button type="button" class="adjFila" id="c_adj_foto"><span class="adjIco"><svg class="ic" aria-hidden="true"><use href="#i-img"/></svg></span><span class="adjTx"><b>Foto o vídeo</b><small>Elige de tu galería</small></span></button>
         <button type="button" class="adjFila" id="c_adj_cam"><span class="adjIco"><svg class="ic" aria-hidden="true"><use href="#i-cam"/></svg></span><span class="adjTx"><b>Cámara</b><small>Haz la foto ahora</small></span></button>
         <button type="button" class="adjFila" id="c_adj_arch"><span class="adjIco"><svg class="ic" aria-hidden="true"><use href="#i-file"/></svg></span><span class="adjTx"><b>Documento</b><small>Archivos (máx 5 MB)</small></span></button>
+      </div>
+      <button type="button" class="parteBtn" id="c_parte_btn"><svg class="ic" aria-hidden="true"><use href="#i-cash"/></svg> Ya compré — mandar el parte</button>
+      <div class="adjScrim" id="c_parte_scrim"></div>
+      <div class="adjHojaPRO parteHoja" id="c_parte_hoja">
+        <div class="adjHojaTit">Parte de compra — Ya compré<button type="button" class="miniBtn" id="c_parte_cerrar">✕</button></div>
+        <label>¿Qué vuelta operaste?</label>
+        <div class="tiposel">
+          <div class="tab on" id="cp_tipo_s">Saldo</div>
+          <div class="tab" id="cp_tipo_t">Transferencia</div>
+        </div>
+        <div id="cp_box_s">
+          <label>Tasa que pactaste: precio por cada recarga de 360 (CUP)</label>
+          <input type="number" id="cp_tasa" inputmode="decimal" placeholder="Ej: 1000">
+        </div>
+        <div id="cp_box_t" class="hide">
+          <label>¿Al cuánto es el trato? (%)</label>
+          <input type="number" id="cp_pct" inputmode="decimal" placeholder="Ej: 30">
+        </div>
+        <label>Total que pagaste en efectivo (CUP)</label>
+        <input type="number" id="cp_total" inputmode="decimal" placeholder="Ej: 4000">
+        <label>Teléfono de quien te vendió (opcional)</label>
+        <input type="tel" id="cp_tel" inputmode="tel" placeholder="Ej: 51234567">
+        <button class="go" id="cp_btn" type="button">Enviar el parte a Ernesto</button>
+        <div class="ok" id="cp_ok" style="display:none"></div>
+        <div class="warn" id="cp_warn"></div>
       </div>
       <div class="compWA">
         <div class="compBox">
@@ -1007,7 +1059,7 @@
   } catch (e) { /* silencio total: la app manda */ }
 })();
 
-var APP_VERSION = "1.8.0";
+var APP_VERSION = "1.9.0";
 /* Tarifa de respaldo (E-7, Tanda Nº6): SOLO se usa si nunca llegó ni
    datos.json ni la tarifa viva, y mientras manda ella la app lo dice
    a la vista («RESPALDO» + su origen en tarifaText/pintaFrescura).
@@ -1774,6 +1826,71 @@ function pintarPreviaAdjMT(){
   wrap.appendChild(botonQuitarAdjMT());
   an.appendChild(wrap);
 }
+/* ===== v39 · «YA COMPRÉ»: PARTE DESDE EL CHAT, OFFLINE-FIRST =====
+   Cola propia busc_parte_outbox (patrón de la casa: se guarda en el
+   teléfono con su opId y sale sola al volver la red; el servidor
+   deduplica por ese opId — despachar dos veces jamás duplica).
+   Despacha parte_crear del contrato; la tarjeta del parte aparece
+   en el hilo cuando el mensaje se asienta en el servidor. El
+   formulario de Mis esperas NO se toca. */
+var PARTE_OUT_LS = "busc_parte_outbox";
+var PARTE_OUT_MEM = null;
+function parteOutGet(){
+  if (PARTE_OUT_MEM) return PARTE_OUT_MEM;
+  try { PARTE_OUT_MEM = JSON.parse(localStorage.getItem(PARTE_OUT_LS) || "[]"); } catch(e){ PARTE_OUT_MEM = []; }
+  return PARTE_OUT_MEM;
+}
+function parteOutSet(a){
+  PARTE_OUT_MEM = a;
+  try { localStorage.setItem(PARTE_OUT_LS, JSON.stringify(a)); } catch(e){}
+}
+var parteDespachando = false;
+function despacharParte(){
+  if (parteDespachando || EN_PAUSA || !SESION) return;
+  var a = parteOutGet(); if (!a.length) return;
+  var item = a.filter(function(x){ return !x.fallida; })[0];
+  if (!item) return;
+  parteDespachando = true;
+  rpcChat("parte_crear", { p_codigo: SESION, p_tipo: item.tipo, p_tasa: item.tasa,
+    p_total_pagado: Math.round(item.total), p_telefono: item.telefono || null, p_op_id: item.opId }).then(function(r){
+    parteDespachando = false;
+    if (r && r.ok) {
+      parteOutSet(parteOutGet().filter(function(x){ return x.opId !== item.opId; }));
+      pintarChat(CHAT_MSGS);
+      chatCargar();      /* la tarjeta del parte entra con el hilo */
+      cargarEsperas();
+      if (parteOutGet().length) despacharParte();
+    } else {
+      var aF = parteOutGet();
+      aF.forEach(function(x){ if (x.opId === item.opId) { x.intentos = (x.intentos || 0) + 1; if (x.intentos >= 3) x.fallida = true; } });
+      parteOutSet(aF);
+      pintarChat(CHAT_MSGS);
+    }
+  });
+}
+function burbujaParteColaInnerMT(it){
+  var h = '<div class="tarjChat tarjParte"><div class="tarjTit">Parte de compra ' + '<span class="stChip esp">' + (it.fallida ? "No se pudo enviar" : "En cola 🕐") + '</span></div><div class="tarjDet">'
+    + '<span>Tipo:</span> ' + (it.tipo === "transferencia" ? "Transferencia" : "Saldo") + '<br>'
+    + '<span>Tasa:</span> ' + fmtMilesT3(Number(it.tasa) || 0) + '<br>'
+    + '<span>Total pagado:</span> ' + fmtMilesT3(Number(it.total) || 0) + ' CUP'
+    + (it.telefono ? '<br><span>Teléfono:</span> ' + escChat(it.telefono) : '')
+    + '<br><span>' + (it.fallida ? "Toca la tarjeta para reintentar." : "Guardado en tu teléfono: sale solo cuando vuelva la conexión.") + '</span></div></div>';
+  return '<div class="bur">' + h + '</div>';
+}
+function firmaParteColaMT(it){ return JSON.stringify([it.tipo || "", it.tasa || 0, it.total || 0, it.fallida ? 1 : 0]); }
+function crearNodoParteColaMT(it){
+  var nodo = document.createElement("div");
+  nodo.className = "msg me";
+  nodo.innerHTML = burbujaParteColaInnerMT(it);
+  if (it.fallida) {
+    nodo.addEventListener("click", function(){
+      var aR = parteOutGet();
+      aR.forEach(function(x){ if (x.opId === it.opId) { x.intentos = 0; x.fallida = false; } });
+      parteOutSet(aR); pintarChat(CHAT_MSGS); despacharParte();
+    });
+  }
+  return nodo;
+}
 function pintarChat(msgs){
   var box = $("c_hilo"); if (!box) return;
   CHAT_MSGS = msgs || [];
@@ -1972,6 +2089,7 @@ function cargarDinero(){
     .then(function(d){
       if (!d || d.rol !== "buscador") return;
       DINERO = d;
+      pintarCabeceraVivaMT();
       if (d.estrellas) { T.pctSaldo = Number(d.estrellas.pct_saldo); T.pctTransf = Number(d.estrellas.pct_transferencia); }
       pintarCupo(); pintarTarifaViva(); estReporte(); syncDev();
     }).catch(function(){});
@@ -2150,8 +2268,8 @@ setInterval(function(){
   try { despacharChat(); } catch(e){}
   try { if (!$("viewAyuda").classList.contains("hide")) chatCargar(); } catch(e){}
 }, 20000);
-window.addEventListener("online", function(){ try { despacharChat(); } catch(e){} try { syncReportes(); } catch(e){} try { syncDev(); } catch(e){} try { if (SESION) chatCargar(); } catch(e){} });   /* v1.5.3 (E-5): tambien la cola de REPORTES */
-window.addEventListener("focus", function(){ try { despacharChat(); } catch(e){} try { syncReportes(); } catch(e){} });   /* v1.5.3 (E-5): al recuperar el foco */
+window.addEventListener("online", function(){ try { despacharChat(); } catch(e){} try { despacharParte(); } catch(e){} try { syncReportes(); } catch(e){} try { syncDev(); } catch(e){} try { if (SESION) chatCargar(); } catch(e){} });   /* v1.5.3 (E-5): tambien la cola de REPORTES */
+window.addEventListener("focus", function(){ try { despacharChat(); } catch(e){} try { despacharParte(); } catch(e){} try { syncReportes(); } catch(e){} });   /* v1.5.3 (E-5): al recuperar el foco */
 setInterval(function(){
   // v1.3.1: con el chat abierto, el hilo se refresca para que los estados
   // (entregado/visto) cambien solos, estilo WhatsApp.
@@ -2624,6 +2742,7 @@ function renderPanel(){
 var CHAT_RESP = null;      /* mensaje citado al responder */
 var CHAT_ADJ = null;       /* adjunto listo para enviar */
 var CHAT_FIJADO = null;    /* mensaje fijado por Ernesto */
+var CHAT_FIJADO_TIPO = null; /* v39: adj_tipo del fijado (leer_chat: fijado_tipo) */
 var CHAT_TEMP_SEG = 0;     /* mensajes temporales (segundos; 0 = no) */
 var MENU_MSG = null;
 var EMOJIS_REAC = ["❤️", "👍", "😂", "👏", "🔥"];
@@ -2704,8 +2823,16 @@ function tempTexto(seg){
    sale del ID del mensaje y los mapas no se borran jamás: solo se
    retira la entrada del nodo que sale del hilo. */
 var hiloNodosMT = {}, hiloFirmasMT = {}, hiloClavesMT = {};
+function datosAdjMT(m){
+  var d = m && m.adj_datos;
+  if (!d) return null;
+  if (typeof d === "object") return d;
+  try { var j = JSON.parse(String(d)); return (j && typeof j === "object") ? j : null; } catch(e){ return null; }
+}
 function firmaMsgMT(m){
-  return JSON.stringify([m.texto || "", m.borrado ? 1 : 0, m.editado ? 1 : 0, m.leido ? 1 : 0, m.recibido ? 1 : 0,
+  var snap = (m.adj_tipo === "parte" || m.adj_tipo === "tarifa") ? String(m.adj_datos || "") : "";
+  if (m.adj_tipo === "parte") { var dpF = datosAdjMT(m) || {}; var peF = PARTE_EST[dpF.parte_id || dpF.id]; if (peF) snap += "|" + (peF.estado || "") + "|" + (peF.motivo_rechazo || ""); }
+  return JSON.stringify([m.texto || "", m.borrado ? 1 : 0, m.editado ? 1 : 0, m.leido ? 1 : 0, m.recibido ? 1 : 0, snap,
     m.adj_tipo || "", m.adj_datos ? String(m.adj_datos).length : 0, String(m.adj_datos || "").slice(0, 24),
     m.adj_dur || 0, m.resp_texto || "", m.resp_autor || "",
     ((m.reacciones || []).map(function(r){ return r.emoji + r.total; }).join(","))]);
@@ -2717,7 +2844,10 @@ function burbujaInnerMT(m){
   if (m.borrado) inner = '<span class="eliminado">Este mensaje fue eliminado</span>';
   else {
     if (m.resp_texto) inner += '<span class="cita">' + escChat(m.resp_autor === SESION ? "Tú" : (m.resp_autor || "")) + ": " + escChat(String(m.resp_texto).slice(0, 90)) + "</span>";
-    if (m.adj_tipo === "foto" && m.adj_datos) { var srcF153 = srcSeguroAdjMT(m.adj_datos, m.adj_mime); if (srcF153) inner += '<img class="adjFoto" alt="Foto" src="' + srcF153 + '">'; }
+    if (m.adj_tipo === "parte") inner += tarjetaParteMT(m);
+    else if (m.adj_tipo === "tarifa") inner += tarjetaTarifaMT(m);
+    else if (m.adj_tipo === "tarifa_viva") inner += '<div class="tarjChat"><div class="tarjTit">Tarifa vigente</div><div class="tarjDet">La tarifa actual va fijada arriba, con su hora.</div></div>';
+    else if (m.adj_tipo === "foto" && m.adj_datos) { var srcF153 = srcSeguroAdjMT(m.adj_datos, m.adj_mime); if (srcF153) inner += '<img class="adjFoto" alt="Foto" src="' + srcF153 + '">'; }
     else if (m.adj_tipo === "foto" && m.adj_tiene) inner += '<span class="adjCargando" data-adjpend="' + esc(m.id) + '">Foto · cargando…</span>';
     else if (m.adj_tipo === "voz" && m.adj_datos) inner += reproductorVozHtmlMT(m);
     else if (m.adj_tipo === "voz" && m.adj_tiene) inner += '<span class="adjCargando" data-adjpend="' + esc(m.id) + '">Nota de voz · toca para cargarla</span>';
@@ -2730,6 +2860,108 @@ function burbujaInnerMT(m){
     reac = '<div class="reacRow">' + m.reacciones.map(function(r){ return '<span class="reac">' + esc(r.emoji) + " " + esc(r.total) + "</span>"; }).join("") + "</div>";
   }
   return '<div class="bur">' + inner + "</div>" + reac;
+}
+/* ===== v39 · TARJETAS DE PARTE Y TARIFA (solo lectura en MT) =====
+   El estado que manda es el del servidor: al pintar una tarjeta de
+   parte se refresca con parte_leer (con freno de 15 s por parte y
+   sin reintentar los estados finales) y la burbuja se repinta sola
+   al asentarse. El snapshot solo pinta mientras no hay lectura. */
+var PARTE_EST = {}, PARTE_EST_EN = {};
+function estadoParteChip(est){
+  if (est === "confirmada") return '<span class="stChip okk">Espera creada ✓</span>';
+  if (est === "rechazada") return '<span class="stChip no">Rechazada</span>';
+  return '<span class="stChip esp">Esperando confirmación</span>';
+}
+function tarjetaParteMT(m){
+  var d = datosAdjMT(m) || {};
+  var est = (PARTE_EST[d.parte_id] && PARTE_EST[d.parte_id].estado) || d.estado || "pendiente";
+  var vivo = PARTE_EST[d.parte_id] || d;
+  var h = '<div class="tarjChat tarjParte"><div class="tarjTit">Parte de compra ' + estadoParteChip(est) + '</div><div class="tarjDet">'
+    + '<span>Tipo:</span> ' + escChat(vivo.tipo === "transferencia" ? "Transferencia" : "Saldo") + '<br>'
+    + '<span>Tasa:</span> ' + escChat(fmtMilesT3(Number(vivo.tasa) || 0)) + '<br>'
+    + '<span>Total pagado:</span> ' + escChat(fmtMilesT3(Number(vivo.total_pagado) || 0)) + ' CUP'
+    + (vivo.telefono ? '<br><span>Teléfono:</span> ' + escChat(vivo.telefono) : '');
+  if (est === "rechazada" && vivo.motivo_rechazo) h += '<br><span>Motivo:</span> ' + escChat(vivo.motivo_rechazo);
+  return h + '</div></div>';
+}
+function tarjetaTarifaMT(m){
+  var d = datosAdjMT(m) || {};
+  function n(v){ return (v === undefined || v === null || v === "") ? null : fmtMilesT3(Number(v) || 0); }
+  var filas = "";
+  if (n(d.ingresoRef360) !== null) filas += '<span>Ingreso por recarga de 360:</span> ' + n(d.ingresoRef360) + ' CUP<br>';
+  if (n(d.salidaRef) !== null) filas += '<span>Salida de referencia:</span> ' + n(d.salidaRef) + '<br>';
+  if (d.pctSaldo !== undefined && d.pctSaldo !== null) filas += '<span>Tu % en saldo:</span> ' + escChat(d.pctSaldo) + '%<br>';
+  if (d.pctTransf !== undefined && d.pctTransf !== null) filas += '<span>Tu % en transferencia:</span> ' + escChat(d.pctTransf) + '%<br>';
+  if (n(d.pisoTransf) !== null) filas += '<span>Piso de transferencia:</span> ' + n(d.pisoTransf) + '%<br>';
+  var hora = d.actualizado || m.creado || "";
+  return '<div class="tarjChat tarjTarifa"><div class="tarjTit">Tarifa</div><div class="tarjDet">' + filas
+    + '<span>Tarifa de las ' + escChat(horaChat(hora)) + '</span></div></div>';
+}
+function refrescarParteEstadoMT(m){
+  var d = datosAdjMT(m) || {};
+  var pid = d.parte_id || d.id;
+  if (!pid || !SESION) return;
+  var prev = PARTE_EST[pid];
+  if (prev && (prev.estado === "confirmada" || prev.estado === "rechazada")) return;
+  var ahora = Date.now();
+  if (PARTE_EST_EN[pid] && ahora - PARTE_EST_EN[pid] < 15000) return;
+  PARTE_EST_EN[pid] = ahora;
+  rpcChat("parte_leer", { p_codigo: SESION, p_parte_id: pid }).then(function(r){
+    if (r && r.ok && r.estado) {
+      PARTE_EST[pid] = r;
+      var mm = (CHAT_MSGS || []).filter(function(x){ return String(x.id) === String(m.id); })[0];
+      if (mm) pintarChat(CHAT_MSGS);
+    }
+  });
+}
+/* ===== v39 · PRESIÓN LARGA REAL (espejo de armarPrensa de MN) =====
+   550 ms, se cancela si el dedo se mueve más de 10 px y el clic que
+   sigue a una presión cumplida se suprime: el menú SOLO se abre así.
+   El clic normal sobre el texto ya no abre nada; los medios guardan
+   su clic (foto→visor, voz→reproductor) porque un toque corto nunca
+   cumple los 550 ms. */
+function armarPrensaMT(el, abrir){
+  if (!el) return;
+  el.classList.add("prensable");
+  var timer = null, x0 = 0, y0 = 0, listo = false;
+  function limpiar(){ if (timer) { clearTimeout(timer); timer = null; } el.classList.remove("prensando"); }
+  el.addEventListener("pointerdown", function(e){
+    if (e.target.closest && e.target.closest("input, textarea, select, button, label, a")) return;
+    x0 = e.clientX || 0; y0 = e.clientY || 0; listo = false;
+    el.classList.add("prensando");
+    timer = setTimeout(function(){ timer = null; listo = true; el.classList.remove("prensando"); abrir(); }, 550);
+  });
+  el.addEventListener("pointermove", function(e){
+    if (timer && (Math.abs((e.clientX || 0) - x0) > 10 || Math.abs((e.clientY || 0) - y0) > 10)) limpiar();
+  });
+  ["pointerup", "pointercancel", "pointerleave"].forEach(function(ev){ el.addEventListener(ev, limpiar); });
+  el.addEventListener("contextmenu", function(e){ e.preventDefault(); });
+  el.addEventListener("click", function(e){ if (listo) { listo = false; e.preventDefault(); e.stopPropagation(); } }, true);
+}
+/* ===== v39 · CABECERA VIVA =====
+   En mano · Libre · Mi ganancia, SOLO de las respuestas ya cargadas
+   (esperas_mi_estado y dinero_leer_estado). Mi ganancia = la suma
+   de las comisiones de TUS vueltas de dinero_leer_estado (la pagada
+   o, si aún no, la proyectada de esa vuelta). Sin fuente, la cifra
+   se omite: jamás se inventa. Vive fuera de #c_hilo y de #c_txt. */
+function pintarCabeceraVivaMT(){
+  var el = $("c_estado"); if (!el) return;
+  var partes = [];
+  var enMano = (ESPERAS && ESPERAS.en_mano !== undefined && ESPERAS.en_mano !== null) ? Number(ESPERAS.en_mano)
+    : (DINERO && DINERO.en_mano !== undefined && DINERO.en_mano !== null) ? Number(DINERO.en_mano) : null;
+  if (enMano !== null && isFinite(enMano)) partes.push("En mano <b>" + fmtMilesT3(enMano) + " CUP</b>");
+  if (ESPERAS && ESPERAS.libre !== undefined && ESPERAS.libre !== null) partes.push("Libre <b>" + fmtMilesT3(Number(ESPERAS.libre) || 0) + " CUP</b>");
+  if (DINERO && Array.isArray(DINERO.vueltas) && DINERO.vueltas.length) {
+    var g = 0, hay = false;
+    DINERO.vueltas.forEach(function(v){
+      var c = (v.pago_hecho && v.comision !== undefined && v.comision !== null) ? Number(v.comision)
+        : (v.proyeccion && v.proyeccion.comision_proyectada !== undefined && v.proyeccion.comision_proyectada !== null) ? Number(v.proyeccion.comision_proyectada) : null;
+      if (c !== null && isFinite(c)) { g += c; hay = true; }
+    });
+    if (hay) partes.push("Mi ganancia <b>" + fmtMilesT3(g) + " CUP</b>");
+  }
+  el.innerHTML = partes.join(" · ");
+  el.style.display = partes.length ? "block" : "none";
 }
 function alistarNodoMsgMT(nodo, id){
   nodo.querySelectorAll("[data-adjpend]").forEach(function(el){
@@ -2757,7 +2989,8 @@ function crearNodoMsgMT(m){
   nodo.setAttribute("data-mid", String(m.id));
   nodo.innerHTML = burbujaInnerMT(m);
   hiloClavesMT["m:" + String(m.id)] = "vm" + String(m.id).replace(/[^a-zA-Z0-9]/g, "");
-  nodo.addEventListener("click", function(){ abrirMenuMsg(Number(nodo.getAttribute("data-mid"))); });
+  armarPrensaMT(nodo, function(){ abrirMenuMsg(Number(nodo.getAttribute("data-mid"))); });
+  if (m.adj_tipo === "parte") refrescarParteEstadoMT(m);
   alistarNodoMsgMT(nodo, m.id);
   return nodo;
 }
@@ -2802,7 +3035,20 @@ function pintarChat(msgs){
   CHAT_MSGS = msgs;
   var fj = $("c_fijado");
   if (fj) {
-    if (CHAT_FIJADO && !CHAT_FIJADO.borrado) { fj.style.display = "block"; fj.textContent = "Fijado: " + (CHAT_FIJADO.texto || "Mensaje fijado"); }
+    var tipoFij = CHAT_FIJADO_TIPO || (CHAT_FIJADO && CHAT_FIJADO.adj_tipo) || null;
+    if (tipoFij === "tarifa_viva") {
+      /* v39: fijado de tarifa VIVA — se pinta la tarifa ACTUAL de
+         leer_tarifa con su hora, nunca un texto congelado; se
+         refresca con cada repintado del hilo. */
+      fj.style.display = "block";
+      if (TARIFA_VIVA) {
+        fj.textContent = "Fijado · Tarifa vigente: ingreso por recarga de 360 " + fmtMilesT3(TARIFA_VIVA.ingresoRef360) + " CUP · salida " + fmtMilesT3(TARIFA_VIVA.salidaRef) + " · Tarifa de las " + horaChat(TARIFA_VIVA_EN);
+      } else {
+        fj.textContent = "Fijado · Tarifa vigente (cargando la tarifa actual…)";
+        leerTarifaViva();
+      }
+    }
+    else if (CHAT_FIJADO && !CHAT_FIJADO.borrado) { fj.style.display = "block"; fj.textContent = "Fijado: " + (CHAT_FIJADO.texto || "Mensaje fijado"); }
     else fj.style.display = "none";
   }
   var tl = $("c_temp");
@@ -2821,8 +3067,12 @@ function pintarChat(msgs){
   if (!filtro && colaChat.length) {
     colaChat.forEach(function(it){ deseados.push({ k: "cola:" + it.opId, cola: it }); });
   }
+  var colaPartes = parteOutGet();
+  if (!filtro && colaPartes.length) {
+    colaPartes.forEach(function(it){ deseados.push({ k: "pcola:" + it.opId, pcola: it }); });
+  }
   if (!deseados.length) {
-    deseados.push((!msgs.length && !colaChat.length)
+    deseados.push((!msgs.length && !colaChat.length && !colaPartes.length)
       ? { k: "vacio", txt: "Todavía no hay mensajes. Escríbele a Ernesto lo que necesites: dudas de un trato, algo que no funciona o una idea." }
       : { k: "sinres", txt: "Ningún mensaje coincide con la búsqueda en lo cargado. Prueba «Buscar más»." });
   }
@@ -2845,6 +3095,7 @@ function pintarChat(msgs){
     if (!nodo) {
       if (dd.m) { nodo = crearNodoMsgMT(dd.m); hiloFirmasMT[dd.k] = firmaMsgMT(dd.m); }
       else if (dd.cola) { nodo = crearNodoColaMT(dd.cola); hiloFirmasMT[dd.k] = firmaColaMT(dd.cola); }
+      else if (dd.pcola) { nodo = crearNodoParteColaMT(dd.pcola); hiloFirmasMT[dd.k] = firmaParteColaMT(dd.pcola); }
       else {
         nodo = document.createElement("div");
         if (dd.sep) { nodo.className = "fechaSep"; nodo.innerHTML = "<span>" + escChat(etiquetaFechaChat(dd.creado)) + "</span>"; }
@@ -2858,8 +3109,12 @@ function pintarChat(msgs){
       if (hiloFirmasMT[dd.k] !== f) {
         hiloFirmasMT[dd.k] = f;
         nodo.innerHTML = burbujaInnerMT(dd.m);
+        if (dd.m.adj_tipo === "parte") refrescarParteEstadoMT(dd.m);
         alistarNodoMsgMT(nodo, dd.m.id);
       }
+    } else if (dd.pcola) {
+      var fp = firmaParteColaMT(dd.pcola);
+      if (hiloFirmasMT[dd.k] !== fp) { hiloFirmasMT[dd.k] = fp; nodo.innerHTML = burbujaParteColaInnerMT(dd.pcola); }
     } else if (dd.cola) {
       var fc = firmaColaMT(dd.cola);
       if (hiloFirmasMT[dd.k] !== fc) {
@@ -2990,11 +3245,13 @@ function chatCargar(){
     if (r && r.ok && r.mensajes) {
       chatFallos = 0;
       CHAT_FIJADO = r.fijado || null;
+      CHAT_FIJADO_TIPO = r.fijado_tipo || (r.fijado && r.fijado.adj_tipo) || null;
       CHAT_TEMP_SEG = Number(r.temporal_seg || 0);
       fusionarAdjuntosCache(r.mensajes);
       pintarChat(r.mensajes); pintarBadge(0);
       cargarAdjuntosPendientes();   /* v1.5.3 (E-9): los adjuntos llegan una vez, no en cada sondeo */
       despacharChat();   // si el chat cargó, la red responde: que salga la cola
+      despacharParte();   /* v39: y la cola de partes «Ya compré» */
     } else if (!CHAT_MSGS.length && !chatOutGet().length) {
       var box = $("c_hilo");
       if (ULTIMO_ERR_CHAT && ULTIMO_ERR_CHAT.status === 404) {
@@ -3517,7 +3774,7 @@ function showView(v){
     $("c_buscar_mas").addEventListener("click", function(){
       var q = ($("c_buscar").value || "").trim(); if (!q || !SESION) return;
       rpcChat("leer_chat", { p_codigo: SESION, p_con: "ADMIN", p_clave: SESION, p_buscar: q }).then(function(r){
-        if (r && r.ok && r.mensajes) { CHAT_FIJADO = r.fijado || CHAT_FIJADO; pintarChat(r.mensajes); }
+        if (r && r.ok && r.mensajes) { CHAT_FIJADO = r.fijado || CHAT_FIJADO; CHAT_FIJADO_TIPO = r.fijado_tipo || CHAT_FIJADO_TIPO; pintarChat(r.mensajes); }
       });
     });
     var grabando = null, recMT = null, chunksMT = [], grabT0MT = 0, grabTickMT = null;
@@ -3738,7 +3995,7 @@ function esperasCacheGet(){
 function cargarEsperas(){
   if (!SESION) return;
   rpcChat("esperas_mi_estado", { p_codigo: SESION }).then(function(r){
-    if (r && r.ok && Array.isArray(r.esperas)) { ESPERAS = r; esperasCacheSet(); pintarEsperas(); }
+    if (r && r.ok && Array.isArray(r.esperas)) { ESPERAS = r; esperasCacheSet(); pintarEsperas(); pintarCabeceraVivaMT(); }
     else if (!ESPERAS) { var c = esperasCacheGet(); if (c) { ESPERAS = c; pintarEsperas(); } }
   });
 }
@@ -3782,6 +4039,49 @@ function enviarParte(){
     } else if (r && r.motivo === "tasa_invalida") fallo("Esa tasa no vale: tiene que ser mayor que cero.");
     else fallo("No se pudo enviar el parte ahora. Revisa tu conexión y tócalo otra vez: no se creó ninguna espera.");
   });
+}
+
+/* ===== v39 · HOJA DEL PARTE EN EL CHAT («Ya compré») =====
+   Mismos campos y MISMAS validaciones que enviarParte() de Mis
+   esperas (tipo, tasa, total contra el efectivo libre, teléfono);
+   la diferencia es el transporte: encola en busc_parte_outbox y
+   despacha parte_crear — Ernesto confirma y la espera nace. */
+var CP_TIPO = "saldo";
+function abrirHojaParteChat(){
+  var h = $("c_parte_hoja"), sc = $("c_parte_scrim");
+  if (h) h.classList.add("abierta");
+  if (sc) sc.classList.add("abierta");
+  var wEl = $("cp_warn"); if (wEl) wEl.style.display = "none";
+  var oEl = $("cp_ok"); if (oEl) oEl.style.display = "none";
+}
+function cerrarHojaParteChat(){
+  var h = $("c_parte_hoja"), sc = $("c_parte_scrim");
+  if (h) h.classList.remove("abierta");
+  if (sc) sc.classList.remove("abierta");
+}
+function enviarParteChat(){
+  var warn = $("cp_warn"), okEl = $("cp_ok");
+  if (warn) warn.style.display = "none"; if (okEl) okEl.style.display = "none";
+  function fallo(m){ if (warn) { warn.style.display = "block"; warn.textContent = m; } }
+  if (!SESION) return fallo("Primero entra con tu código personal.");
+  if (EN_PAUSA) return fallo("Estás en pausa: habla con Ernesto");
+  var esSaldo = CP_TIPO === "saldo";
+  var tasa = esSaldo ? num("cp_tasa") : num("cp_pct");
+  var total = num("cp_total");
+  if (tasa === null || tasa <= 0) return fallo(esSaldo
+    ? "Escribe la tasa que pactaste: el precio por cada recarga de 360. Sin tasa no hay parte."
+    : "Escribe al cuánto es el trato (%). Sin eso no hay parte.");
+  if (total === null || total <= 0) return fallo("Escribe el total que pagaste en efectivo (CUP).");
+  var libre = libreActual();
+  if (libre !== null && total > libre) return fallo("Te pasas de tu efectivo: tienes " + fmtMilesT3(libre) + " CUP libres para operar (lo de tu mano menos lo que ya espera) y el parte dice " + fmtMilesT3(total) + " CUP. Revisa el total: no se mandó nada.");
+  var item = { opId: nuevoOpId(), tipo: CP_TIPO, tasa: tasa, total: Math.round(total),
+    telefono: ($("cp_tel").value || "").trim() || null, creado: new Date().toISOString(), intentos: 0 };
+  var a = parteOutGet(); a.push(item); parteOutSet(a);
+  if (okEl) { okEl.style.display = "block"; okEl.textContent = "Parte guardado en tu teléfono (en cola): sale solo cuando vuelva la conexión y Ernesto lo confirma."; }
+  $("cp_total").value = ""; if (esSaldo) $("cp_tasa").value = ""; else $("cp_pct").value = "";
+  cerrarHojaParteChat();
+  pintarChat(CHAT_MSGS);
+  despacharParte();
 }
 
 /* ===== Mi pago ===== */
@@ -4138,6 +4438,13 @@ if (SESION && !guiaVistaT3()) setTimeout(function(){ if (SESION && GUIA_I_T3 < 0
     $("ep_tipo_s").addEventListener("click", function(){ EP_TIPO = "saldo"; $("ep_tipo_s").classList.add("on"); $("ep_tipo_t").classList.remove("on"); $("ep_box_s").classList.remove("hide"); $("ep_box_t").classList.add("hide"); });
     $("ep_tipo_t").addEventListener("click", function(){ EP_TIPO = "transferencia"; $("ep_tipo_t").classList.add("on"); $("ep_tipo_s").classList.remove("on"); $("ep_box_t").classList.remove("hide"); $("ep_box_s").classList.add("hide"); });
     $("ep_btn").addEventListener("click", enviarParte);
+    /* v39: hoja del parte en el chat («Ya compré») */
+    $("c_parte_btn").addEventListener("click", abrirHojaParteChat);
+    $("c_parte_cerrar").addEventListener("click", cerrarHojaParteChat);
+    $("c_parte_scrim").addEventListener("click", cerrarHojaParteChat);
+    $("cp_btn").addEventListener("click", enviarParteChat);
+    $("cp_tipo_s").addEventListener("click", function(){ CP_TIPO = "saldo"; $("cp_tipo_s").classList.add("on"); $("cp_tipo_t").classList.remove("on"); $("cp_box_s").classList.remove("hide"); $("cp_box_t").classList.add("hide"); });
+    $("cp_tipo_t").addEventListener("click", function(){ CP_TIPO = "transferencia"; $("cp_tipo_t").classList.add("on"); $("cp_tipo_s").classList.remove("on"); $("cp_box_t").classList.remove("hide"); $("cp_box_s").classList.add("hide"); });
     $("guiaBtn").addEventListener("click", function(){ guiaPasoT3(GUIA_I_T3 + 1); });
     $("guiaSaltar").addEventListener("click", guiaCerrarT3);
     var pfG = $("pf_guia"); if (pfG) pfG.addEventListener("click", guiaVerT3);

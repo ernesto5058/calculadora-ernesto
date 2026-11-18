@@ -65,6 +65,11 @@ function crearMN(){
             case "admin_reportes": return json([]);
             case "admin_ayudas": return json([]);
             case "admin_usuarios": return json([{ codigo: "BUSC-1", nombre: "Busc Uno", activo: true }]);
+            /* v45 · Chat PRO: fixtures de la cabecera viva y del parte */
+            case "dinero_leer_estado": return json({ ok: true, rol: "ernesto", entregas: [{ buscador: "BUSC-1", pendiente: 7000 }], asignaciones: [{ buscador: "BUSC-1", porciento: 32 }], ganancias: { por_buscador: [{ buscador: "BUSC-1", acumulado: { comision: 1234, ganancia_ernesto: 2000 }, semana: { comision: 0, ganancia_ernesto: 0 }, hoy: { comision: 0, ganancia_ernesto: 0 } }] } });
+            case "dinero_capital_estado": return json({ ok: true, cupos: [{ buscador: "BUSC-1", resumen: { en_mano: 7000, trabajando: 3000, cerrado: false } }] });
+            case "parte_leer": return json({ ok: true, id: "parte-1", estado: "pendiente", tipo: "saldo", tasa: 2, total_pagado: 5000, telefono: "51234567" });
+            case "parte_confirmar": case "parte_rechazar": case "parte_crear": case "enviar_mensaje_todos": return json({ ok: true });
             case "admin_cierres": return json([]);
             case "admin_actividad": return json([]);
           }
@@ -152,6 +157,29 @@ function crearMN(){
   click(d.getElementById("txProdBtn")); await sleep(60);
   click(d.getElementById("txTransf")); await sleep(150);
   ok(d.getElementById("txProdForm").style.display === "none" && d.getElementById("txOut").textContent.length > 100, "MN-5e Producto → Transferencia también cierra el formulario y genera");
+  w.close();
+}
+{ /* v45 · Chat PRO: la sonda de foco CON una tarjeta de parte pendiente
+     y la cabecera viva en pantalla — el repintado no puede matar el
+     teclado ni con las piezas nuevas habitando el chat. */
+  chatMsgsMN = [{ id: "p1", de: "BUSC-1", para: "ADMIN", texto: "", creado: new Date().toISOString(), leido: false,
+    adj_tipo: "parte", adj_datos: JSON.stringify({ parte_id: "parte-1", tipo: "saldo", tasa: 2, total_pagado: 5000, telefono: "51234567", estado: "pendiente" }) }];
+  const w = crearMN(); const d = w.document;
+  await sleep(700);
+  w.irA("Equipo");
+  await sleep(250);
+  click(d.querySelector("[data-chat]"));
+  await sleep(600);
+  ok(!!d.querySelector('#chHilo [data-mid="p1"] .tarjChat'), "MN-6a la tarjeta de parte está en pantalla durante la sonda");
+  ok(!!d.querySelector('[data-parte-confirmar="p1"]'), "MN-6b la tarjeta pendiente trae su botón Confirmar en pantalla");
+  const vivoF = d.getElementById("chVivo");
+  ok(!!vivoF && vivoF.textContent.includes("En mano 7.000") && vivoF.textContent.includes("Él gana 1.234"), "MN-6c la cabecera viva pinta las cifras de la fixture durante la sonda");
+  let txF = d.getElementById("chTexto");
+  txF.focus(); input(txF, "con tarjeta en pantalla"); try { txF.setSelectionRange(2, 5); } catch(e){}
+  w.pintarChat(); await sleep(40);
+  const txF2 = d.getElementById("chTexto");
+  ok(txF2 === txF && txF.isConnected && d.activeElement === txF, "MN-6d el foco SOBREVIVE al repintado CON tarjeta de parte y cabecera viva en pantalla");
+  ok(txF2.value === "con tarjeta en pantalla" && txF2.selectionStart === 2 && txF2.selectionEnd === 5, "MN-6e texto y selección intactos con las piezas nuevas en pantalla");
   w.close();
 }
 

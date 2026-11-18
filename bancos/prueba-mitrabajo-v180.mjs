@@ -35,10 +35,10 @@ function click(w, el){ if (el) el.dispatchEvent(new w.MouseEvent("click", { bubb
 function input(el, v){ el.value = v; el.dispatchEvent(new el.ownerDocument.defaultView.Event("input", { bubbles: true })); }
 
 /* ===== Estático ===== */
-ok(/var APP_VERSION = "1\.8\.0"/.test(html), "V1 APP_VERSION 1.7.0 en el build ensamblado");
-ok(sw.includes('CACHE = "mitrabajo-v34"'), "V2 el SW sube a mitrabajo-v34");
+ok(/var APP_VERSION = "1\.9\.0"/.test(html), "V1 APP_VERSION 1.9.0 en el build ensamblado (repín v39)");
+ok(sw.includes('CACHE = "mitrabajo-v39"'), "V2 el SW sube a mitrabajo-v39 (repín v39)");
 ok(datos.versionApp === "1.6.0", "V3 datos.json sigue anunciando la APK 1.6.0 (web-only)");
-ok(html.includes('version:"1.8.0"'), "V4 SENTRY_CASA con version 1.8.0");
+ok(html.includes('version:"1.9.0"'), "V4 SENTRY_CASA con version 1.9.0 (repín v39)");
 ok(html.includes('id="viewEsperas"') && html.includes('id="viewPago"') && html.includes('id="navEsperas"')
    && html.includes('id="navPago"') && html.includes('id="ep_btn"') && html.includes('id="guiaBox"')
    && html.includes('id="c_adj_scrim"') && html.includes('id="pf_guia"'),

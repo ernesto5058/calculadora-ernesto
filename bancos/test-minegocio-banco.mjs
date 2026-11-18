@@ -558,7 +558,7 @@ function pestaña(w, nombre){
 /* ===== 10. SERVICE WORKER: scope y caché propios ===== */
 {
   const sw = fs.readFileSync(REPO + "minegocio/sw.js", "utf8");
-  ok(sw.includes('CACHE = "minegocio-v44"'), "MN-50 SW con caché propio minegocio-v44 (v31 · PRO + ruta manual + rediseño Entregar dinero + dirección de arte v35 + plano premium v37, 3D retirado + tarjeta permanente del Asesor v38 + cadena de dinero v41 + rediseño PRO v42: 4 pestañas y tarjeta Mi gasto + v43: Registrar gasto y Analista visible, CHEQUEOS 126/135/136 + v44: Recargas sin atribuir, CHEQUEO 139)");
+  ok(sw.includes('CACHE = "minegocio-v45"'), "MN-50 SW con caché propio minegocio-v45 (v31 · PRO + ruta manual + rediseño Entregar dinero + dirección de arte v35 + plano premium v37, 3D retirado + tarjeta permanente del Asesor v38 + cadena de dinero v41 + rediseño PRO v42: 4 pestañas y tarjeta Mi gasto + v43: Registrar gasto y Analista visible, CHEQUEOS 126/135/136 + v44: Recargas sin atribuir, CHEQUEO 139 + v45: Chat PRO — tarjetas parte/tarifa, difusión, cabecera viva)");
   ok(sw.includes("SKIP_WAITING") && sw.includes('addEventListener("message"'), "MN-50b el SW acepta SKIP_WAITING por mensaje (forzar activación desde la app)");
   ok(!sw.includes("mitrabajo"), "MN-51 el SW de Mi Negocio no toca el de Mi Trabajo");
   /* v38 · Tarjeta permanente del Asesor (CHEQUEO 126): el estado de

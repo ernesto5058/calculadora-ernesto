@@ -158,6 +158,23 @@ button.off, .off { opacity:.45; pointer-events:none; }
 .msgP.me .reacRow { justify-content:flex-end; }
 .reacRow span { background:var(--bg-3); border:1px solid var(--borde); border-radius:var(--r-pildora); padding:1px 8px; font-size:12px; }
 .fijadoBar { background:var(--acento-suave); border:1px solid var(--acento-borde); color:var(--txt-1); border-radius:var(--r-sm); padding:9px 12px; font:var(--t-sub); margin:var(--e-2) 0; }
+.tarjChat { background:var(--bg-2); border:1px solid var(--acento-borde); border-radius:var(--r-md); padding:10px 12px; margin:2px 0; min-width:min(230px,62vw); text-align:left; }
+.tarjChat .fila button { white-space:nowrap; flex:1 1 0; }
+.tarjTit { display:flex; align-items:center; gap:6px; font-weight:700; margin-bottom:5px; }
+.tarjTit svg { width:18px; height:18px; flex:0 0 auto; }
+.vivoChat { font-size:12.5px; color:var(--txt-2); margin-top:1px; }
+/* PULIDO OJO · Chat PRO v45 (solo presentación): la cabecera se
+   envuelve — nombre y botones en su fila, y la línea viva (#chVivo)
+   corre a ANCHO COMPLETO debajo, sin partir cifras en una columna
+   estrecha junto a los 4 botones. */
+.chatWA .chatHead { flex-wrap:wrap; }
+.chatWA .chatHeadTx { display:contents; }
+.chatWA .chatHead .avatar { order:0; flex:0 0 auto; }
+.chatWA .chatNom { order:1; flex:1 1 auto; min-width:0; }
+.chatWA .chatHead > span { order:2; }
+.chatWA .presChat { order:3; flex:1 1 100%; margin:4px 0 0; }
+.chatWA .vivoChat { order:4; flex:1 1 100%; margin-top:2px; }
+.buscarMasRow { margin:var(--e-2) 0 0; }
 .adjFoto { max-width:210px; border-radius:var(--r-sm); display:block; margin-bottom:6px; }
 .adj-foto { width:100%; max-width:320px; border-radius:var(--r-sm); display:block; margin-top:var(--e-2); }
 .msgP .editado { font-size:10.5px; opacity:.75; }
@@ -996,6 +1013,11 @@ var PUERTAS = {
   borrarMensaje: "borrar_mensaje",
   reaccionar: "reaccionar",
   fijarMensaje: "fijar_mensaje",
+  parteCrear: "parte_crear",
+  parteConfirmar: "parte_confirmar",
+  parteRechazar: "parte_rechazar",
+  parteLeer: "parte_leer",
+  enviarTodos: "enviar_mensaje_todos",
   guardarTemporal: "guardar_temporal",
   tarifaVivaEstado: "tarifa_viva_estado",
   tarifaVivaInteligencia: "tarifa_viva_inteligencia",
@@ -1090,6 +1112,10 @@ var sinLeerTotal = 0;
 var puertasChat = null;  /* null sin comprobar · true activas · false falta activar */
 var chatCon = null, chatNombre = "", chatMsgs = [], chatTimer = null;
 var chatFijado = null, chatTempSeg = 0, chatResp = null, chatAdj = null, chatEditId = null, grabandoVoz = null;
+/* v45 · Chat PRO: tipo del fijado (tarifa_viva), estados vivos de los
+   partes por id de mensaje (parte_leer manda sobre el snapshot) y la
+   foto de la cabecera viva del chat. */
+var chatFijadoTipoMN = null, parteEstadosMN = {}, parteLeyendoMN = {}, chatVivoMN = { enMano: null, ciclo: "", gana: null }, chatVivoEnMN = 0;
 /* v11: borrador del compositor — pintarChat reconstruye el hilo
    entero (refresco de 3 s) y sin esto lo que Ernesto estuviera
    escribiendo se borraba a mitad de frase. */
@@ -1558,6 +1584,14 @@ function ejecutarAccion(a){
       }
       return enviarC(a.adj ? a.adj.datos : null);
     }
+    case "confirmarParte": return rpc("parteConfirmar", { p_codigo: cod, p_clave: cod, p_parte_id: a.parteId, p_op_id: a.opId })
+      .then(function(r){ if (r && r.ok === false) throw new Error(r.motivo || "el servidor no confirmó el parte"); return r; });
+    case "rechazarParte": return rpc("parteRechazar", { p_codigo: cod, p_clave: cod, p_parte_id: a.parteId, p_motivo: a.motivo || "", p_op_id: a.opId })
+      .then(function(r){ if (r && r.ok === false) throw new Error(r.motivo || "el servidor no rechazó el parte"); return r; });
+    case "crearEsperaChat": return rpc("parteCrear", { p_codigo: cod, p_buscador: a.buscador || null, p_tipo: a.tipoParte, p_tasa: a.tasa, p_total_pagado: a.totalPagado, p_telefono: a.telefono || null, p_op_id: a.opId, p_confirmada: true })
+      .then(function(r){ if (r && r.ok === false) throw new Error(r.motivo || "el servidor no creó la espera"); return r; });
+    case "difusion": return rpc("enviarTodos", { p_codigo: cod, p_clave: cod, p_texto: a.texto, p_adj_tipo: null, p_adj_datos: null, p_adj_nombre: null, p_adj_mime: null, p_adj_tam: null, p_op_id: a.opId })
+      .then(function(r){ if (r && r.ok === false) throw new Error(r.motivo || "la difusión no salió"); toast("📣 Difusión enviada a " + (r && r.enviados != null ? r.enviados : "—") + " buscador(es)"); return r; });
     case "pushReg": return rpc("registrarPushAdmin", { p_codigo: cod, p_suscripcion: a.sub, p_plataforma: a.plataforma })
       .then(function(r){ borrarPushPendiente(); return r; });
     case "editarChat": return rpc("editarMensaje", { p_codigo: "ADMIN", p_id: a.id, p_texto: a.texto });
@@ -3377,6 +3411,8 @@ function cargarChat(){
   rpc("leerChat", { p_codigo: "ADMIN", p_con: chatCon, p_clave: state.codigo, p_buscar: null }).then(function(r){
     puertasChat = true;
     chatFijado = (r && r.fijado) || null;
+    chatFijadoTipoMN = (r && r.fijado_tipo) || (chatFijado && chatFijado.adj_tipo) || null;
+    cargarCabeceraVivaMN();
     chatTempSeg = Number((r && r.temporal_seg) || 0);
     var propios = (r && r.mensajes) || [];
     var enCola = state.cola.filter(function(a){ return a.tipo === "chat" && a.para === chatCon; })
@@ -3608,14 +3644,102 @@ function firmaMsgMN(m){
   return JSON.stringify([m.texto || "", m.borrado ? 1 : 0, m.editado ? 1 : 0, m.leido ? 1 : 0,
     m.adj_tipo || "", m.adj_datos ? String(m.adj_datos).length : 0, String(m.adj_datos || "").slice(0, 24),
     m.adj_ref || "", m.adj_dur || 0, m.resp_texto || "", m.resp_autor || "", m.op_estado || "",
+    ((parteEstadosMN[String(m.id)] || {}).estado || ""), ((parteEstadosMN[String(m.id)] || {}).motivo_rechazo || ""),
     m.op_intentos || 0, ((m.reacciones || []).map(function(r){ return r.emoji + r.total; }).join(","))]);
+}
+/* v45 · Chat PRO: los adjuntos estructurados (parte/tarifa) viajan
+   como JSON en adj_datos; se parsean una sola vez por pintado y
+   jamás rompen la burbuja si el JSON viene sucio. */
+function adjJsonMN(m){
+  if (!m || !m.adj_datos) return null;
+  if (typeof m.adj_datos === "object") return m.adj_datos;
+  try { return JSON.parse(m.adj_datos); } catch(e){ return null; }
+}
+function tarjetaParteHtmlMN(m){
+  var d = adjJsonMN(m) || {};
+  var vivo = parteEstadosMN[String(m.id)] || null;
+  var est = (vivo && vivo.estado) || d.estado || "pendiente";
+  var motivo = (vivo && vivo.motivo_rechazo) || d.motivo_rechazo || "";
+  var sello = est === "confirmada" ? '<span class="pill pOk">Espera creada ✓</span>'
+    : est === "rechazada" ? '<span class="pill pBad">Rechazada</span>'
+    : '<span class="pill pPend">Esperando confirmación</span>';
+  var h = '<div class="tarjChat"><div class="tarjTit">' + icono("doc") + '<span>Parte de compra</span></div>'
+    + '<div class="kv">Tipo: <b>' + esc(String(d.tipo || "—")) + '</b> · Tasa: <b>' + esc(String(d.tasa != null ? d.tasa : "—")) + '</b></div>'
+    + '<div class="kv">Total pagado: <b>' + fmtE(d.total_pagado) + ' CUP</b>' + (d.telefono ? ' · Teléfono: <b>' + esc(String(d.telefono)) + '</b>' : '') + '</div>'
+    + '<div style="margin-top:6px">' + sello + '</div>'
+    + (est === "rechazada" && motivo ? '<div class="kv" style="margin-top:4px">Motivo: ' + esc(String(motivo)) + '</div>' : '')
+    + (est === "pendiente" && !m.local && d.parte_id ? '<div class="fila" style="margin-top:8px"><button class="bGold bMini" data-parte-confirmar="' + esc(String(m.id)) + '">Confirmar</button><button class="bGhost bMini" data-parte-rechazar="' + esc(String(m.id)) + '">Rechazar</button></div>' : '')
+    + '</div>';
+  return h;
+}
+function tarjetaTarifaHtmlMN(m){
+  var d = adjJsonMN(m) || {};
+  var hora = d.hora || m.creado;
+  return '<div class="tarjChat"><div class="tarjTit">' + icono("tarifa") + '<span>Tarifa de las ' + esc(hora12(hora) || "") + '</span></div>'
+    + '<div class="kv">Ingreso por recarga de 360: <b>' + fmtE(d.ingresoRef360) + ' CUP</b></div>'
+    + '<div class="kv">Salida: <b>' + esc(String(d.salidaRef != null ? d.salidaRef : "—")) + '</b> · Saldo: <b>' + esc(String(d.pctSaldo != null ? d.pctSaldo : "—")) + '%</b> · Transferencia: <b>' + esc(String(d.pctTransf != null ? d.pctTransf : "—")) + '%</b> · Piso transf.: <b>' + esc(String(d.pisoTransf != null ? d.pisoTransf : "—")) + '</b></div></div>';
+}
+/* El estado VIVO del parte manda sobre el snapshot: al pintar su
+   tarjeta se pide parte_leer una vez por mensaje; si el estado
+   cambió, la firma cambia y el hilo repinta solo esa burbuja. */
+function refrescarParteMN(m){
+  var d = adjJsonMN(m) || {};
+  if (!d.parte_id || m.local) return;
+  var clave = String(m.id);
+  if (parteLeyendoMN[clave]) return;
+  parteLeyendoMN[clave] = true;
+  rpc("parteLeer", { p_codigo: state.codigo, p_parte_id: d.parte_id }).then(function(r){
+    delete parteLeyendoMN[clave];
+    if (r && r.estado) {
+      var antes = parteEstadosMN[clave];
+      parteEstadosMN[clave] = { estado: r.estado, motivo_rechazo: r.motivo_rechazo || "" };
+      if (!antes || antes.estado !== r.estado) pintarHiloMN();
+    }
+  }).catch(function(){ delete parteLeyendoMN[clave]; });
+}
+function msgPorIdMN(id){
+  return chatMsgs.filter(function(x){ return String(x.id) === String(id); })[0] || null;
+}
+function confirmarParteMN(m){
+  var d = adjJsonMN(m) || {};
+  if (!d.parte_id) { toast("Este parte no trae su identificador", false); return; }
+  var ya = state.cola.some(function(a){ return a.tipo === "confirmarParte" && String(a.parteId) === String(d.parte_id); });
+  if (ya) { toast("La confirmación de este parte ya está en cola"); return; }
+  var acc = { tipo: "confirmarParte", parteId: d.parte_id, cuando: new Date().toISOString() };
+  encolar(acc); guardar();
+  toast("Confirmando el parte: la espera nace al asentarse");
+  despacharCola().then(function(){ cargarChat(); });
+}
+function rechazarParteMN(m){
+  var d = adjJsonMN(m) || {};
+  if (!d.parte_id) { toast("Este parte no trae su identificador", false); return; }
+  abrirHoja("Rechazar el parte", '<label for="parteMotivoTx">Motivo del rechazo (lo ve el buscador en su tarjeta)</label><textarea id="parteMotivoTx" rows="3" style="width:100%"></textarea>', [
+    { txt: "Rechazar parte", cls: "bBad", fn: function(){
+      var mot = (($("parteMotivoTx") || {}).value || "").trim();
+      var acc = { tipo: "rechazarParte", parteId: d.parte_id, motivo: mot, cuando: new Date().toISOString() };
+      encolar(acc); guardar();
+      toast("Parte rechazado: se asienta al llegar la red");
+      despacharCola().then(function(){ cargarChat(); });
+    } }
+  ]);
+}
+function alistarTarjetasMN(nodo){
+  nodo.querySelectorAll("[data-parte-confirmar]").forEach(function(b){
+    b.addEventListener("click", function(e){ e.stopPropagation(); var m = msgPorIdMN(b.getAttribute("data-parte-confirmar")); if (m) confirmarParteMN(m); });
+  });
+  nodo.querySelectorAll("[data-parte-rechazar]").forEach(function(b){
+    b.addEventListener("click", function(e){ e.stopPropagation(); var m = msgPorIdMN(b.getAttribute("data-parte-rechazar")); if (m) rechazarParteMN(m); });
+  });
+  nodo.querySelectorAll(".tarjChat").forEach(function(){});
 }
 function burbujaInnerMN(m){
   var inner = "";
   if (m.borrado) inner = '<span class="eliminado">Este mensaje fue eliminado</span>';
   else {
     if (m.resp_texto) inner += '<span class="citaB">' + esc(m.resp_autor === "ADMIN" ? "Tú" : chatNombre) + ": " + esc(String(m.resp_texto).slice(0, 90)) + "</span>";
-    if (m.adj_tipo === "foto" && m.adj_datos) { var srcF = srcSeguroAdj(m.adj_datos, m.adj_mime || "image/jpeg"); if (srcF) inner += '<img class="adjFoto" alt="Foto" src="' + srcF + '">'; }
+    if (m.adj_tipo === "parte") { inner += tarjetaParteHtmlMN(m); refrescarParteMN(m); }
+    else if (m.adj_tipo === "tarifa" || m.adj_tipo === "tarifa_viva") inner += tarjetaTarifaHtmlMN(m);
+    else if (m.adj_tipo === "foto" && m.adj_datos) { var srcF = srcSeguroAdj(m.adj_datos, m.adj_mime || "image/jpeg"); if (srcF) inner += '<img class="adjFoto" alt="Foto" src="' + srcF + '">'; }
     else if (m.adj_tipo === "foto" && m.adj_ref) inner += '<img class="adjFoto" alt="Foto" data-adjref="' + esc(m.adj_ref) + '">';
     else if (m.adj_tipo === "voz" && (m.adj_datos || m.adj_ref)) inner += reproductorVozHtml(m);
     else if (m.adj_datos || m.adj_ref) inner += tarjetaDocHtml(m);
@@ -3645,6 +3769,7 @@ function crearNodoMsgMN(m){
   });
   alistarReproductoresVoz(nodo);
   alistarMedios(nodo);
+  alistarTarjetasMN(nodo);
   return nodo;
 }
 function pintarHiloMN(){
@@ -3686,6 +3811,7 @@ function pintarHiloMN(){
         nodo.innerHTML = burbujaInnerMN(d.m);
         alistarReproductoresVoz(nodo);
         alistarMedios(nodo);
+        alistarTarjetasMN(nodo);
       }
     }
     var actual = hilo.children[i];
@@ -3701,9 +3827,19 @@ function aplicarFiltroChatMN(){
   hilo.querySelectorAll(".fechaSep").forEach(function(n){ n.style.display = q ? "none" : ""; });
 }
 function pintarChatDinamicoMN(){
+  pintarCabeceraVivaMN();
   var fj = $("chFijado");
   if (fj) {
-    if (chatFijado && !chatFijado.borrado) { fj.style.display = "block"; fj.textContent = chatFijado.texto || "Mensaje fijado"; }
+    if (chatFijado && !chatFijado.borrado) {
+      fj.style.display = "block";
+      if (chatFijadoTipoMN === "tarifa_viva") {
+        /* v45: el fijado de tarifa viva pinta la tarifa ACTUAL de
+           leer_tarifa con su hora, no la foto congelada. */
+        var tv = state.tarifaViva;
+        fj.textContent = tv ? ("📌 Tarifa vigente · Ingreso 360: " + fmtE(tv.ingresoRef360) + " CUP · Salida " + tv.salidaRef + (state.tarifaVivaEn ? " · actualizada " + state.tarifaVivaEn : "")) : "📌 Tarifa vigente (leyendo la viva…)";
+        leerTarifaViva();
+      } else fj.textContent = chatFijado.texto || "Mensaje fijado";
+    }
     else fj.style.display = "none";
   }
   var tp = $("chTemp");
@@ -3742,18 +3878,21 @@ function montarChatMN(){
   var pres = textoPresencia(chatCon);
   el.innerHTML = '<div class="card chatWA"><div class="chatHead">'
     + avatarHtml(chatNombre, perf.avatar_color, enLineaDe(chatCon) === true)
-    + '<div class="chatHeadTx"><div class="chatNom">' + esc(chatNombre) + '</div><div class="presChat" id="chPres">' + (pres ? pres : "Cargando presencia…") + "</div></div>"
-    + '<span><button class="dots" id="chInfoBtn" title="Qué significan los estados">' + icono("info") + '</button> <button class="dots" id="chTempBtn" title="Mensajes temporales">' + icono("reloj") + '</button> <button class="dots" id="chVolver" title="Volver al equipo">' + icono("volver") + "</button></span></div>"
+    + '<div class="chatHeadTx"><div class="chatNom">' + esc(chatNombre) + '</div><div class="presChat" id="chPres">' + (pres ? pres : "Cargando presencia…") + '</div><div class="vivoChat" id="chVivo" style="display:none"></div></div>'
+    + '<span><button class="dots" id="chDifBtn" title="Difusión a todos los buscadores">📣</button> <button class="dots" id="chInfoBtn" title="Qué significan los estados">' + icono("info") + '</button> <button class="dots" id="chTempBtn" title="Mensajes temporales">' + icono("reloj") + '</button> <button class="dots" id="chVolver" title="Volver al equipo">' + icono("volver") + "</button></span></div>"
     + '<div class="fijadoBar" id="chFijado" style="display:none"></div>'
     + '<div class="mut" id="chTemp" style="display:none"></div>'
     + '<input id="chBuscar" class="chatBuscar" type="text" placeholder="Buscar en el chat…">'
+    + '<div class="buscarMasRow"><button class="bGhost bMini" id="chBuscarMas">Buscar más</button></div>'
     + '<div class="hiloP hiloWA" id="chHilo"></div>'
     + '<div class="fijadoBar" id="chRespBar" style="display:none"><span id="chRespTxt"></span> <button class="bGhost bMini" id="chRespX">Quitar</button></div>'
     + '<div id="chPrevia"></div>'
     + '<div class="adjHojaPRO" id="chAdjHoja"><div class="adjHojaTit">Adjuntar<button class="bGhost bMini" id="chAdjCerrar">✕</button></div>'
     + '<button class="adjFila" id="chAdjFoto"><span class="adjIco">' + icono("galeria") + '</span><span class="adjTx"><b>Foto o vídeo</b><small>Elige de tu galería</small></span></button>'
     + '<button class="adjFila" id="chAdjCam"><span class="adjIco">' + icono("camara") + '</span><span class="adjTx"><b>Cámara</b><small>Haz la foto ahora</small></span></button>'
-    + '<button class="adjFila" id="chAdjDoc"><span class="adjIco">' + icono("doc") + '</span><span class="adjTx"><b>Documento</b><small>PDF, documentos, zip (máx 5 MB)</small></span></button></div>'
+    + '<button class="adjFila" id="chAdjDoc"><span class="adjIco">' + icono("doc") + '</span><span class="adjTx"><b>Documento</b><small>PDF, documentos, zip (máx 5 MB)</small></span></button>'
+    + '<button class="adjFila" id="chAdjTarifa"><span class="adjIco">' + icono("tarifa") + '</span><span class="adjTx"><b>Enviar tarifa</b><small>La tarifa viva como tarjeta, con su hora</small></span></button>'
+    + '<button class="adjFila" id="chAdjTarifaViva"><span class="adjIco">' + icono("pin") + '</span><span class="adjTx"><b>Fijar tarifa vigente</b><small>Queda arriba y se actualiza sola</small></span></button></div>'
     + '<div class="grabBar" id="grabBar" style="display:none"><span class="grabPunto"></span><span class="grabT" id="grabT">0:00</span><span class="grabOnda" id="grabOnda">' + barrasGrabHtml() + '</span><button class="bGhost" id="grabCancel">Cancelar</button><button class="bGhost" id="grabAdj" title="Terminar y adjuntar para escucharla">✓</button><button class="sendBtn" id="grabEnviar" title="Terminar y enviar directo">' + icono("enviar") + "</button></div>"
     + '<div class="compWA" id="compWABox"><div class="compBox"><input id="chTexto" placeholder="Escribe un mensaje…"><button class="clipBtn" id="chClip" title="Adjuntar foto, documento o voz">' + icono("clip") + '</button></div><button class="micBtn" id="chVozBtn" title="Nota de voz">' + icono("micro") + '</button><button class="sendBtn" id="chEnviar" title="Enviar">' + icono("enviar") + "</button></div>"
     + '<input id="chFile" type="file" accept="image/*" style="display:none">'
@@ -3793,6 +3932,10 @@ function montarChatMN(){
   }
   var b = $("chEnviar"); if (b) b.addEventListener("click", enviarChatUI);
   var bk = $("chBuscar"); if (bk) bk.addEventListener("input", aplicarFiltroChatMN);
+  var bm = $("chBuscarMas"); if (bm) bm.addEventListener("click", buscarMasChatMN);
+  var df = $("chDifBtn"); if (df) df.addEventListener("click", hojaDifusionMN);
+  var at = $("chAdjTarifa"); if (at) at.addEventListener("click", function(){ cerrarHojaAdjMN(); enviarTarifaChatMN(); });
+  var av = $("chAdjTarifaViva"); if (av) av.addEventListener("click", function(){ cerrarHojaAdjMN(); fijarTarifaVivaMN(); });
   var rx = $("chRespX"); if (rx) rx.addEventListener("click", function(){ chatResp = null; pintarChat(); });
   var gc = $("grabCancel"); if (gc) gc.addEventListener("click", function(){ pararGrabacion(true); pintarChat(); });
   var ga = $("grabAdj"); if (ga) ga.addEventListener("click", function(){ pararGrabacion(false); });
@@ -3920,6 +4063,160 @@ function terminarGrabacion(g){
   fr.onerror = function(){ pintarChat(); toast("No se pudo preparar la nota de voz", false); };
   fr.readAsDataURL(blob);
 }
+/* ===== v45 · CHAT PRO: cabecera viva, tarifa, difusión, esperas =====
+   Cabecera viva: las MISMAS cifras que enseña Dinero, filtradas por
+   chatCon (en mano = lo que le queda de las entregas; ciclo = su
+   cupo en dinero_capital_estado; él gana = su comisión acumulada).
+   Sin fuente, la cifra se OMITE: jamás se inventa. Se relee como
+   mucho cada 30 s y se pinta fuera de #chHilo (no toca #chTexto). */
+function cargarCabeceraVivaMN(){
+  if (!chatCon || !state.codigo) return;
+  if (Date.now() - chatVivoEnMN < 30000 && chatVivoMN.enMano !== null) { pintarCabeceraVivaMN(); return; }
+  chatVivoEnMN = Date.now();
+  rpc("dineroEstado", { p_codigo: state.codigo, p_prueba: false }).then(function(est){
+    if (!est || est.rol !== "ernesto") return;
+    var conocido = false, queda = 0;
+    (est.entregas || []).forEach(function(e){ if (String(e.buscador) === String(chatCon)) { conocido = true; queda += Math.max(0, Number(e.pendiente || 0)); } });
+    (est.asignaciones || []).forEach(function(a){ if (String(a.buscador) === String(chatCon)) conocido = true; });
+    if (conocido) chatVivoMN.enMano = queda;
+    (((est.ganancias || {}).por_buscador) || []).forEach(function(g){
+      if (String(g.buscador) === String(chatCon) && g.acumulado && g.acumulado.comision != null) chatVivoMN.gana = Number(g.acumulado.comision);
+    });
+    pintarCabeceraVivaMN();
+  }).catch(function(){});
+  rpc("dineroCapital", { p_codigo: state.codigo, p_prueba: false }).then(function(cap){
+    var cupos = (cap && cap.cupos) || [];
+    cupos.forEach(function(c){
+      if (String(c.buscador) === String(chatCon)) {
+        var r = c.resumen || {};
+        chatVivoMN.ciclo = r.cerrado ? "cupo cerrado" : (Number(r.trabajando || 0) > 0 ? fmtE(r.trabajando) + " CUP trabajando" : "sin vueltas abiertas");
+      }
+    });
+    pintarCabeceraVivaMN();
+  }).catch(function(){});
+}
+function pintarCabeceraVivaMN(){
+  var el = $("chVivo"); if (!el) return;
+  var partes = [];
+  if (chatVivoMN.enMano !== null && chatVivoMN.enMano !== undefined) partes.push("En mano " + fmtE(chatVivoMN.enMano) + " CUP");
+  if (chatVivoMN.ciclo) partes.push("Ciclo: " + chatVivoMN.ciclo);
+  if (chatVivoMN.gana !== null && chatVivoMN.gana !== undefined) partes.push("Él gana " + fmtE(chatVivoMN.gana) + " CUP");
+  el.textContent = partes.join(" · ");
+  el.style.display = partes.length ? "block" : "none";
+}
+/* «Buscar más»: busca en el servidor con el p_buscar de leer_chat
+   (espejo del de Mi Trabajo); el resultado sustituye la foto del
+   hilo, conservando los mensajes locales en cola. */
+function buscarMasChatMN(){
+  var bk = $("chBuscar");
+  var q = bk ? (bk.value || "").trim() : "";
+  if (!q) { toast("Escribe primero qué buscar en el chat", false); return; }
+  rpc("leerChat", { p_codigo: "ADMIN", p_con: chatCon, p_clave: state.codigo, p_buscar: q }).then(function(r){
+    if (!r || !r.mensajes) { toast("La búsqueda no devolvió mensajes", false); return; }
+    var enCola = state.cola.filter(function(a){ return a.tipo === "chat" && a.para === chatCon; })
+      .map(function(a){ return { id: "local-" + a.cuando, de: "ADMIN", para: chatCon, texto: a.texto, creado: a.cuando, leido: false, local: true, adj_tipo: a.adj ? a.adj.tipo : null, adj_datos: a.adj ? (a.adj.datos || null) : null, adj_ref: a.adj ? (a.adj.adjRef || null) : null, adj_nombre: a.adj ? a.adj.nombre : null, adj_mime: a.adj ? (a.adj.mime || null) : null, adj_dur: a.adj ? (a.adj.dur || null) : null, op_estado: a.estado || "pendiente", op_intentos: a.intentos || 0, op_error: a.ultimoError || null, resp_texto: a.resp_texto || null }; });
+    chatMsgs = r.mensajes.concat(enCola);
+    pintarChat();
+    toast("🔎 Búsqueda en el servidor: " + r.mensajes.length + " mensaje(s)");
+  }).catch(function(){ toast("No se pudo buscar (¿conexión?)", false); });
+}
+/* «Enviar tarifa»: foto de leer_tarifa EN EL MOMENTO, como mensaje
+   adj_tipo='tarifa' por la cola chat normal (con su opId). */
+function enviarTarifaChatMN(){
+  if (!chatCon) return;
+  rpc("leerTarifa", {}).then(function(r){
+    if (!r || r.ingreso_ref360 === undefined || r.ingreso_ref360 === null) { toast("Sin tarifa viva todavía: no se envía nada", false); return; }
+    var snap = { ingresoRef360: Number(r.ingreso_ref360), salidaRef: Number(r.salida_ref), pctSaldo: Number(r.comision_saldo), pctTransf: Number(r.comision_transf), pisoTransf: Number(r.piso_transf), hora: new Date().toISOString() };
+    encolar({ tipo: "chat", para: chatCon, texto: "", adj: { tipo: "tarifa", datos: JSON.stringify(snap), nombre: "Tarifa", mime: "application/json", tam: null, dur: null }, cuando: new Date().toISOString() });
+    guardar(); cargarChat();
+    despacharCola().then(function(){ setTimeout(cargarChat, 600); });
+    toast("Tarifa enviada como tarjeta");
+  }).catch(function(){ toast("No se pudo leer la tarifa viva", false); });
+}
+/* «Fijar tarifa vigente»: si el hilo aún no tiene su mensaje
+   tarifa_viva, lo envía y, al asentarse, lo fija con fijar_mensaje. */
+function fijarTarifaVivaMN(){
+  if (!chatCon) return;
+  var existente = chatMsgs.filter(function(m){ return m.adj_tipo === "tarifa_viva" && !m.local; })[0];
+  var fijarId = function(id){
+    rpc("fijarMensaje", { p_codigo: state.codigo, p_con: chatCon, p_id: id }).then(function(){ cargarChat(); toast("📌 Tarifa vigente fijada: se actualiza sola"); })
+      .catch(function(){ toast("Falta activar los fijados (pegado SQL único)", false); });
+  };
+  if (existente) { fijarId(existente.id); return; }
+  if (chatFijadoTipoMN === "tarifa_viva") { toast("La tarifa vigente ya está fijada"); return; }
+  encolar({ tipo: "chat", para: chatCon, texto: "", adj: { tipo: "tarifa_viva", datos: "{}", nombre: "Tarifa vigente", mime: "application/json", tam: null, dur: null }, cuando: new Date().toISOString() });
+  guardar(); cargarChat();
+  despacharCola().then(function(){
+    setTimeout(function(){
+      cargarChat();
+      setTimeout(function(){
+        var m2 = chatMsgs.filter(function(m){ return m.adj_tipo === "tarifa_viva" && !m.local; })[0];
+        if (m2) fijarId(m2.id);
+      }, 700);
+    }, 600);
+  });
+}
+/* Difusión 📣: hoja con texto y «Enviar a todos (N)» — la N sale de
+   admin_usuarios activos; el envío va por la cola (tipo difusion →
+   enviar_mensaje_todos con opId) y el toast final trae el conteo
+   que devuelva el servidor. */
+function hojaDifusionMN(){
+  rpc("usuarios", { p_codigo: state.codigo }).then(function(us){
+    var n = (us || []).filter(function(u){ return u && u.activo !== false; }).length;
+    abrirHoja("📣 Difusión a todos", '<label for="difTx">Mensaje para todos los buscadores a la vez</label><textarea id="difTx" rows="3" style="width:100%"></textarea>', [
+      { txt: "Enviar a todos (" + n + ")", cls: "bGold", fn: function(){
+        var tx = (($("difTx") || {}).value || "").trim();
+        if (!tx) { toast("Escribe el mensaje de la difusión", false); return; }
+        var acc = { tipo: "difusion", texto: tx, cuando: new Date().toISOString() };
+        encolar(acc); guardar();
+        toast("📣 Difusión en cola: sale sola al llegar la red");
+        despacharCola();
+      } }
+    ]);
+  }).catch(function(){ toast("No se pudo leer la lista de buscadores", false); });
+}
+/* «Crear espera con esto»: hoja con los campos del parte; el texto
+   del mensaje solo SUGIERE valores (editables, Ernesto los ve antes
+   de guardar). Al guardar encola crearEsperaChat → parte_crear con
+   p_confirmada=true: la espera nace y su tarjeta entra al hilo. */
+function sugerenciaParteMN(texto){
+  var t = String(texto || "");
+  var out = { tipo: "", tasa: "", total: "", telefono: "" };
+  var mt = t.match(/(saldo|transferencia)/i); if (mt) out.tipo = mt[1].toLowerCase();
+  var tel = t.match(/\b(\+?53)?\s?(5\d{7})\b/); if (tel) out.telefono = tel[2];
+  var tasa = t.match(/tasa\s*(?:de\s*)?(\d+(?:[.,]\d+)?)/i); if (tasa) out.tasa = tasa[1].replace(",", ".");
+  var tot = t.match(/(?:total|pagu[eé]|por)\s*\$?\s*(\d[\d.\s]*)/i); if (tot) out.total = tot[1].replace(/[.\s]/g, "");
+  return out;
+}
+function hojaCrearEsperaChatMN(m){
+  var s = sugerenciaParteMN(m.texto || "");
+  var html = '<label for="ceTipo">Tipo</label><select class="selPro" id="ceTipo"><option value="saldo"' + (s.tipo === "saldo" ? " selected" : "") + '>Saldo</option><option value="transferencia"' + (s.tipo === "transferencia" ? " selected" : "") + '>Transferencia</option></select>'
+    + '<label for="ceTasa">Tasa</label><input type="text" class="numIn" id="ceTasa" inputmode="decimal" value="' + esc(s.tasa) + '" placeholder="Tasa del parte">'
+    + '<label for="ceTotal">Total pagado (CUP)</label><input type="text" class="numIn" id="ceTotal" inputmode="numeric" value="' + esc(s.total) + '" placeholder="Total pagado">'
+    + '<label for="ceTel">Teléfono</label><input type="text" class="numIn" id="ceTel" inputmode="tel" value="' + esc(s.telefono) + '" placeholder="Teléfono del cliente">'
+    + '<div class="ayuda">Los valores vienen sugeridos desde el mensaje: revísalos y corrígelos antes de guardar. Al guardar, la espera nace confirmada y su tarjeta entra en este chat.</div>';
+  abrirHoja("Crear espera con esto", html, [
+    { txt: "Crear la espera", cls: "bGold", fn: function(){
+      var tipo = (($("ceTipo") || {}).value || "saldo");
+      var tasa = Number((($("ceTasa") || {}).value || "").replace(",", "."));
+      var total = Number((($("ceTotal") || {}).value || "").replace(/[^\d]/g, ""));
+      var tel = (($("ceTel") || {}).value || "").trim();
+      if (!tasa || tasa <= 0) { toast("Escribe la tasa del parte", false); return; }
+      if (!total || total <= 0) { toast("Escribe el total pagado", false); return; }
+      var acc = { tipo: "crearEsperaChat", buscador: chatCon, tipoParte: tipo, tasa: tasa, totalPagado: total, telefono: tel, cuando: new Date().toISOString() };
+      encolar(acc); guardar();
+      toast("Espera en cola: nace confirmada al asentarse");
+      despacharCola().then(function(){ cargarChat(); });
+    } }
+  ]);
+}
+/* «Registrar entrega»: abre el flujo EXISTENTE de Dinero (la misma
+   hoja de Equipo/Dinero) con este buscador preseleccionado. */
+function registrarEntregaDesdeChatMN(){
+  var cod = chatCon;
+  irA("Dinero");
+  setTimeout(function(){ abrirEntregaHojaMN(cod); }, 60);
+}
 function hojaMensajeMN(m){
   var mio = m.de === "ADMIN";
   var btns = [];
@@ -3953,6 +4250,11 @@ function hojaMensajeMN(m){
       } });
     });
     btns.push({ txt: "Copiar texto", cls: "bGhost", fn: function(){ copiarTexto(m.texto || ""); } });
+    if (!mio) {
+      /* v45: acciones de dinero SOLO en mensajes del buscador. */
+      btns.push({ txt: "Crear espera con esto", cls: "bGold", fn: function(){ hojaCrearEsperaChatMN(m); } });
+      btns.push({ txt: "Registrar entrega", cls: "bGhost", fn: function(){ registrarEntregaDesdeChatMN(); } });
+    }
     if (chatFijado && chatFijado.id === m.id) btns.push({ txt: "Desfijar", cls: "bGhost", fn: function(){ fijarMN(m, false); } });
     else btns.push({ txt: "Fijar", cls: "bGhost", fn: function(){ fijarMN(m, true); } });
     if (mio) {
