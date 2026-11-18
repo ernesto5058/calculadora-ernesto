@@ -14,7 +14,29 @@ const adminValido = "CODIGO-PRUEBA";
 let R = {
   validarOk: true, reportes: [], ayudas: [], usuarios: [],
   chat: true, tarifaVivaOk: true, faltaBorrar: true, guardarOk: true,
-  costoOk: true, costoGate: null
+  costoOk: true, costoGate: null,
+  /* V29-D · ciclos del dueño (C2): espejo del fixture SQL caso 8 —
+     dos liquidaciones de Briku con pendientes 625 + 336 = 961
+     (cifras históricas, regla anterior en la primera). MN2
+     (2026-11-17): cada liquidación trae además pendiente_comision /
+     pendiente_premio, los campos que dinero_ciclo_json deriva en el
+     servidor y que la app lee tal cual (625 = 500 + 125 · 336 = 336 + 0);
+     sin esos campos la app ya no deriva deuda en el cliente. */
+  ciclosResp: { ok: true, liquidaciones: [
+    { liquidacion_id: "liq-banco-1", buscador: "BRIKU-EUX", tipo: "saldo",
+      creada_en: "2026-11-10T10:00:00Z", capital_cup: 10000, producto: 3600,
+      pct: 32, ganado_comision: 500, ganado_premio: 125,
+      entregado_comision: 0, entregado_premio: 0, pendiente_ciclo: 625,
+      pendiente_comision: 500, pendiente_premio: 125,
+      base_regla: "total", comision_ahora: 475, comision_despues: 500,
+      descuento_pct: 5, eleccion_pago: null, es_prueba: false },
+    { liquidacion_id: "liq-banco-2", buscador: "BRIKU-EUX", tipo: "saldo",
+      creada_en: "2026-11-12T10:00:00Z", capital_cup: 10000, producto: 3600,
+      pct: 32, ganado_comision: 336, ganado_premio: 0,
+      entregado_comision: 0, entregado_premio: 0, pendiente_ciclo: 336,
+      pendiente_comision: 336, pendiente_premio: 0,
+      base_regla: "ernesto_neto", comision_ahora: 319, comision_despues: 336,
+      descuento_pct: 5, eleccion_pago: null, es_prueba: false } ] }
 };
 let llamadas = [];
 let ultimosCuerpos = {};
@@ -37,7 +59,9 @@ setupISOs();
 
 function crear(extra){
   llamadas = [];
-  const dom = new JSDOM(html, { url: "https://ernesto5058.github.io/calculadora-ernesto/minegocio/", runScripts: "dangerously", pretendToBeVisual: true, beforeParse(w){
+  /* v43: extra.url permite probar los deep links (?tab=…) tal como
+     llegan del push; sin ella, la URL de producción de siempre. */
+  const dom = new JSDOM(html, { url: (extra && extra.url) || "https://ernesto5058.github.io/calculadora-ernesto/minegocio/", runScripts: "dangerously", pretendToBeVisual: true, beforeParse(w){
     if (extra && extra.preState) { try { w.localStorage.setItem("minegocio_v1", JSON.stringify(extra.preState)); } catch(e){} }
     if (extra && extra.ls) { for (const k in extra.ls) { try { w.localStorage.setItem(k, extra.ls[k]); } catch(e){} } }
     if (extra && extra.push404) { R.pushResp = "pgrst202"; } else { R.pushResp = "ok"; }
@@ -91,6 +115,15 @@ function crear(extra){
     function rechaza(msg, st){ return Promise.resolve({ ok: false, status: st || 404, text: () => Promise.resolve(JSON.stringify({ message: msg || "404" })), json: () => Promise.resolve({ message: msg || "404" }) }); }
     function sinRed(){ const e = new Error("Failed to fetch"); e.message = "Failed to fetch"; return Promise.reject(e); }
     if (extra && extra.sinRed && (u.includes("supabase") || u.includes("datos.json") || u.includes("ultimo.json"))) return sinRed();
+    if (u.includes("/functions/v1/qvapay-contactos")) {
+      /* V29 (Frente B): agenda de QvaPay. Por defecto CAÍDA (404) pa
+         ejercitar la degradación elegante en todos los casos viejos;
+         R.contactosResp la enciende con la forma real [{nombre, usuario}]. */
+      llamadas.push("fn:qvapay-contactos");
+      if (R.contactosFalla || !R.contactosResp) return rechaza("agenda no disponible", 404);
+      const jc = v => Promise.resolve({ ok: true, status: 200, text: () => Promise.resolve(JSON.stringify(v)), json: () => Promise.resolve(v) });
+      return jc(R.contactosResp);
+    }
     if (u.includes("/functions/v1/textos-generar")) {
       let body = {}; try { body = JSON.parse(opts && opts.body || "{}"); } catch(e){}
       llamadas.push("fn:textos-generar:" + (body.accion || ""));
@@ -175,6 +208,18 @@ function crear(extra){
         case "dinero_leer_estado":
           if (R.dineroFalla) return rechaza("dinero caído");
           return json(R.dineroEstado || null);
+        case "dinero_declarar_tasa": return json(R.declararTasaResp || { ok: true });
+        case "dinero_registrar_cobro": return json(R.registrarCobroResp || { ok: true, gasto_acreditado: 684 });
+        case "dinero_registrar_gasto_idem":
+          /* v43: el gasto del saldo libre. R.gastoFalla modela los dos
+             rechazos reales del servidor/red. */
+          if (R.gastoFalla === "insuficiente") return rechaza("saldo de gasto insuficiente", 400);
+          if (R.gastoFalla === "red") return sinRed();
+          return json(R.gastoResp || { ok: true, duplicado: false, saldo_gasto: 760 });
+        case "dinero_registrar_entrega_comision": return json(R.entregaComisionResp || { ok: true });
+        case "dinero_elegir_pago": return json(R.elegirPagoResp || { ok: true });
+        case "dinero_reatribuir_espera": return json(R.reatribuirResp || { ok: true });
+        case "pago_estado_dueno": return json(R.ciclosResp || { ok: true, liquidaciones: [] });
         case "dinero_ganancias":
           return json(R.dineroGanancias || { por_buscador: [], total: { hoy: { comision: 0, ganancia_ernesto: 0 }, semana: { comision: 0, ganancia_ernesto: 0 }, acumulado: { comision: 0, ganancia_ernesto: 0 } } });
         case "leer_tarifa":
@@ -188,6 +233,17 @@ function crear(extra){
         case "avisos_probar": return json({ ok: true, para: "ADMIN", encolado: true });
         case "mercado_foto_vigente": return json(R.mercadoFoto || null);
         case "guia_ernesto": return json(R.guiaErnesto || { ok: false, motivo: "sin fixture" });
+        case "guia_terminal":
+          /* v43: la Terminal con su fixture (antes caía en «desconocida»
+             y el banco no la podía habitar). R.termFalla la tumba pa
+             el caso de regresión del CHEQUEO 137. */
+          if (R.termFalla) return rechaza("puerta de la Terminal caída");
+          return json(R.termDatos || { ok: true,
+            foto: { edad_min: 3, usable: true, top_venta: 310.25, nivel20: 305.5 },
+            serie_etecsa: [0, 1, 2, 3, 4, 5].map(i => ({ t: new Date(Date.now() - (5 - i) * 600000).toISOString(), tasa: 300 + i })),
+            serie_bankcup: [],
+            libro: { escalera_venta: [], escalera_compra: [] },
+            demanda: null, memoria: null, ventas: [], escenarios: [] });
         case "guia_subir": return json(R.guiaSubirResp || { ok: true, estado: "pendiente" });
         case "guia_descartar": return json({ ok: true });
       }
@@ -494,17 +550,30 @@ function pestaña(w, nombre){
   /* T1 (v22): la barra ya no lista pantallas: trae SOLO las 4 secciones
      del panel único; las 13 pantallas viven como hijas alcanzables por
      irA (la cobertura de módulos la verifica la sección T1 del banco). */
-  ok(tabs.length === 5, "MN-48 T1: la barra trae SOLO las 5 secciones (" + tabs.join(" | ") + ")");
-  ok(tabs.some(t => t.includes("Inicio")) && tabs.some(t => t.includes("Dinero")) && tabs.some(t => t.includes("Mercado")) && tabs.some(t => t.includes("Ajustes")), "MN-49 T1: las 4 secciones exactas (Inicio · Dinero · Mercado · Ajustes), ninguna otra inventada");
+  ok(tabs.length === 4, "MN-48 T1: la barra trae SOLO las 4 secciones (" + tabs.join(" | ") + ")");
+  ok(tabs.some(t => t.includes("Inicio")) && tabs.some(t => t.includes("Equipo")) && tabs.some(t => t.includes("Mercado")) && tabs.some(t => t.includes("Actividad")), "MN-49 T1: las 4 secciones exactas del rediseño v42 (Inicio · Equipo · Mercado · Actividad), ninguna otra inventada");
   w.close();
 }
 
 /* ===== 10. SERVICE WORKER: scope y caché propios ===== */
 {
   const sw = fs.readFileSync(REPO + "minegocio/sw.js", "utf8");
-  ok(sw.includes('CACHE = "minegocio-v30"'), "MN-50 SW con caché propio minegocio-v30 (v28 · Asesor con cuadre)");
+  ok(sw.includes('CACHE = "minegocio-v44"'), "MN-50 SW con caché propio minegocio-v44 (v31 · PRO + ruta manual + rediseño Entregar dinero + dirección de arte v35 + plano premium v37, 3D retirado + tarjeta permanente del Asesor v38 + cadena de dinero v41 + rediseño PRO v42: 4 pestañas y tarjeta Mi gasto + v43: Registrar gasto y Analista visible, CHEQUEOS 126/135/136 + v44: Recargas sin atribuir, CHEQUEO 139)");
   ok(sw.includes("SKIP_WAITING") && sw.includes('addEventListener("message"'), "MN-50b el SW acepta SKIP_WAITING por mensaje (forzar activación desde la app)");
   ok(!sw.includes("mitrabajo"), "MN-51 el SW de Mi Negocio no toca el de Mi Trabajo");
+  /* v38 · Tarjeta permanente del Asesor (CHEQUEO 126): el estado de
+     la puerta se enseña solo, con el motivo del servidor, y la oferta
+     a mano nace de la línea — nunca del tope de configuración. */
+  ok(html.includes('id="mcAsesorEstado"') && html.indexOf('h += asesorEstadoHtml();') > 0 && html.indexOf('h += asesorEstadoHtml();') < html.indexOf('class=\"t1Seg\" role=\"tablist\"'), "MN-89 la tarjeta del Asesor existe y se pinta ANTES de los segmentos de Mercado");
+  ok(html.includes("pu.motivo") && html.includes("PUERTA EN PAUSA") && html.includes("El Asesor no está trabajando"), "MN-90 la pausa se anuncia con el motivo DEL SERVIDOR (pu.motivo), no con texto de la app");
+  ok(!html.includes("la API de QvaPay está caída"), "MN-91 la tarjeta NO trae la causa de la pausa escrita de fábrica (la causa es solo pausa_motivo del servidor)");
+  ok(html.includes("Math.floor(Number(linea) - comp) - 5") && html.includes("vendible / tasa"), "MN-92 el tamaño nace de la línea: ⌊línea − comprometido⌋ − 5 del peaje, y los QUSD = vendible ÷ tasa");
+  ok(html.includes("pos.firme !== true") && html.includes("Sin tamaño firmado"), "MN-93 sin posición firme la tarjeta NO firma tamaño: enseña las cifras y lo dice");
+  ok(html.includes("compRaw === null") && html.includes("falta el dato de saldo comprometido"), "MN-94 sin el dato de comprometido tampoco se firma (el servidor pone vendible null en ese caso)");
+  ok(html.includes("f.libro_ok !== true") && html.includes("SIN LIBRO"), "MN-95 foto sin libro validado = no se firman números (la foto usable del servidor es libro_ok + fresca + <20 min)");
+  ok(html.includes("edadF >= 1200") && html.includes("isNaN(edadF)") && html.includes("FOTO VIEJA"), "MN-96 foto vieja (≥20 min, borde incluido) o sin edad = FOTO VIEJA, no se firman números");
+  ok(html.includes("ESTADO SIN LEER") && html.includes("puLeida"), "MN-97 sin el objeto puerta del payload la tarjeta dice SIN LEER: jamás declara la puerta activa por defecto");
+  ok(html.includes("limitado por el tope de") && !html.includes("tope_oferta) + \" QUSD\""), "MN-98 el tope de config solo se anota si el QUSD real lo supera: nunca se enseña como monto de la oferta");
   const mf = JSON.parse(fs.readFileSync(REPO + "minegocio/manifest.webmanifest", "utf8"));
   ok(mf.display === "standalone" && mf.icons.length === 2, "MN-52 manifest standalone con iconos 192/512");
 }
@@ -563,7 +632,7 @@ function pestaña(w, nombre){
   ok(d.getElementById("bannerVer").style.display === "block" && d.getElementById("bannerVer").textContent.includes("Nueva versión lista"), "R2-2 SW nuevo instalado con controlador → aviso «Nueva versión lista» visible");
   w.__swReg.__controllerchange();
   await sleep(60);
-  ok(("" + w.sessionStorage.getItem("mnRecarga_v28")) === "1", "R2-3 controllerchange marca la recarga única de la v28 (sin bucles)");
+  ok(("" + w.sessionStorage.getItem("mnRecarga_v31")) === "1", "R2-3 controllerchange marca la recarga única de la v31 (sin bucles)");
   const antes = w.__fakeReg.actualizaciones;
   click(d.getElementById("btnAct"));
   await sleep(120);
@@ -660,11 +729,11 @@ function pestaña(w, nombre){
   ok(chat.querySelectorAll("[data-vplay]").length === 3 && chat.querySelectorAll(".vozOnda i").length === 72, "R2-25 cada reproductor trae su ▶ circular y su onda de 24 picos");
   ok(typeof w.mejorMimeVoz === "function" && typeof w.hashParChat === "function" && typeof w.rtTimbre === "function", "R2-26 existen mejorMimeVoz, hashParChat y rtTimbre");
   ok(w.hashParChat("ADMIN", "BUSC-1") === w.hashParChat("BUSC-1", "ADMIN") && w.hashParChat("ADMIN", "BUSC-1") !== w.hashParChat("ADMIN", "BUSC-2"), "R2-27 el canal del timbre es el mismo para la pareja en ambos sentidos y distinto por pareja");
-  ok(w.selloVersion() === "Mi Negocio · versión 2026-11-15 13:50 · caché v28", "R2-28 sello de versión exacto: «" + w.selloVersion() + "»");
+  ok(w.selloVersion() === "Mi Negocio · versión 2026-11-18 04:05 · v31 · PRO", "R2-28 sello de versión exacto: «" + w.selloVersion() + "»");
   ok(chat.textContent.includes("cada 3 s"), "R2-29 la ayuda del chat dice el refresco nuevo de 3 s (ya no 15 s)");
   pestaña(w, "Inicio");
   await sleep(120);
-  ok(d.getElementById("pgInicio").textContent.includes("Mi Negocio · versión 2026-11-15 13:50 · caché v28"), "R2-30 el sello de versión se ve en Inicio");
+  ok(d.getElementById("pgInicio").textContent.includes("Mi Negocio · versión 2026-11-18 04:05 · v31 · PRO"), "R2-30 el sello de versión se ve en Inicio");
   w.close();
   R.chatMsgs = [];
 }
@@ -841,7 +910,7 @@ function pestaña(w, nombre){
   await sleep(350);
   const d = w.document;
   ok(w.PUERTAS.marcarPrueba === "admin_marcar_prueba", "F1-1 la puerta nueva está registrada: PUERTAS.marcarPrueba = admin_marcar_prueba");
-  ok(w.MN_VERSION === "v28", "F1-2 MN_VERSION subió a v28");
+  ok(w.MN_VERSION === "v31", "F1-2 MN_VERSION subió a v31");
   /* Funciones puras con las fórmulas del servidor (tarifa del banco: 1098.68 / 1069.38 / 950) */
   ok(cerca(w.contaGananciaBruta({ tipo: "saldo", precio: 1000, cantidad: 100 }), 9868) && cerca(w.contaNeta({ tipo: "saldo", precio: 1000, cantidad: 100, comision: 2467 }), 7401), "F1-3 saldo r1: bruta 9868 · neta 7401 (comisión GUARDADA, no recalculada)");
   /* NOTA (desviación de la espec, verificada con la fórmula): la
@@ -1042,7 +1111,7 @@ function pestaña(w, nombre){
   await sleep(250);
   const d = w.document;
   const tabs22 = [...d.querySelectorAll(".tab")];
-  ok(tabs22.length === 5 && tabs22.every(t => !!t.querySelector("svg")), "F3-1 T1: las 5 secciones llevan icono SVG de trazo fino (cero emojis estructurales en la navegación)");
+  ok(tabs22.length === 4 && tabs22.every(t => !!t.querySelector("svg")), "F3-1 T1: las 4 secciones llevan icono SVG de trazo fino (cero emojis estructurales en la navegación)");
   ok(!!d.getElementById("pgCierre") && !!d.getElementById("pgActividad") && !!d.getElementById("pgTextos"), "F3-2 existen #pgCierre, #pgActividad y #pgTextos (en la v7 faltaban en el HTML y esas pestañas abrían en blanco)");
   pestaña(w, "Calculadora");
   await sleep(80);
@@ -1744,9 +1813,11 @@ function pestaña(w, nombre){
   const d = w.document;
   await sleep(450);
 
-  /* La barra: 4 secciones exactas, en orden, con su data-seccion */
+  /* La barra: 4 secciones exactas, en orden, con su data-seccion
+     (v42: Inicio · Equipo · Mercado · Actividad, el rediseño que
+     Ernesto aprobó; Dinero/Terminal/Ajustes viven como hijas) */
   const secs = [...d.querySelectorAll(".tab")].map(t => t.getAttribute("data-seccion"));
-  ok(JSON.stringify(secs) === JSON.stringify(["Inicio", "Dinero", "Mercado", "Terminal", "Ajustes"]), "T1-1 la barra trae las 5 secciones en orden [" + secs.join(",") + "]");
+  ok(JSON.stringify(secs) === JSON.stringify(["Inicio", "Equipo", "Mercado", "Actividad"]), "T1-1 la barra trae las 4 secciones en orden [" + secs.join(",") + "]");
   ok(["Inicio", "Calc", "Bandeja", "Equipo", "Tarifa", "Mercado", "Cierre", "Actividad", "Textos", "Contabilidad", "Dinero", "Terminal", "Ajustes", "Avisos"].every(id => !!w.modulo(id)), "T1-2 los 14 módulos existen (las 12 pantallas de siempre + Terminal + Ajustes + Avisos)");
 
   /* El hub de Inicio: héroe con el gasto del libro, accesos y novedades */
@@ -1774,7 +1845,10 @@ function pestaña(w, nombre){
   const pgAj = d.getElementById("pgAjustes").textContent;
   ok(pgAj.includes("Cuenta") && pgAj.includes("Negocio") && pgAj.includes("La app") && pgAj.includes("Datos") && pgAj.includes("Tarifa viva") && pgAj.includes("Notificaciones"), "T1-11 Ajustes: raíz en ramas con sus grupos y filas");
   click(d.querySelector('[data-aj="Tarifa"]'));
-  ok(d.getElementById("pgTarifa").style.display === "block" && d.getElementById("subVolverTxt").textContent === "Ajustes", "T1-12 la fila de una rama abre su página y la pila vuelve a Ajustes");
+  /* v42: Tarifa cuelga de Inicio (es pantalla diaria del hub, no un
+     ajuste); la fila de la rama sigue abriendo su página y la pila
+     vuelve a su sección dueña, Inicio. */
+  ok(d.getElementById("pgTarifa").style.display === "block" && d.getElementById("subVolverTxt").textContent === "Inicio", "T1-12 la fila de una rama abre su página y la pila vuelve a su sección (Inicio en v42)");
 
   /* Centro de avisos: el registro se lee y la prueba llama su puerta */
   w.irA("Avisos");
@@ -1833,6 +1907,861 @@ function pestaña(w, nombre){
   click(d.getElementById("guiaSig"));
   ok(d.getElementById("guiaCoach").style.display === "none" && w.localStorage.getItem("mn_guia_v22") === "1", "T1-27 al terminar, la guía se apaga y queda marcada como vista");
   w.close();
+}
+
+/* ===== V29 · PRO: dos cubetas, conversión de Miguel, procedencia,
+   saldo real, ganado/entregado y Enviar QUSD (Frente D) ===== */
+{
+  const ahoraISO = new Date().toISOString();
+  R.dineroEstado = { rol: "ernesto", capital_total: 42700, saldo_fondo: 157, saldo_gasto: 1260,
+    saldo_inventario: 14, saldo_ernesto_inversion: 15740,
+    entregas: [], asignaciones: [], estrellas: [], ganancias: { por_buscador: [] },
+    vueltas_abiertas: [], devoluciones_pendientes: [], ventas_recientes: [],
+    cuadre: { ok: true, total_libro: 45595 },
+    gasto_pro: { cuenta_gasto: 1260, por_cobrar_estimado: 684, reserva_cup: 13000,
+      ritmo_compras_dia: 13000, pagos_pendientes: 961, mano_efectivo: 15897, colchon_libre: 1937 },
+    conversiones: [
+      { id: "conv-miguel", contraparte: "Miguel (@miguel300)", qusd: 20.62, tasa_pactada: 930,
+        efectivo_esperado: 19176.6, cobrado_cup: 0, por_cobrar_cup: 19176.6, estado: "abierta",
+        detectada_en: ahoraISO, fuente_deteccion: "qvapay_api" },
+      { id: "conv-sintasa", contraparte: "Pendiente De Tasa", qusd: 5, tasa_pactada: null,
+        efectivo_esperado: null, cobrado_cup: 0, por_cobrar_cup: null, estado: "abierta",
+        detectada_en: ahoraISO, fuente_deteccion: "manual" } ],
+    saldo_real: { saldo_linea: 0.08, saldo_lotes: 5.08, costo_lotes_cup: 14 },
+    procedencias: {
+      gasto: { monto: 1260, detalle: "corte de la venta-barrido-miguel-2026-11-14", referencia: "venta-barrido-miguel-2026-11-14", creada_en: ahoraISO },
+      mano: { fondo: 157, inversion: 15740 },
+      capital: { total: 42700, fijado_en: "2026-11-12" } },
+    pagos_buscadores: [
+      { buscador: "BRIKU-EUX", ganado_comision: 836, ganado_premio: 125, ganado_total: 961, entregado: 0, pendiente: 961 } ] };
+  R.contactosResp = [ { nombre: "Miguel", usuario: "miguel300" }, { nombre: "Otro", usuario: "otro300" } ];
+  const preV29 = { codigo: adminValido, foto: { reportes: [], ayudas: [], usuarios: [], datos: datosPublicados, cuando: "", publicar: [], borrados: [], tarifaPanel: null, mercado: null }, cola: [], sellos: {}, tarifaViva: null, tarifaVivaEn: "", publicarPendiente: null };
+  const { w } = crear({ preState: preV29 });
+  const d = w.document;
+  await sleep(600);
+  const pgI = d.getElementById("pgInicio");
+  const txtI = pgI ? pgI.textContent : "";
+
+  /* (a) el héroe enseña las dos cubetas de gasto con su reserva explicada */
+  ok(txtI.includes("Disponible (cobrado)") && txtI.includes("Por cobrar"), "V29-a1 el héroe separa el gasto en dos cubetas: disponible (cobrado) y por cobrar");
+  ok(txtI.includes("Reserva de trabajo") && txtI.includes("13.000") && txtI.includes("frenaría la máquina"), "V29-a2 la reserva de trabajo se enseña con su porqué (13.000 del fixture)");
+  ok(txtI.includes("684"), "V29-a3 el por cobrar estimado del fixture (684) se ve en el héroe");
+
+  /* (b) la conversión de Miguel renderiza; sin tasa → formulario de tasa */
+  /* NOTA Frente D: el payload trae efectivo_esperado = 19.176,6 exacto,
+     pero la tarjeta lo pinta con fmtE (entero) → «19.177». La aserción
+     acepta la cifra visible; el redondeo de pantalla queda reportado
+     en BANCOS.md pa adjudicación del coordinador (¿debe verse el ,6?). */
+  ok(txtI.includes("20,62") && (txtI.includes("19.176,6") || txtI.includes("19.177")), "V29-b1 la tarjeta de conversión enseña 20,62 QUSD y el esperado ≈19.176,6 CUP (Miguel @930)");
+  ok(d.querySelectorAll("[data-conv-tasa]").length > 0, "V29-b2 la conversión sin tasa_pactada enseña su formulario de tasa (data-conv-tasa)");
+  ok(txtI.includes("la app no la puede ver en QvaPay"), "V29-b3 la ayuda de la tasa explica que QvaPay no la enseña y se dice una sola vez");
+
+  /* (c) tocar un número del héroe abre la hoja de procedencia.
+     v42: el héroe se partió en dos tarjetas (Fondo · Mi gasto) y la
+     primera cifra tocable del documento ya es la del capital; la
+     prueba toca directamente la del GASTO, que es la procedencia que
+     verifica (el movimiento de origen). La expectativa no cambia. */
+  const prov = d.querySelector('[data-prov="gasto"]');
+  ok(!!prov, "V29-c1 el héroe trae cifras tocables con procedencia (data-prov)");
+  if (prov) { click(prov); await sleep(250); }
+  ok(d.body.textContent.includes("venta-barrido-miguel-2026-11-14"), "V29-c2 al tocar, la hoja de procedencia enseña el movimiento de origen del gasto");
+
+  /* (d) «Hecho en saldo» en unidades de saldo, no el costo CUP */
+  ok(txtI.includes("0,08") && txtI.includes("Costo de ese saldo"), "V29-d1 hecho en saldo = 0,08 de saldo (línea) y el costo va nombrado como costo, no como saldo");
+
+  /* (f-ok) Enviar QUSD con agenda viva: el select trae los contactos */
+  ok(txtI.includes("miguel300"), "V29-f1 con la agenda viva, Enviar QUSD ofrece a @miguel300 sin teclearlo");
+
+  /* (e) la fila de buscador enseña ganado/entregado/pendiente 961/0/961 */
+  w.irA("Dinero");
+  await sleep(400);
+  const txtD = d.getElementById("pgDinero") ? d.getElementById("pgDinero").textContent : "";
+  ok(txtD.includes("Totales de todos los ciclos") && txtD.includes("961") && txtD.includes("Entregado"), "V29-e1 Dinero (resumen C2): totales de todos los ciclos con ganado 961 y entregado visibles (fixture Briku)");
+  ok(txtD.includes("premio por venta") && txtD.includes("Por entregar"), "V29-e2 el resumen nombra «premio por venta» (renombre M3) y «Por entregar» con el pendiente agregado 961");
+  ok(txtD.includes("Pagos por ciclo") && txtD.includes("Pendiente del ciclo:") && txtD.includes("625") && txtD.includes("336"), "V29-e3 tarjetas por ciclo: pendientes 625 y 336 por separado (el agregado es la suma, caso SQL 8)");
+  ok(txtD.includes("calculado con la regla anterior"), "V29-e4 la liquidación histórica enseña la pill «calculado con la regla anterior» (base_regla='total', caso SQL 8d)");
+  w.close();
+  R.dineroEstado = null; R.contactosResp = null;
+}
+
+/* ===== V29-f2 · Enviar QUSD degrada si la función de contactos no responde ===== */
+{
+  R.dineroEstado = { rol: "ernesto", capital_total: 42700, saldo_fondo: 157, saldo_gasto: 1260,
+    saldo_inventario: 14, saldo_ernesto_inversion: 15740, entregas: [], asignaciones: [],
+    estrellas: [], ganancias: { por_buscador: [] }, vueltas_abiertas: [],
+    devoluciones_pendientes: [], ventas_recientes: [], cuadre: { ok: true, total_libro: 45595 },
+    conversiones: [], pagos_buscadores: [] };
+  R.contactosFalla = true;
+  const preF = { codigo: adminValido, foto: { reportes: [], ayudas: [], usuarios: [], datos: datosPublicados, cuando: "", publicar: [], borrados: [], tarifaPanel: null, mercado: null }, cola: [], sellos: {}, tarifaViva: null, tarifaVivaEn: "", publicarPendiente: null };
+  let wF = null, errorF = null;
+  try {
+    const r = crear({ preState: preF }); wF = r.w;
+    await sleep(600);
+  } catch (e) { errorF = e; }
+  ok(!errorF && !!wF, "V29-f2a con la función de contactos caída, la app abre sin romperse");
+  if (wF) {
+    const txtF = wF.document.getElementById("pgInicio") ? wF.document.getElementById("pgInicio").textContent : "";
+    ok(txtF.includes("Agenda no disponible aún"), "V29-f2b la tarjeta Enviar QUSD dice «Agenda no disponible aún» y ofrece el usuario a mano");
+    wF.close();
+  }
+  R.dineroEstado = null; R.contactosFalla = false;
+}
+
+/* ===== RUTA MANUAL DE ENTREGAS (2026-11-16): la tarjeta «Entregar
+   dinero» tras el héroe, la hoja por buscador con reparto FIFO entre
+   ciclos, los atajos en la tarjeta del buscador y la honestidad
+   ok:false (nada de ✅ falso, ni en la hoja ni por ciclo) ===== */
+{
+  R.dineroEstado = { rol: "ernesto", capital_total: 42700, saldo_fondo: 157, saldo_gasto: 1260,
+    saldo_inventario: 14, saldo_ernesto_inversion: 15740, entregas: [],
+    asignaciones: [ { buscador: "BRIKU-EUX", porciento: 32 } ],
+    estrellas: [], ganancias: { por_buscador: [] }, vueltas_abiertas: [],
+    devoluciones_pendientes: [], ventas_recientes: [], cuadre: { ok: true, total_libro: 45595 },
+    conversiones: [],
+    pagos_buscadores: [ { buscador: "BRIKU-EUX", ganado_comision: 836, ganado_premio: 125, ganado_total: 961, entregado: 0, pendiente: 961 } ] };
+  R.entregaComisionResp = { ok: true };
+  const preRM = { codigo: adminValido, foto: { reportes: [], ayudas: [], usuarios: [], datos: datosPublicados, cuando: "", publicar: [], borrados: [], tarifaPanel: null, mercado: null }, cola: [], sellos: {}, tarifaViva: null, tarifaVivaEn: "", publicarPendiente: null };
+  const { w } = crear({ preState: preRM });
+  const d = w.document;
+  await sleep(600);
+  w.irA("Dinero");
+  await sleep(500);
+  const pgD = d.getElementById("pgDinero");
+  ok(!!d.getElementById("dnAcciones") && !!d.getElementById("dnIrReparto") && !!d.getElementById("dnIrComision"), "RM-1 Dinero trae la tarjeta «Entregar dinero» con sus dos botones nombrados (Repartir capital / Registrar entrega de comisión)");
+  ok(pgD.textContent.includes("le debes entregar") && pgD.textContent.includes("961"), "RM-2 la tarjeta dice a quién le debes entregar y cuánto (Briku 961 del fixture)");
+  ok(!!pgD.querySelector('[data-atajo-comision="BRIKU-EUX"]') && !!pgD.querySelector('[data-atajo-reparto="BRIKU-EUX"]'), "RM-3 la tarjeta del buscador trae sus atajos (Repartir capital / Entregar comisión)");
+  click(d.getElementById("dnIrComision"));
+  await sleep(300);
+  const inpM = d.getElementById("entcMonto");
+  ok(!!inpM && inpM.value === "836", "RM-4 la hoja abre con el monto lleno = pendiente de comisión (500+336=836)");
+  input(inpM, "700");
+  const antesRM = llamadas.filter(function(x){ return x === "rpc:dinero_registrar_entrega_comision"; }).length;
+  click(d.getElementById("entcOk"));
+  await sleep(700);
+  const despuesRM = llamadas.filter(function(x){ return x === "rpc:dinero_registrar_entrega_comision"; }).length;
+  ok(despuesRM - antesRM === 2, "RM-5 registrar 700 cruza dos ciclos: dos llamadas a la puerta (500 del viejo + 200 del nuevo)");
+  ok(ultimosCuerpos["dinero_registrar_entrega_comision"] && ultimosCuerpos["dinero_registrar_entrega_comision"].p_monto === 200 && ultimosCuerpos["dinero_registrar_entrega_comision"].p_liquidacion_id === "liq-banco-2", "RM-6 el último tramo es 200 sobre liq-banco-2 (FIFO del más viejo al más nuevo)");
+  ok(d.getElementById("pgDinero").textContent.includes("REGISTRADO") && d.getElementById("pgDinero").textContent.includes("700"), "RM-7 el resultado se enseña en la hoja con su desglose (REGISTRADO 700)");
+  w.close();
+
+  /* ok:false en la hoja: error honesto, nada de registrado */
+  R.entregaComisionResp = { ok: false, motivo: "excede_pendiente_ciclo", pendiente_ciclo_tipo: 500 };
+  const v2 = crear({ preState: preRM });
+  const d2 = v2.w.document;
+  await sleep(600);
+  v2.w.irA("Dinero");
+  await sleep(500);
+  click(d2.getElementById("dnIrComision"));
+  await sleep(300);
+  input(d2.getElementById("entcMonto"), "100");
+  click(d2.getElementById("entcOk"));
+  await sleep(700);
+  ok(d2.getElementById("entcErr").textContent.includes("pasa lo pendiente"), "RM-8 si la puerta devuelve ok:false, la hoja enseña el motivo (excede pendiente) en vez de un éxito falso");
+  ok(!d2.getElementById("pgDinero").textContent.includes("REGISTRADO"), "RM-9 con ok:false no aparece ningún REGISTRADO");
+  v2.w.close();
+
+  /* ok:false en el formulario por ciclo: el mismo candado */
+  const v3 = crear({ preState: preRM });
+  const d3 = v3.w.document;
+  await sleep(600);
+  v3.w.irA("Dinero");
+  await sleep(500);
+  const abrirRM = d3.querySelector('[data-cicent-abrir="liq-banco-1"]');
+  ok(!!abrirRM, "RM-10 el formulario por ciclo sigue ahí (Confirmar entrega en su tarjeta)");
+  if (abrirRM) {
+    click(abrirRM);
+    await sleep(300);
+    input(d3.getElementById("cicentMonto-liq-banco-1"), "100");
+    click(d3.querySelector('[data-cicent-ok="liq-banco-1"]'));
+    await sleep(700);
+    ok(d3.getElementById("cicentErr-liq-banco-1").textContent.includes("pasa lo pendiente"), "RM-11 por ciclo, ok:false enseña el motivo en su línea de error (antes pintaba un ✅ falso)");
+  }
+  v3.w.close();
+  R.dineroEstado = null; R.entregaComisionResp = null;
+}
+
+/* ===== V41 · CADENA DE DINERO (Oleada PRO 2026-11-17) + MN2
+   (corrección tras SUPERVISORA-PRO, 2026-11-17): el reparto del ciclo
+   con su cadena visible, las otras dos vías, por-recuperar de Briku,
+   la alerta de tope con su botón de re-atribuir (y su candado
+   ok:false) y la degradación sin campos nuevos.
+   ORIGEN DE LOS FIXTURES (nada inventado):
+   · El reparto de liq-cadena es la salida REAL de
+     dinero_reparto_ciclo(1311, 25, pct vivos) capturada por
+     Management API el 2026-11-17 ~16:2x UTC (congelada también en
+     bancos/fixtures/payload-vivo-briku-2026-11-17.json):
+     ganancia 1.311 → bruta 343 (NO 344: 1.311 × 26,2 % = 343,482) →
+     redondeada 340 → −25 recuperación → pago final 310 · libre 205 ·
+     reinversión 796 (Σ = 1.311 al centavo). El fixture anterior traía
+     bruta 344 y reinversión 788 (Σ = 1.303 ≠ 1.311): falso, cazado
+     por la supervisora.
+   · por_recuperar {50 · recuperado 20 · restante 30 · ritmo 25} es el
+     que trae CADA liquidación viva de Briku en dinero_ciclo_json
+     (misma captura).
+   · liq-cadena trae pendiente_comision 0 / pendiente_premio 0 del
+     servidor CON reparto presente (pago 310): el caso vivo real en
+     que la derivación vieja (reparto − entregado) fabricaba deuda. */
+{
+  const ahoraCD = new Date().toISOString();
+  R.dineroEstado = { rol: "ernesto", capital_total: 42700, saldo_fondo: 157, saldo_gasto: 1260,
+    saldo_inventario: 14, saldo_ernesto_inversion: 15740, entregas: [],
+    asignaciones: [ { buscador: "BRIKU-EUX", porciento: 32 } ],
+    estrellas: [], ganancias: { por_buscador: [] }, vueltas_abiertas: [],
+    devoluciones_pendientes: [], ventas_recientes: [], cuadre: { ok: true, total_libro: 45595 },
+    conversiones: [],
+    alertas_tope: [ { espera_id: "esp-tope-1", buscador: "BRIKU-EUX", monto_capital: 2000, exceso: 2000, creada_en: ahoraCD } ],
+    recuperaciones: [ { buscador: "BRIKU-EUX", total: 50, recuperado: 20, restante: 30, ritmo: 25 } ],
+    pagos_buscadores: [ { buscador: "BRIKU-EUX", ganado_comision: 310, ganado_premio: 0, ganado_total: 310, entregado: 310, pendiente: 0 } ] };
+  R.ciclosResp = { ok: true, liquidaciones: [
+    { liquidacion_id: "liq-cadena", buscador: "BRIKU-EUX", tipo: "saldo",
+      creada_en: "2026-11-17T10:00:00Z", capital_cup: 10000, producto: 10080,
+      pct: 26.2, ganado_comision: 0, ganado_premio: 0,
+      entregado_comision: 0, entregado_premio: 0, pendiente_ciclo: 0,
+      pendiente_comision: 0, pendiente_premio: 0,
+      base_regla: "ernesto_neto", eleccion_pago: null, es_prueba: false,
+      reparto_portador: true,
+      reparto: { ganancia_ciclo: 1311, pct_buscador: 26.2, pct_libre: 15.6, pct_reinversion: 58.2,
+        comision_bruta: 343, comision_redondeada: 340, recuperacion_aplicada: 25,
+        pago_buscador: 310, libre_ernesto: 205, reinversion_fondo: 796, regla_redondeo: "decena_5_baja", es_proyeccion: false },
+      por_recuperar: { total: 50, recuperado: 20, restante: 30, ritmo: 25 },
+      tope: { capital_entrega: 10000, capital_comprado: 10000, capital_restante: 0, excedido: false } },
+    { liquidacion_id: "liq-sin-campos", buscador: "BRIKU-EUX", tipo: "saldo",
+      creada_en: "2026-11-16T10:00:00Z", capital_cup: 5000, producto: 3600,
+      pct: 32, ganado_comision: 100, ganado_premio: 0,
+      entregado_comision: 0, entregado_premio: 0, pendiente_ciclo: 100,
+      base_regla: "ernesto_neto", eleccion_pago: null, es_prueba: false } ] };
+  R.reatribuirResp = { ok: true };
+  const preCD = { codigo: adminValido, foto: { reportes: [], ayudas: [], usuarios: [], datos: datosPublicados, cuando: "", publicar: [], borrados: [], tarifaPanel: null, mercado: null }, cola: [], sellos: {}, tarifaViva: null, tarifaVivaEn: "", publicarPendiente: null };
+  const { w } = crear({ preState: preCD });
+  const d = w.document;
+  await sleep(600);
+  w.irA("Dinero");
+  await sleep(500);
+  const pgD = d.getElementById("pgDinero");
+  const txtCD = pgD ? pgD.textContent : "";
+  ok(txtCD.includes("Reparto de este ciclo") && txtCD.includes("Ganancia del ciclo") && txtCD.includes("1.311"), "CD-1 el ciclo enseña su reparto con la ganancia del servidor (1.311 del fixture)");
+  ok(txtCD.includes("Comisión del buscador") && txtCD.includes("26,2") && txtCD.includes("343") && txtCD.includes("Redondeada a la decena (el 5 baja)") && txtCD.includes("340"), "CD-2 la cadena enseña comisión bruta 343 (26,2 % de 1.311, salida real de dinero_reparto_ciclo) y su redondeo a la decena: 340");
+  ok(txtCD.includes("Menos recuperación") && txtCD.includes("Queda tras la recuperación") && txtCD.includes("315") && txtCD.includes("Pago final al buscador") && txtCD.includes("310"), "CD-3 tras la recuperación de 25 quedan 315 y el PAGO FINAL redondeado es 310");
+  ok(txtCD.includes("Tu parte libre") && txtCD.includes("15,6") && txtCD.includes("205") && txtCD.includes("reinversión") && txtCD.includes("58,2") && txtCD.includes("796"), "CD-4 las otras dos vías se ven: libre 205 (15,6 %) y reinversión 796 (58,2 % + lo recuperado; Σ 310+205+796 = 1.311)");
+  ok(txtCD.includes("Reinversión acreditada al fondo por estos ciclos") && txtCD.includes("796"), "CD-5 el fondo enseña la reinversión acreditada por los ciclos (796 del reparto)");
+  ok(txtCD.includes("Por recuperar de este buscador") && txtCD.includes("Quedan por recuperar") && txtCD.includes("hasta") && txtCD.includes("25 CUP por ciclo"), "CD-6 por-recuperar del ciclo: total 50, quedan 30 (20 ya recuperados, payload vivo) y ritmo de 25 por ciclo, sumando a reinversión");
+  ok(!!d.getElementById("dnRecuperaciones") && d.getElementById("dnRecuperaciones").textContent.includes("quedan 30") && d.getElementById("dnRecuperaciones").textContent.includes("ritmo 25 por ciclo"), "CD-7 la tarjeta de recuperaciones enseña la deuda de Briku donde vive: 50 total · ritmo 25/ciclo · quedan 30");
+  ok(!!d.getElementById("dnAlertasTope") && txtCD.includes("2.000") && txtCD.includes("exceso sobre el tope") && !!pgD.querySelector('[data-tope-reatribuir="esp-tope-1"]'), "CD-8 la alerta de tope se ve en Dinero con monto 2.000, su exceso y el botón de re-atribuir");
+  const antesCD = llamadas.filter(function(x){ return x === "rpc:dinero_reatribuir_espera"; }).length;
+  click(pgD.querySelector('[data-tope-reatribuir="esp-tope-1"]'));
+  await sleep(500);
+  const despuesCD = llamadas.filter(function(x){ return x === "rpc:dinero_reatribuir_espera"; }).length;
+  ok(despuesCD - antesCD === 1 && ultimosCuerpos["dinero_reatribuir_espera"] && ultimosCuerpos["dinero_reatribuir_espera"].p_espera_id === "esp-tope-1" && ultimosCuerpos["dinero_reatribuir_espera"].p_prueba === false, "CD-9 re-atribuir llama a dinero_reatribuir_espera con la espera exacta y p_prueba false");
+  ok(!d.getElementById("dnAcciones").querySelector(".dnHero") && d.getElementById("dnAcciones").textContent.includes("no le debes comisión ni premio a nadie"), "CD-10 MN2: con pendiente del servidor en 0 (aunque el reparto trae pago 310 y el otro ciclo ganado 100 sin campos de pendiente), el héroe NO fabrica deuda: no hay «Total por entregar» — la derivación vieja habría enseñado 410");
+  ok(pgD.querySelectorAll(".repCadena").length === 2 && !txtCD.includes("undefined") && !txtCD.includes("NaN"), "CD-11 degradación: el ciclo sin campos nuevos se pinta sin reparto ni por-recuperar y sin undefined/NaN (solo 2 cadenas: reparto + por-recuperar del ciclo con datos)");
+  w.close();
+
+  /* ok:false al re-atribuir: motivo real en la alerta, nada de éxito falso */
+  R.reatribuirResp = { ok: false, motivo: "espera_no_existe" };
+  R.ciclosResp = { ok: true, liquidaciones: [] };
+  const vCD2 = crear({ preState: preCD });
+  const dCD2 = vCD2.w.document;
+  await sleep(600);
+  vCD2.w.irA("Dinero");
+  await sleep(500);
+  const btnCD2 = dCD2.querySelector('[data-tope-reatribuir="esp-tope-1"]');
+  ok(!!btnCD2, "CD-12 con ok:false preparado, el botón de re-atribuir sigue visible pa el toque");
+  if (btnCD2) {
+    click(btnCD2);
+    await sleep(500);
+    ok(dCD2.getElementById("topeErr-esp-tope-1").textContent.includes("ya no está en el libro"), "CD-13 si la puerta devuelve ok:false, la alerta enseña el motivo real (espera_no_existe) en vez de un éxito falso");
+  }
+  vCD2.w.close();
+  R.dineroEstado = null; R.reatribuirResp = null; R.ciclosResp = null;
+}
+
+/* ===== MN2 · EL PENDIENTE MANDA EL SERVIDOR (2026-11-17, tras el
+   veredicto REFUTADO de la supervisora): fixture = payload VIVO
+   congelado de Briku — salida real de dinero_ciclo_json (la función
+   que compone pago_estado_dueno) capturada por Management API el
+   2026-11-17 ~16:25 UTC, verbatim en
+   bancos/fixtures/payload-vivo-briku-2026-11-17.json (5 de las 11
+   liquidaciones reales; las demás comparten los mismos repartos y
+   pendiente 0). Hechos del payload: la liquidación 2474dff4 trae
+   pendiente_premio 54 con reparto.pago_buscador 90 y su comisión ya
+   nacida pagada (146); la entrega e8d6a0de trae CUATRO liquidaciones
+   con el MISMO reparto por entrega (pago_buscador 300) y pendiente 0
+   en todas. Con la derivación vieja el héroe habría enseñado
+   90 + 4×300 + 54 = 1.344; el servidor dice 54.
+   MN3 (2026-11-17): el fixture inline pasó a la forma NUEVA de la
+   corrección S2 — en cada entrega SOLO la portadora (mayor creada_en)
+   trae reparto/por_recuperar/tope con reparto_portador:true; las
+   demás los traen en null con reparto_portador:false (congelado
+   también en fixtures/payload-portadora-briku-2026-11-17.json).
+   MN4 (2026-11-17, supervisora ronda 2 · Ataque 5): el fixture de
+   archivo se RE-CAPTURÓ VIVO COMPLETO post-S2 (11 liquidaciones) y
+   este subconjunto inline se reconstruyó de ESA captura: la portadora
+   de la entrega e8d6a0de es 542c809a-228b-4dc3-a569-c5bc48e9fec9 (la
+   eca67120 del derivado de MN3 trae reparto_portador:false en vivo) y
+   el por_recuperar de las portadoras es {recuperado 0, restante 50},
+   el estado post-reversión (el {20/30} era pre-reversión). ===== */
+{
+  const liqsVivasMN2 = [
+      {
+            "tope": {
+                  "excedido": false,
+                  "capital_entrega": 14000,
+                  "capital_comprado": 5000,
+                  "capital_restante": 9000
+            },
+            "reparto": {
+                  "pct_libre": 15.6,
+                  "pct_buscador": 26.2,
+                  "es_proyeccion": false,
+                  "libre_ernesto": 56,
+                  "pago_buscador": 90,
+                  "comision_bruta": 94,
+                  "ganancia_ciclo": 358,
+                  "regla_redondeo": "decena_5_baja",
+                  "pct_reinversion": 58.2,
+                  "reinversion_fondo": 212,
+                  "comision_redondeada": 90,
+                  "recuperacion_aplicada": 0
+            },
+            "entregado": 0,
+            "base_regla": "total",
+            "estimada_max": null,
+            "estimada_min": null,
+            "descuento_pct": 5,
+            "eleccion_pago": null,
+            "ganado_premio": 54,
+            "por_recuperar": {
+                  "ritmo": 25,
+                  "total": 50,
+                  "restante": 50,
+                  "recuperado": 0
+            },
+            "recargas_plan": null,
+            "adelanto_monto": null,
+            "comision_ahora": 139,
+            "comision_ciclo": 146,
+            "liquidacion_id": "2474dff4-0cc1-412f-ac56-70d698421b25",
+            "cuadre_adelanto": null,
+            "exceso_adelanto": 0,
+            "ganado_comision": 146,
+            "pendiente_ciclo": 54,
+            "comision_despues": 146,
+            "entregado_premio": 0,
+            "pendiente_premio": 54,
+            "premio_ya_pagado": 0,
+            "reparto_portador": true,
+            "pendiente_entrega": 54,
+            "adelanto_entregado": 0,
+            "entregado_comision": 0,
+            "pendiente_comision": 0,
+            "descuento_prontitud": 0,
+            "comision_nacida_pagada": 146,
+            "descuento_pct_snapshot": null,
+            "exceso_adelanto_previo": 0,
+            "comision_est_por_recarga": null,
+            "buscador": "BRIKU-EUX",
+            "tipo": "saldo",
+            "creada_en": "2026-11-14T14:38:05.107697Z",
+            "capital_cup": 5000,
+            "entrega_id": "65ca43f0-e3a3-44e5-a911-3b08a843ad32",
+            "es_prueba": false
+      },
+      {
+            "tope": null,
+            "reparto": null,
+            "entregado": 0,
+            "base_regla": "total",
+            "estimada_max": null,
+            "estimada_min": null,
+            "descuento_pct": 5,
+            "eleccion_pago": null,
+            "ganado_premio": 0,
+            "por_recuperar": null,
+            "recargas_plan": null,
+            "adelanto_monto": null,
+            "comision_ahora": 31,
+            "comision_ciclo": 33,
+            "liquidacion_id": "00ef25b4-1e0b-4bcc-be0d-c63967595881",
+            "cuadre_adelanto": null,
+            "exceso_adelanto": 0,
+            "ganado_comision": 33,
+            "pendiente_ciclo": 0,
+            "comision_despues": 33,
+            "entregado_premio": 0,
+            "pendiente_premio": 0,
+            "premio_ya_pagado": 0,
+            "reparto_portador": false,
+            "pendiente_entrega": 0,
+            "adelanto_entregado": 0,
+            "entregado_comision": 0,
+            "pendiente_comision": 0,
+            "descuento_prontitud": 0,
+            "comision_nacida_pagada": 33,
+            "descuento_pct_snapshot": null,
+            "exceso_adelanto_previo": 0,
+            "comision_est_por_recarga": null,
+            "buscador": "BRIKU-EUX",
+            "tipo": "saldo",
+            "creada_en": "2026-11-15T18:11:02.011978Z",
+            "capital_cup": 1000,
+            "entrega_id": "e8d6a0de-9c50-4291-a930-93b02166bca9",
+            "es_prueba": false
+      },
+      {
+            "tope": null,
+            "reparto": null,
+            "entregado": 0,
+            "base_regla": "total",
+            "estimada_max": null,
+            "estimada_min": null,
+            "descuento_pct": 5,
+            "eleccion_pago": null,
+            "ganado_premio": 0,
+            "por_recuperar": null,
+            "recargas_plan": null,
+            "adelanto_monto": null,
+            "comision_ahora": 31,
+            "comision_ciclo": 33,
+            "liquidacion_id": "ef7ff928-dac6-4f8a-ade5-714b45440962",
+            "cuadre_adelanto": null,
+            "exceso_adelanto": 0,
+            "ganado_comision": 33,
+            "pendiente_ciclo": 0,
+            "comision_despues": 33,
+            "entregado_premio": 0,
+            "pendiente_premio": 0,
+            "premio_ya_pagado": 0,
+            "reparto_portador": false,
+            "pendiente_entrega": 0,
+            "adelanto_entregado": 0,
+            "entregado_comision": 0,
+            "pendiente_comision": 0,
+            "descuento_prontitud": 0,
+            "comision_nacida_pagada": 33,
+            "descuento_pct_snapshot": null,
+            "exceso_adelanto_previo": 0,
+            "comision_est_por_recarga": null,
+            "buscador": "BRIKU-EUX",
+            "tipo": "saldo",
+            "creada_en": "2026-11-15T18:11:06.255809Z",
+            "capital_cup": 1000,
+            "entrega_id": "e8d6a0de-9c50-4291-a930-93b02166bca9",
+            "es_prueba": false
+      },
+      {
+            "tope": null,
+            "reparto": null,
+            "entregado": 0,
+            "base_regla": "total",
+            "estimada_max": null,
+            "estimada_min": null,
+            "descuento_pct": 5,
+            "eleccion_pago": null,
+            "ganado_premio": 0,
+            "por_recuperar": null,
+            "recargas_plan": null,
+            "adelanto_monto": null,
+            "comision_ahora": 37,
+            "comision_ciclo": 39,
+            "liquidacion_id": "2b3f3210-77d3-4d99-af30-9fecd03a4e77",
+            "cuadre_adelanto": null,
+            "exceso_adelanto": 0,
+            "ganado_comision": 39,
+            "pendiente_ciclo": 0,
+            "comision_despues": 39,
+            "entregado_premio": 0,
+            "pendiente_premio": 0,
+            "premio_ya_pagado": 0,
+            "reparto_portador": false,
+            "pendiente_entrega": 0,
+            "adelanto_entregado": 0,
+            "entregado_comision": 0,
+            "pendiente_comision": 0,
+            "descuento_prontitud": 0,
+            "comision_nacida_pagada": 39,
+            "descuento_pct_snapshot": null,
+            "exceso_adelanto_previo": 0,
+            "comision_est_por_recarga": null,
+            "buscador": "BRIKU-EUX",
+            "tipo": "saldo",
+            "creada_en": "2026-11-15T23:01:48.270007Z",
+            "capital_cup": 1000,
+            "entrega_id": "e8d6a0de-9c50-4291-a930-93b02166bca9",
+            "es_prueba": false
+      },
+      {
+            "tope": {
+                  "excedido": false,
+                  "capital_entrega": 15000,
+                  "capital_comprado": 15000,
+                  "capital_restante": 0
+            },
+            "reparto": {
+                  "pct_libre": 15.6,
+                  "pct_buscador": 26.2,
+                  "es_proyeccion": false,
+                  "libre_ernesto": 181,
+                  "pago_buscador": 300,
+                  "comision_bruta": 304,
+                  "ganancia_ciclo": 1162,
+                  "regla_redondeo": "decena_5_baja",
+                  "pct_reinversion": 58.2,
+                  "reinversion_fondo": 681,
+                  "comision_redondeada": 300,
+                  "recuperacion_aplicada": 0
+            },
+            "entregado": 0,
+            "base_regla": "ernesto_neto",
+            "estimada_max": null,
+            "estimada_min": null,
+            "descuento_pct": 5,
+            "eleccion_pago": null,
+            "ganado_premio": 0,
+            "por_recuperar": {
+                  "ritmo": 25,
+                  "total": 50,
+                  "restante": 50,
+                  "recuperado": 0
+            },
+            "recargas_plan": null,
+            "adelanto_monto": null,
+            "comision_ahora": 65,
+            "comision_ciclo": 68,
+            "liquidacion_id": "542c809a-228b-4dc3-a569-c5bc48e9fec9",
+            "cuadre_adelanto": null,
+            "exceso_adelanto": 0,
+            "ganado_comision": 68,
+            "pendiente_ciclo": 0,
+            "comision_despues": 68,
+            "entregado_premio": 0,
+            "pendiente_premio": 0,
+            "premio_ya_pagado": 0,
+            "reparto_portador": true,
+            "pendiente_entrega": 0,
+            "adelanto_entregado": 0,
+            "entregado_comision": 0,
+            "pendiente_comision": 0,
+            "descuento_prontitud": 0,
+            "comision_nacida_pagada": 68,
+            "descuento_pct_snapshot": null,
+            "exceso_adelanto_previo": 0,
+            "comision_est_por_recarga": null,
+            "buscador": "BRIKU-EUX",
+            "tipo": "saldo",
+            "creada_en": "2026-11-17T01:11:14.571294Z",
+            "capital_cup": 2000,
+            "entrega_id": "e8d6a0de-9c50-4291-a930-93b02166bca9",
+            "es_prueba": false
+      }
+];
+  R.dineroEstado = { rol: "ernesto", capital_total: 42700, saldo_fondo: 157, saldo_gasto: 1260,
+    saldo_inventario: 14, saldo_ernesto_inversion: 15740, entregas: [],
+    asignaciones: [ { buscador: "BRIKU-EUX", porciento: 32 } ],
+    estrellas: [], ganancias: { por_buscador: [] }, vueltas_abiertas: [],
+    devoluciones_pendientes: [], ventas_recientes: [], cuadre: { ok: true, total_libro: 45595 },
+    conversiones: [], alertas_tope: [],
+    recuperaciones: [ { buscador: "BRIKU-EUX", total: 50, recuperado: 0, restante: 50, ritmo: 25 } ],
+    pagos_buscadores: [ { buscador: "BRIKU-EUX", ganado_comision: 996, ganado_premio: 125, ganado_total: 1121, entregado: 1067, pendiente: 54 } ] };
+  R.ciclosResp = { ok: true, liquidaciones: liqsVivasMN2 };
+  R.entregaComisionResp = { ok: true };
+  const preMN2 = { codigo: adminValido, foto: { reportes: [], ayudas: [], usuarios: [], datos: datosPublicados, cuando: "", publicar: [], borrados: [], tarifaPanel: null, mercado: null }, cola: [], sellos: {}, tarifaViva: null, tarifaVivaEn: "", publicarPendiente: null };
+  const { w } = crear({ preState: preMN2 });
+  const d = w.document;
+  await sleep(600);
+  w.irA("Dinero");
+  await sleep(500);
+  const accMN2 = d.getElementById("dnAcciones");
+  const heroMN2 = accMN2 ? accMN2.querySelector(".dnHeroNum") : null;
+  ok(!!heroMN2 && heroMN2.textContent.trim().indexOf("54") === 0, "CD-14 MN2 héroe «Total por entregar» = 54 del servidor (pendiente_premio de 2474dff4), no la derivación del reparto");
+  ok(!!accMN2 && !accMN2.textContent.includes("1.344") && !accMN2.textContent.includes("2.775"), "CD-15 MN2 ni el héroe ni la lista por buscador suman el reparto repetido por liquidación (nada de 1.344 del subconjunto ni 2.775 del payload completo)");
+  const mismaEntrega = liqsVivasMN2.filter(function(x){ return x.entrega_id === "e8d6a0de-9c50-4291-a930-93b02166bca9"; });
+  ok(mismaEntrega.length >= 2 && mismaEntrega.filter(function(x){ return x.reparto_portador === true; }).length === 1 && mismaEntrega.every(function(x){ return x.reparto_portador === true ? (x.reparto && x.reparto.pago_buscador === 300) : (x.reparto === null && x.por_recuperar === null && x.tope === null); }) && mismaEntrega.every(function(x){ return x.pendiente_comision === 0 && x.pendiente_premio === 0; }), "CD-16 MN3 el fixture (forma NUEVA S2) trae varias liquidaciones de la MISMA entrega (e8d6a0de) y SOLO la portadora trae el reparto (pago 300); las demás lo traen en null con reparto_portador false, y el pendiente del servidor es 0 en todas");
+  click(d.getElementById("dnIrComision"));
+  await sleep(300);
+  const tipoMN2 = d.getElementById("entcTipo"), montoMN2 = d.getElementById("entcMonto");
+  ok(!!tipoMN2 && tipoMN2.value === "premio" && !!montoMN2 && montoMN2.value === "54", "CD-17 MN2 la hoja de entrega abre SOLO con premio pendiente y el monto lleno = 54 del servidor (la comisión, ya nacida pagada, no se ofrece)");
+  const antesMN2 = llamadas.filter(function(x){ return x === "rpc:dinero_registrar_entrega_comision"; }).length;
+  click(d.getElementById("entcOk"));
+  await sleep(700);
+  const despuesMN2 = llamadas.filter(function(x){ return x === "rpc:dinero_registrar_entrega_comision"; }).length;
+  ok(despuesMN2 - antesMN2 === 1 && ultimosCuerpos["dinero_registrar_entrega_comision"] && ultimosCuerpos["dinero_registrar_entrega_comision"].p_monto === 54 && ultimosCuerpos["dinero_registrar_entrega_comision"].p_tipo === "premio" && ultimosCuerpos["dinero_registrar_entrega_comision"].p_liquidacion_id === "2474dff4-0cc1-412f-ac56-70d698421b25", "CD-18 MN2 registrar la hoja llama UNA vez a la puerta: 54 de premio sobre la liquidación exacta del payload vivo");
+  w.close();
+  R.dineroEstado = null; R.ciclosResp = null; R.entregaComisionResp = null;
+}
+
+/* ===== MN3 · DEDUPLICACIÓN DEL REPARTO POR ENTREGA (2026-11-17,
+   corrección S2 del servidor): reparto/por_recuperar/tope viajan SOLO
+   en la liquidación portadora (reparto_portador:true); las demás los
+   traen en null. La app debe pintarlos UNA vez por entrega y sumar la
+   reinversión SOLO de la portadora. Sin portadora (payload viejo),
+   cero bloques. Y el reparto de ciclo abierto (es_proyeccion:true)
+   se nombra «proyección», nunca pago firme. ===== */
+function liqMN3(id, creada, extra){
+  return Object.assign({ liquidacion_id: id, buscador: "BRIKU-EUX", tipo: "saldo",
+    creada_en: creada, capital_cup: 1000, producto: 1000, pct: 26.2,
+    ganado_comision: 0, ganado_premio: 0, entregado_comision: 0, entregado_premio: 0,
+    pendiente_ciclo: 0, pendiente_comision: 0, pendiente_premio: 0,
+    base_regla: "ernesto_neto", eleccion_pago: null, es_prueba: false,
+    entrega_id: "ent-mn3", reparto_portador: false, reparto: null, por_recuperar: null, tope: null }, extra || {});
+}
+const repartoMN3 = { ganancia_ciclo: 1162, pct_buscador: 26.2, pct_libre: 15.6, pct_reinversion: 58.2,
+  comision_bruta: 304, comision_redondeada: 300, recuperacion_aplicada: 0,
+  pago_buscador: 300, libre_ernesto: 181, reinversion_fondo: 681, regla_redondeo: "decena_5_baja", es_proyeccion: false };
+const estadoMN3 = { rol: "ernesto", capital_total: 42700, saldo_fondo: 157, saldo_gasto: 1260,
+  saldo_inventario: 14, saldo_ernesto_inversion: 15740, entregas: [],
+  asignaciones: [ { buscador: "BRIKU-EUX", porciento: 32 } ],
+  estrellas: [], ganancias: { por_buscador: [] }, vueltas_abiertas: [],
+  devoluciones_pendientes: [], ventas_recientes: [], cuadre: { ok: true, total_libro: 45595 },
+  conversiones: [], alertas_tope: [], recuperaciones: [], pagos_buscadores: [] };
+const preMN3 = { codigo: adminValido, foto: { reportes: [], ayudas: [], usuarios: [], datos: datosPublicados, cuando: "", publicar: [], borrados: [], tarifaPanel: null, mercado: null }, cola: [], sellos: {}, tarifaViva: null, tarifaVivaEn: "", publicarPendiente: null };
+async function ciclosTxtMN3(liqs){
+  R.dineroEstado = estadoMN3;
+  R.ciclosResp = { ok: true, liquidaciones: liqs };
+  const v = crear({ preState: preMN3 });
+  const d = v.w.document;
+  await sleep(600);
+  v.w.irA("Dinero");
+  await sleep(500);
+  const el = d.getElementById("dnCiclos");
+  const txt = el ? el.textContent : "";
+  const cadenas = el ? el.querySelectorAll(".repCadena").length : 0;
+  v.w.close();
+  R.dineroEstado = null; R.ciclosResp = null;
+  return { txt: txt, cadenas: cadenas };
+}
+{
+  /* A · 4 liquidaciones de UNA entrega, solo la portadora trae bloques */
+  const a = await ciclosTxtMN3([
+    liqMN3("mn3-a1", "2026-11-15T18:11:02Z"),
+    liqMN3("mn3-a2", "2026-11-15T18:11:06Z"),
+    liqMN3("mn3-a3", "2026-11-15T23:01:48Z"),
+    liqMN3("mn3-a4", "2026-11-15T23:01:53Z", { reparto_portador: true, reparto: repartoMN3,
+      por_recuperar: { total: 50, recuperado: 20, restante: 30, ritmo: 25 },
+      tope: { capital_entrega: 15000, capital_comprado: 15000, capital_restante: 0, excedido: false } }) ]);
+  const nReparto = (a.txt.match(/Reparto de este ciclo/g) || []).length;
+  ok(nReparto === 1 && a.cadenas === 2, "CD-19 MN3 con 4 liquidaciones de una entrega, el reparto se renderiza UNA vez (solo la portadora: 1 cadena de reparto + 1 de por-recuperar)");
+  ok(a.txt.includes("Reinversión acreditada al fondo por estos ciclos") && a.txt.includes("681") && !a.txt.includes("2.724"), "CD-20 MN3 la reinversión acreditada suma SOLO la portadora: 681, no 4×681 = 2.724");
+  ok((a.txt.match(/Por recuperar de este buscador/g) || []).length === 1 && (a.txt.match(/Tope del ciclo/g) || []).length === 1, "CD-21 MN3 por_recuperar y tope también se pintan UNA vez por entrega (los de la portadora)");
+  ok(a.txt.includes("Pago final al buscador") && a.txt.includes("300"), "CD-22 MN3 con es_proyeccion:false el pago se nombra firme: «Pago final al buscador» 300");
+
+  /* B · payload viejo: reparto presente pero SIN portadora → cero bloques */
+  const viejo = liqMN3("mn3-b1", "2026-11-15T18:11:02Z", { reparto: repartoMN3,
+    por_recuperar: { total: 50, recuperado: 20, restante: 30, ritmo: 25 },
+    tope: { capital_entrega: 15000, capital_comprado: 15000, capital_restante: 0, excedido: false } });
+  delete viejo.reparto_portador;
+  const b = await ciclosTxtMN3([ viejo,
+    liqMN3("mn3-b2", "2026-11-15T18:11:06Z", { reparto: repartoMN3 }) ]);
+  ok(b.cadenas === 0 && !b.txt.includes("Reparto de este ciclo") && !b.txt.includes("Reinversión acreditada") && !b.txt.includes("Por recuperar de este buscador") && !b.txt.includes("Tope del ciclo"), "CD-23 MN3 sin portadora en el payload (payload viejo), cero bloques de reparto/por-recuperar/tope y cero reinversión sumada: se degrada sin inventar");
+
+  /* C · ciclo abierto: es_proyeccion:true → «proyección», nunca pago firme */
+  const c = await ciclosTxtMN3([
+    liqMN3("mn3-c1", "2026-11-17T10:00:00Z", { reparto_portador: true,
+      reparto: { ganancia_ciclo: 84, pct_buscador: 26.2, pct_libre: 15.6, pct_reinversion: 58.2,
+        comision_bruta: 22, comision_redondeada: 20, recuperacion_aplicada: 0,
+        pago_buscador: 20, libre_ernesto: 13, reinversion_fondo: 51, regla_redondeo: "decena_5_baja", es_proyeccion: true } }) ]);
+  ok(c.txt.includes("proyección") && c.txt.includes("Pago proyectado al buscador") && !c.txt.includes("Pago final al buscador"), "CD-24 MN3 el reparto de ciclo abierto se nombra «proyección» («Pago proyectado al buscador») y jamás pago firme");
+}
+
+/* ===== MN4 · CIERRE DE LA SUPERVISORA RONDA 2 (2026-11-17):
+   (1) el fixture de archivo payload-portadora-briku-2026-11-17.json
+   dejó de ser un derivado: es CAPTURA VIVA COMPLETA post-S2 (11
+   liquidaciones por dinero_ciclo_json vía Management API) — la
+   portadora de la entrega de 15.000 es 542c809a (no eca67120) y el
+   por_recuperar de las portadoras es {recuperado 0, restante 50}.
+   (2) La «Reinversión acreditada» suma SOLO portadoras con
+   es_proyeccion === false; la proyectada del ciclo abierto va en
+   línea aparte y nombrada «proyectada». ===== */
+{
+  const fxMN4 = JSON.parse(fs.readFileSync(REPO + "bancos/fixtures/payload-portadora-briku-2026-11-17.json", "utf8"));
+  const liqsFX = (fxMN4.liquidaciones || []).map(function(e){
+    return Object.assign({}, e.ciclo, { liquidacion_id: e.lid, buscador: e.buscador, tipo: e.tipo,
+      creada_en: String(e.creada_en).replace(" ", "T").replace("+00", "Z"),
+      capital_cup: e.capital_cup, entrega_id: e.entrega_id, es_prueba: false });
+  });
+  const porEntregaFX = {};
+  liqsFX.forEach(function(x){ (porEntregaFX[x.entrega_id] = porEntregaFX[x.entrega_id] || []).push(x); });
+  const portsFX = liqsFX.filter(function(x){ return x.reparto_portador === true; });
+  const sumaCerradasFX = portsFX.filter(function(x){ return x.reparto && x.reparto.es_proyeccion === false; })
+    .reduce(function(s, x){ return s + Number(x.reparto.reinversion_fondo || 0); }, 0);
+  ok(liqsFX.length === 11 && Object.keys(porEntregaFX).length === 4
+    && Object.keys(porEntregaFX).every(function(k){ return porEntregaFX[k].filter(function(x){ return x.reparto_portador === true; }).length === 1; })
+    && (fxMN4.portadoras || {})["e8d6a0de-9c50-4291-a930-93b02166bca9"] === "542c809a-228b-4dc3-a569-c5bc48e9fec9"
+    && portsFX.every(function(x){ return x.por_recuperar && x.por_recuperar.recuperado === 0 && x.por_recuperar.restante === 50; })
+    && sumaCerradasFX === 1237,
+    "CD-25 MN4 el fixture de archivo es la captura viva completa: 11 liquidaciones · 4 entregas · 1 portadora por entrega · la de 15.000 es 542c809a · por_recuperar {0/50} en las portadoras · Σ reinversión de portadoras cerradas = 1.237");
+  const dFX = await ciclosTxtMN3(liqsFX);
+  ok(dFX.txt.includes("Reinversión acreditada al fondo por estos ciclos") && dFX.txt.includes("1.237") && !dFX.txt.includes("1.288"),
+    "CD-26 MN4 con el fixture vivo completo, la reinversión ACREDITADA excluye la proyección del ciclo abierto: 1.237 (212+344+681 de las portadoras cerradas), no 1.288");
+  ok(dFX.txt.includes("Reinversión proyectada") && dFX.txt.includes("todavía no acreditada"),
+    "CD-27 MN4 la reinversión del ciclo abierto (51) se enseña en línea aparte y nombrada «proyectada» (todavía no acreditada), nunca bajo el rótulo de acreditada");
+}
+
+/* ===== V43 · REGISTRAR GASTO (CHEQUEO 135) + ANALISTA VISIBLE
+   (CHEQUEO 136): el botón de la maqueta por fin existe y llama a
+   dinero_registrar_gasto_idem; el segmento fijo Asesor|Analista
+   arriba de las dos vistas del Mercado; deep link ?tab=Analista. */
+{
+  R.dineroEstado = { rol: "ernesto", capital_total: 42700, saldo_fondo: 157, saldo_gasto: 1260,
+    saldo_inventario: 14, saldo_ernesto_inversion: 15740, entregas: [], asignaciones: [],
+    estrellas: [], ganancias: { por_buscador: [] }, vueltas_abiertas: [],
+    devoluciones_pendientes: [], ventas_recientes: [], cuadre: { ok: true, total_libro: 45595 },
+    conversiones: [], pagos_buscadores: [] };
+  R.gastoResp = { ok: true, duplicado: false, saldo_gasto: 760 };
+  const preG = { codigo: adminValido, foto: { reportes: [], ayudas: [], usuarios: [], datos: datosPublicados, cuando: "", publicar: [], borrados: [], tarifaPanel: null, mercado: null }, cola: [], sellos: {}, tarifaViva: null, tarifaVivaEn: "", publicarPendiente: null };
+  const { w } = crear({ preState: preG });
+  await sleep(700);
+  const d = w.document;
+  const btnG = d.getElementById("inRegGasto");
+  ok(!!btnG && d.getElementById("inGasto") && d.getElementById("inGasto").textContent.includes("MI GASTO"), "V43-G1 la tarjeta «Mi gasto» de Inicio trae el botón «Registrar gasto» (CHEQUEO 135)");
+  if (btnG) click(btnG);
+  await sleep(200);
+  ok(d.getElementById("hojaFondo").style.display === "block" && !!d.getElementById("gMonto") && !!d.getElementById("gNota") && !!d.getElementById("gMedio"), "V43-G2 la hoja de gasto abre con monto, nota opcional y medio");
+  ok((d.getElementById("hojaTxt") || {}).textContent.includes("puedes gastar"), "V43-G2b la hoja enseña cuánto puedes gastar hoy según el libro");
+  const btnConf = () => d.getElementById("hojaBtns").querySelector("button");
+  /* monto mayor que el libre: rechazo local humano, sin tocar el servidor */
+  input(d.getElementById("gMonto"), "2000");
+  click(btnConf());
+  await sleep(200);
+  const errG = d.getElementById("gErr");
+  ok(errG && errG.style.display === "block" && errG.textContent.includes("pasa de lo que hoy puedes gastar"), "V43-G3 monto mayor que el libre: error humano en la hoja");
+  ok(!llamadas.includes("rpc:dinero_registrar_gasto_idem"), "V43-G3b el rechazo local NO llama al servidor");
+  /* registro válido: el cuerpo lleva monto/nota/medio y su cliente_id */
+  input(d.getElementById("gMonto"), "500");
+  input(d.getElementById("gNota"), "Banco v43");
+  click(btnConf());
+  await sleep(400);
+  ok(llamadas.includes("rpc:dinero_registrar_gasto_idem"), "V43-G4 el registro válido llama a dinero_registrar_gasto_idem");
+  const cuerpoG = ultimosCuerpos["dinero_registrar_gasto_idem"] || {};
+  ok(cuerpoG.p_monto === 500 && cuerpoG.p_concepto === "Banco v43" && cuerpoG.p_medio === "efectivo" && typeof cuerpoG.p_cliente_id === "string" && cuerpoG.p_cliente_id.length > 0, "V43-G4b el cuerpo trae monto, nota, medio y el cliente_id de idempotencia");
+  ok(d.getElementById("hojaFondo").style.display !== "block", "V43-G4c al guardar, la hoja se cierra");
+  ok((d.getElementById("toast") || {}).textContent.includes("Gasto registrado") && (d.getElementById("toast") || {}).textContent.includes("760"), "V43-G4d el toast confirma y dice el nuevo libre que devolvió el servidor");
+  /* duplicado: el servidor avisa que ya existía y la app lo dice sin celebrar dos veces */
+  R.gastoResp = { ok: true, duplicado: true, saldo_gasto: 760 };
+  const btnG2 = d.getElementById("inRegGasto");
+  if (btnG2) click(btnG2);
+  await sleep(200);
+  input(d.getElementById("gMonto"), "100");
+  click(btnConf());
+  await sleep(400);
+  ok((d.getElementById("toast") || {}).textContent.includes("no se duplicó"), "V43-G5 si el servidor responde duplicado, el toast lo dice: no se duplicó");
+  const cuerpoG2 = ultimosCuerpos["dinero_registrar_gasto_idem"] || {};
+  ok(cuerpoG2.p_cliente_id && cuerpoG2.p_cliente_id !== cuerpoG.p_cliente_id, "V43-G5b cada operación nueva nace con un cliente_id nuevo (el reintento de LA MISMA reusa el suyo)");
+  /* el servidor rechaza por insuficiente: mensaje humano, hoja abierta */
+  R.gastoResp = null; R.gastoFalla = "insuficiente";
+  const btnG3 = d.getElementById("inRegGasto");
+  if (btnG3) click(btnG3);
+  await sleep(200);
+  input(d.getElementById("gMonto"), "100");
+  click(btnConf());
+  await sleep(400);
+  const errG6 = d.getElementById("gErr");
+  ok(errG6 && errG6.textContent.includes("pasa de tu gasto libre") && d.getElementById("hojaFondo").style.display === "block", "V43-G6 rechazo del servidor (insuficiente): error humano y la hoja sigue abierta pa corregir");
+  /* sin red: error humano, nada se da por guardado */
+  R.gastoFalla = "red";
+  click(btnConf());
+  await sleep(400);
+  const errG7 = d.getElementById("gErr");
+  ok(errG7 && errG7.textContent.includes("No llegó la confirmación"), "V43-G7 sin red: error humano y honesto (no afirma que no se guardó: la confirmación es lo que falta)");
+  /* G8 · el folio es PEGAJOSO entre aperturas (supervisora ronda 1):
+     tras el fallo sin red, el folio quedó en localStorage; al cerrar
+     y reabrir la hoja se reusa EL MISMO y el éxito lo limpia. */
+  const folioG = w.localStorage.getItem("mn_gasto_folio_v1");
+  const cuerpoG7 = ultimosCuerpos["dinero_registrar_gasto_idem"] || {};
+  ok(!!folioG && folioG === cuerpoG7.p_cliente_id, "V43-G8 tras un intento sin confirmar, el folio queda guardado en el teléfono y es el que se envió");
+  const btnsHoja = d.getElementById("hojaBtns").querySelectorAll("button");
+  if (btnsHoja[1]) click(btnsHoja[1]);
+  await sleep(150);
+  R.gastoFalla = null; R.gastoResp = { ok: true, duplicado: true, saldo_gasto: 1160 };
+  const btnG4 = d.getElementById("inRegGasto");
+  if (btnG4) click(btnG4);
+  await sleep(200);
+  ok((d.getElementById("hojaTxt") || {}).textContent.includes("sin confirmar"), "V43-G8b al reabrir con un folio pendiente, la hoja avisa que se reintenta con el mismo folio");
+  input(d.getElementById("gMonto"), "100");
+  click(btnConf());
+  await sleep(400);
+  const cuerpoG8 = ultimosCuerpos["dinero_registrar_gasto_idem"] || {};
+  ok(cuerpoG8.p_cliente_id === folioG, "V43-G8c el reintento tras reabrir reusa EL MISMO folio: el servidor responde duplicado, no cobra dos veces");
+  ok(w.localStorage.getItem("mn_gasto_folio_v1") === null, "V43-G8d con la confirmación del servidor, el folio se limpia");
+  /* G9 · la huella del folio: cambiar los datos de un registro sin
+     confirmar avisa (si aquel entró, este sería OTRO gasto) y solo
+     el segundo toque, consciente, acuña un folio nuevo. */
+  R.gastoFalla = "red";
+  const btnG5 = d.getElementById("inRegGasto");
+  if (btnG5) click(btnG5);
+  await sleep(200);
+  input(d.getElementById("gMonto"), "100");
+  click(btnConf());
+  await sleep(300);
+  const folioG9 = w.localStorage.getItem("mn_gasto_folio_v1");
+  const btnsH9 = d.getElementById("hojaBtns").querySelectorAll("button");
+  if (btnsH9[1]) click(btnsH9[1]);
+  await sleep(150);
+  R.gastoFalla = null; R.gastoResp = { ok: true, duplicado: false, saldo_gasto: 960 };
+  const btnG6 = d.getElementById("inRegGasto");
+  if (btnG6) click(btnG6);
+  await sleep(200);
+  input(d.getElementById("gMonto"), "200");
+  const llamadasAntes9 = llamadas.filter(u => u.includes("dinero_registrar_gasto_idem")).length;
+  click(btnConf());
+  await sleep(250);
+  const errG9 = d.getElementById("gErr");
+  ok(errG9 && errG9.textContent.includes("OTRO gasto"), "V43-G9 cambiar el monto de un registro sin confirmar avisa: si aquel entró, este sería OTRO gasto");
+  ok(llamadas.filter(u => u.includes("dinero_registrar_gasto_idem")).length === llamadasAntes9, "V43-G9b el aviso no envía nada: el segundo toque es la confirmación consciente");
+  click(btnConf());
+  await sleep(400);
+  const cuerpoG9 = ultimosCuerpos["dinero_registrar_gasto_idem"] || {};
+  ok(!!folioG9 && cuerpoG9.p_cliente_id && cuerpoG9.p_cliente_id !== folioG9 && cuerpoG9.p_monto === 200, "V43-G9c al confirmar el cambio, nace un folio NUEVO pa el gasto nuevo");
+  R.gastoResp = null;
+  /* --- el Analista visible: segmento fijo en las dos vistas --- */
+  w.irA("Mercado");
+  await sleep(500);
+  const pgM = d.getElementById("pgMercado"), pgT = d.getElementById("pgTerminal");
+  const segM = pgM.querySelectorAll("[data-vista-mercado]");
+  ok(segM.length === 2 && pgM.firstElementChild && pgM.firstElementChild.classList.contains("t1SegSeccion"), "V43-B1 al entrar a Mercado, el segmento Asesor|Analista va PRIMERO, arriba de todo (CHEQUEO 136)");
+  ok(segM[0] && segM[0].classList.contains("on") && segM[0].textContent.includes("Asesor") && segM[1] && segM[1].textContent.includes("Analista"), "V43-B1b en la vista del Asesor, su botón va encendido y el otro dice «Analista»");
+  if (segM[1]) click(segM[1]);
+  await sleep(400);
+  ok(pgT.style.display !== "none" && pgM.style.display === "none", "V43-B2 un toque en «Analista» cambia a la vista de las gráficas (Terminal)");
+  const segT = pgT.querySelectorAll("[data-vista-mercado]");
+  ok(segT.length === 2 && segT[1].classList.contains("on") && pgT.firstElementChild && pgT.firstElementChild.classList.contains("t1SegSeccion"), "V43-B2b la vista del Analista trae el mismo segmento fijo arriba, con «Analista» encendido");
+  if (segT[0]) click(segT[0]);
+  await sleep(400);
+  ok(pgM.style.display !== "none" && pgT.style.display === "none", "V43-B3 un toque en «Asesor» vuelve a la vista del Asesor");
+  w.close();
+  R.dineroEstado = null; R.gastoResp = null; R.gastoFalla = null;
+}
+/* ===== V43 · DEEP LINKS DEL ANALISTA: ?tab=Analista llega a la
+   Terminal y ?tab=Terminal (el de siempre) no se rompe ===== */
+{
+  const preDL = { codigo: adminValido, foto: { reportes: [], ayudas: [], usuarios: [], datos: datosPublicados, cuando: "", publicar: [], borrados: [], tarifaPanel: null, mercado: null }, cola: [], sellos: {}, tarifaViva: null, tarifaVivaEn: "", publicarPendiente: null };
+  const rA = crear({ preState: preDL, url: "https://ernesto5058.github.io/calculadora-ernesto/minegocio/?tab=Analista" });
+  await sleep(700);
+  ok(rA.w.document.getElementById("pgTerminal").style.display !== "none", "V43-B4 ?tab=Analista abre directo la vista del Analista (CHEQUEO 136)");
+  rA.w.close();
+  const rT = crear({ preState: preDL, url: "https://ernesto5058.github.io/calculadora-ernesto/minegocio/?tab=Terminal" });
+  await sleep(700);
+  ok(rT.w.document.getElementById("pgTerminal").style.display !== "none", "V43-B5 ?tab=Terminal (el enlace de siempre) sigue llegando a la Terminal");
+  rT.w.close();
+}
+
+/* ===== V43 · LA TERMINAL NO REINTENTA EN BUCLE (CHEQUEO 137):
+   con la puerta caída, entrar a la Terminal asienta en su tarjeta
+   de error con UN intento — el render no puede re-disparar la
+   carga (antes: bucle de microtareas que colgaba hasta el banco). */
+{
+  R.termFalla = true;
+  const preT = { codigo: adminValido, foto: { reportes: [], ayudas: [], usuarios: [], datos: datosPublicados, cuando: "", publicar: [], borrados: [], tarifaPanel: null, mercado: null }, cola: [], sellos: {}, tarifaViva: null, tarifaVivaEn: "", publicarPendiente: null };
+  const { w } = crear({ preState: preT });
+  await sleep(600);
+  w.irA("Terminal");
+  await sleep(1500);
+  const d = w.document;
+  const intentos = llamadas.filter(u => u.includes("rpc:guia_terminal")).length;
+  ok(intentos >= 1 && intentos <= 2, "V43-T1 con la puerta caída, la Terminal intenta una vez y se asienta (" + intentos + " intento/s, no un bucle)");
+  const txtTerm = d.getElementById("pgTerminal").textContent;
+  ok((txtTerm.includes("Sin conexión con la puerta de la Terminal") || txtTerm.includes("Falta activar el paquete")) && !txtTerm.includes("Leyendo la Terminal"), "V43-T2 la tarjeta de error de la Terminal se lee, tranquila y asentada (no se queda en «Leyendo…»), sin reintentos");
+  w.close();
+  R.termFalla = false;
 }
 
 console.log("\nBANCO MI NEGOCIO: " + pass + " PASS · " + fail + " FAIL");

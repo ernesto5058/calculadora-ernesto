@@ -1563,6 +1563,10 @@ function ejecutarAccion(a){
     case "editarChat": return rpc("editarMensaje", { p_codigo: "ADMIN", p_id: a.id, p_texto: a.texto });
     case "pagado": return rpc("marcarPagado", { p_codigo: cod, p_id: a.id });
     case "entregarCapital": return rpc("dineroEntregar", { p_codigo: cod, p_buscador: a.buscador, p_monto: a.monto, p_bolsillo: "efectivo", p_cliente_id: a.opId, p_prueba: false });
+    case "smsAtribuir": return rpc("dineroSmsAtribuir", { p_codigo: cod, p_sms_id: a.smsId, p_tipo: a.tipoAtr, p_buscador_codigo: a.buscador || null, p_pago_cup: (a.pago != null ? a.pago : null), p_qusd: (a.qusd != null ? a.qusd : null), p_folio: a.opId, p_posible_espera_id: a.posibleEsperaId || null })
+      .then(function(r){ cargarSinAtribuirMN(); return r; });
+    case "smsDesatribuir": return rpc("dineroSmsDesatribuir", { p_codigo: cod, p_sms_id: a.smsId, p_folio: a.opId })
+      .then(function(r){ cargarSinAtribuirMN(); return r; });
     case "confirmarDevolucion": return rpc("dineroConfirmar", { p_codigo: cod, p_devolucion: a.id });
     case "rechazarDevolucion": return rpc("dineroRechazar", { p_codigo: cod, p_devolucion: a.id });
     case "prueba": return rpc("marcarPrueba", { p_codigo: cod, p_id: a.id, p_prueba: a.prueba });
@@ -2024,6 +2028,8 @@ function descOp(a){
     case "editarChat": return "Editar un mensaje";
     case "pagado": return "Marcar comisión pagada";
     case "entregarCapital": return "Entregar capital a " + (nombreDe(a.buscador) || a.buscador || "");
+    case "smsAtribuir": return "Atribuir una recarga recibida";
+    case "smsDesatribuir": return "Deshacer una atribución de recarga";
     case "confirmarDevolucion": return "Confirmar devolución recibida";
     case "rechazarDevolucion": return "Rechazar una devolución";
     case "prueba": return "Marcar / quitar marca de prueba";
@@ -2786,7 +2792,7 @@ registrarModulo({
     }
     h += '<div class="card"><h3><span class="secIco">' + icono("reloj") + '</span>Estado de los datos</h3>'
       + '<div class="kv">' + (online ? "En línea: datos frescos de ahora." : (selloTexto("bandeja") + ".")) + '</div></div>';
-    el.innerHTML = heroInicioHtml() + promoInicioHtml() + conversionesInicioHtml() + enviarQusdHtml() + h + accesosInicioHtml() + novedadesInicioHtml() + bloqueSemaforoHtml() + bloqueCuentasHtml() + bloqueAvisosHtml()
+    el.innerHTML = heroInicioHtml() + recargasSinAtribuirHtml() + promoInicioHtml() + conversionesInicioHtml() + enviarQusdHtml() + h + accesosInicioHtml() + novedadesInicioHtml() + bloqueSemaforoHtml() + bloqueCuentasHtml() + bloqueAvisosHtml()
       + '<div class="mut" style="text-align:center;padding:6px 0 2px">' + selloVersion() + '</div>';
     pintarResumenQv();
     var rb = $("inReintentar");
@@ -2796,9 +2802,16 @@ registrarModulo({
     });
     var bRegG = $("inRegGasto");
     if (bRegG) bRegG.addEventListener("click", function(){ formRegistrarGasto(); });
+    el.querySelectorAll("[data-smsabr]").forEach(function(n){
+      n.addEventListener("click", function(){ formAtribuirSms(n.getAttribute("data-smsabr")); });
+    });
+    el.querySelectorAll("[data-smsconfirmar]").forEach(function(n){
+      n.addEventListener("click", function(ev){ if (ev) ev.stopPropagation(); confirmarEsperaSmsMN(n.getAttribute("data-smsconfirmar")); });
+    });
   },
   alMostrar: function(){
     if (actividadCache === null) cargarActividad();
+    cargarSinAtribuirMN();
     if (avisosHistCache === null) cargarAvisosHist();
     if (!mercadoGuiaMN && !mercadoCargandoMN) cargarMercadoMN();
     cargarContactosQva();
@@ -5675,6 +5688,9 @@ PUERTAS.marcarPrueba = "admin_marcar_prueba";
 PUERTAS.generarCierre = "admin_generar_cierre";
 PUERTAS.cierres = "admin_cierres";
 PUERTAS.actividad = "admin_actividad";
+PUERTAS.dineroSmsSinAtribuir = "dinero_sms_sin_atribuir";
+PUERTAS.dineroSmsAtribuir = "dinero_sms_atribuir";
+PUERTAS.dineroSmsDesatribuir = "dinero_sms_desatribuir";
 PUERTAS.registrarPushAdmin = "registrar_push_admin";
 
 /* ===== «YA PAGUÉ» (Bandeja) ===== */
@@ -5958,6 +5974,15 @@ function actividadFrase(a){
       return "Un intento de vincular Telegram FALLÓ (por " + (d.via === "codigo" ? "código" : "enlace") + "). Nadie quedó vinculado; si no fuiste tú, revísalo.";
     case "analista_accion":
       return d.ok ? "El Analista creó la oferta en QvaPay desde el botón de Telegram: las barandas la dejaron pasar." : "El Analista NO creó la oferta desde Telegram: las barandas la frenaron o QvaPay la rechazó (el detalle técnico lo dice).";
+    case "sms_atribuida": {
+      var queA = d.tipo === "mia" ? "fue tuya (efectivo)"
+        : d.tipo === "buscador" ? "fue de " + (d.buscador ? actividadNombre(d.buscador) : "un buscador")
+        : d.tipo === "qvapay" ? "entró por QvaPay" + (d.qusd != null ? " (" + fmt(Number(d.qusd)) + " QUSD)" : "")
+        : "no era compra";
+      return "Atribuiste la recarga de " + fmtSaldoMN(Number(d.monto_saldo || 0)) + " de saldo del " + (d.contraparte || "—") + ": " + queA + (d.pago_cup != null ? " · pago " + fmtE(Number(d.pago_cup)) + " CUP" : "") + ".";
+    }
+    case "sms_desatribuida":
+      return "Deshiciste una atribución de recarga" + (d.pago_cup != null ? " (pago " + fmtE(Number(d.pago_cup)) + " CUP)" : "") + ": la recarga volvió a quedar sin atribuir.";
     default: {
       var limpio = String(a.accion || "evento").replace(/_/g, " ");
       return "Evento del sistema: " + limpio.charAt(0).toUpperCase() + limpio.slice(1) + ". (Tipo nuevo: su detalle técnico está en «ver detalle».)";
@@ -5974,9 +5999,16 @@ registrarModulo({
     if (actividadCache === null) h += '<div class="card"><div class="mut">Cargando actividad…</div></div>';
     else if (!actividadCache.length) h += '<div class="card"><div class="mut">Sin actividad registrada todavía (o falta pegar el paquete SQL único).</div></div>';
     else h += '<div class="card">' + actividadCache.map(function(a, i){
+      var dA = a.detalle || {};
+      var desA = "";
+      if (a.accion === "sms_atribuida" && dA.sms_id != null && sinAtribuirMN
+          && sinAtribuirMN.atribuidas.some(function(x){ return String(x.sms_id) === String(dA.sms_id); })
+          && !smsEnColaMN(dA.sms_id, "smsDesatribuir")) {
+        desA = ' <button class="bGhost bMini" data-acdeshacer="' + dA.sms_id + '">Deshacer</button>';
+      }
       return '<div class="kv actFila"><b>' + esc(actividadFrase(a)) + '</b>'
         + '<div class="mut">' + esc(actividadQuien(a.quien)) + " · " + esc(etiquetaFecha(a.creado_en)) + " · " + horaDe(a.creado_en) + "</div>"
-        + '<button class="bGhost bMini" data-acdet="' + i + '">ver detalle</button>'
+        + '<button class="bGhost bMini" data-acdet="' + i + '">ver detalle</button>' + desA
         + '<div class="mut actDet" id="acDet' + i + '" style="display:none">' + esc(JSON.stringify(a.detalle || {})) + "</div></div>";
     }).join("") + "</div>";
     el.innerHTML = h;
@@ -5989,8 +6021,16 @@ registrarModulo({
         btn.textContent = abierto ? "ver detalle" : "ocultar detalle";
       });
     });
+    el.querySelectorAll("[data-acdeshacer]").forEach(function(btn){
+      btn.addEventListener("click", function(){
+        encolar({ tipo: "smsDesatribuir", smsId: Number(btn.getAttribute("data-acdeshacer")) });
+        toast("✅ Atribución deshecha en este teléfono: se revierte al sincronizar.");
+        despacharCola();
+        var m2 = modulo("Actividad"); if (m2) m2.render();
+      });
+    });
   },
-  alMostrar: function(){ cargarActividad(); }
+  alMostrar: function(){ cargarActividad(); cargarSinAtribuirMN(); }
 });
 
 /* ===== MÓDULO TEXTOS (motor IA en el servidor) =====
@@ -6977,6 +7017,156 @@ function enviarGastoMN(btn){
     else if (/codigo/i.test(m)) falla("Tu código no se reconoció en el servidor: sal y vuelve a entrar.");
     else falla("No llegó la confirmación del servidor. Tu folio quedó guardado en este teléfono: al reintentar se usa el mismo y el gasto entra una sola vez, aunque el primer intento sí haya llegado.");
   });
+}
+/* ===== Recargas sin atribuir (v44): el SMS que entró sin parte
+   previo ya no queda flotando. La sección vive en Inicio, bajo el
+   Fondo y Mi gasto, y SOLO se pinta si hay ≥1 pendiente (vacía =
+   no existe en pantalla). La hoja es la misma del gasto v43
+   (hojaTit/hojaTxt/hojaBtns, bGold/bGhost) y el envío va por la
+   cola offline de siempre con su folio (el opId): la fila se
+   oculta al momento (optimista) y el servidor asienta por los
+   rieles de dinero cuando la cola despacha; si la puerta falla,
+   la acción queda pendiente y visible en «Pendientes de enviar»,
+   jamás un sello fantasma. ===== */
+var sinAtribuirMN = null, sinAtribuirCargandoMN = false;
+function cargarSinAtribuirMN(){
+  if (!state.codigo || sinAtribuirCargandoMN) return;
+  sinAtribuirCargandoMN = true;
+  rpc("dineroSmsSinAtribuir", { p_codigo: state.codigo }).then(function(r){
+    sinAtribuirCargandoMN = false;
+    if (r && r.ok !== false) sinAtribuirMN = { pendientes: r.pendientes || [], atribuidas: r.atribuidas || [] };
+    pintarInicioSiVisible();
+    var m = modulo("Actividad"); if (m && tabActual === "Actividad") m.render();
+  }).catch(function(){ sinAtribuirCargandoMN = false; });
+}
+function smsEnColaMN(smsId, tipo){
+  return (state.cola || []).some(function(a){ return a && a.tipo === tipo && String(a.smsId) === String(smsId); });
+}
+function sinAtribuirVisiblesMN(){
+  if (!sinAtribuirMN) return [];
+  return sinAtribuirMN.pendientes.filter(function(f){ return !smsEnColaMN(f.sms_id, "smsAtribuir"); });
+}
+/* Redondeo de la casa: a la decena más cercana, el 5 hacia abajo
+   (la misma regla del libro; las sobras son del sistema, aquí
+   solo se sugiere el pago por defecto). */
+function redondeoCasaMN(x){
+  x = Math.round(Number(x) || 0);
+  var r = x % 10, base = x - r;
+  return r > 5 ? base + 10 : base;
+}
+function pagoSugeridoMN(monto){ return redondeoCasaMN(Number(monto || 0) / 360 * 1000); }
+function qusdSugeridoMN(monto){
+  var f = mercadoFotoMN;
+  if (f && Number(f.nivel20) > 0) return Math.round(Number(monto || 0) / Number(f.nivel20) * 100) / 100;
+  return null;
+}
+function buscadoresConCicloMN(){
+  var porCod = {};
+  ((dineroFotoMN && dineroFotoMN.entregas) || []).forEach(function(e){
+    if (!e.buscador) return;
+    if (!porCod[e.buscador]) porCod[e.buscador] = { cod: e.buscador, nombre: actividadNombre(e.buscador) || e.buscador, pendiente: 0 };
+    porCod[e.buscador].pendiente += Math.max(0, Number(e.pendiente || 0));
+  });
+  return Object.keys(porCod).map(function(k){ return porCod[k]; }).filter(function(b){ return b.pendiente > 0; });
+}
+function recargasSinAtribuirHtml(){
+  var filas = sinAtribuirVisiblesMN();
+  if (!filas.length) return "";
+  var h = '<div class="card" id="inSinAtribuir"><h3><span class="secIco">' + icono("bandeja") + '</span>Recargas sin atribuir</h3>'
+    + '<div class="mut" style="margin-bottom:6px">Entraron por SMS y nadie las ha reclamado todavía: toca una y di de quién fue. Sin atribuir no cuentan en ningún capital.</div>';
+  var diaAnt = "";
+  filas.forEach(function(f){
+    var dia = etiquetaFecha(f.recibido_en);
+    if (dia !== diaAnt) { diaAnt = dia; h += '<div class="mut" style="margin:8px 0 2px">' + esc(dia) + '</div>'; }
+    h += '<div class="t1Fila" data-smsabr="' + f.sms_id + '" role="button" tabindex="0">'
+      + '<div class="t1Fic dor">' + icono("telefono") + '</div>'
+      + '<div class="cue"><div class="tit">+' + fmtSaldoMN(f.monto) + ' saldo · del ' + esc(f.contraparte || "—") + '</div>'
+      + '<div class="sub">Saldo tras la recarga: ' + fmtSaldoMN(f.saldo_principal) + '</div></div>'
+      + '<span class="hora">' + horaDe(f.recibido_en) + '</span></div>';
+    if (f.posible_espera_id) {
+      h += '<div class="kv" style="margin:2px 0 6px">¿Esta es la espera de <b>' + esc(actividadNombre(f.posible_buscador) || f.posible_buscador || "un buscador") + '</b>? '
+        + '<button class="bGold bMini" data-smsconfirmar="' + f.sms_id + '">Confirmar</button></div>';
+    }
+  });
+  return h + '</div>';
+}
+function confirmarEsperaSmsMN(smsId){
+  var fila = (sinAtribuirMN ? sinAtribuirMN.pendientes : []).filter(function(f){ return String(f.sms_id) === String(smsId); })[0];
+  if (!fila || !fila.posible_espera_id) return;
+  encolar({ tipo: "smsAtribuir", smsId: fila.sms_id, tipoAtr: "buscador", posibleEsperaId: fila.posible_espera_id });
+  toast("✅ Recarga marcada contra esa espera en este teléfono: se confirma al sincronizar.");
+  despacharCola();
+  pintarInicioSiVisible();
+}
+var atribFilaMN = null;
+function formAtribuirSms(smsId){
+  var fila = (sinAtribuirMN ? sinAtribuirMN.pendientes : []).filter(function(f){ return String(f.sms_id) === String(smsId); })[0];
+  if (!fila) return;
+  atribFilaMN = fila;
+  $("hojaTit").textContent = "¿De quién fue esta recarga?";
+  var tx = $("hojaTxt"); tx.style.display = "block";
+  var buscadores = buscadoresConCicloMN();
+  var sugQ = qusdSugeridoMN(fila.monto);
+  tx.innerHTML = '<div class="kv">Entraron <b>' + fmtSaldoMN(fila.monto) + ' de saldo</b> del <b>' + esc(fila.contraparte || "—") + '</b> · ' + esc(etiquetaFecha(fila.recibido_en)) + ', ' + horaDe(fila.recibido_en) + '. Tu saldo quedó en ' + fmtSaldoMN(fila.saldo_principal) + '.</div>'
+    + '<label for="aTipo">¿De quién fue?</label><select id="aTipo">'
+    + '<option value="mia">Fue mía (efectivo)</option>'
+    + '<option value="buscador">Fue de un buscador</option>'
+    + '<option value="qvapay">Fue por QvaPay (QUSD)</option>'
+    + '<option value="no_compra">No es compra</option></select>'
+    + '<div id="aBuscWrap"><label for="aBusc">Buscador</label><select id="aBusc">'
+    + (buscadores.length
+        ? buscadores.map(function(b){ return '<option value="' + esc(b.cod) + '">' + esc(b.nombre) + ' · en mano ' + fmtE(b.pendiente) + ' CUP</option>'; }).join("")
+        : '<option value="">Sin buscadores con ciclo abierto</option>')
+    + '</select></div>'
+    + '<div id="aPagoWrap"><label for="aPago">Pago (CUP)</label><input id="aPago" type="text" inputmode="numeric" value="' + pagoSugeridoMN(fila.monto) + '">'
+    + '<div class="ayuda">Ya calculado a tu tasa de la calle (1 000 por recarga de 360, con el redondeo de la casa). Ajústalo si pagaste otra cosa.</div></div>'
+    + '<div id="aQusdWrap" style="display:none"><label for="aQusd">QUSD que costó</label><input id="aQusd" type="text" inputmode="decimal" value="' + (sugQ != null ? String(sugQ).replace(".", ",") : "") + '">'
+    + '<div class="ayuda">' + (sugQ != null ? 'Sugerido con el nivel 20 vivo del libro (' + fmt(Number(mercadoFotoMN.nivel20)) + ' de saldo por QUSD). Ajústalo si te costó otro.' : 'Sin foto viva del libro: escribe el QUSD que te costó.') + '</div></div>'
+    + '<div class="kv" id="aErr" style="color:var(--rojo);display:none"></div>';
+  var cont = $("hojaBtns"); cont.innerHTML = "";
+  var b = document.createElement("button"); b.className = "bGold"; b.textContent = "Registrar";
+  b.addEventListener("click", function(){ enviarAtribucionMN(b); });
+  cont.appendChild(b);
+  var c = document.createElement("button"); c.className = "bGhost"; c.textContent = "Cancelar";
+  c.addEventListener("click", cerrarHoja); cont.appendChild(c);
+  $("hojaFondo").style.display = "block";
+  var sel = $("aTipo");
+  if (sel) sel.addEventListener("change", syncAtribucionMN);
+  syncAtribucionMN();
+}
+function syncAtribucionMN(){
+  var tipo = ($("aTipo") || {}).value || "mia";
+  var bw = $("aBuscWrap"), pw = $("aPagoWrap"), qw = $("aQusdWrap");
+  if (bw) bw.style.display = tipo === "buscador" ? "block" : "none";
+  if (pw) pw.style.display = tipo === "no_compra" ? "none" : "block";
+  if (qw) qw.style.display = tipo === "qvapay" ? "block" : "none";
+}
+function enviarAtribucionMN(btn){
+  var fila = atribFilaMN; if (!fila) return;
+  var err = $("aErr");
+  function falla(msg){ if (err) { err.textContent = msg; err.style.display = "block"; } }
+  var tipo = ($("aTipo") || {}).value || "mia";
+  var accion = { tipo: "smsAtribuir", smsId: fila.sms_id, tipoAtr: tipo };
+  if (tipo === "buscador") {
+    accion.buscador = ($("aBusc") || {}).value || "";
+    if (!accion.buscador) { falla("No hay buscador con ciclo abierto en el libro: primero entrégale capital o elige otra salida."); return; }
+  }
+  if (tipo !== "no_compra") {
+    var pago = Number(String(($("aPago") || {}).value || "").replace(/[^\d]/g, ""));
+    if (!pago || pago <= 0) { falla("Escribe el pago en pesos enteros (ej.: 2000)."); return; }
+    accion.pago = pago;
+  }
+  if (tipo === "qvapay") {
+    var q = Number(String(($("aQusd") || {}).value || "").replace(",", ".").replace(/[^\d.]/g, ""));
+    if (!q || q <= 0) { falla("Escribe el QUSD que te costó (ej.: 2,48)."); return; }
+    accion.qusd = q;
+  }
+  encolar(accion);
+  atribFilaMN = null;
+  cerrarHoja();
+  toast("✅ Recarga atribuida en este teléfono: se asienta sola al sincronizar.");
+  despacharCola();
+  pintarInicioSiVisible();
 }
 /* ===== Enviar QUSD (Inicio): la tarjeta prepara, tu dedo envía ===== */
 var contactosQvaMN = null; /* null sin pedir · "error" sin agenda · array agenda */
