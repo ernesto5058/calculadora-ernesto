@@ -79,7 +79,7 @@ jobs:
       ANDROID_SDK_ROOT: /home/runner/android-sdk
     steps:
       - name: Descargar el repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Descargar la APK del release
         id: apk
