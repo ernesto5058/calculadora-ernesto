@@ -18,7 +18,10 @@ import { fileURLToPath } from "url";
 
 const aqui = path.dirname(fileURLToPath(import.meta.url));
 const REPO = process.env.BANCO_REPO || path.resolve(aqui, "..");
-const SRC = process.env.MERCADO_SRC || path.resolve(REPO, "..", "mercado-src");
+const SRC = process.env.MERCADO_SRC
+  || [path.resolve(REPO, "..", "mercado-src"), path.resolve(REPO, "..", "..", "mercado-src")]
+    .find((p) => fs.existsSync(path.join(p, "app.js")))
+  || path.resolve(REPO, "..", "mercado-src");
 
 let pass = 0, fail = 0; const fails = [];
 function ok(c, n) { if (c) pass++; else { fail++; fails.push(n); console.log("FAIL:", n); } }
@@ -67,12 +70,17 @@ const carcasa = bloqApp ? depHtml.replace(bloqApp[0], "<!--SCRIPT-->") : "";
 ok(carcasa === plantilla, "P-2 carcasa del desplegado == index-sin-script.html con <!--SCRIPT-->");
 ok((plantilla.match(/<!--SCRIPT-->/g) || []).length === 1, "P-2 la plantilla tiene exactamente UNA marca <!--SCRIPT-->");
 
-// P-3: versiones y caché coherentes en v4 (bump de la Ola 3 de diseño, 2026-11-12).
-ok(/VERSION\s*=\s*"v4"/.test(ensamblar), "P-3 ensamblar.py declara VERSION = \"v4\"");
-ok(/CACHE\s*=\s*"mercado-v4"/.test(ensamblar), "P-3 ensamblar.py declara CACHE = \"mercado-v4\"");
-ok(depSw.includes('const CACHE = "mercado-v4";'), "P-3 el sw.js desplegado usa const CACHE = \"mercado-v4\"");
+// P-3: versiones y caché coherentes. La versión esperada se DERIVA de
+// ensamblar.py (la fuente de verdad), jamás se fija a mano en el banco:
+// fijarla en «v4» (Ola 3, 2026-11-12) dejó este banco en rojo en cuanto
+// la app subió a v5/v6, y el rojo falso escondía el estado real.
+const verDecl = (ensamblar.match(/VERSION\s*=\s*"([^"]+)"/) || [])[1] || null;
+const cacheDecl = (ensamblar.match(/CACHE\s*=\s*"([^"]+)"/) || [])[1] || null;
+ok(!!verDecl, "P-3 ensamblar.py declara VERSION");
+ok(!!cacheDecl, "P-3 ensamblar.py declara CACHE");
+ok(!!cacheDecl && depSw.includes(`const CACHE = "${cacheDecl}";`), `P-3 el sw.js desplegado usa la CACHE declarada (${cacheDecl})`);
 ok(!depSw.includes("§"), "P-3 el sw.js desplegado no conserva ningún marcador § sin estampar");
-ok(/Mercado · versión \d{4}-\d{2}-\d{2} \d{2}:\d{2} · caché v4/.test(depHtml), "P-3 el sello estampado en el desplegado es caché v4");
+ok(!!verDecl && new RegExp(`Mercado · versión \\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2} · caché ${verDecl}`).test(depHtml), `P-3 el sello estampado en el desplegado es caché ${verDecl}`);
 
 // P-4: dirección del dinero en la frase de empate.
 const MALA = "Tu tasa de empate del día: si vendes por encima de ella ganas; por debajo, pierdes.";
@@ -95,7 +103,12 @@ for (const [nombre, texto] of [["fuente", fuenteJs], ["desplegado", depHtml]]) {
    cachés de las demás apps. Prueba CONDUCTUAL: se ejecuta el activate
    real de cada SW contra una Cache Storage simulada con cachés propias
    viejas, la viva y varias AJENAS, y se anota qué borra de verdad. */
-const CACHES_ORIGEN = ["mercado-v2", "mercado-v3", "mercado-v4", "minegocio-v12", "minegocio-v13", "minegocio-v14", "mitrabajo-v18", "mitrabajo-v19", "mitrabajo-v20", "mitrabajo-v21", "mitrabajo-v22", "ajena-v1"];
+const CACHES_ORIGEN = ["mercado-v2", "mercado-v3", "mercado-v4", "mercado-v5", "mercado-v6", "minegocio-v12", "minegocio-v13", "minegocio-v14", "minegocio-v16", "minegocio-v30", "minegocio-v44", "minegocio-v45", "mitrabajo-v18", "mitrabajo-v19", "mitrabajo-v20", "mitrabajo-v21", "mitrabajo-v22", "mitrabajo-v23", "mitrabajo-v30", "mitrabajo-v38", "mitrabajo-v39", "ajena-v1"];
+// La caché viva de cada app se lee de SU propio sw.js y las «viejas» son
+// todas las del mismo prefijo presentes en el origen simulado: así el
+// barrido no caduca con cada bump de versión (la trampa de v4/v15/v22).
+const cacheVivaDe = (t) => (String(t || "").match(/CACHE\s*=\s*"([^"]+)"/) || [])[1] || null;
+const viejasDe = (viva) => { if (!viva) return []; const p = viva.split("-v")[0] + "-"; return CACHES_ORIGEN.filter((c) => c.startsWith(p) && c !== viva); };
 async function barridoSW(nombre, texto, cacheViva, esperado) {
   ok(typeof texto === "string" && texto.length > 0, `F-SW ${nombre}: existe su sw.js`);
   if (!texto) return;
@@ -129,10 +142,13 @@ async function barridoSW(nombre, texto, cacheViva, esperado) {
 }
 {
   const fuenteSw = leer(path.join(SRC, "sw.js"));
-  await barridoSW("Mercado desplegado", depSw, "mercado-v4", ["mercado-v2", "mercado-v3"]);
-  await barridoSW("Mercado fuente", fuenteSw && fuenteSw.replaceAll("§CACHE§", "mercado-v4"), "mercado-v4", ["mercado-v2", "mercado-v3"]);
-  await barridoSW("Mi Negocio", leer(path.join(REPO, "minegocio", "sw.js")), "minegocio-v15", ["minegocio-v12", "minegocio-v13", "minegocio-v14"]);
-  await barridoSW("Mi Trabajo", leer(path.join(REPO, "buscadores", "sw.js")), "mitrabajo-v22", ["mitrabajo-v18", "mitrabajo-v19", "mitrabajo-v20", "mitrabajo-v21"]);
+  const depCache = cacheVivaDe(depSw);
+  await barridoSW("Mercado desplegado", depSw, depCache, viejasDe(depCache));
+  await barridoSW("Mercado fuente", fuenteSw && cacheDecl && fuenteSw.replaceAll("§CACHE§", cacheDecl), cacheDecl, viejasDe(cacheDecl));
+  const mnSw = leer(path.join(REPO, "minegocio", "sw.js"));
+  await barridoSW("Mi Negocio", mnSw, cacheVivaDe(mnSw), viejasDe(cacheVivaDe(mnSw)));
+  const mtSw = leer(path.join(REPO, "buscadores", "sw.js"));
+  await barridoSW("Mi Trabajo", mtSw, cacheVivaDe(mtSw), viejasDe(cacheVivaDe(mtSw)));
 }
 
 console.log(`\nPARIDAD MERCADO: ${pass} PASS · ${fail} FAIL`);
