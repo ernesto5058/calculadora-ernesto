@@ -18,10 +18,10 @@ let pass = 0, fail = 0;
 function ok(c, n){ if (c) pass++; else { fail++; console.log("FAIL:", n); } }
 
 /* ---- Sellos de la tanda ---- */
-ok(/var APP_VERSION = "1\.5\.4"/.test(html), "S1 APP_VERSION 1.5.4 en el build ensamblado");
-ok(sw.includes('CACHE = "mitrabajo-v21"'), "S2 el SW sube a mitrabajo-v21");
-ok(datos.versionApp === "1.5.2" && /apk-v1\.5\.2\/Mi-Trabajo-v1\.5\.2\.apk$/.test(datos.apkUrl),
-   "S3 datos.json NO se toca: sigue anunciando la APK 1.5.2 (la 1.5.4 es web y no existe APK 1.5.4 que anunciar)");
+ok(/var APP_VERSION = "1\.9\.0"/.test(html), "S1 APP_VERSION 1.9.0 en el build ensamblado (pin actualizado 2026-11-18 en el barrido de CI)");
+ok(sw.includes('CACHE = "mitrabajo-v39"'), "S2 el SW sube a mitrabajo-v39 (pin actualizado 2026-11-18)");
+ok(datos.versionApp === "1.6.0" && /apk-v1\.6\.0\/Mi-Trabajo-v1\.6\.0\.apk$/.test(datos.apkUrl),
+   "S3 datos.json anuncia la APK 1.6.0 (pin actualizado 2026-11-18; la 1.6.0 sí tiene build publicado)");
 
 /* ---- El patrón de la casa: marcador, espejo y bloque ---- */
 ok(src.includes("/*__SENTRY_CASA__*/"), "S4 la fuente app.js trae el marcador SENTRY_CASA");
@@ -32,10 +32,10 @@ ok(html.includes("SENTRY DE LA CASA") && html.includes("antesDeEnviar") && html.
    "S7 el build trae el contenido íntegro de sentry-casa.js (init + escrubado enchufados)");
 
 /* ---- El bloque de head, con SU DSN y SU versión ---- */
-ok(sin.includes('window.SENTRY_CASA={app:"mitrabajo",version:"1.5.4",dsn:"' + DSN_MT + '"}'),
-   "S8 la plantilla trae el bloque con app mitrabajo, versión 1.5.4 y el DSN del proyecto mitrabajo");
-ok(html.includes('window.SENTRY_CASA={app:"mitrabajo",version:"1.5.4",dsn:"' + DSN_MT + '"}'),
-   "S9 el build publicado trae ese mismo bloque (release mitrabajo@1.5.4)");
+ok(sin.includes('window.SENTRY_CASA={app:"mitrabajo",version:"1.8.0",dsn:"' + DSN_MT + '"}'),
+   "S8 la plantilla trae el bloque con app mitrabajo, versión 1.8.0 (la de la fuente APK) y el DSN del proyecto mitrabajo (pin actualizado 2026-11-18)");
+ok(html.includes('window.SENTRY_CASA={app:"mitrabajo",version:"1.9.0",dsn:"' + DSN_MT + '"}'),
+   "S9 el build publicado trae ese mismo bloque con la versión web vigente (release mitrabajo@1.9.0; pin actualizado 2026-11-18)");
 ok(html.includes('src="https://browser.sentry-cdn.com/8.38.0/bundle.min.js"') &&
    html.includes('integrity="sha384-48iagrZwMa6wkDoJKNyCk4jgMHcOcsBK/DzZAJInl1ZhtunellJDCRNZuomfHefF"'),
    "S10 el SDK va fijado (8.38.0) y con SRI: si el CDN cambia, no carga y la app sigue intacta");

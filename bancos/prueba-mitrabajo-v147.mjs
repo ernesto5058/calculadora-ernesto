@@ -26,10 +26,10 @@ let pass = 0, fail = 0;
 function ok(c, n){ if (c) pass++; else { fail++; console.log("FAIL:", n); } }
 
 /* ---- Versión y caché ---- */
-ok(/var APP_VERSION = "1\.5\.4"/.test(html), "P1 APP_VERSION 1.5.4 en el build ensamblado");
-ok(sw.includes('CACHE = "mitrabajo-v21"'), "P2 el SW sube a mitrabajo-v21 (sin esto, el arreglo no aterriza)");
-ok(datos.versionApp === "1.5.2" && /apk-v1\.5\.2\/Mi-Trabajo-v1\.5\.2\.apk$/.test(datos.apkUrl),
-   "P3 datos.json: versionApp 1.5.2 y apkUrl de la v1.5.2");
+ok(/var APP_VERSION = "1\.9\.0"/.test(html), "P1 APP_VERSION 1.9.0 en el build ensamblado (pin actualizado 2026-11-18 en el barrido de CI)");
+ok(sw.includes('CACHE = "mitrabajo-v39"'), "P2 el SW sube a mitrabajo-v39 (sin esto, el arreglo no aterriza; pin actualizado 2026-11-18)");
+ok(datos.versionApp === "1.6.0" && /apk-v1\.6\.0\/Mi-Trabajo-v1\.6\.0\.apk$/.test(datos.apkUrl),
+   "P3 datos.json: versionApp 1.6.0 y apkUrl de la v1.6.0 (pin actualizado 2026-11-18)");
 
 /* ---- Chat duro v1.4.7 ---- */
 ok(!html.includes("Nota de voz · en cola"), "C1 el chip sordo «Nota de voz · en cola» ya NO existe: la nota en cola se pinta con su reproductor");
@@ -43,7 +43,7 @@ ok(html.includes("filaAdjMT") && html.includes("elegirFotoNativaMT") && html.inc
 ok(html.includes("salen JUNTO con la foto, en un solo mensaje") || html.includes("sale JUNTO con la foto, en un solo mensaje"), "C9 la previa de la foto dice que el texto sale junto, en UN solo mensaje");
 
 /* ---- Regresión de Textos (lo aprobado en v1.4.6, intacto) ---- */
-ok(html.includes('id="tx_saldo"') && html.includes("textoComproSaldoPRO") && html.includes("textoRecargaCambioPRO") && html.includes("textoTransferenciaPRO"), "T1 Textos sigue con sus TRES botones propios y nada más");
+ok(html.includes('id="tx_cat"') && html.includes('id="tx_generar"') && html.includes('id="tx_out"') && html.includes('id="tx_hist"') && !html.includes("textoComproSaldoPRO") && !html.includes("textoRecargaCambioPRO") && !html.includes("textoTransferenciaPRO"), "T1 Textos es hoy el generador por catálogo (tx_cat · tx_generar · tx_out · tx_hist) y las funciones PRO de los 3 botones fijos ya no existen (rediseño de Textos; actualizado 2026-11-18 en el barrido de CI)");
 ok(!html.includes("Texto de producto") && !html.includes("txpNombre") && !html.includes("Texto de saldo (con la tarifa)"), "T2 Mi Trabajo NO gana el botón de producto ni los textos del dueño (esa línea es de Mi Negocio)");
 ok(!/>USD</.test(html) && !/>MLC</.test(html) && !/>QUSD</.test(html), "T3 Mi Trabajo sigue hablando SOLO en CUP (sin monedas ajenas)");
 

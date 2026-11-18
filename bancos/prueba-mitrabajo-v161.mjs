@@ -23,10 +23,10 @@ function ok(c, n){ if (c) pass++; else { fail++; console.log("FAIL:", n); } }
 function sleep(ms){ return new Promise(r => setTimeout(r, ms)); }
 
 /* ===== Estático ===== */
-ok(/var APP_VERSION = "1\.7\.0"/.test(html), "V1 APP_VERSION 1.7.0 en el build ensamblado (pin actualizado en la tanda T3: la lógica de la tarifa viva no cambió)");
-ok(sw.includes('CACHE = "mitrabajo-v32"'), "V2 el SW sube a mitrabajo-v32 (pin actualizado en la tanda T3)");
-ok(datos.versionApp === "1.5.6", "V3 datos.json sigue anunciando la APK 1.5.6 (web-only)");
-ok(html.includes('version:"1.7.0"'), "V4 SENTRY_CASA con version 1.7.0 (pin actualizado en la tanda T3)");
+ok(/var APP_VERSION = "1\.9\.0"/.test(html), "V1 APP_VERSION 1.9.0 en el build ensamblado (pin actualizado 2026-11-18 en el barrido de CI: la lógica de la tarifa viva no cambió)");
+ok(sw.includes('CACHE = "mitrabajo-v39"'), "V2 el SW sube a mitrabajo-v39 (pin actualizado 2026-11-18)");
+ok(datos.versionApp === "1.6.0", "V3 datos.json anuncia la APK 1.6.0 (pin actualizado 2026-11-18)");
+ok(html.includes('version:"1.9.0"'), "V4 SENTRY_CASA con version 1.9.0 (pin actualizado 2026-11-18)");
 ok(html.includes('id="tvBox"') && html.includes('id="r_est_s"') && html.includes('id="r_est_t"') && html.includes('id="p_hoy"'),
    "V5 la tarjeta viva, los estimados y «hoy has ganado» existen en el esqueleto");
 

@@ -75,6 +75,7 @@ function crearMN(){
           }
           return rechaza("desconocida " + fn);
         }
+        if (u.includes("textos-generar")) return json({ ok: true, versiones: [ { texto: "COMPRO SALDO a 950 la recarga de 360 — pago al momento, en efectivo. Escríbeme por aquí o al 51231558. Micro 10, distrito José Martí, Santiago de Cuba." } ], avisos: [] });
         if (u.includes("datos.json")) return Promise.resolve({ ok: true, json: () => Promise.resolve(datosPubMN) });
         if (u.includes("ultimo.json")) return Promise.resolve({ ok: true, json: () => Promise.resolve(mercadoMN) });
         return Promise.resolve({ ok: false, status: 404, json: () => Promise.resolve({}) });
@@ -143,20 +144,22 @@ function crearMN(){
   click(d.getElementById("chClip")); await sleep(80);
   click(d.getElementById("chAdjDoc")); await sleep(40);
   ok(clicsEn.includes("chFileDoc"), "MN-4d la fila «Documento» dispara el selector de documentos");
-  /* 5 · D1 en Textos */
+  /* 5 · D1 en Textos — REDISEÑO (barrido de CI 2026-11-18): la Textos
+     bifurcada de la era v22 (txProdBtn/txProdForm/txSaldo/txTransf)
+     fue sustituida por UN generador por catálogo (txCatChips +
+     txGenerar → txOut): la bifurcación D1 ya no puede existir porque
+     no hay formulario de producto que se quede abierto. La versión
+     anterior de este bloque tronaba con TypeError sobre txProdForm
+     nulo y mataba MN-6 y toda la mitad MT del banco. */
   click(d.getElementById("chVolver")); await sleep(150);
   w.irA("Textos"); /* T1 (v22): Textos es hija de Ajustes; vía irA() */
   await sleep(200);
   w.__scrolls.length = 0;
-  click(d.getElementById("txProdBtn")); await sleep(60);
-  ok(d.getElementById("txProdForm").style.display === "block", "MN-5a «Texto de producto» abre su formulario");
-  click(d.getElementById("txSaldo")); await sleep(150);
-  ok(d.getElementById("txProdForm").style.display === "none", "MN-5b Producto → Saldo CIERRA el formulario (fin de la bifurcación D1)");
-  ok(d.getElementById("txOut").textContent.length > 200, "MN-5c el texto de saldo se genera en la salida");
+  ok(!!d.getElementById("txGenerar") && !!d.getElementById("txOut") && !!d.getElementById("txCatChips"), "MN-5a Textos hoy es el generador por catálogo (txCatChips + txGenerar + txOut)");
+  ok(!d.getElementById("txProdForm") && !d.getElementById("txProdBtn"), "MN-5b la bifurcación D1 no existe: ni el formulario de producto ni su botón quedan en el DOM");
+  click(d.getElementById("txGenerar")); await sleep(600);
+  ok(d.getElementById("txOut").textContent.length > 100, "MN-5c Generar vuelca el texto en la salida");
   ok(w.__scrolls.length > 0, "MN-5d la salida generada se trae a la vista (scrollIntoView)");
-  click(d.getElementById("txProdBtn")); await sleep(60);
-  click(d.getElementById("txTransf")); await sleep(150);
-  ok(d.getElementById("txProdForm").style.display === "none" && d.getElementById("txOut").textContent.length > 100, "MN-5e Producto → Transferencia también cierra el formulario y genera");
   w.close();
 }
 { /* v45 · Chat PRO: la sonda de foco CON una tarjeta de parte pendiente

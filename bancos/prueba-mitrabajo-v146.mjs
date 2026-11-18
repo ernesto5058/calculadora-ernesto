@@ -20,10 +20,10 @@ let pass = 0, fail = 0;
 function ok(c, n){ if (c) pass++; else { fail++; console.log("FAIL:", n); } }
 
 /* ---- Versión y caché ---- */
-ok(/var APP_VERSION = "1\.5\.4"/.test(html), "G1 APP_VERSION 1.5.4 en el build ensamblado");
-ok(sw.includes('CACHE = "mitrabajo-v21"'), "G2 el SW sube a mitrabajo-v21");
-ok(datos.versionApp === "1.5.2" && /apk-v1\.5\.2\/Mi-Trabajo-v1\.5\.2\.apk$/.test(datos.apkUrl),
-   "G3 datos.json: versionApp 1.5.2 y apkUrl de la v1.5.2");
+ok(/var APP_VERSION = "1\.9\.0"/.test(html), "G1 APP_VERSION 1.9.0 en el build ensamblado (pin actualizado 2026-11-18 en el barrido de CI)");
+ok(sw.includes('CACHE = "mitrabajo-v39"'), "G2 el SW sube a mitrabajo-v39 (pin actualizado 2026-11-18)");
+ok(datos.versionApp === "1.6.0" && /apk-v1\.6\.0\/Mi-Trabajo-v1\.6\.0\.apk$/.test(datos.apkUrl),
+   "G3 datos.json: versionApp 1.6.0 y apkUrl de la v1.6.0 (pin actualizado 2026-11-18)");
 ok(datos.tarifa && datos.tarifa.ingresoRef360 === 1098.68 && datos.tarifa.libroRef === 1069.38 &&
    datos.tarifa.pctSaldo === 25 && datos.tarifa.pctTransf === 20 && datos.tarifa.pisoTransf === 25 &&
    datos.publico && datos.publico.telefono === "51231558",
@@ -55,8 +55,8 @@ ok(!!vista, "G7 la vista Ayuda existe en el DOM");
 const primera = vista ? vista.querySelector(".card") : null;
 ok(!!primera && primera.textContent.includes(TITULO),
    "G7b la primera tarjeta del DOM de Ayuda es la guía");
-ok(primera && primera.querySelectorAll(".guiaRow").length === 6,
-   "G7c la guía tiene sus 6 filas de funciones (Calculadora, Reportar, Chat, Textos, Mi panel, Avisos)");
+ok(primera && primera.querySelectorAll(".guiaRow").length === 8,
+   "G7c la guía tiene sus 8 filas de funciones (Calculadora, Reportar, Chat, Textos, Mi panel, Mis esperas, Mi pago, Avisos) — Mis esperas y Mi pago llegaron con la tanda T3 (actualizado 2026-11-18 en el barrido de CI)");
 
 /* La guía NO aparece en «Mi Negocio» (ni en su build ni en sus fuentes) */
 const mnBuild = fs.readFileSync(RAIZ + "/minegocio/index.html", "utf8");

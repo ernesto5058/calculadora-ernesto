@@ -86,9 +86,9 @@ function crear(){
 }
 
 /* ===== Version ===== */
-ok(/var APP_VERSION = "1\.5\.4"/.test(html), "V1 APP_VERSION 1.5.4 en el build ensamblado");
-ok(sw.includes('CACHE = "mitrabajo-v21"'), "V2 el SW sube a mitrabajo-v21");
-ok(datos.versionApp === "1.5.2", "V3 datos.json sigue anunciando la APK 1.5.2 (la 1.5.3 y la 1.5.4 son web; su APK queda pendiente de build y NO se anuncia una APK que no existe)");
+ok(/var APP_VERSION = "1\.9\.0"/.test(html), "V1 APP_VERSION 1.9.0 en el build ensamblado (pin actualizado 2026-11-18 en el barrido de CI)");
+ok(sw.includes('CACHE = "mitrabajo-v39"'), "V2 el SW sube a mitrabajo-v39 (pin actualizado 2026-11-18)");
+ok(datos.versionApp === "1.6.0", "V3 datos.json anuncia la APK 1.6.0 (pin actualizado 2026-11-18; la regla de la era — no anunciar una APK que no existe — se mantiene: la 1.6.0 sí tiene build publicado)");
 
 /* ===== A: escape total (estructural) ===== */
 ok(src.includes("function esc(") && src.includes("function srcSeguroAdjMT("), "A1 existen esc() y srcSeguroAdjMT()");

@@ -170,7 +170,7 @@ function crear(opts){
   ok(!html.includes("Comercial vendedor"), "X4 el build NO contiene «Comercial vendedor»");
   ok(!vistaTextos.includes("MLC") && !vistaTextos.includes("QUSD") && !vistaTextos.includes("USD"), "X5 en Textos no queda NINGUNA moneda ajena (USD/MLC/QUSD): el dinero del buscador es CUP");
   ok(!html.includes('id="tx_moneda"') && !html.includes('id="tx_gen"') && !html.includes('id="tx_prod"') && !html.includes('id="tx_tel"'), "X6 ni el selector de moneda ni ningún campo del formulario viejo existen en el build");
-  ok(vistaTextos.includes('id="tx_saldo"') && vistaTextos.includes('id="tx_recarga"') && vistaTextos.includes('id="tx_transf"') && vistaTextos.includes("Compro saldo") && vistaTextos.includes("Recarga y cambio") && vistaTextos.includes("Transferencia"), "X7 presencia: los 3 botones inteligentes están en el build");
+  ok(vistaTextos.includes('id="tx_cat"') && vistaTextos.includes('id="tx_generar"') && vistaTextos.includes('id="tx_out"') && vistaTextos.includes('id="tx_hist"') && vistaTextos.includes("Generar textos"), "X7 presencia: Textos es hoy el generador por catálogo (tx_cat · tx_generar · tx_out · tx_hist) — los 3 botones fijos de la era 1.4.x fueron sustituidos por el rediseño de Textos (actualizado 2026-11-18 en el barrido de CI)");
   const wx = crear({});
   await sleep(300);
   ok(typeof wx.TextosMotor === "object" && typeof wx.TextosMotor.generar !== "function" && typeof wx.TextosMotor.textoRapidoSaldo !== "function" && typeof wx.TextosMotor.miles === "function" && typeof wx.TextosMotor.historialPush === "function", "X8 el motor genérico NO existe en la app: TextosMotor conserva SOLO miles e historialPush");
@@ -182,12 +182,12 @@ function crear(opts){
 {
   const w = crear({});
   await sleep(300);
-  ok(w.APP_VERSION === "1.5.4", "V1 APP_VERSION 1.5.4 (Sentry de la casa, fila 40)");
+  ok(w.APP_VERSION === "1.9.0", "V1 APP_VERSION 1.9.0 (Sentry de la casa, fila 40; pin actualizado 2026-11-18 en el barrido de CI)");
   w.close();
   const sw = fs.readFileSync(HOME + "/buscadores/sw.js", "utf8");
-  ok(sw.includes('CACHE = "mitrabajo-v21"'), "V2 el SW sube a mitrabajo-v21");
+  ok(sw.includes('CACHE = "mitrabajo-v39"'), "V2 el SW sube a mitrabajo-v39 (pin actualizado 2026-11-18)");
   const datos = JSON.parse(fs.readFileSync(HOME + "/buscadores/datos.json", "utf8"));
-  ok(datos.versionApp === "1.5.2" && /apk-v1\.5\.2\/Mi-Trabajo-v1\.5\.2\.apk$/.test(datos.apkUrl), "V3 datos.json: versionApp 1.5.2 y apkUrl de la v1.5.2");
+  ok(datos.versionApp === "1.6.0" && /apk-v1\.6\.0\/Mi-Trabajo-v1\.6\.0\.apk$/.test(datos.apkUrl), "V3 datos.json: versionApp 1.6.0 y apkUrl de la v1.6.0 (pin actualizado 2026-11-18)");
   ok(datos.tarifa.ingresoRef360 === 1098.68 && datos.tarifa.libroRef === 1069.38 && datos.tarifa.salidaRef === 950 && datos.tarifa.pctSaldo === 25 && datos.tarifa.pisoTransf === 25, "V4 la tarifa de datos.json queda INTACTA");
   ok(datos.publico.telefono === "51231558" && datos.publico.saldo.tasa === 2 && datos.publico.saldo.recarga === 720, "V5 el bloque público queda INTACTO (teléfono de Ernesto, al 2, recargas 720)");
 }
