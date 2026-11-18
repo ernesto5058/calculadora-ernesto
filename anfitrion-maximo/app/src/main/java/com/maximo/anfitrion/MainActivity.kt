@@ -310,10 +310,11 @@ class MainActivity : Activity() {
 
     private fun dp(v: Int): Int = (v * resources.displayMetrics.density).toInt()
 
-    // ── Cara v2.6 (DISENO-PRO): héroe con la versión EN GRANDE y el
-    // contenido en TARJETAS por capas — visiblemente distinta de la lista
-    // plana de la v2.3/v2.4. Dorado solo en degradado/tinte, bordes de
-    // 1 px translúcidos, botones principales en píldora, rejilla 4/8. ──
+    // ── Cara v2.7 (DISENO-PRO): BANDA DORADA a todo ancho con la versión
+    // EN GRANDE en oscuro sobre el degradado, y el contenido en TARJETAS
+    // por capas — visiblemente distinta de la tarjeta oscura de la v2.6.
+    // Dorado solo en degradado/tinte, bordes de 1 px translúcidos,
+    // botones principales en píldora, rejilla 4/8. ──
 
     /** Tarjeta del sistema: superficie --bg-1, radio 20, borde 1 px. */
     private fun card(topMargin: Int): LinearLayout {
@@ -370,98 +371,98 @@ class MainActivity : Activity() {
             setPadding(dp(16), dp(20), dp(16), dp(24))
         }
 
-        // ── HÉROE: monograma dorado + título + LA VERSIÓN EN GRANDE ──────
-        // Regla de Ernesto pa la v2.6: la versión se reconoce de un vistazo.
+        // ── HÉROE v2.7: BANDA DORADA a todo ancho — el degradado es el
+        // fondo y el texto va oscuro encima; la versión se lee de un
+        // vistazo. Visiblemente distinta de la tarjeta oscura de la v2.6.
         // (Si cambia versionName en el Gradle, cambia también este número.)
         val hero = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            setPadding(dp(16), dp(16), dp(16), dp(16))
-            background = GradientDrawable().apply {
-                setColor(surface)
-                setStroke(dp(1), line)
-                cornerRadius = dp(20).toFloat()
-            }
-        }
-        val heroLeft = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-        }
-        val monogram = TextView(this).apply {
-            text = "AM"
-            setTextColor(onGold)
-            textSize = 16f
-            typeface = Typeface.DEFAULT_BOLD
-            gravity = Gravity.CENTER
+            setPadding(dp(20), dp(18), dp(20), dp(20))
             background = GradientDrawable(
                 GradientDrawable.Orientation.TL_BR,
                 intArrayOf(goldA, goldMid, goldB)
-            ).apply { cornerRadius = dp(14).toFloat() }
+            ).apply { cornerRadius = dp(20).toFloat() }
         }
-        heroLeft.addView(monogram, LinearLayout.LayoutParams(dp(46), dp(46)))
-        val title = TextView(this).apply {
-            text = "Anfitrión Máximo"
-            setTextColor(ink)
-            textSize = 20f
+        val heroTop = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
+        val monogram = TextView(this).apply {
+            text = "AM"
+            setTextColor(goldA)
+            textSize = 15f
             typeface = Typeface.DEFAULT_BOLD
-            setPadding(0, dp(10), 0, 0)
+            gravity = Gravity.CENTER
+            background = GradientDrawable().apply {
+                setColor(onGold)
+                cornerRadius = dp(12).toFloat()
+            }
         }
-        heroLeft.addView(title)
+        heroTop.addView(monogram, LinearLayout.LayoutParams(dp(42), dp(42)))
+        val title = TextView(this).apply {
+            text = "ANFITRIÓN MÁXIMO"
+            setTextColor(onGold)
+            textSize = 17f
+            typeface = Typeface.DEFAULT_BOLD
+            letterSpacing = 0.06f
+            setPadding(dp(12), 0, 0, 0)
+        }
+        heroTop.addView(title)
+        hero.addView(heroTop)
+        val versionLabel = TextView(this).apply {
+            text = "VERSIÓN"
+            setTextColor(Color.argb(170, 26, 20, 4))
+            textSize = 11f
+            typeface = Typeface.DEFAULT_BOLD
+            letterSpacing = 0.22f
+            setPadding(0, dp(14), 0, 0)
+        }
+        hero.addView(versionLabel)
+        val versionRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.BOTTOM
+        }
+        val versionBig = TextView(this).apply {
+            text = "2.7"
+            setTextColor(onGold)
+            textSize = 64f
+            typeface = Typeface.DEFAULT_BOLD
+        }
+        versionRow.addView(versionBig)
+        val chip = TextView(this).apply {
+            text = "EDICIÓN BLINDADA"
+            setTextColor(goldA)
+            textSize = 9f
+            typeface = Typeface.DEFAULT_BOLD
+            letterSpacing = 0.1f
+            gravity = Gravity.CENTER
+            setPadding(dp(9), dp(5), dp(9), dp(5))
+            background = GradientDrawable().apply {
+                setColor(onGold)
+                cornerRadius = dp(999).toFloat()
+            }
+        }
+        versionRow.addView(
+            chip,
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply {
+                leftMargin = dp(12)
+                bottomMargin = dp(12)
+            }
+        )
+        hero.addView(versionRow)
+        root.addView(hero)
         val sub = TextView(this).apply {
             text = "Empareja, firma e instala en tu iPhone por cable, " +
                 "sin computadora. El registro que nace aquí es la semilla " +
                 "que Tienda Máximo importa en el iPhone."
             setTextColor(dim)
             textSize = 12f
-            setPadding(0, dp(4), dp(8), 0)
+            setPadding(dp(4), dp(12), dp(4), 0)
         }
-        heroLeft.addView(sub)
-        hero.addView(
-            heroLeft,
-            LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-        )
-        val heroVersion = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            gravity = Gravity.CENTER_HORIZONTAL
-        }
-        val versionLabel = TextView(this).apply {
-            text = "VERSIÓN"
-            setTextColor(faint)
-            textSize = 10f
-            typeface = Typeface.DEFAULT_BOLD
-            letterSpacing = 0.18f
-            gravity = Gravity.CENTER
-        }
-        heroVersion.addView(versionLabel)
-        val versionBig = TextView(this).apply {
-            text = "2.6"
-            setTextColor(goldA)
-            textSize = 52f
-            typeface = Typeface.DEFAULT_BOLD
-            gravity = Gravity.CENTER
-        }
-        heroVersion.addView(versionBig)
-        val chip = TextView(this).apply {
-            text = "EDICIÓN SUPERVISOR"
-            setTextColor(goldA)
-            textSize = 9f
-            typeface = Typeface.DEFAULT_BOLD
-            letterSpacing = 0.1f
-            gravity = Gravity.CENTER
-            setPadding(dp(8), dp(4), dp(8), dp(4))
-            background = GradientDrawable().apply {
-                setColor(Color.argb(36, 232, 184, 75)) // dorado al 14%
-                cornerRadius = dp(999).toFloat()
-            }
-        }
-        heroVersion.addView(
-            chip,
-            LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-            ).apply { topMargin = dp(4) }
-        )
-        hero.addView(heroVersion)
-        root.addView(hero)
+        root.addView(sub)
 
         statusView = TextView(this).apply {
             setTextColor(dim)

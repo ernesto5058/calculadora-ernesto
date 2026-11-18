@@ -34,6 +34,15 @@
 //! Apple, un RST del mux, un timeout — sigue su camino actual sin
 //! reintentar, porque reintentar no lo arregla y disfrazaría la causa.
 //!
+//! **v2.7 — el orden del rescate**: en la v2.6, la re-preparación
+//! reclamaba el transporte NUEVO por el mismo fd y DESPUÉS sustituía al
+//! proveedor — la caída del viejo liberaba la interfaz compartida y
+//! tumbaba el claim recién hecho (el error 19 de la v2.5, resucitado
+//! por el propio rescate; fallo 1 de la revisión de diff). Desde la
+//! v2.7 el proveedor es `ProveedorRetirable` y `ejecutar` RETIRA el
+//! viejo (su transporte cae de forma SÍNCRONA, con acuse) ANTES de
+//! re-preparar: liberar primero, reclamar después, nunca al revés.
+//!
 //! **La costura conocida:** Kotlin es dueño del fd (`UsbDeviceConnection`)
 //! y este núcleo no puede pedirle otro a mitad de corrida; la
 //! re-preparación trabaja sobre el mismo fd (re-enumerar +
@@ -51,6 +60,24 @@ use crate::stage;
 pub const MAX_INTENTOS: u32 = 3;
 /// La pausa entre intentos: aire pa que el iPhone vuelva al bus.
 pub const PAUSA_REINTENTO: Duration = Duration::from_millis(1500);
+
+/// **Un proveedor cuyo transporte puede retirarse (v2.7).** El retiro es
+/// SÍNCRONO y COMPLETO: cuando `retirar()` devuelve, el transporte viejo
+/// ya soltó la interfaz USB sobre el fd compartido y su hilo murió — no
+/// queda ninguna liberación pendiente que pueda caer después. Es la
+/// propiedad que la re-preparación necesita: sobre un fd compartido, la
+/// liberación del transporte viejo (RELEASEINTERFACE) tumba TAMBIÉN el
+/// claim que el transporte nuevo acaba de hacer por el mismo fd, así que
+/// el orden no es negociable: **retirar el viejo → reclamar el nuevo**.
+/// Hasta la v2.6 el supervisor sustituía el proveedor soltando el viejo
+/// a su aire (su liberación llegaba cuando el último clon del handle
+/// cayera), y esa liberación tardía era capaz de tumbar el claim nuevo:
+/// el error 19 de la v2.5 resucitado por el propio rescate (revisión de
+/// diff sobre la v2.6). `retirar()` debe ser idempotente: retirar dos
+/// veces — o retirar un cascarón ya retirado — no libera dos veces.
+pub trait ProveedorRetirable {
+    fn retirar(&mut self);
+}
 
 /// ¿Este error es una **desconexión del dispositivo**? La firma del
 /// ENODEV en esta pila: el transporte la formatea como
@@ -105,7 +132,7 @@ impl Supervisor {
 
     /// Pa los bancos: la misma política con la pausa anulada.
     #[cfg(test)]
-    fn de_banco() -> Self {
+    pub(crate) fn de_banco() -> Self {
         Self {
             max_intentos: MAX_INTENTOS,
             pausa: Duration::ZERO,
@@ -203,13 +230,16 @@ impl Supervisor {
     }
 
     /// Corre un PASO de la cadena con la supervisión completa: si cae por
-    /// desconexión, pausa → **re-preparación del transporte desde cero**
-    /// (el `repreparar` de la cadena: transporte nuevo + sesión mux
-    /// fresca, que SUSTITUYE al proveedor) → el paso se reintenta sobre
-    /// el proveedor nuevo. Una re-preparación que también cae cuenta como
-    /// el intento que consume (queda registrada igual). El paso recibe un
-    /// clon del proveedor vigente en cada intento (el handle de la cadena
-    /// es clonable; el paso trabaja sobre la sesión que toque).
+    /// desconexión, pausa → **retiro síncrono del proveedor viejo**
+    /// (`ProveedorRetirable::retirar` — su transporte libera la interfaz
+    /// del fd compartido y su hilo muere en el acto, v2.7) →
+    /// **re-preparación del transporte desde cero** (el `repreparar` de
+    /// la cadena: transporte nuevo + sesión mux fresca, que SUSTITUYE al
+    /// proveedor ya retirado) → el paso se reintenta sobre el proveedor
+    /// nuevo. Una re-preparación que también cae cuenta como el intento
+    /// que consume (queda registrada igual). El paso recibe un clon del
+    /// proveedor vigente en cada intento (el handle de la cadena es
+    /// clonable; el paso trabaja sobre la sesión que toque).
     pub async fn ejecutar<P, T, F, Fut, R>(
         &mut self,
         paso: &str,
@@ -218,7 +248,7 @@ impl Supervisor {
         mut paso_fn: F,
     ) -> Result<T, String>
     where
-        P: Clone,
+        P: Clone + ProveedorRetirable,
         F: FnMut(P) -> Fut,
         Fut: Future<Output = Result<T, String>>,
         R: FnMut() -> Result<P, String> + ?Sized,
@@ -229,6 +259,19 @@ impl Supervisor {
             intento += 1;
             if repreparar_pendiente {
                 repreparar_pendiente = false;
+                // **EL ORDEN QUE LA v2.7 FIJA (fallo 1 de la revisión de
+                // diff sobre la v2.6)**: ANTES de re-preparar, el
+                // proveedor viejo se RETIRA de forma síncrona — su
+                // transporte suelta la interfaz sobre el fd compartido y
+                // su hilo muere aquí, no cuando caiga el último clon. La
+                // re-preparación reclama la interfaz por el MISMO fd: si
+                // la liberación del viejo llegara después de ese claim
+                // (como pasaba al sustituir el proveedor soltándolo a su
+                // aire), el RELEASEINTERFACE tumbaría el claim nuevo y el
+                // paso reintentado moriría con el mismo error 19 que se
+                // intentaba rescatar. Tras el retiro, sustituir el
+                // proveedor solo suelta un cascarón inerte.
+                provider.retirar();
                 match repreparar() {
                     Ok(nuevo) => {
                         *provider = nuevo;
@@ -289,6 +332,12 @@ mod tests {
             .enable_all()
             .build()
             .expect("runtime del banco")
+    }
+
+    /// Los proveedores numéricos de los bancos clásicos no tienen
+    /// transporte que retirar: el retiro es un no-op pa ellos.
+    impl ProveedorRetirable for u32 {
+        fn retirar(&mut self) {}
     }
 
     /// La clasificación: la firma del ENODEV, en sus formas reales de la
@@ -503,6 +552,199 @@ mod tests {
             );
             assert!(r.unwrap_err().contains("agotó"));
         });
+    }
+
+    // ── Banco v2.7: el claim del transporte nuevo sobrevive a la
+    //    sustitución (el fallo 1 de la revisión de diff sobre la v2.6) ──
+
+    /// El fd compartido, modelado con la semántica real de usbdevfs: el
+    /// claim es DEL FD (no de la «generación» que lo pidió) y un
+    /// RELEASEINTERFACE sobre ese fd lo tumba entero, lo haya hecho
+    /// quien lo haya hecho. Cada evento queda en el diario, en orden.
+    #[derive(Clone)]
+    struct FdSim(std::sync::Arc<std::sync::Mutex<FdSimEstado>>);
+
+    struct FdSimEstado {
+        claim: Option<u32>,
+        eventos: Vec<String>,
+    }
+
+    impl FdSim {
+        fn nuevo() -> Self {
+            Self(std::sync::Arc::new(std::sync::Mutex::new(FdSimEstado {
+                claim: None,
+                eventos: Vec::new(),
+            })))
+        }
+        /// Lo que `open_mux_transport` hace al preparar: reclamar la
+        /// interfaz por el fd.
+        fn reclamar(&self, gen: u32) {
+            let mut e = self.0.lock().unwrap();
+            e.claim = Some(gen);
+            e.eventos.push(format!("claim:{}", gen));
+        }
+        /// Lo que el Drop de un transporte hace al caer: RELEASEINTERFACE
+        /// sobre el fd — tumba EL claim, sea de quien sea.
+        fn soltar(&self) {
+            let mut e = self.0.lock().unwrap();
+            e.claim = None;
+            e.eventos.push("soltar".to_string());
+        }
+        fn usable(&self, gen: u32) -> bool {
+            self.0.lock().unwrap().claim == Some(gen)
+        }
+        fn eventos(&self) -> Vec<String> {
+            self.0.lock().unwrap().eventos.clone()
+        }
+    }
+
+    /// La sesión simulada: UNA por generación, compartida por todos los
+    /// clones del proveedor — espejo del handle real, donde la sesión
+    /// (y su transporte) vive en su hilo mientras quede UN clon del
+    /// handle, y el transporte solo se libera cuando el hilo muere: al
+    /// caer el último clon, o al apagado síncrono del retiro.
+    struct SesionSim {
+        gen: u32,
+        fd: FdSim,
+        retirada: std::sync::atomic::AtomicBool,
+    }
+
+    impl Drop for SesionSim {
+        fn drop(&mut self) {
+            // El hilo de la sesión murió (cayó el último clon): su
+            // transporte se libera — salvo que el retiro ya lo liberó.
+            if !self.retirada.load(Ordering::SeqCst) {
+                self.fd.soltar();
+            }
+        }
+    }
+
+    /// El proveedor de banco: un handle clonable a su sesión, como el
+    /// real. `retirar()` apaga la sesión en el acto (libera el fd y la
+    /// marca retirada: el cascarón que quede no libera dos veces).
+    #[derive(Clone)]
+    struct ProvSim {
+        sesion: std::sync::Arc<SesionSim>,
+    }
+
+    impl ProvSim {
+        fn nuevo(gen: u32, fd: FdSim) -> Self {
+            fd.reclamar(gen);
+            Self {
+                sesion: std::sync::Arc::new(SesionSim {
+                    gen,
+                    fd,
+                    retirada: std::sync::atomic::AtomicBool::new(false),
+                }),
+            }
+        }
+        fn gen(&self) -> u32 {
+            self.sesion.gen
+        }
+    }
+
+    impl ProveedorRetirable for ProvSim {
+        fn retirar(&mut self) {
+            if !self.sesion.retirada.swap(true, Ordering::SeqCst) {
+                self.sesion.fd.soltar();
+            }
+        }
+    }
+
+    /// El paso simulado, con la MISMA forma que los pasos reales de
+    /// `signinstall`: recibe el proveedor por referencia dentro del
+    /// futuro (el futuro es dueño del valor mientras corre) y trabaja
+    /// sobre su sesión. Si el claim de su generación cayó, el cable
+    /// responde con la firma real del fallo: el error 19.
+    async fn paso_simulado(prov: &ProvSim, fd: &FdSim) -> Result<&'static str, String> {
+        if !fd.usable(prov.gen()) {
+            return Err(ENODEV_OUT.to_string());
+        }
+        if prov.gen() == 1 {
+            Err(ENODEV_OUT.to_string())
+        } else {
+            Ok("instalado")
+        }
+    }
+
+    /// **El camino que falló en la v2.5, resucitado por el rescate en la
+    /// v2.6**: el paso cae por ENODEV → el supervisor re-prepara (el
+    /// transporte nuevo reclama el fd) → al sustituir el proveedor, el
+    /// viejo cae y su liberación tumba el claim NUEVO → el paso
+    /// reintentado muere con el mismo error 19. Con el retiro ordenado
+    /// de la v2.7 (retirar el viejo ANTES de re-preparar), la liberación
+    /// precede al claim nuevo y el paso prospera sobre la sesión nueva.
+    #[test]
+    fn ejecutar_el_claim_nuevo_sobrevive_a_la_sustitucion() {
+        let rt = runtime();
+        rt.block_on(async {
+            let mut sup = Supervisor::de_banco();
+            let fd = FdSim::nuevo();
+            let mut provider = ProvSim::nuevo(1, fd.clone());
+            let fd_rep = fd.clone();
+            let mut repreparar = move || -> Result<ProvSim, String> {
+                // preparar_proveedor: el transporte nuevo reclama el fd
+                // al prepararse, antes de sustituir al proveedor.
+                Ok(ProvSim::nuevo(2, fd_rep.clone()))
+            };
+            let fd_paso = fd.clone();
+            let r = sup
+                .ejecutar(
+                    "instalacion",
+                    &mut provider,
+                    &mut repreparar,
+                    move |prov: ProvSim| {
+                        let fd = fd_paso.clone();
+                        async move { paso_simulado(&prov, &fd).await }
+                    },
+                )
+                .await;
+            assert_eq!(
+                r,
+                Ok("instalado"),
+                "el paso prospera sobre el transporte nuevo (registro del supervisor: {:?})",
+                sup.resumen_registro()
+            );
+            assert_eq!(provider.gen(), 2, "el proveedor vigente es el nuevo");
+            assert!(
+                fd.usable(2),
+                "el claim del transporte nuevo sigue en pie tras la sustitución: {:?}",
+                fd.eventos()
+            );
+            // Y el orden en el diario es el orden seguro: la liberación
+            // del viejo precede al claim del nuevo.
+            let ev = fd.eventos();
+            let i_soltar = ev.iter().position(|e| e == "soltar").unwrap();
+            let i_claim2 = ev.iter().position(|e| e == "claim:2").unwrap();
+            assert!(
+                i_soltar < i_claim2,
+                "liberar el viejo ANTES de reclamar el nuevo: {:?}",
+                ev
+            );
+        });
+    }
+
+    /// ejecutar: retirar es idempotente — un proveedor retirado y luego
+    /// soltado libera el fd UNA sola vez (sin el guard, el Drop del
+    /// cascarón liberaría dos veces y la segunda tumbaría… lo que haya).
+    #[test]
+    fn retirar_es_idempotente_y_el_cascaron_no_libera_dos_veces() {
+        let fd = FdSim::nuevo();
+        {
+            let mut p = ProvSim::nuevo(1, fd.clone());
+            p.retirar();
+            p.retirar();
+        } // aquí cae el cascarón retirado
+        let liberaciones = fd
+            .eventos()
+            .iter()
+            .filter(|e| *e == "soltar")
+            .count();
+        assert_eq!(
+            liberaciones, 1,
+            "una sola liberación entre el retiro y la caída: {:?}",
+            fd.eventos()
+        );
     }
 
     /// ejecutar: un error que no es desconexión NO toca el transporte —

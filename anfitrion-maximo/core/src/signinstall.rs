@@ -52,6 +52,15 @@
 //! fresco + sesión mux fresca) y reintenta el paso — máximo 3 intentos
 //! por paso; agotados, la cadena falla con el registro completo de
 //! intentos. Cualquier otro error sigue su camino sin reintentar.
+//!
+//! **v2.7 — los dos fallos de la revisión de diff, cerrados**: (1) el
+//! rescate retira el proveedor viejo de forma síncrona ANTES de
+//! re-preparar (ver `supervisor.rs`), y (2) la etapa de origen de un
+//! fallo de preparación SOBREVIVE al viaje por el supervisor — el
+//! adaptador `OrigenEtapa` la asienta en cada intento y la restaura al
+//! salir; en la re-preparación de `run_chain` el origen viaja dentro
+//! del mensaje (`mensaje_con_origen`). Ya nada se re-etiqueta como
+//! «conexion» por defecto.
 
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex, OnceLock};
@@ -99,6 +108,58 @@ type StageErr = (String, String);
 
 fn err(stage: &str, msg: impl Into<String>) -> StageErr {
     (stage.to_string(), msg.into())
+}
+
+/// **El puente entre la preparación y el supervisor (v2.7)** — el
+/// supervisor clasifica y reintenta sobre el MENSAJE (String), pero el
+/// fallo de preparación nace como `StageErr` (etapa, mensaje) y su etapa
+/// de origen NO puede perderse por el camino: hasta la v2.6, el cierre
+/// de `run_sign_install` descartaba la etapa (`|(_, mensaje)| mensaje`)
+/// y re-etiquetaba TODO fallo de preparación como «conexion» — un fallo
+/// nacido en «descriptores» o en «claim» se le enseñaba a Ernesto como
+/// si fuera de conexión, escondiendo la causa real (fallo 2 de la
+/// revisión de diff sobre la v2.6). El adaptador aplana la StageErr a su
+/// mensaje pa que viaje por el supervisor, ASENTANDO la etapa de origen
+/// en cada intento; al salir, `restaurar` recompone la StageErr con la
+/// etapa del ÚLTIMO intento — el que agotó los reintentos o el que pasó
+/// tal cual.
+struct OrigenEtapa {
+    etapa: std::cell::RefCell<Option<String>>,
+}
+
+impl OrigenEtapa {
+    fn nuevo() -> Self {
+        Self {
+            etapa: std::cell::RefCell::new(None),
+        }
+    }
+
+    /// StageErr → mensaje (asentando la etapa de origen del intento).
+    fn aplanar(&self, e: StageErr) -> String {
+        *self.etapa.borrow_mut() = Some(e.0);
+        e.1
+    }
+
+    /// Mensaje del supervisor → StageErr con su etapa de origen.
+    fn restaurar(&self, mensaje: String) -> StageErr {
+        let etapa = self
+            .etapa
+            .borrow()
+            .clone()
+            .unwrap_or_else(|| "conexion".to_string());
+        (etapa, mensaje)
+    }
+}
+
+/// El origen de un fallo de preparación, DENTRO del mensaje (pa la
+/// re-preparación de `run_chain`, cuyo canal es el texto del supervisor
+/// compartido con los errores de los pasos): la etapa del paso la pone
+/// quien llama, pero el origen del fallo de preparación queda visible
+/// en el propio texto y en el registro de intentos — y la firma ENODEV
+/// sobrevive intacta pa que el supervisor lo siga clasificando como
+/// desconexión.
+fn mensaje_con_origen(e: &StageErr) -> String {
+    format!("[etapa {}] {}", e.0, e.1)
 }
 
 fn now_epoch() -> i64 {
@@ -322,11 +383,15 @@ pub fn run_sign_install(
     // del bus al preparar, se espera a que vuelva y se prepara de nuevo
     // desde cero, hasta 3 intentos registrados (módulo `supervisor`).
     let mut sup = crate::supervisor::Supervisor::nuevo();
+    // v2.7: la etapa de origen del fallo de preparación SOBREVIVE al
+    // viaje por el supervisor (adaptador `OrigenEtapa`) — ya no se
+    // re-etiqueta todo como «conexion».
+    let origen = OrigenEtapa::nuevo();
     let provider = sup
         .preparar("conexion", || {
-            preparar_proveedor(fd, &pairing_bytes).map_err(|(_, mensaje)| mensaje)
+            preparar_proveedor(fd, &pairing_bytes).map_err(|e| origen.aplanar(e))
         })
-        .map_err(|mensaje| err("conexion", mensaje))?;
+        .map_err(|mensaje| origen.restaurar(mensaje))?;
 
     let rt = tokio::runtime::Builder::new_multi_thread()
         .worker_threads(2)
@@ -422,7 +487,9 @@ async fn run_chain(
     // Si un paso cae por desconexión, el supervisor la corre, sustituye
     // el proveedor y reintenta el paso sobre la sesión nueva.
     let mut repreparar = || -> Result<AnfitrionProvider, String> {
-        preparar_proveedor(fd, &pairing_bytes).map_err(|(_, mensaje)| mensaje)
+        // v2.7: el origen del fallo de preparación viaja DENTRO del
+        // mensaje (este canal es el texto compartido del supervisor).
+        preparar_proveedor(fd, &pairing_bytes).map_err(|e| mensaje_con_origen(&e))
     };
     stage("ETAPA sonda: probando el canal de instalación con tu pairing (InstallationProxy, apertura a mano con escrow)…");
     let pairing_file = sup
@@ -1261,5 +1328,87 @@ mod bench_firma {
                 all_profiles.len()
             );
         });
+    }
+}
+
+// ── Bancos v2.7: la etapa de origen del fallo de preparación ─────────────────
+
+#[cfg(test)]
+mod bancos_v27 {
+    use super::*;
+
+    const ENODEV: &str = "bulk OUT: No such device (os error 19) (errno 19)";
+
+    /// **Fallo 2, camino del agotamiento**: la preparación cae en
+    /// «descriptores» en cada intento (desconexión al leer los
+    /// descriptores); el error que sale de la cadena conserva la etapa
+    /// REAL de origen — no la genérica «conexion» con que la v2.6 lo
+    /// re-etiquetaba todo al descartar la etapa en este mismo cierre.
+    #[test]
+    fn la_etapa_de_origen_sobrevive_al_agotamiento() {
+        let mut sup = crate::supervisor::Supervisor::de_banco();
+        let origen = OrigenEtapa::nuevo();
+        let llamadas = std::sync::atomic::AtomicU32::new(0);
+        let r: Result<(), StageErr> = sup
+            .preparar("conexion", || {
+                llamadas.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                Err(origen.aplanar(err("descriptores", ENODEV)))
+            })
+            .map_err(|mensaje| origen.restaurar(mensaje));
+        let (etapa, mensaje) = r.unwrap_err();
+        assert_eq!(
+            etapa, "descriptores",
+            "la etapa que sale es la de ORIGEN, no «conexion»: {}",
+            mensaje
+        );
+        assert!(
+            mensaje.contains("agotó"),
+            "el mensaje del supervisor (con su registro) sobrevive: {}",
+            mensaje
+        );
+        assert_eq!(
+            llamadas.load(std::sync::atomic::Ordering::SeqCst),
+            crate::supervisor::MAX_INTENTOS,
+            "la política de reintentos no cambió"
+        );
+    }
+
+    /// **Fallo 2, camino directo**: un fallo que no es desconexión pasa
+    /// UNA vez, con su etapa («claim») y su mensaje intactos — la v2.6
+    /// también esto lo enseñaba como «conexion».
+    #[test]
+    fn la_etapa_de_origen_pasa_tal_cual_sin_reintentar() {
+        let mut sup = crate::supervisor::Supervisor::de_banco();
+        let origen = OrigenEtapa::nuevo();
+        let llamadas = std::sync::atomic::AtomicU32::new(0);
+        let r: Result<(), StageErr> = sup
+            .preparar("conexion", || {
+                llamadas.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                Err(origen.aplanar(err("claim", "PasswordProtected")))
+            })
+            .map_err(|mensaje| origen.restaurar(mensaje));
+        assert_eq!(r.unwrap_err(), err("claim", "PasswordProtected"));
+        assert_eq!(llamadas.load(std::sync::atomic::Ordering::SeqCst), 1);
+    }
+
+    /// **Fallo 2, la re-preparación de `run_chain`**: el mensaje que
+    /// viaja por el canal de texto del supervisor lleva su origen
+    /// visible («[etapa configuracion] …») y la firma ENODEV intacta —
+    /// el supervisor lo sigue clasificando como desconexión y
+    /// reintentando, y quien lea el registro ve la causa real.
+    #[test]
+    fn mensaje_con_origen_conserva_la_firma_y_el_origen() {
+        let m = mensaje_con_origen(&err("configuracion", ENODEV));
+        assert!(
+            crate::supervisor::es_desconexion(&m),
+            "la firma ENODEV sobrevive al render: {}",
+            m
+        );
+        assert!(
+            m.contains("configuracion"),
+            "el origen queda visible en el texto: {}",
+            m
+        );
+        assert!(m.contains(ENODEV), "el mensaje original va entero: {}", m);
     }
 }

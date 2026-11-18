@@ -28,6 +28,12 @@ pub struct AnfitrionProvider {
     cadena: CadenaHandle,
     pairing_bytes: Vec<u8>,
     label: String,
+    /// v2.7: la sesión de ESTE proveedor ya fue retirada (apagado
+    /// síncrono hecho). Los clones anteriores al retiro conservan su
+    /// copia en falso, pero su handle apunta a un hilo ya muerto: abrir
+    /// por ellos falla en seco («el hilo de la cadena no responde»),
+    /// jamás toca el cable — son cascarones, no sesiones.
+    retirado: bool,
 }
 
 impl std::fmt::Debug for AnfitrionProvider {
@@ -44,6 +50,32 @@ impl AnfitrionProvider {
             cadena,
             pairing_bytes,
             label: "anfitrion-maximo".to_string(),
+            retirado: false,
+        }
+    }
+}
+
+/// **El retiro ordenado (v2.7)**: apaga la sesión de la cadena de forma
+/// síncrona — cuando devuelve, el hilo de la sesión murió y la interfaz
+/// USB quedó liberada sobre el fd compartido. El supervisor lo corre
+/// ANTES de re-preparar: sobre el fd compartido, liberar DESPUÉS de que
+/// el transporte nuevo reclamara tumbaría el claim nuevo (el fallo 1 de
+/// la revisión de diff sobre la v2.6). Idempotente: un proveedor ya
+/// retirado no vuelve a liberar.
+impl crate::supervisor::ProveedorRetirable for AnfitrionProvider {
+    fn retirar(&mut self) {
+        if self.retirado {
+            return;
+        }
+        self.retirado = true;
+        match self.cadena.apagar() {
+            Ok(()) => crate::stage(
+                "[supervisor] transporte anterior retirado: su sesión se apagó y la interfaz quedó liberada ANTES de re-preparar",
+            ),
+            Err(e) => crate::stage(&format!(
+                "[supervisor] aviso — el transporte anterior no confirmó su apagado ({}); su hilo ya no respondía, nada vivo que liberar",
+                e
+            )),
         }
     }
 }

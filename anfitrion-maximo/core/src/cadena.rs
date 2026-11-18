@@ -30,6 +30,16 @@
 //! `MuxPipe`: el SYN-ACK se espera **verificando puertos** (un SYN-ACK
 //! ajeno jamás se toma por el nuestro) y las tramas CONTROL se registran
 //! en el registro de etapas en vez de tragarse en silencio.
+//!
+//! **v2.7 — el apagado síncrono (`CadenaHandle::apagar`):** la sesión
+//! aprende a retirarse a la orden, con el patrón del `Shutdown` del hub:
+//! el hilo dueño suelta el transporte (RELEASEINTERFACE sobre el fd
+//! compartido) y SOLO DESPUÉS confirma. Hasta la v2.6 el handle solo se
+//! soltaba y el hilo moría cuando caía el último clon del canal — una
+//! liberación sin orden ni momento garantizado que, en la re-preparación
+//! del supervisor, podía caer tras el claim del transporte nuevo y
+//! tumbarlo (revisión de diff sobre la v2.6). El supervisor ahora retira
+//! la sesión vieja con este apagado ANTES de re-preparar la nueva.
 
 use std::collections::{HashMap, VecDeque};
 use std::future::Future;
@@ -47,7 +57,6 @@ use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use tokio::sync::oneshot;
 
 use crate::mux::{exchange_version, take_frame};
-use crate::transport::FdTransport;
 
 const TH_SYN: u8 = 0x02;
 const TH_ACK: u8 = 0x10;
@@ -412,6 +421,15 @@ enum CadenaCmd {
     Close {
         id: u32,
     },
+    /// **Apagado síncrono (v2.7)**: el hilo suelta el transporte (el Drop
+    /// de `FdTransport` hace el RELEASEINTERFACE sobre el fd) y SOLO
+    /// DESPUÉS responde por este canal — quien espera el acuse sabe que
+    /// la interfaz ya quedó liberada. Es el mismo patrón probado del
+    /// `HubCmd::Shutdown` del hub, que la etapa «conexion» ya usa pa
+    /// que la cadena reclame su interfaz sin pisar la del hub.
+    Apagar {
+        reply: Sender<()>,
+    },
 }
 
 #[derive(Clone)]
@@ -426,8 +444,13 @@ impl std::fmt::Debug for CadenaHandle {
 }
 
 /// Abre la sesión mux FRESCA de la cadena (síncrono: el error del saludo se
-/// devuelve aquí) y arranca el hilo dueño de la sesión.
-pub fn spawn_cadena(io: FdTransport, eps: Endpoints) -> Result<CadenaHandle, String> {
+/// devuelve aquí) y arranca el hilo dueño de la sesión. Genérico sobre el
+/// transporte (v2.7): en vivo es el `FdTransport` de siempre; en los bancos,
+/// un transporte guionizado que modela el claim del fd compartido.
+pub fn spawn_cadena<T>(io: T, eps: Endpoints) -> Result<CadenaHandle, String>
+where
+    T: BulkTransport + Send + 'static,
+{
     let nucleo = NucleoCadena::abrir(io, eps)?;
     crate::stage(&format!(
         "[cadena] sesión mux FRESCA abierta pa la cadena (versión {}) — sin estado heredado del hub ni de la puerta",
@@ -441,7 +464,7 @@ pub fn spawn_cadena(io: FdTransport, eps: Endpoints) -> Result<CadenaHandle, Str
     Ok(CadenaHandle { tx })
 }
 
-fn cadena_loop(mut nucleo: NucleoCadena<FdTransport>, rx: Receiver<CadenaCmd>) {
+fn cadena_loop<T: BulkTransport>(mut nucleo: NucleoCadena<T>, rx: Receiver<CadenaCmd>) {
     let mut pending_reads: Vec<(u32, usize, oneshot::Sender<Result<Vec<u8>, String>>)> =
         Vec::new();
     loop {
@@ -471,6 +494,26 @@ fn cadena_loop(mut nucleo: NucleoCadena<FdTransport>, rx: Receiver<CadenaCmd>) {
                     pending_reads.push((id, max, reply));
                 }
                 CadenaCmd::Close { id } => nucleo.cerrar(id),
+                CadenaCmd::Apagar { reply } => {
+                    // Las lecturas pendientes mueren con su causa: la
+                    // sesión se retira y nadie queda esperando del cable.
+                    for (_, _, r) in pending_reads.drain(..) {
+                        let _ = r.send(Err(
+                            "la sesión de la cadena se retiró (re-preparación del supervisor)"
+                                .to_string(),
+                        ));
+                    }
+                    // Soltar el transporte ANTES de responder — el mismo
+                    // orden del Shutdown del hub: el Drop del transporte
+                    // libera la interfaz sobre el fd compartido, y solo
+                    // con eso hecho se confirma el apagado. Quien re-prepara
+                    // tras este acuse reclama la interfaz sobre un fd ya
+                    // libre, sin que una liberación tardía le tumbe el
+                    // claim nuevo (el fallo que la v2.7 cierra).
+                    drop(nucleo);
+                    let _ = reply.send(());
+                    return;
+                }
             }
         }
         // 2) Servir lecturas con lo encolado.
@@ -513,6 +556,26 @@ fn cadena_loop(mut nucleo: NucleoCadena<FdTransport>, rx: Receiver<CadenaCmd>) {
 }
 
 impl CadenaHandle {
+    /// **Apaga la sesión de forma SÍNCRONA (v2.7)**: manda el apagado al
+    /// hilo dueño y espera su acuse — cuando esta llamada devuelve, el
+    /// hilo ya soltó el transporte y la interfaz USB quedó liberada sobre
+    /// el fd compartido. Es la pieza que le faltaba al supervisor: hasta
+    /// la v2.6 el handle solo se soltaba (el hilo moría cuando caía el
+    /// último clon del canal, a su aire), y esa liberación tardía podía
+    /// caer DESPUÉS de que la re-preparación reclamara la interfaz con el
+    /// transporte nuevo sobre el mismo fd — un RELEASEINTERFACE contra el
+    /// claim nuevo: el error 19 a mitad de escritura de la v2.5,
+    /// resucitado por el propio rescate. Con el apagado síncrono, el
+    /// orden queda garantizado: liberar el viejo → reclamar el nuevo.
+    pub fn apagar(&self) -> Result<(), String> {
+        let (tx, rx) = channel::<()>();
+        self.tx
+            .send(CadenaCmd::Apagar { reply: tx })
+            .map_err(|_| "el hilo de la cadena no responde".to_string())?;
+        rx.recv()
+            .map_err(|_| "el hilo de la cadena cerró sin confirmar el apagado".to_string())
+    }
+
     pub async fn open(&self, dport: u16) -> Result<u32, String> {
         let (tx, rx) = oneshot::channel();
         self.tx
@@ -908,5 +971,100 @@ mod tests {
         n.deliver(rst).expect("el RST se entrega");
         let datos = n.leer(id, 16).expect("leer tras RST = EOF, no error");
         assert!(datos.is_empty());
+    }
+
+    // ── Banco v2.7: el apagado síncrono de la sesión ─────────────────────
+
+    /// El transporte del banco del apagado: modela el fd compartido — su
+    /// Drop ES la liberación de la interfaz (lo que el Drop de
+    /// `FdTransport` hace con RELEASEINTERFACE sobre el fd), asentada en
+    /// un diario compartido junto a cada byte que la sesión mueve.
+    struct TransporteDelApagado {
+        gen: u32,
+        entrantes: VecDeque<Vec<u8>>,
+        diario: std::sync::Arc<std::sync::Mutex<Vec<String>>>,
+    }
+
+    impl BulkTransport for TransporteDelApagado {
+        fn bulk_out(&mut self, _ep_num: u8, _data: &[u8]) -> Result<(), String> {
+            self.diario
+                .lock()
+                .unwrap()
+                .push(format!("out:{}", self.gen));
+            Ok(())
+        }
+        fn bulk_in(&mut self, _ep_num: u8, _max_len: usize) -> Result<Vec<u8>, String> {
+            self.entrantes
+                .pop_front()
+                .ok_or_else(|| "sin datos (timeout simulado)".to_string())
+        }
+    }
+
+    impl Drop for TransporteDelApagado {
+        fn drop(&mut self) {
+            self.diario
+                .lock()
+                .unwrap()
+                .push(format!("soltar:{}", self.gen));
+        }
+    }
+
+    /// **El invariante de la v2.7**: `apagar()` no devuelve hasta que la
+    /// interfaz de la sesión vieja quedó liberada, y la sesión nueva no
+    /// mueve un solo byte antes de esa liberación. Sin el apagado
+    /// síncrono (la v2.6 solo soltaba el handle), la liberación llegaba
+    /// cuando el hilo viejo muriera a su aire — potencialmente DESPUÉS
+    /// del claim de la sesión nueva sobre el mismo fd, tumbándolo.
+    #[test]
+    fn apagar_sincrono_libera_antes_de_que_la_sesion_nueva_mueva_un_byte() {
+        use std::sync::{Arc, Mutex};
+        let diario = Arc::new(Mutex::new(Vec::<String>::new()));
+        let mk = |gen: u32| TransporteDelApagado {
+            gen,
+            entrantes: VecDeque::from(vec![version_reply(2)]),
+            diario: diario.clone(),
+        };
+        // Sesión 1 viva y apagado síncrono: al devolver la llamada, la
+        // liberación YA está en el diario (no «llegará cuando el hilo
+        // muera»): es un hecho, no una esperanza.
+        let h1 = spawn_cadena(mk(1), eps()).expect("sesión 1 abre");
+        h1.apagar().expect("el apagado se confirma");
+        assert!(
+            diario.lock().unwrap().contains(&"soltar:1".to_string()),
+            "la interfaz quedó liberada ANTES del acuse: {:?}",
+            diario.lock().unwrap()
+        );
+        // El handle retirado queda inerte: abrir una conexión falla en
+        // seco, sin tocar el cable.
+        let rt = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .expect("runtime del banco");
+        let r = rt.block_on(async { h1.open(62078).await });
+        assert!(r.is_err(), "un handle apagado no abre conexiones");
+        // Sesión 2 (la re-preparación): su primer byte va DESPUÉS de la
+        // liberación de la 1 — el orden que el claim compartido exige.
+        let h2 = spawn_cadena(mk(2), eps()).expect("sesión 2 abre");
+        let d = diario.lock().unwrap().clone();
+        let i_soltar = d.iter().position(|e| e == "soltar:1").unwrap();
+        let i_out2 = d.iter().position(|e| e == "out:2").unwrap();
+        assert!(
+            i_soltar < i_out2,
+            "la liberación de la vieja precede al primer byte de la nueva: {:?}",
+            d
+        );
+        // Al final de la corrida el handle se suelta como siempre: el
+        // hilo muere al caer el último clon y su transporte se libera.
+        drop(h2);
+        for _ in 0..100 {
+            if diario.lock().unwrap().contains(&"soltar:2".to_string()) {
+                break;
+            }
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        assert!(
+            diario.lock().unwrap().contains(&"soltar:2".to_string()),
+            "la sesión 2 también se libera al soltar su handle"
+        );
     }
 }
