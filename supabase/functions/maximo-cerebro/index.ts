@@ -116,7 +116,7 @@
 // cerebro.
 // =====================================================================
 
-import { parsearSms, rutaDe, datosLatido, filaResultado, clasificarRed, decidirRed, aNumero, enteroPositivo, qusdValido, claseDeMenu, duenoDeMenu, resolverCompra, costoConsumo, formatoMonto, parsearPagoMovil, esRemitentePago, clientUuidValido, fechaOriginalDe, ordenarLoteEventos, respuestasDe } from "./logica.js";
+import { parsearSms, rutaDe, datosLatido, filaResultado, clasificarRed, decidirRed, aNumero, enteroPositivo, qusdValido, claseDeMenu, duenoDeMenu, resolverCompra, costoConsumo, formatoMonto, parsearPagoMovil, esRemitentePago, clientUuidValido, fechaOriginalDe, ordenarLoteEventos, respuestasDe, parsearCrudo, esDescartable, partirLoteCrudo, huellaDeSms, esDuplicadoPorHuella } from "./logica.js";
 
 const json = (obj: unknown, status = 200) =>
   new Response(JSON.stringify(obj), {
@@ -771,6 +771,39 @@ async function procesarEventoSms(item: Record<string, unknown>): Promise<Record<
   /* ---------- RIEL ETECSA (como hoy + match de esperas) ---------- */
   const p = parsearSms(texto);
   const resp: Record<string, unknown> = { ok: true, id: smsId };
+  /* DEDUPE POR HUELLA DE SALDO (v19, 2026-11-18): la operadora
+     re-entrega el mismo SMS con internet malo y la copia nace con
+     client_uuid distinto — el dedup por uuid no la ve. Si una fila
+     YA CONTADA (parse_ok, sin marca de duplicado) comparte la
+     huella (tipo, contraparte, monto, saldo resultante) dentro de
+     la ventana de ±1 día, esta fila es la copia: se marca
+     duplicado_de en sms_linea (auditoría) y NO crea evento, espera,
+     venta, atribución ni cadena por segunda vez. La respuesta
+     lleva duplicado:true pa que el lote la cuente confirmada y el
+     atajo borre su archivo, como con el dedup por uuid. */
+  const huella = huellaDeSms(p);
+  if (huella) {
+    const previas = await leerFilas("sms_linea",
+      "tipo=eq." + encodeURIComponent(huella.tipo)
+      + "&contraparte=eq." + encodeURIComponent(huella.contraparte)
+      + "&monto_cup=eq." + huella.monto_cup
+      + "&saldo_principal_cup=eq." + huella.saldo_principal_cup
+      + "&parse_ok=eq.true&duplicado_de=is.null&id=lt." + smsId
+      + "&select=id,tipo,contraparte,monto_cup,saldo_principal_cup,"
+      + "parse_ok,duplicado_de,fecha_original,recibido_en"
+      + "&order=id.asc&limit=10");
+    const originalId = esDuplicadoPorHuella(
+      huella, fechaMatch, previas ?? []);
+    if (originalId !== null) {
+      await parche("sms_linea", "id=eq." + smsId, {
+        duplicado_de: originalId,
+      });
+      return guardarResultado(smsId, {
+        ok: true, id: smsId, duplicado: true,
+        duplicado_huella: true, duplicado_de: originalId,
+      });
+    }
+  }
   if (p.parse_ok && (p.tipo === "recibido" || p.tipo === "transferido")) {
     let ev = await leerEvento(smsId);
     if (!ev) {
@@ -1057,6 +1090,105 @@ Deno.serve(async (req: Request) => {
         }
       }
       return json({ ok: true, resultados });
+    }
+
+    if (ruta === "sms_crudo") {
+      // SENSOR v4.1 (2026-11-18) — EL LOTE: la v4 posteaba UN
+      // archivo por llamada y el servicio XPC de «Obtener contenido
+      // de URL» murió en vivo tres veces tras 1–2 llamadas (iOS
+      // 18.7.10, red lenta). Si el cuerpo trae «lote», el atajo
+      // juntó TODOS los archivos pendientes en UN solo texto y esta
+      // es la ÚNICA llamada de la corrida: se parte por las
+      // cabeceras (partirLoteCrudo), cada pieza corre por la MISMA
+      // lógica del archivo único (parsearCrudo + ingesta unificada
+      // + dedup duro por uuid; el descarte certificado cuenta como
+      // confirmado) y la respuesta trae los conteos. La señal de
+      // borrado es «completo» (un número, presente o ausente — la
+      // disciplina de la casa: el atajo jamás compara cifras que
+      // cruzan el JSON): viaja SOLO si confirmadas == piezas ==
+      // «esperadas» (el conteo que el atajo declara haber metido);
+      // si algo no cuadra, el atajo no borra NADA y la próxima
+      // corrida reintenta el lote entero (el dedup hace los
+      // reenvíos inofensivos). Sin «lote», la ruta es la del
+      // archivo único de la v4, intacta.
+      if (typeof cuerpo.lote === "string" && cuerpo.lote.length) {
+        const piezasLote = partirLoteCrudo(cuerpo.lote);
+        const esperadas = enteroPositivo(cuerpo.esperadas);
+        let confirmadas = 0, guardadas = 0, duplicadas = 0,
+          descartadas = 0;
+        const resultadosLote: Record<string, unknown>[] = [];
+        for (const pieza of piezasLote) {
+          const datosPieza = parsearCrudo(pieza);
+          if (!datosPieza) {
+            if (esDescartable(pieza)) {
+              confirmadas++; descartadas++;
+              resultadosLote.push({ descartar: 1 });
+            } else {
+              resultadosLote.push({ ok: false, motivo: "crudo_invalido" });
+            }
+            continue;
+          }
+          const rPieza = await procesarEventoSms({
+            remitente: datosPieza.remitente, cuerpo: datosPieza.cuerpo,
+            client_uuid: datosPieza.uuid,
+            fecha_original: datosPieza.fecha,
+            prueba: cuerpo.prueba === true,
+          });
+          if (rPieza.ok !== false) {
+            confirmadas++;
+            if (rPieza.duplicado === true) duplicadas++;
+            else guardadas++;
+          }
+          resultadosLote.push(rPieza);
+        }
+        const respLote: Record<string, unknown> = {
+          ok: true, lote: 1, piezas: piezasLote.length,
+          confirmadas, guardadas, duplicadas, descartadas,
+          resultados: resultadosLote,
+        };
+        if (esperadas !== null && esperadas > 0
+            && confirmadas === piezasLote.length
+            && confirmadas === esperadas) {
+          respLote.completo = 1;
+          if (guardadas === 0 && duplicadas === 0 && descartadas > 0) {
+            respLote.solo_descartes = 1;
+          }
+        }
+        return json(respLote);
+      }
+      // SENSOR v4 (2026-11-18): el atajo manda el archivo de la cola
+      // CRUDO (cero extracción en el teléfono: ICU no admite los
+      // lookarounds que la extracción vieja necesitaba). La forma la
+      // valida parsearCrudo y el evento entra por la MISMA ingesta
+      // unificada, con dedup duro por el uuid que viaja DENTRO del
+      // archivo. Sin forma válida → {ok:false} SIN id: el atajo no
+      // borra el archivo y la cola no pierde nada.
+      const datosCrudo = parsearCrudo(
+        typeof cuerpo.contenido === "string" ? cuerpo.contenido : "");
+      if (!datosCrudo) {
+        // Sin cuerpo en ninguna forma conocida NO hay evento
+        // posible (el centinela {"uuid":""} de la v3.9.8 vive en
+        // la misma carpeta): el servidor ordena el descarte SIN
+        // «id» — no se finge una fila que no existe. Todo lo
+        // demás se queda en la cola, visible en el resumen.
+        if (esDescartable(
+          typeof cuerpo.contenido === "string" ? cuerpo.contenido : "")) {
+          // «descartar» viaja como NÚMERO (como el «id»): la
+          // presencia de un número es la señal fiable en Atajos;
+          // un booleano false contaría como «tiene valor».
+          return json({ ok: true, descartar: 1 });
+        }
+        return json({ ok: false, motivo: "crudo_invalido" });
+      }
+      const respCrudo = await procesarEventoSms({
+        remitente: datosCrudo.remitente, cuerpo: datosCrudo.cuerpo,
+        client_uuid: datosCrudo.uuid, fecha_original: datosCrudo.fecha,
+        prueba: cuerpo.prueba === true,
+      });
+      if (respCrudo.ok === false && respCrudo.motivo === "insercion_fallo") {
+        return json({ ok: false }, 500);
+      }
+      return json(respCrudo);
     }
 
     // ruta === "sms": UN evento por la ingesta unificada (ETECSA o

@@ -78,7 +78,7 @@ export function parsearSms(cuerpo) {
 //   sms_precio / sms_clase / sms_respuesta → el sensor v2 (abajo).
 // Cualquier otro tipo (o cuerpo que no sea objeto) → null = 400.
 // ---------------------------------------------------------------------
-export const RUTAS = ["config", "latido", "sms", "previo", "resultado", "red", "red_resultado", "sms_precio", "sms_clase", "sms_respuesta", "sms_lote", "espera_crear"];
+export const RUTAS = ["config", "latido", "sms", "previo", "resultado", "red", "red_resultado", "sms_precio", "sms_clase", "sms_respuesta", "sms_lote", "sms_crudo", "espera_crear"];
 
 export function rutaDe(cuerpo) {
   if (!cuerpo || typeof cuerpo !== "object") return null;
@@ -513,4 +513,225 @@ export function filaResultado(cuerpo, fase) {
     previo,
     resultado,
   };
+}
+
+/* =====================================================================
+   EL CRUDO DEL SENSOR v4 (2026-11-18): el atajo ya NO extrae campos
+   en el teléfono — el motor de regex de iOS (ICU) no admite
+   lookbehind de longitud variable y la v3.9.8 murió en vivo con
+   «La expresión regular no era válida». El archivo de la cola viaja
+   CRUDO (ruta «sms_crudo») y la extracción vive AQUÍ, con el motor
+   JS completo. Formas aceptadas:
+   1) PLANO v4 (lo que escribe el Sensor v4, separadores fijos):
+        MAXIMO-SMS-4
+        uuid: <uuid>
+        fecha: <ISO 8601>
+        remitente: ETECSA
+        ---
+        <el cuerpo tal cual, puede ser multilínea>
+   2) LEGADO JSON de la cola vieja (el @ev de las v3.x guardado tal
+      cual): JSON.parse directo; si el texto quedó roto por las
+      comillas del propio cuerpo, captura por patrón con desescape.
+   El uuid es OBLIGATORIO en toda forma: sin él no hay dedup duro y
+   el evento no entra (la ruta responde crudo_invalido SIN id y el
+   archivo se queda en la cola — nada se pierde ni se duplica).
+   ===================================================================== */
+/* ¿Este contenido NO contiene ningún SMS posible? La doctrina es
+   la de la propia línea v3.x (su cuarentena): «un archivo con
+   uuid y sin cuerpo legible NO es un evento posible — el evento
+   nace con su texto dentro». Formas positivamente SIN cuerpo:
+   el archivo vacío, el objeto JSON sin cuerpo (o con el cuerpo
+   vacío) — ahí vive el centinela {"uuid": ""} que la v3.9.8
+   escribía en la MISMA carpeta de la cola en cada corrida — y el
+   plano v4 con el cuerpo vacío tras el «---». Solo ante estas
+   formas la ruta «sms_crudo» responde {ok:true, descartar:true}
+   (SIN «id»: no hay fila porque no hay evento) y el atajo borra
+   el archivo. Un cuerpo presente pero sin uuid, o un contenedor
+   desconocido, JAMÁS es descartable: se queda en la cola y la
+   parada FIFO lo hace visible — un cuerpo real no se borra. */
+export function esDescartable(contenido) {
+  if (typeof contenido !== "string") return false;
+  const txt = contenido.replace(/\r\n/g, "\n");
+  if (!txt.trim()) return true;
+  if (txt.startsWith("MAXIMO-SMS-4")) {
+    const corte = txt.indexOf("\n---\n");
+    if (corte >= 0 && !txt.slice(corte + 5).trim()) return true;
+    return false;
+  }
+  try {
+    const j = JSON.parse(txt);
+    if (j && typeof j === "object" && !Array.isArray(j)) {
+      return typeof j.cuerpo !== "string" || !j.cuerpo.trim();
+    }
+  } catch { /* no es JSON: contenedor desconocido, no se descarta */ }
+  return false;
+}
+
+/* =====================================================================
+   EL LOTE DEL SENSOR v4.1 (2026-11-18): la v4 hacía UNA llamada
+   «Obtener contenido de URL» POR ARCHIVO y el servicio XPC de esa
+   acción murió en vivo tres veces seguidas en el iPhone de Ernesto
+   (iOS 18.7.10, red lenta: subía 1–2 archivos y la corrida caía con
+   «XPC error received on message reply handler», el error fijado
+   en esa acción en su captura del editor). La v4.1 junta TODOS los
+   archivos pendientes en UN solo texto lote y hace exactamente
+   UNA llamada por corrida. Encuadre del lote (lo construye el
+   atajo, pieza a pieza): cada pieza viaja TAL CUAL (plano v4 con
+   su cabecera, o el legado tal cual) seguida del delimitador
+   DELIM_LOTE. partirLoteCrudo parte por el delimitador y descarta
+   SOLO el segmento vacío final que deja el delimitador de cierre
+   — un archivo vacío en el medio (o al final) sobrevive como
+   pieza "" y esDescartable lo certifica descarte, como manda la
+   doctrina. Las piezas NO se recortan aquí: parsearCrudo y
+   esDescartable ya toleran los bordes. El delimitador es una
+   línea imposible en un SMS real y en el JSON legado. */
+export const DELIM_LOTE = "\n===MAXIMO-PIEZA===\n";
+
+export function partirLoteCrudo(texto) {
+  if (typeof texto !== "string" || !texto) return [];
+  const partes = texto.replace(/\r\n/g, "\n").split(DELIM_LOTE);
+  if (partes.length && partes[partes.length - 1] === "") partes.pop();
+  return partes;
+}
+
+export function parsearCrudo(contenido) {
+  if (typeof contenido !== "string" || !contenido.trim()) return null;
+  const txt = contenido.replace(/\r\n/g, "\n");
+  if (txt.startsWith("MAXIMO-SMS-4")) {
+    const corte = txt.indexOf("\n---\n");
+    if (corte < 0) return null;
+    const cab = {};
+    for (const linea of txt.slice(0, corte).split("\n").slice(1)) {
+      const i = linea.indexOf(":");
+      if (i > 0) cab[linea.slice(0, i).trim()] = linea.slice(i + 1).trim();
+    }
+    const cuerpoTxt = txt.slice(corte + 5).trim();
+    if (!cab.uuid || !cuerpoTxt) return null;
+    return {
+      uuid: cab.uuid, fecha: cab.fecha ?? null,
+      remitente: cab.remitente ?? "ETECSA", cuerpo: cuerpoTxt,
+    };
+  }
+  try {
+    const j = JSON.parse(txt);
+    if (j && typeof j === "object"
+        && typeof j.cuerpo === "string" && j.cuerpo.trim()
+        && typeof j.uuid === "string" && j.uuid.trim()) {
+      return {
+        uuid: j.uuid,
+        fecha: typeof j.fecha === "string" ? j.fecha : null,
+        remitente: typeof j.remitente === "string" ? j.remitente : "ETECSA",
+        cuerpo: j.cuerpo,
+      };
+    }
+  } catch { /* cae a la captura por patrón */ }
+  const ci = txt.indexOf('"cuerpo"');
+  if (ci >= 0) {
+    const abre = txt.indexOf('"', txt.indexOf(":", ci) + 1);
+    const cierra = Math.max(txt.lastIndexOf('", "fecha"'),
+                             txt.lastIndexOf('","fecha"'));
+    if (abre >= 0 && cierra > abre) {
+      let cuerpoTxt = txt.slice(abre + 1, cierra);
+      // Si el corte trae escapes JSON, se desescapa; si trae las
+      // comillas crudas que rompieron el JSON, queda tal cual (ese
+      // ES el cuerpo verdadero).
+      try { cuerpoTxt = JSON.parse('"' + cuerpoTxt + '"'); } catch { /* crudo */ }
+      const mu = txt.match(/"uuid"\s*:\s*"([^"]*)"/);
+      const mf = txt.match(/"fecha"\s*:\s*"([^"]*)"/);
+      const mr = txt.match(/"remitente"\s*:\s*"([^"]*)"/);
+      if (mu && typeof cuerpoTxt === "string" && cuerpoTxt.trim()) {
+        return {
+          uuid: mu[1], fecha: mf ? mf[1] : null,
+          remitente: mr ? mr[1] : "ETECSA", cuerpo: cuerpoTxt,
+        };
+      }
+    }
+  }
+  return null;
+}
+
+/* =====================================================================
+   DEDUPE POR HUELLA DE SALDO (cerebro v19, 2026-11-18 — orden de
+   Ernesto): con internet malo, ETECSA re-entrega el MISMO SMS dos
+   veces (caso real de su hilo: «ha recibido 1080.0 CUP del numero
+   50049642. Saldo principal 15910.08», dos copias idénticas). Cada
+   copia nace en un archivo de la cola con client_uuid DISTINTO, así
+   que el dedup duro por uuid NO la caza y, sin esta pieza, el saldo
+   se contaría doble (dos esperas, dos lotes, cadena rota).
+
+   LA HUELLA de una operación ejecutada es (tipo, contraparte,
+   monto_cup, saldo_principal_cup): el saldo resultante es el estado
+   de la línea tras la operación. Si la segunda «transferencia» fuera
+   real, el saldo resultante sería OTRO (15910.08 + 1080 = 16990.08);
+   que la copia traiga el MISMO saldo resultante prueba que es la
+   misma operación re-entregada. Dos operaciones reales solo
+   compartirían huella si el saldo volviera EXACTAMENTE al mismo
+   valor con el mismo remitente y el mismo monto — y aun así la
+   VENTANA lo acota: ±1 día por fecha_original (la re-entrega de la
+   operadora llega en minutos u horas; una repetición real días
+   después cuenta como operación nueva, porque el saldo ya se movió).
+
+   La decisión es PURA (esDuplicadoPorHuella): la ingesta trae las
+   filas candidatas ya contadas (parse_ok, sin marca de duplicado)
+   y la función devuelve el id de la original o null. La copia se
+   guarda en sms_linea con duplicado_de = ese id (auditoría) y NO
+   genera eventos, esperas, ventas, atribuciones ni cadena otra vez.
+   Solo aplica al riel ETECSA con parse completo (recibido y
+   transferido); el riel PAGO×MOVIL conserva su dedup por
+   Nro. Transaccion y la clasificación de tarjetas BANDEC por número
+   queda intacta. */
+export const VENTANA_HUELLA_DIAS = 1;
+
+export function huellaDeSms(p) {
+  if (!p || p.parse_ok !== true) return null;
+  if (p.tipo !== "recibido" && p.tipo !== "transferido") return null;
+  const monto = aNumero(p.monto_cup);
+  const saldo = aNumero(p.saldo_principal_cup);
+  if (monto === null || saldo === null) return null;
+  if (typeof p.contraparte !== "string" || !p.contraparte) return null;
+  return {
+    tipo: p.tipo, contraparte: p.contraparte,
+    monto_cup: monto, saldo_principal_cup: saldo,
+  };
+}
+
+/* Instante en ms desde un texto de fecha, tolerante con las formas
+   que viajan por el sistema: ISO con «Z» o con offset «-04:00», la
+   forma de Postgres «2026-11-18 00:00:00+00» (espacio y offset sin
+   minutos — Date.parse la devuelve NaN en V8) y epoch. Sin instante
+   sano → null (la fila no decide nada). */
+export function instanteDe(v) {
+  if (typeof v === "number" && Number.isFinite(v)) return v;
+  if (typeof v !== "string" || !v.trim()) return null;
+  let t = v.trim().replace(" ", "T");
+  t = t.replace(/([+-]\d{2})$/, "$1:00");
+  const ms = Date.parse(t);
+  return Number.isNaN(ms) ? null : ms;
+}
+
+export function esDuplicadoPorHuella(huella, fechaNueva, filasPrevias) {
+  if (!huella || !Array.isArray(filasPrevias)) return null;
+  const tN = instanteDe(fechaNueva);
+  if (tN === null) return null;
+  const diaN = Math.floor(tN / 86400000);
+  for (const f of filasPrevias) {
+    if (!f || typeof f !== "object") continue;
+    if (f.parse_ok !== true) continue;
+    if (f.duplicado_de != null) continue; // una copia no es original
+    if (f.tipo !== huella.tipo) continue;
+    if (String(f.contraparte ?? "") !== huella.contraparte) continue;
+    if (aNumero(f.monto_cup) !== huella.monto_cup) continue;
+    if (aNumero(f.saldo_principal_cup) !== huella.saldo_principal_cup) {
+      continue;
+    }
+    const tP = instanteDe(
+      typeof f.fecha_original === "string" ? f.fecha_original
+      : (typeof f.recibido_en === "string" ? f.recibido_en : null));
+    if (tP === null) continue;
+    const dias = Math.abs(diaN - Math.floor(tP / 86400000));
+    if (dias <= VENTANA_HUELLA_DIAS) {
+      return typeof f.id === "number" ? f.id : null;
+    }
+  }
+  return null;
 }
