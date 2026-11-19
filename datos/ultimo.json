@@ -1,23 +1,23 @@
 {
- "ts": "2026-11-19T21:26:00Z",
+ "ts": "2026-11-19T22:25:07Z",
  "ETECSA": {
-  "average": 289.2863,
-  "average_buy": 290.6741,
-  "average_sell": 288.735,
-  "median_sell": 292.517,
-  "count": 102,
+  "average": 289.0766,
+  "average_buy": 290.8377,
+  "average_sell": 288.3469,
+  "median_sell": 290.8234,
+  "count": 99,
   "count_buy": 29,
-  "count_sell": 73,
+  "count_sell": 70,
   "window_hours": 24
  },
  "BANK_CUP": {
-  "average": 1125.926,
-  "average_buy": 1119.4405,
-  "average_sell": 1127.5843,
-  "median_sell": 1127.2417,
-  "count": 496,
-  "count_buy": 101,
-  "count_sell": 395,
+  "average": 1126.417,
+  "average_buy": 1119.7192,
+  "average_sell": 1128.1086,
+  "median_sell": 1129.5638,
+  "count": 486,
+  "count_buy": 98,
+  "count_sell": 388,
   "window_hours": 24
  }
 }
