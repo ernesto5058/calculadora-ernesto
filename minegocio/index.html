@@ -18,7 +18,20 @@
      v47 · SENSOR OFFLINE-FIRST: la atribución de recargas enseña su
      estado en la propia sección (guardada en el teléfono / ya subió /
      rechazo del servidor accionable con Reintentar y Quitar de la
-     cola) y la cola no admite dos ops pa el mismo SMS. CHEQUEO 143. -->
+     cola) y la cola no admite dos ops pa el mismo SMS. CHEQUEO 143.
+     v48 · SENSOR SIN RED (vía local): el atajo ya no sube nada por
+     red (la acción de red moría por XPC); captura, presenta el
+     RELLENO NATIVO dentro de su propia corrida (el evento ya
+     guardado en archivo antes de preguntar) y trae el lote a la
+     app EN LOCAL por el fragmento de la URL. La app ingiere a su
+     almacén del teléfono (store «sensor») con dedupe por uuid y
+     por huella de operadora, enseña el ESTADO de cada registro
+     (la app no tiene formulario propio: el formulario es del
+     atajo) y sincroniza por la cola de siempre
+     (dinero_sms_ingresar → dinero_sms_atribuir si el relleno
+     traía respuestas) cuando detecta internet, en orden de
+     fecha_original: offline acumula, con internet todo entra
+     organizado. CHEQUEOS 146 y 147. -->
 <style>
 /* ===== MI NEGOCIO · REDISEÑO PRO (v42) =====
    Identidad aprobada por Ernesto el 2026-11-17 sobre su maqueta:
@@ -1546,6 +1559,13 @@ function encolar(accion){
     var yaSmsOp = (state.cola || []).filter(function(x){ return x && x.tipo === accion.tipo && String(x.smsId) === String(accion.smsId); })[0];
     if (yaSmsOp) { toastSmsEnColaMN(yaSmsOp); return yaSmsOp; }
   }
+  /* v48: la subida local de un SMS del Sensor tampoco se duplica:
+     una op viva por client_uuid basta (la puerta y el folio hacen
+     el resto idempotente). */
+  if (accion.tipo === "sensorSubir" && accion.clientUuid) {
+    var yaSensorOp = (state.cola || []).filter(function(x){ return x && x.tipo === "sensorSubir" && x.clientUuid === accion.clientUuid; })[0];
+    if (yaSensorOp) return yaSensorOp;
+  }
   /* v47 (supervisora): el deshacer recién encolado apaga al momento
      la marca «ya subió» de ese SMS — nada de enseñar «asentada» y
      «deshacer guardado» a la vez. */
@@ -1627,6 +1647,7 @@ function ejecutarAccion(a){
         if (r && r.ok === false) throw new Error(r.motivo || r.error || "el servidor no aceptó la atribución");
         cargarSinAtribuirMN(); return r;
       });
+    case "sensorSubir": return subirSensorMN(a.clientUuid, a.opId);
     case "smsDesatribuir": return rpc("dineroSmsDesatribuir", { p_codigo: cod, p_sms_id: a.smsId, p_folio: a.opId })
       .then(function(r){
         if (r && r.ok === false) throw new Error(r.motivo || r.error || "el servidor no aceptó deshacer la atribución");
@@ -1671,6 +1692,19 @@ function despacharCola(){
   var huboPagado = false;
   var chain = Promise.resolve();
   var copia = state.cola.slice();
+  /* v48 · SYNC ORDENADA (criterio de Ernesto 20:32): las ops
+     del Sensor se despachan en orden de fecha_original del SMS
+     entre ellas, aunque hayan entrado a la cola desordenadas —
+     al volver internet todo entra organizado, no en el orden
+     en que la red fue llegando. Las demás ops no se mueven. */
+  (function(){
+    var idx = [];
+    copia.forEach(function(o, i){ if (o.tipo === "sensorSubir") idx.push(i); });
+    if (idx.length < 2) return;
+    var sens = idx.map(function(i){ return copia[i]; });
+    sens.sort(function(a, b){ return String(a.fechaSensor || "") < String(b.fechaSensor || "") ? -1 : 1; });
+    idx.forEach(function(pos, j){ copia[pos] = sens[j]; });
+  })();
   copia.forEach(function(a){
     chain = chain.then(function(){
       if (a.estado === "fallida") return; /* v10: parada honesta; se reintenta a mano desde su burbuja */
@@ -1770,7 +1804,7 @@ function normalizarCola(){
   });
 }
 /* --- Adaptadores tras una sola interfaz (Promise) --- */
-var BDL_CLAVES = { reportes: "id", mensajes: "id", adjuntos: "id", config: "clave", outbox: "opId", sync: "entidad" };
+var BDL_CLAVES = { reportes: "id", mensajes: "id", adjuntos: "id", config: "clave", outbox: "opId", sync: "entidad", sensor: "uuid" };
 var BDL_INDICES = { porCodigo: "codigoChat", porEstado: "estado" };
 function crearAdapterMemoria(){
   var datos = {};
@@ -1791,7 +1825,7 @@ function crearAdapterMemoria(){
 function crearAdapterIDB(){
   var dbP = new Promise(function(res, rej){
     var rq;
-    try { rq = window.indexedDB.open("minegocio", 1); } catch(e){ rej(e); return; }
+    try { rq = window.indexedDB.open("minegocio", 2); } catch(e){ rej(e); return; }
     rq.onupgradeneeded = function(){
       var db = rq.result;
       if (!db.objectStoreNames.contains("reportes")) db.createObjectStore("reportes", { keyPath: "id" });
@@ -1800,6 +1834,8 @@ function crearAdapterIDB(){
       if (!db.objectStoreNames.contains("config")) db.createObjectStore("config", { keyPath: "clave" });
       if (!db.objectStoreNames.contains("outbox")) db.createObjectStore("outbox", { keyPath: "opId" }).createIndex("porEstado", "estado", { unique: false });
       if (!db.objectStoreNames.contains("sync")) db.createObjectStore("sync", { keyPath: "entidad" });
+      /* v48: los SMS que llegan en local por el Sensor sin red. */
+      if (!db.objectStoreNames.contains("sensor")) db.createObjectStore("sensor", { keyPath: "uuid" });
     };
     rq.onsuccess = function(){ res(rq.result); };
     rq.onerror = function(){ rej(rq.error); };
@@ -2863,7 +2899,7 @@ registrarModulo({
     }
     h += '<div class="card"><h3><span class="secIco">' + icono("reloj") + '</span>Estado de los datos</h3>'
       + '<div class="kv">' + (online ? "En línea: datos frescos de ahora." : (selloTexto("bandeja") + ".")) + '</div></div>';
-    el.innerHTML = heroInicioHtml() + recargasSinAtribuirHtml() + promoInicioHtml() + conversionesInicioHtml() + enviarQusdHtml() + h + accesosInicioHtml() + novedadesInicioHtml() + bloqueSemaforoHtml() + bloqueCuentasHtml() + bloqueAvisosHtml()
+    el.innerHTML = heroInicioHtml() + recargasSinAtribuirHtml() + sensorEstadoHtml() + promoInicioHtml() + conversionesInicioHtml() + enviarQusdHtml() + h + accesosInicioHtml() + novedadesInicioHtml() + bloqueSemaforoHtml() + bloqueCuentasHtml() + bloqueAvisosHtml()
       + '<div class="mut" style="text-align:center;padding:6px 0 2px">' + selloVersion() + '</div>';
     pintarResumenQv();
     var rb = $("inReintentar");
@@ -2888,7 +2924,7 @@ registrarModulo({
   },
   alMostrar: function(){
     if (actividadCache === null) cargarActividad();
-    cargarSinAtribuirMN();
+    cargarSinAtribuirMN(); cargarSensorMN();
     if (avisosHistCache === null) cargarAvisosHist();
     if (!mercadoGuiaMN && !mercadoCargandoMN) cargarMercadoMN();
     cargarContactosQva();
@@ -5850,6 +5886,10 @@ function init(){
     entrar();
   }
   setInterval(function(){ haceVisible(); }, 60000);
+  /* v48: el camión del Sensor puede ser quien abrió la app —
+     su ingesta corre al final de init, abra como abra. */
+  arrancarSensorMN();
+  cargarSensorMN();
 }
 document.addEventListener("DOMContentLoaded", init);
 
@@ -6052,6 +6092,7 @@ PUERTAS.generarCierre = "admin_generar_cierre";
 PUERTAS.cierres = "admin_cierres";
 PUERTAS.actividad = "admin_actividad";
 PUERTAS.dineroSmsSinAtribuir = "dinero_sms_sin_atribuir";
+PUERTAS.dineroSmsIngresar = "dinero_sms_ingresar";
 PUERTAS.dineroSmsAtribuir = "dinero_sms_atribuir";
 PUERTAS.dineroSmsDesatribuir = "dinero_sms_desatribuir";
 PUERTAS.registrarPushAdmin = "registrar_push_admin";
@@ -6383,7 +6424,7 @@ registrarModulo({
       });
     });
   },
-  alMostrar: function(){ cargarActividad(); cargarSinAtribuirMN(); }
+  alMostrar: function(){ cargarActividad(); cargarSinAtribuirMN(); cargarSensorMN(); }
 });
 
 /* ===== MÓDULO TEXTOS (motor IA en el servidor) =====
@@ -7371,6 +7412,262 @@ function enviarGastoMN(btn){
     else falla("No llegó la confirmación del servidor. Tu folio quedó guardado en este teléfono: al reintentar se usa el mismo y el gasto entra una sola vez, aunque el primer intento sí haya llegado.");
   });
 }
+/* ============ v48 · SENSOR v5 SIN RED: INGESTA LOCAL + SYNC ORDENADA (2026-11-18) ===
+   El atajo v5 no tiene red: captura el SMS, presenta el relleno
+   nativo dentro de su corrida (menú-puerta + preguntas, con el
+   evento YA guardado en un archivo) y trae el lote a la app en
+   el fragmento de la URL (#sms=…), llenos y pendientes juntos.
+   La app es el ATERRIZAJE y el REGISTRO (no el formulario):
+   ingiere los crudos a su almacén local (IndexedDB, store
+   «sensor»), deduplica por client_uuid Y por huella (la regla
+   de la operadora: tipo+contraparte+monto+saldo resultante,
+   ±1 día — el par de Briku 1080/50049642/15910.08 cuenta UNA
+   vez), enseña el estado de cada uno en Inicio y sincroniza
+   por la cola de siempre cuando hay internet: primero el crudo
+   (RPC dinero_sms_ingresar) y, si el relleno ya traía las
+   respuestas, encadena la atribución con folio propio.
+   Criterio de Ernesto (20:32): offline se acumula; cuando
+   entra internet TODO ENTRA ORGANIZADAMENTE — la cola despacha
+   los sensorSubir en orden de fecha_original del SMS (ver
+   despacharCola) y la bandeja enseña el resultado final limpio:
+   pendiente → sincronizado, duplicados marcados y no contados.
+   Los parsers de abajo son PUERTO LITERAL de los del cerebro
+   (logica.js: parsearCrudo/partirLoteCrudo/parsearSms) — jamás
+   dos parsers divergentes pa el mismo formato. */
+var DELIM_LOTE_MN = "\n===MAXIMO-PIEZA===\n";
+function partirLoteCrudoMN(texto){
+  if (typeof texto !== "string" || !texto) return [];
+  if (texto.indexOf(DELIM_LOTE_MN) === -1) return [texto];
+  return texto.split(DELIM_LOTE_MN).filter(function(p){ return p && p.trim(); });
+}
+function numeroDeMN(s){
+  if (s == null) return null;
+  var limpio = String(s).replace(/\s/g, "").replace(",", ".");
+  var n = Number(limpio);
+  return Number.isFinite(n) ? n : null;
+}
+function parsearSmsMN(cuerpo){
+  var texto = typeof cuerpo === "string" ? cuerpo : "";
+  var rec = texto.match(/ha\s+recibido\s+([0-9][0-9\s.,]*?)\s*CUP\s+del\s+n[uú]mero\s+(\d+)/i);
+  var tra = rec ? null : texto.match(/ha\s+transferido\s+([0-9][0-9\s.,]*?)\s*CUP\s+al\s+n[uú]mero\s+(\d+)/i);
+  var m = rec || tra;
+  var saldo = texto.match(/saldo\s+principal\s+([0-9][0-9\s.,]*?)\s*CUP/i);
+  var tipo = null, monto = null, contraparte = null;
+  if (m) {
+    tipo = rec ? "recibido" : "transferido";
+    monto = numeroDeMN(m[1]);
+    contraparte = m[2];
+  }
+  var saldoPrincipal = saldo ? numeroDeMN(saldo[1]) : null;
+  return { tipo: tipo, monto: monto, contraparte: contraparte, saldoPrincipal: saldoPrincipal,
+    parseOk: !!(m && monto != null && saldoPrincipal != null) };
+}
+function parsearCrudoMN(contenido){
+  var texto = typeof contenido === "string" ? contenido : "";
+  var salida = { clientUuid: null, fechaOriginal: null, remitente: null, cuerpo: null, form: null };
+  if (/^\s*\{/.test(texto)) {
+    try {
+      var j = JSON.parse(texto);
+      salida.clientUuid = j.uuid || j.client_uuid || null;
+      salida.fechaOriginal = j.fecha || null;
+      salida.remitente = j.remitente || null;
+      salida.cuerpo = typeof j.cuerpo === "string" ? j.cuerpo : null;
+      return salida;
+    } catch(e) { /* cae al plano */ }
+  }
+  var corte = texto.indexOf("\n---\n");
+  if (corte === -1) return salida;
+  var cab = texto.slice(0, corte), cuerpo = texto.slice(corte + 5);
+  function deCab(clave){
+    var mm = cab.match(new RegExp("(?:^|\\n)" + clave + ": ([^\\n]+)"));
+    return mm ? mm[1].trim() : null;
+  }
+  salida.clientUuid = deCab("uuid");
+  salida.fechaOriginal = deCab("fecha");
+  salida.remitente = deCab("remitente");
+  salida.cuerpo = cuerpo.replace(/^\n+/, "");
+  /* El relleno del atajo viaja como líneas de cabecera
+     (form:/tipo:/buscador:/pago:/qusd:). Sin «form:» = pendiente
+     de formulario: el registro espera al atajo, la app solo lo
+     enseña como estado. */
+  var formEstado = deCab("form");
+  if (formEstado === "listo" || formEstado === "no_negocio") {
+    salida.form = { estado: formEstado, tipo: deCab("tipo"), buscador: deCab("buscador"),
+      pago: numeroDeMN(deCab("pago")), qusd: numeroDeMN(deCab("qusd")) };
+  }
+  return salida;
+}
+function huellaSmsMN(tipo, contraparte, monto, saldo){
+  if (!tipo || contraparte == null || monto == null || saldo == null) return null;
+  return tipo + "|" + contraparte + "|" + monto + "|" + saldo;
+}
+function sensorTodosMN(){
+  return BDL.todos("sensor").catch(function(){ return []; });
+}
+function sensorGuardarMN(rec){
+  return BDL.pon("sensor", rec);
+}
+/* Ingesta de un lote del camión: devuelve el resumen honesto.
+   Dedupe por uuid (con mejora de formulario: un pendiente que
+   vuelve lleno adopta las respuestas) y por huella (la copia
+   queda guardada marcada duplicadoDe, jamás se sube ni se
+   cuenta). Solo los NO duplicados encolan su subida. */
+function ingerirLoteSensorMN(texto){
+  var piezas = partirLoteCrudoMN(texto);
+  return sensorTodosMN().then(function(todos){
+    var porUuid = {}, porHuella = {};
+    todos.forEach(function(r){
+      porUuid[r.uuid] = r;
+      if (r.huella && !r.duplicadoDe && !porHuella[r.huella]) porHuella[r.huella] = r;
+    });
+    var nuevos = 0, duplicados = 0, mejorados = 0, cadena = Promise.resolve();
+    piezas.forEach(function(pieza){
+      cadena = cadena.then(function(){
+        var c = parsearCrudoMN(pieza);
+        if (!c.clientUuid || !c.cuerpo) return;
+        var p = parsearSmsMN(c.cuerpo);
+        var huella = huellaSmsMN(p.tipo, p.contraparte, p.monto, p.saldoPrincipal);
+        var previo = porUuid[c.clientUuid];
+        if (previo) {
+          if (!previo.form && c.form) {
+            previo.form = c.form;
+            mejorados++;
+            return sensorGuardarMN(previo);
+          }
+          return;
+        }
+        var rec = { uuid: c.clientUuid, fecha: c.fechaOriginal, remitente: c.remitente, cuerpo: c.cuerpo,
+          tipo: p.tipo, contraparte: p.contraparte, monto: p.monto, saldo: p.saldoPrincipal,
+          parseOk: p.parseOk, huella: huella, form: c.form || null, duplicadoDe: null, sincronizado: false };
+        var original = null;
+        if (huella && porHuella[huella]) {
+          var cand = porHuella[huella];
+          var dMs = 86400000;
+          var fA = Date.parse(cand.fecha || ""), fB = Date.parse(rec.fecha || "");
+          if (!Number.isFinite(fA) || !Number.isFinite(fB) || Math.abs(fA - fB) <= dMs) original = cand;
+        }
+        if (original) { rec.duplicadoDe = original.uuid; duplicados++; }
+        else {
+          nuevos++;
+          if (huella) porHuella[huella] = rec;
+          encolar({ tipo: "sensorSubir", clientUuid: rec.uuid, fechaSensor: rec.fecha });
+        }
+        porUuid[rec.uuid] = rec;
+        return sensorGuardarMN(rec);
+      });
+    });
+    return cadena.then(function(){ return { piezas: piezas.length, nuevos: nuevos, duplicados: duplicados, mejorados: mejorados }; });
+  });
+}
+/* La subida de UN registro del Sensor: crudo → (si el relleno
+   traía respuestas) atribución encadenada. El duplicado local
+   jamás sale del teléfono: se marca y la op se cierra. El
+   folio lleva el uuid: reintentar nunca duplica (el servidor
+   deduplica por client_uuid y el folio es único). */
+function subirSensorMN(clientUuid){
+  return sensorTodosMN().then(function(todos){
+    var rec = null;
+    todos.forEach(function(r){ if (r.uuid === clientUuid) rec = r; });
+    if (!rec) return { ok: true };
+    if (rec.duplicadoDe) {
+      rec.sincronizado = true;
+      return sensorGuardarMN(rec).then(function(){ return { ok: true }; });
+    }
+    if (rec.sincronizado) return { ok: true };
+    return rpc("dineroSmsIngresar", { p_codigo: state.codigo, p_client_uuid: rec.uuid,
+      p_fecha: rec.fecha, p_remitente: rec.remitente, p_cuerpo: rec.cuerpo }).then(function(resp){
+      if (!resp || resp.ok !== true) throw new Error((resp && resp.motivo) || "la ingesta no confirmó");
+      if (resp.duplicado) {
+        rec.duplicadoDe = "servidor";
+        rec.sincronizado = true;
+        return sensorGuardarMN(rec).then(function(){ return { ok: true }; });
+      }
+      var smsId = resp.sms_id;
+      var cerrar = function(){
+        rec.sincronizado = true; rec.smsId = smsId;
+        return sensorGuardarMN(rec).then(function(){ return { ok: true }; });
+      };
+      if (rec.form && rec.form.estado === "listo" && rec.form.tipo) {
+        return rpc("dineroSmsAtribuir", { p_codigo: state.codigo, p_sms_id: smsId, p_tipo: rec.form.tipo,
+          p_buscador_codigo: rec.form.tipo === "buscador" ? (rec.form.buscador || null) : null,
+          p_pago: rec.form.pago, p_qusd: rec.form.tipo === "qvapay" ? rec.form.qusd : null,
+          p_folio: "sensorv5-" + String(rec.uuid).slice(0, 13) }).then(function(ra){
+          if (!ra || ra.ok !== true) throw new Error((ra && ra.motivo) || "la atribución no confirmó");
+          return cerrar();
+        });
+      }
+      return cerrar();
+    });
+  });
+}
+/* La bandeja de estado del Sensor en Inicio: el resultado
+   final, organizado por hora del SMS — qué espera formulario
+   (eso vive en el atajo), qué está por subir, qué ya entró y
+   qué fue copia de la operadora (marcada, no contada). Mismo
+   patrón que «Recargas sin atribuir»: global + repintado. */
+var sensorRecsMN = [];
+function cargarSensorMN(){
+  sensorTodosMN().then(function(recs){
+    sensorRecsMN = recs || [];
+    pintarInicioSiVisible();
+  }).catch(function(){});
+}
+function sensorEstadoHtml(){
+  var recs = sensorRecsMN;
+  if (!recs || !recs.length) return "";
+  var orden = recs.slice().sort(function(a, b){ return String(a.fecha || "") < String(b.fecha || "") ? -1 : 1; });
+  var pendForm = 0, porSubir = 0;
+  orden.forEach(function(r){
+    if (r.duplicadoDe) return;
+    if (!r.sincronizado) porSubir++;
+    if (!r.form) pendForm++;
+  });
+  var filas = orden.slice(-8).reverse().map(function(r){
+    var estado, cls;
+    if (r.duplicadoDe) { estado = "♻️ copia de la operadora — no cuenta"; cls = "var(--mut)"; }
+    else if (r.form && r.form.estado === "no_negocio") { estado = r.sincronizado ? "🚫 no es del negocio · ya entró" : "🚫 no es del negocio · por subir"; cls = "var(--mut)"; }
+    else if (!r.form) { estado = r.sincronizado ? "⏳ ya entró · falta su formulario (sale en el atajo)" : "⏳ falta su formulario (sale en el atajo)"; cls = "var(--gold)"; }
+    else { estado = r.sincronizado ? "✅ llenado y sincronizado" : "📤 llenado · por subir"; cls = r.sincronizado ? "var(--ok,#3fb96f)" : "var(--gold)"; }
+    var monto = r.monto != null ? fmtSaldoMN(r.monto) + " de saldo" : "SMS de la línea";
+    var de = r.contraparte ? " · " + esc(r.contraparte) : "";
+    var hora = r.fecha ? esc(horaDe(r.fecha)) : "";
+    return "<div style='display:flex;justify-content:space-between;gap:8px;padding:5px 0;border-top:1px solid var(--line)'>"
+      + "<span style='font-size:12.5px'>" + monto + de + "</span>"
+      + "<span style='font-size:11px;color:" + cls + ";text-align:right'>" + estado + (hora ? "<br><span style='color:var(--mut)'>" + hora + "</span>" : "") + "</span></div>";
+  }).join("");
+  var resumen = [];
+  if (pendForm) resumen.push(pendForm + " sin formulario");
+  if (porSubir) resumen.push(porSubir + " por subir");
+  if (!resumen.length) resumen.push("todo entró organizado ✅");
+  return "<div class='card' style='margin-top:10px'><div class='secT'>📡 Sensor del teléfono</div>"
+    + "<div style='font-size:12px;color:var(--mut);margin-bottom:2px'>" + esc(resumen.join(" · ")) + ". El formulario sale en el atajo al llegar el SMS; aquí ves el estado de cada registro.</div>"
+    + filas + "</div>";
+}
+/* Arranque del camión: lee #sms= del fragmento (jamás viaja a
+   un servidor), ingiere, limpia la URL y avisa. Se llama al
+   final de init: corre abra la app como abra. */
+function arrancarSensorMN(){
+  try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(function(){}); } catch(e){}
+  var m = /#sms=([\s\S]+)$/.exec(location.hash || "");
+  if (!m) return;
+  var texto = "";
+  try { texto = decodeURIComponent(m[1]); } catch(e) { texto = ""; }
+  try { history.replaceState(null, "", location.pathname + location.search); } catch(e){}
+  if (!texto) return;
+  ingerirLoteSensorMN(texto).then(function(r){
+    if (r.nuevos || r.duplicados || r.mejorados) {
+      var partes = [];
+      if (r.nuevos) partes.push(r.nuevos + " nuevo(s)");
+      if (r.duplicados) partes.push(r.duplicados + " copia(s) de la operadora");
+      if (r.mejorados) partes.push(r.mejorados + " formulario(s) que llegaron");
+      toast("📡 Sensor: " + partes.join(" · "));
+    }
+    cargarSensorMN();
+    despacharCola();
+    if (state.codigo) cargarTodo(true);
+  }).catch(function(){});
+}
+
 /* ===== Recargas sin atribuir (v44): el SMS que entró sin parte
    previo ya no queda flotando. La sección vive en Inicio, bajo el
    Fondo y Mi gasto, y SOLO se pinta si hay ≥1 pendiente (vacía =
