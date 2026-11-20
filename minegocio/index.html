@@ -40,7 +40,20 @@
      y marca el registro «atribuido». Antes el formulario tardío
      se adoptaba en local pero jamás subía — el servidor se
      quedaba sin la atribución y la tarjeta enseñaba «llenado y
-     sincronizado» sin serlo. Banco S49 en prueba-sensor-v48. -->
+     sincronizado» sin serlo. Banco S49 en prueba-sensor-v48.
+     v50 · INTEGRACIÓN VERDE en Equipo (piezas aprobadas por
+     Ernesto el 2026-11-20): registro de INCIDENCIAS por
+     buscador/ciclo (anotar y resolver por la cola de siempre;
+     una entrega con incidencia abierta se lee «pendiente de
+     verificación»), tarjetas de MÉTRICAS DE LA SEMANA por
+     buscador (capital entregado, recargas y saldo asentados,
+     comisión pagada, ciclos y duración media) y CHIP DE PUERTA
+     DE CALIDAD junto a cada buscador («elegible a subir cupo»
+     con ≥3 ciclos limpios consecutivos; informativo: jamás
+     mueve dinero ni cupos). Puertas nuevas: dinero_incidencias_
+     leer, dinero_incidencia_crear, dinero_incidencia_resolver,
+     dinero_metricas_buscadores, dinero_puerta_calidad (SQL:
+     minegocio-v50-verde-2026-11-20.sql). -->
 <style>
 /* ===== MI NEGOCIO · REDISEÑO PRO (v42) =====
    Identidad aprobada por Ernesto el 2026-11-17 sobre su maqueta:
@@ -1603,6 +1616,10 @@ function ejecutarAccion(a){
     case "ayudaVista": return rpc("ayudaVista", { p_codigo: cod, p_id: a.id });
     case "activo": return rpc("usuarioActivo", { p_codigo: cod, p_codigo_usuario: a.codigoUsuario, p_activo: a.activo });
     case "nuevo": return rpc("usuarioNuevo", { p_codigo: cod, p_codigo_usuario: a.codigoUsuario, p_nombre: a.nombre });
+    case "incidenciaCrear": return rpc("incidenciaCrear", { p_codigo: cod, p_buscador: a.buscador, p_entrega_id: a.entregaId || null, p_tipo: a.tipoInc, p_descripcion: a.descripcion })
+      .then(function(r){ if (r && r.ok === false) throw new Error(r.motivo || "el servidor no guardó la incidencia"); return r; });
+    case "incidenciaResolver": return rpc("incidenciaResolver", { p_codigo: cod, p_id: a.id })
+      .then(function(r){ if (r && r.ok === false) throw new Error(r.motivo || "el servidor no resolvió la incidencia"); return r; });
     case "chat": {
       var enviarC = function(datosAdj){
         /* v11 (tanda foto+texto): el juego COMPLETO siempre +
@@ -2140,6 +2157,8 @@ function descOp(a){
     case "ayudaVista": return "Marcar ayuda como vista";
     case "activo": return (a.activo ? "Activar a " : "Pausar a ") + (a.codigoUsuario || "");
     case "nuevo": return "Dar de alta a " + (a.nombre || a.codigoUsuario || "");
+    case "incidenciaCrear": return "Anotar una incidencia de " + (nombreDe(a.buscador) || a.buscador || "");
+    case "incidenciaResolver": return "Resolver una incidencia";
     case "editarChat": return "Editar un mensaje";
     case "pagado": return "Marcar comisión pagada";
     case "entregarCapital": return "Entregar capital a " + (nombreDe(a.buscador) || a.buscador || "");
@@ -3347,6 +3366,159 @@ function guardarNuevoBuscador(){
   guardar(); pintarTodo(); despacharCola();
   toast("✅ " + nom + " añadido al equipo" + (online ? "" : " (en cola: se crea al volver la red)"));
 }
+/* ===== v50 · INTEGRACIÓN VERDE (Equipo): incidencias, métricas
+   de la semana y puerta de calidad =====
+   Las 3 piezas aprobadas por Ernesto el 2026-11-20, leídas de las
+   puertas dinero_incidencias_leer / dinero_metricas_buscadores /
+   dinero_puerta_calidad. La puerta de calidad es INFORMATIVA:
+   jamás mueve dinero ni cupos. Las escrituras (anotar/resolver
+   una incidencia) van por la cola de siempre (offline-first).
+   Degradación: sin foto se pinta «Leyendo…»; si la puerta no
+   existe en la base, se dice «falta activar» en palabras. */
+PUERTAS.incidenciasLeer = "dinero_incidencias_leer";
+PUERTAS.incidenciaCrear = "dinero_incidencia_crear";
+PUERTAS.incidenciaResolver = "dinero_incidencia_resolver";
+PUERTAS.metricasBuscadores = "dinero_metricas_buscadores";
+PUERTAS.puertaCalidad = "dinero_puerta_calidad";
+var verdeMN = { incidencias: null, metricas: null, puerta: null, falta: false, cargando: false, leidoEn: 0 };
+var TIPOS_INCIDENCIA = [
+  ["sms_faltante", "No llegó el SMS"],
+  ["numero_equivocado", "Número equivocado"],
+  ["diferencia_caja", "Diferencia de caja"],
+  ["retraso", "Retraso"],
+  ["otro", "Otro"]
+];
+function tipoIncTxt(t){
+  for (var i = 0; i < TIPOS_INCIDENCIA.length; i++) if (TIPOS_INCIDENCIA[i][0] === t) return TIPOS_INCIDENCIA[i][1];
+  return t || "";
+}
+function cargarVerdeMN(){
+  if (!state.codigo || verdeMN.cargando) return;
+  verdeMN.cargando = true;
+  var quedan = 3;
+  function fin(){ if (--quedan <= 0) { verdeMN.cargando = false; verdeMN.leidoEn = Date.now(); pintarEquipo(); } }
+  function falla(e){ if (e && e.faltaPuerta) verdeMN.falta = true; fin(); }
+  rpc("incidenciasLeer", { p_codigo: state.codigo }).then(function(r){ verdeMN.incidencias = r; fin(); }, falla);
+  rpc("metricasBuscadores", { p_codigo: state.codigo }).then(function(r){ verdeMN.metricas = r; fin(); }, falla);
+  rpc("puertaCalidad", { p_codigo: state.codigo }).then(function(r){ verdeMN.puerta = r; fin(); }, falla);
+}
+function puertaDeMN(cod){
+  if (!verdeMN.puerta || !verdeMN.puerta.buscadores) return null;
+  return verdeMN.puerta.buscadores.filter(function(b){ return b.buscador_codigo === cod; })[0] || null;
+}
+function abiertasDeMN(cod){
+  if (!verdeMN.incidencias || !verdeMN.incidencias.por_buscador) return 0;
+  var f = verdeMN.incidencias.por_buscador.filter(function(b){ return b.buscador_codigo === cod; })[0];
+  return f ? Number(f.abiertas || 0) : 0;
+}
+function chipPuertaHtml(cod){
+  var p = puertaDeMN(cod), ab = abiertasDeMN(cod), h = "";
+  if (p) {
+    h += (p.estado_puerta === "elegible")
+      ? '<span class="pill pOk">Elegible a subir cupo · ' + Number(p.ciclos_limpios_consecutivos || 0) + ' ciclos limpios</span>'
+      : '<span class="pill pPend">En puerta · ' + Number(p.ciclos_limpios_consecutivos || 0) + '/3 ciclos limpios</span>';
+  }
+  if (ab > 0) h += '<span class="pill pBad">Pendiente de verificación · ' + ab + (ab === 1 ? ' incidencia abierta' : ' incidencias abiertas') + '</span>';
+  return h ? '<div class="fila" style="margin-top:8px;gap:8px;flex-wrap:wrap">' + h + '</div>' : "";
+}
+function metricasSemanaHtml(){
+  var h = '<div class="card"><h3><span class="secIco">' + icono("mercado") + '</span>Métricas de la semana</h3>';
+  if (!verdeMN.metricas) {
+    h += verdeMN.falta ? '<div class="kv"><b>' + TXT_FALTA_ACTIVAR + '</b></div>' : '<div class="kv">Leyendo las métricas del libro…</div>';
+    return h + '</div>';
+  }
+  var m = verdeMN.metricas;
+  h += '<div class="ayuda">Del ' + fechaDMY(m.desde) + ' al ' + fechaDMY(m.hasta) + ' · del libro del dinero: cuánto capital salió, qué se asentó y qué comisión se pagó, por buscador.</div>';
+  (m.buscadores || []).forEach(function(b){
+    h += '<div style="padding:8px 0;border-bottom:1px solid var(--linea)"><div class="kv"><b>' + esc(b.nombre || b.buscador_codigo) + '</b></div>'
+      + '<div class="kv">Capital entregado: <b>' + fmtE(b.capital_entregado) + '</b> CUP · Comisión pagada: <b>' + fmtE(b.comision_pagada) + '</b> CUP</div>'
+      + '<div class="kv">Recargas asentadas: <b>' + Number(b.recargas_asentadas || 0) + '</b> · Saldo asentado: <b>' + fmtSaldoMN(b.saldo_asentado) + '</b></div>'
+      + '<div class="kv">Ciclos: <b>' + Number(b.ciclos_abiertos || 0) + '</b> abiertos · <b>' + Number(b.ciclos_cerrados || 0) + '</b> cerrados esta semana'
+      + (b.duracion_promedio_horas != null ? ' · duración media ' + fmtSaldoMN(b.duracion_promedio_horas) + ' h' : '')
+      + '</div></div>';
+  });
+  return h + '</div>';
+}
+function incidenciasHtml(){
+  var h = '<div class="card"><h3><span class="secIco">' + icono("doc") + '</span>Incidencias</h3>'
+    + '<div class="ayuda">El registro de problemas de cada ciclo: una entrega con una incidencia abierta queda «pendiente de verificación», y un ciclo con incidencia no cuenta como limpio pa la puerta de calidad. Resolver no borra: queda resuelta con su fecha.</div>';
+  if (verdeMN.falta) {
+    h += '<div class="kv"><b>' + TXT_FALTA_ACTIVAR + '</b></div>';
+    return h + '</div>';
+  }
+  if (!verdeMN.incidencias) h += '<div class="kv">Leyendo el registro…</div>';
+  var resEnCola = {};
+  (state.cola || []).forEach(function(a){
+    if (a && a.tipo === "incidenciaResolver" && a.estado !== "fallida") resEnCola[a.id] = true;
+    if (a && a.tipo === "incidenciaCrear" && a.estado !== "fallida") {
+      h += '<div style="padding:8px 0;border-bottom:1px solid var(--linea)"><div class="row"><b>' + esc(nombreDe(a.buscador) || a.buscador || "") + '</b><span class="pill pCola">EN ENVÍO</span></div>'
+        + '<div class="kv">' + esc(tipoIncTxt(a.tipoInc)) + ' · ' + esc(a.descripcion || "") + '</div></div>';
+    }
+  });
+  var lista = (verdeMN.incidencias && verdeMN.incidencias.incidencias) || [];
+  if (verdeMN.incidencias && !lista.length) h += '<div class="mut">Sin incidencias registradas: cuando algo salga raro en un ciclo, anótalo aquí abajo.</div>';
+  lista.forEach(function(i){
+    h += '<div style="padding:8px 0;border-bottom:1px solid var(--linea)"><div class="row"><b>' + esc(nombreDe(i.buscador_codigo) || i.buscador_codigo) + '</b>'
+      + (i.estado === "abierta" ? '<span class="pill pPend">ABIERTA</span>' : '<span class="pill pOk">RESUELTA</span>') + '</div>'
+      + '<div class="kv">' + esc(tipoIncTxt(i.tipo)) + ' · ' + esc(i.descripcion) + '</div>'
+      + '<div class="ayuda" style="margin:2px 0 0">' + esc(fechaHoraTxt(i.creado_en))
+      + (i.entrega_id ? ' · entrega ' + esc(String(i.entrega_id).slice(0, 8)) + '…' : '')
+      + (i.estado === "resuelta" && i.resuelta_en ? ' · resuelta el ' + esc(fechaHoraTxt(i.resuelta_en)) : '') + '</div>'
+      + (i.estado === "abierta" ? '<div class="fila" style="margin-top:6px"><button class="bOk bMini' + (resEnCola[i.id] ? ' off' : '') + '" data-resolver="' + esc(i.id) + '">' + (resEnCola[i.id] ? 'Resolviendo…' : 'Resolver') + '</button></div>' : '')
+      + '</div>';
+  });
+  h += '<div style="margin-top:12px"><label for="incBusc">Buscador</label><select id="incBusc">'
+    + state.foto.usuarios.map(function(u){ return '<option value="' + esc(u.codigo) + '">' + esc(u.nombre) + '</option>'; }).join("")
+    + '</select>'
+    + '<label for="incTipo">Tipo de problema</label><select id="incTipo">'
+    + TIPOS_INCIDENCIA.map(function(t){ return '<option value="' + t[0] + '">' + t[1] + '</option>'; }).join("")
+    + '</select>'
+    + '<label for="incEntrega">Entrega del ciclo (opcional)</label><select id="incEntrega"><option value="">Sin entrega concreta</option></select>'
+    + '<div class="ayuda">Si el problema es de un ciclo concreto, elige su entrega: queda marcada «pendiente de verificación».</div>'
+    + '<label for="incDesc">Qué pasó</label><input id="incDesc" placeholder="Ej.: reportó una recarga de 360 y el SMS no llegó">'
+    + '<div class="kv" id="incErr" style="color:var(--rojo)"></div>'
+    + '<button class="bGold" id="incBtn">Anotar incidencia</button></div>';
+  return h + '</div>';
+}
+function poblarEntregasInc(){
+  var sel = $("incEntrega"), busc = $("incBusc");
+  if (!sel || !busc || !verdeMN.incidencias || !verdeMN.incidencias.entregas) return;
+  var cod = busc.value, prev = sel.value;
+  var opts = '<option value="">Sin entrega concreta</option>';
+  verdeMN.incidencias.entregas.filter(function(e){ return e.buscador_codigo === cod; }).forEach(function(e){
+    opts += '<option value="' + esc(e.id) + '">' + esc(fechaDMY(e.entregado_en)) + ' · ' + fmtE(e.monto_original) + ' CUP · ' + esc(e.estado) + '</option>';
+  });
+  sel.innerHTML = opts;
+  if (prev) sel.value = prev;
+}
+function refrescarVerdeTrasCola(acc){
+  var n = 0;
+  (function paso(){
+    var sigue = (state.cola || []).some(function(x){ return x === acc || (acc.opId && x.opId === acc.opId); });
+    if (!sigue) { verdeMN.leidoEn = 0; cargarVerdeMN(); return; }
+    if (++n > 20) return;
+    setTimeout(paso, 700);
+  })();
+}
+function guardarIncidenciaMN(){
+  var busc = $("incBusc"), tipo = $("incTipo"), ent = $("incEntrega"), desc = $("incDesc"), err = $("incErr");
+  var texto = desc ? (desc.value || "").trim() : "";
+  if (!busc || !texto) { if (err) err.textContent = "Escribe qué pasó."; return; }
+  var acc = { tipo: "incidenciaCrear", buscador: busc.value, entregaId: (ent && ent.value) || null, tipoInc: tipo ? tipo.value : "otro", descripcion: texto };
+  encolar(acc);
+  toast("✅ Incidencia anotada" + (online ? "" : " (en cola: sube al volver la red)"));
+  despacharCola();
+  refrescarVerdeTrasCola(acc);
+  pintarEquipo();
+}
+function resolverIncidenciaMN(id){
+  var acc = { tipo: "incidenciaResolver", id: id };
+  encolar(acc);
+  toast("✅ Marcando la incidencia como resuelta" + (online ? "" : " (en cola)"));
+  despacharCola();
+  refrescarVerdeTrasCola(acc);
+  pintarEquipo();
+}
 registrarModulo({
   id: "Equipo", tab: "Equipo", icono: "equipo",
   render: function(){
@@ -3361,12 +3533,15 @@ registrarModulo({
         + (badge > 0 ? '<span class="pill pChat">' + badge + '</span>' : "")
         + '<button class="dots" data-udot="' + esc(u.codigo) + '">⋯</button></span></div>'
         + '<div class="kv">Código: ' + esc(u.codigo) + "</div>" + lineaPresencia(u)
+        + chipPuertaHtml(u.codigo)
         + '<div class="fila" style="margin-top:8px;gap:8px">'
         + (puertasChat === true ? '<button class="bGold bMini" data-chat="' + esc(u.codigo) + '">Chat' + (badge > 0 ? " · " + badge + " sin leer" : "") + "</button>" : "")
         + '<button class="bGhost bMini" data-act="' + esc(u.codigo) + '">' + (u.activo ? "Desactivar" : "Activar") + "</button></div>"
         + '<div class="fila" style="margin-top:8px"><button class="bGhost bMini" data-enviar="' + esc(u.codigo) + '">📤 Enviar su enlace</button></div></div>';
     });
     if (!state.foto.usuarios.length) h += '<div class="card"><div class="mut">Todavía no hay buscadores en tu equipo.</div></div>';
+    h += metricasSemanaHtml();
+    h += incidenciasHtml();
     h += '<div class="card"><h3>Añadir buscador</h3>'
       + '<input id="nuCod" placeholder="Código que TÚ le entregas (ej.: PALABRA-123)" autocapitalize="characters">'
       + '<div class="ayuda">Invéntalo tú: una palabra y un número. Ese código es su llave de entrada a «Mi Trabajo».</div>'
@@ -3383,6 +3558,10 @@ registrarModulo({
     el.querySelectorAll("[data-udot]").forEach(function(b){ b.addEventListener("click", function(){ var u = state.foto.usuarios.filter(function(x){ return x.codigo === b.getAttribute("data-udot"); })[0]; if (u) hojaUsuario(u); }); });
     el.querySelectorAll("[data-u]").forEach(function(cardEl){ armarPrensa(cardEl, function(){ var u = state.foto.usuarios.filter(function(x){ return x.codigo === cardEl.getAttribute("data-u"); })[0]; if (u) hojaUsuario(u); }); });
     var nb = $("nuBtn"); if (nb) nb.addEventListener("click", guardarNuevoBuscador);
+    var ib = $("incBtn"); if (ib) ib.addEventListener("click", guardarIncidenciaMN);
+    var isb = $("incBusc"); if (isb) isb.addEventListener("change", poblarEntregasInc);
+    poblarEntregasInc();
+    el.querySelectorAll("[data-resolver]").forEach(function(b){ b.addEventListener("click", function(){ resolverIncidenciaMN(b.getAttribute("data-resolver")); }); });
     var bc = $("btnBorrarCodigo"); if (bc) bc.addEventListener("click", function(){
       abrirHoja("¿Borrar tu código de este teléfono?", "Mi Negocio se cierra y al abrirlo te pide el código otra vez. La base no cambia: solo se olvida en este aparato.", [
         { txt: "Sí, borrar y salir", cls: "bBad", fn: function(){
@@ -3393,6 +3572,9 @@ registrarModulo({
         } }
       ]);
     });
+  },
+  alMostrar: function(){
+    if (!verdeMN.leidoEn || (Date.now() - verdeMN.leidoEn > 60000)) cargarVerdeMN();
   }
 });
 
