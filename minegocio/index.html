@@ -31,7 +31,16 @@
      (dinero_sms_ingresar → dinero_sms_atribuir si el relleno
      traía respuestas) cuando detecta internet, en orden de
      fecha_original: offline acumula, con internet todo entra
-     organizado. CHEQUEOS 146 y 147. -->
+     organizado. CHEQUEOS 146 y 147.
+     v49 · FORMULARIO TARDÍO DEL SENSOR: si el crudo de un SMS ya
+     sincronizó y DESPUÉS llega su formulario (el atajo lo ofrece
+     en otra corrida y el camión lo re-entrega lleno), la ingesta
+     lo adopta Y re-encola la subida: subirSensorMN despacha SOLO
+     la atribución (mismo folio sensorv5-, el servidor deduplica)
+     y marca el registro «atribuido». Antes el formulario tardío
+     se adoptaba en local pero jamás subía — el servidor se
+     quedaba sin la atribución y la tarjeta enseñaba «llenado y
+     sincronizado» sin serlo. Banco S49 en prueba-sensor-v48. -->
 <style>
 /* ===== MI NEGOCIO · REDISEÑO PRO (v42) =====
    Identidad aprobada por Ernesto el 2026-11-17 sobre su maqueta:
@@ -7532,6 +7541,14 @@ function ingerirLoteSensorMN(texto){
           if (!previo.form && c.form) {
             previo.form = c.form;
             mejorados++;
+            /* v49: si el crudo YA había sincronizado, su op de
+               subida ya no está en la cola — se encola otra vez pa
+               que subirSensorMN despache la atribución del
+               formulario tardío; sin esto el formulario se quedaba
+               en el teléfono y el servidor jamás lo veía. */
+            if (previo.sincronizado && c.form.estado === "listo" && !previo.atribuido) {
+              encolar({ tipo: "sensorSubir", clientUuid: previo.uuid, fechaSensor: previo.fecha });
+            }
             return sensorGuardarMN(previo);
           }
           return;
@@ -7573,7 +7590,23 @@ function subirSensorMN(clientUuid){
       rec.sincronizado = true;
       return sensorGuardarMN(rec).then(function(){ return { ok: true }; });
     }
-    if (rec.sincronizado) return { ok: true };
+    if (rec.sincronizado) {
+      /* v49: el crudo entró en una corrida anterior y su
+         formulario llegó DESPUÉS (mejora de la ingesta): la
+         atribución nunca salió y sale ahora, con el mismo folio
+         (el servidor deduplica por folio). */
+      if (rec.form && rec.form.estado === "listo" && rec.form.tipo && !rec.atribuido && rec.smsId != null) {
+        return rpc("dineroSmsAtribuir", { p_codigo: state.codigo, p_sms_id: rec.smsId, p_tipo: rec.form.tipo,
+          p_buscador_codigo: rec.form.tipo === "buscador" ? (rec.form.buscador || null) : null,
+          p_pago: rec.form.pago, p_qusd: rec.form.tipo === "qvapay" ? rec.form.qusd : null,
+          p_folio: "sensorv5-" + String(rec.uuid).slice(0, 13) }).then(function(ra){
+          if (!ra || ra.ok !== true) throw new Error((ra && ra.motivo) || "la atribución tardía no confirmó");
+          rec.atribuido = true;
+          return sensorGuardarMN(rec).then(function(){ return { ok: true }; });
+        });
+      }
+      return { ok: true };
+    }
     return rpc("dineroSmsIngresar", { p_codigo: state.codigo, p_client_uuid: rec.uuid,
       p_fecha: rec.fecha, p_remitente: rec.remitente, p_cuerpo: rec.cuerpo }).then(function(resp){
       if (!resp || resp.ok !== true) throw new Error((resp && resp.motivo) || "la ingesta no confirmó");
@@ -7583,8 +7616,9 @@ function subirSensorMN(clientUuid){
         return sensorGuardarMN(rec).then(function(){ return { ok: true }; });
       }
       var smsId = resp.sms_id;
-      var cerrar = function(){
+      var cerrar = function(atribuido){
         rec.sincronizado = true; rec.smsId = smsId;
+        if (atribuido) rec.atribuido = true;
         return sensorGuardarMN(rec).then(function(){ return { ok: true }; });
       };
       if (rec.form && rec.form.estado === "listo" && rec.form.tipo) {
@@ -7593,10 +7627,10 @@ function subirSensorMN(clientUuid){
           p_pago: rec.form.pago, p_qusd: rec.form.tipo === "qvapay" ? rec.form.qusd : null,
           p_folio: "sensorv5-" + String(rec.uuid).slice(0, 13) }).then(function(ra){
           if (!ra || ra.ok !== true) throw new Error((ra && ra.motivo) || "la atribución no confirmó");
-          return cerrar();
+          return cerrar(true);
         });
       }
-      return cerrar();
+      return cerrar(false);
     });
   });
 }
@@ -7620,6 +7654,7 @@ function sensorEstadoHtml(){
   orden.forEach(function(r){
     if (r.duplicadoDe) return;
     if (!r.sincronizado) porSubir++;
+    else if (r.form && r.form.estado === "listo" && !r.atribuido) porSubir++;
     if (!r.form) pendForm++;
   });
   var filas = orden.slice(-8).reverse().map(function(r){
@@ -7627,6 +7662,7 @@ function sensorEstadoHtml(){
     if (r.duplicadoDe) { estado = "♻️ copia de la operadora — no cuenta"; cls = "var(--mut)"; }
     else if (r.form && r.form.estado === "no_negocio") { estado = r.sincronizado ? "🚫 no es del negocio · ya entró" : "🚫 no es del negocio · por subir"; cls = "var(--mut)"; }
     else if (!r.form) { estado = r.sincronizado ? "⏳ ya entró · falta su formulario (sale en el atajo)" : "⏳ falta su formulario (sale en el atajo)"; cls = "var(--gold)"; }
+    else if (r.form.estado === "listo" && r.sincronizado && !r.atribuido) { estado = "📤 llenado · falta subir su registro"; cls = "var(--gold)"; }
     else { estado = r.sincronizado ? "✅ llenado y sincronizado" : "📤 llenado · por subir"; cls = r.sincronizado ? "var(--ok,#3fb96f)" : "var(--gold)"; }
     var monto = r.monto != null ? fmtSaldoMN(r.monto) + " de saldo" : "SMS de la línea";
     var de = r.contraparte ? " · " + esc(r.contraparte) : "";

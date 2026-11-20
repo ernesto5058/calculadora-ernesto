@@ -156,6 +156,30 @@ await sleep(300);
 ok(!!(await reg("u-hash")), "S48-7a el payload del fragmento #sms= se ingiere al arrancar");
 ok(!String(w.location.hash).includes("sms="), "S48-7b el fragmento se limpia de la URL tras ingerir");
 
-console.log(`\nBANCO SENSOR v48 · Mi Negocio: ${pass} PASS · ${fail} FAIL`);
+/* S49 · v49 · EL FORMULARIO TARDÍO TRAS SINCRONIZAR: el crudo
+   entra y sincroniza SIN formulario; en otra corrida el mismo
+   uuid vuelve LLENO — la ingesta lo adopta, re-encola la subida
+   y el despacho manda SOLO la atribución (mismo folio), una
+   sola vez. Era el hueco cazado el 2026-11-20: la mejora se
+   adoptaba en local pero subirSensorMN cortaba en
+   «sincronizado» y la atribución jamás salía del teléfono. */
+const CUERPO_TARDE = "Usted ha recibido 360.0 CUP del numero 5357777777.Saldo principal 17350.08 CUP, linea activa hasta 2027-10-03, vence 2028-03-31";
+const rT1 = await w.ingerirLoteSensorMN(pieza("u-post", "2026-11-18T21:00:00.000Z", "", CUERPO_TARDE));
+ok(rT1.nuevos === 1 && opsSensor().length === 1, "S49-1a la pieza cruda entra y encola");
+await w.despacharCola();
+const postCrudo = await reg("u-post");
+ok(postCrudo && postCrudo.sincronizado && !postCrudo.form && llamadasAtr.filter(b => b.p_folio === "sensorv5-u-post").length === 0, "S49-1b el crudo sincroniza sin atribuir (no traía formulario)");
+const rT2 = await w.ingerirLoteSensorMN(pieza("u-post", "2026-11-18T21:00:00.000Z", "form: listo\ntipo: mia\npago: 1000\n", CUERPO_TARDE));
+ok(rT2.mejorados === 1 && opsSensor().some(a => a.clientUuid === "u-post"), "S49-2a el formulario tardío se adopta y RE-ENCOLA la subida");
+await w.despacharCola();
+const atrPost = llamadasAtr.filter(b => b.p_folio === "sensorv5-u-post");
+ok(atrPost.length === 1 && atrPost[0].p_tipo === "mia" && atrPost[0].p_pago === 1000, "S49-2b la atribución tardía sale UNA vez, con su folio y su pago");
+const postFinal = await reg("u-post");
+ok(postFinal && postFinal.atribuido === true && opsSensor().length === 0, "S49-2c el registro queda marcado atribuido y la cola drena");
+const rT3 = await w.ingerirLoteSensorMN(pieza("u-post", "2026-11-18T21:00:00.000Z", "form: listo\ntipo: mia\npago: 1000\n", CUERPO_TARDE));
+await w.despacharCola();
+ok(llamadasAtr.filter(b => b.p_folio === "sensorv5-u-post").length === 1, "S49-3 re-entregar el lleno no repite la atribución");
+
+console.log(`\nBANCO SENSOR v48+v49 · Mi Negocio: ${pass} PASS · ${fail} FAIL`);
 if (fail) { console.log("FALLOS:", fails.join(" | ")); process.exit(1); }
 process.exit(0);
