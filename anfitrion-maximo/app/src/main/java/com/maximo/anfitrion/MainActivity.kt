@@ -423,7 +423,7 @@ class MainActivity : Activity() {
             gravity = Gravity.BOTTOM
         }
         val versionBig = TextView(this).apply {
-            text = "2.7"
+            text = "2.8"
             setTextColor(onGold)
             textSize = 64f
             typeface = Typeface.DEFAULT_BOLD

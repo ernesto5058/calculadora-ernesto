@@ -40,14 +40,34 @@
 //! del supervisor, podía caer tras el claim del transporte nuevo y
 //! tumbarlo (revisión de diff sobre la v2.6). El supervisor ahora retira
 //! la sesión vieja con este apagado ANTES de re-preparar la nueva.
+//!
+//! **v2.8 — el apagado CONFIRMADO (revisión por fragmentos con
+//! Perplexity, rondas 1–3 + Paso 1):** la v2.7 cerraba el ORDEN feliz,
+//! pero el acuse no acreditaba el resultado: `release_interface()`
+//! descartaba el error del ioctl, el `JoinHandle` se tiraba al nacer y
+//! `apagar()` esperaba el acuse sin límite. Desde la v2.8: el hilo dueño
+//! corre el **cierre explícito comprobado** del transporte
+//! (`BulkTransport::cerrar`), su resultado viaja en el acuse (un acuse
+//! con `Err` es acuse, no éxito) y queda guardado en un slot compartido
+//! que sobrevive al canal; el `JoinHandle` vive en un propietario
+//! compartido entre los clones; y `apagar()` decide dentro de un
+//! **plazo total** (`PLAZO_APAGADO`): si el acuse se pierde, manda el
+//! resultado registrado en el slot; si el hilo terminó sin registrar
+//! ninguno, o el plazo vence con el hilo vivo, la retirada queda **no
+//! confirmada** — terminación ≠ liberación — y esa operación jamás
+//! autoriza un reemplazo. UNA sola operación de retirada coordina a
+//! todos los clones: un ejecutor, un resultado publicado compartido;
+//! «en curso» nunca se lee como éxito.
 
 use std::collections::{HashMap, VecDeque};
 use std::future::Future;
 use std::io;
 use std::pin::Pin;
 use std::sync::mpsc::{channel, Receiver, Sender};
+use std::sync::{Arc, Condvar, Mutex};
 use std::task::{Context, Poll};
-use std::time::Duration;
+use std::thread::JoinHandle;
+use std::time::{Duration, Instant};
 
 use idevice_usb_core::{
     build_mux_setup_packet_v2, BulkTransport, Endpoints, TcpConn, MUX_PROTO_CONTROL,
@@ -66,6 +86,21 @@ const READ_CHUNK: usize = 65536;
 /// paciencia del saludo de `MuxPipe`, con más aire: aquí la sesión es nueva
 /// y lo ajeno es solo el eco de la anterior cerrándose).
 const MAX_SALTADAS_SYN_ACK: usize = 64;
+
+/// **El plazo TOTAL de la decisión de retirada (v2.8)**: cubre la espera
+/// del acuse Y la verificación de terminación si el acuse se pierde —
+/// prohibido un `join()` sin límite tras el timeout (una espera
+/// ilimitada disfrazada de plazo no es plazo). Vencido con el hilo vivo,
+/// `apagar()` devuelve «retirada no confirmada» DENTRO del plazo y el
+/// `JoinHandle` queda bajo seguimiento en el propietario compartido.
+/// Los bancos inyectan su propio plazo (~200 ms) con `apagar_con_plazo`.
+pub const PLAZO_APAGADO: Duration = Duration::from_secs(15);
+
+/// La marca de una retirada **no confirmada**: el texto que los bancos
+/// (y el supervisor) reconocen. Terminar el hilo no es lo mismo que
+/// liberar la interfaz: sin un resultado de cierre registrado, la
+/// retirada no se da por hecha y el mismo fd no se vuelve a reclamar.
+pub const RETIRADA_NO_CONFIRMADA: &str = "retirada no confirmada";
 
 // ── El estado de la sesión (puro, purgable, banqueable) ─────────────────────
 
@@ -167,6 +202,16 @@ impl<T: BulkTransport> NucleoCadena<T> {
 
     pub fn mux_version(&self) -> u8 {
         self.estado.mux_version
+    }
+
+    /// **El cierre explícito COMPROBADO del transporte (v2.8)**: lo corre
+    /// el hilo dueño al apagar, ANTES de soltar el núcleo, y su resultado
+    /// es el que acredita (o no) la liberación de la interfaz sobre el fd
+    /// compartido. El `Drop` posterior del transporte es solo el respaldo
+    /// best-effort: jamás sustituye a este resultado. (No confundir con
+    /// `cerrar(id)`, que cierra una conexión de la sesión.)
+    pub fn cerrar_transporte(&mut self) -> Result<(), String> {
+        self.io.cerrar()
     }
 
     /// Purga el estado a mitad de camino (la misma operación del nacimiento,
@@ -421,20 +466,112 @@ enum CadenaCmd {
     Close {
         id: u32,
     },
-    /// **Apagado síncrono (v2.7)**: el hilo suelta el transporte (el Drop
-    /// de `FdTransport` hace el RELEASEINTERFACE sobre el fd) y SOLO
-    /// DESPUÉS responde por este canal — quien espera el acuse sabe que
-    /// la interfaz ya quedó liberada. Es el mismo patrón probado del
-    /// `HubCmd::Shutdown` del hub, que la etapa «conexion» ya usa pa
-    /// que la cadena reclame su interfaz sin pisar la del hub.
+    /// **Apagado con acuse del resultado (v2.8)**: el hilo dueño corre el
+    /// cierre explícito comprobado del transporte, guarda su resultado
+    /// en el slot compartido (sobrevive a este canal), suelta el núcleo
+    /// y SOLO DESPUÉS responde por este canal CON ESE RESULTADO — un
+    /// acuse con `Err` es un acuse, no un éxito: quien espera sabe si la
+    /// interfaz quedó liberada o por qué no. Es el patrón del
+    /// `HubCmd::Shutdown` del hub, que la etapa «conexion» ya usa pa que
+    /// la cadena reclame su interfaz sin pisar la del hub.
     Apagar {
-        reply: Sender<()>,
+        reply: Sender<Result<(), String>>,
     },
+}
+
+/// El estado de la ÚNICA operación de retirada de una sesión (v2.8).
+/// Todos los clones del handle observan la misma operación: el primero
+/// que apaga es el ejecutor; los demás esperan su resultado publicado.
+/// «En curso» es un estado observable, NUNCA un éxito por defecto.
+#[derive(Clone)]
+enum OpRetirada {
+    NoIniciada,
+    EnCurso,
+    Resuelta(Result<(), String>),
+}
+
+/// **El propietario compartido del apagado (v2.8)** — lo que la v2.7 no
+/// conservaba: el `JoinHandle` del hilo dueño (bajo seguimiento hasta
+/// que la retirada se resuelve; jamás se pierde ni lo consume un clon
+/// por su cuenta), el slot con el resultado del cierre explícito que el
+/// propio hilo registra (sobrevive a la pérdida del acuse) y el estado
+/// de la operación única de retirada con su resultado publicado.
+struct ApagadoCompartido {
+    datos: Mutex<DatosApagado>,
+    listo: Condvar,
+}
+
+struct DatosApagado {
+    /// El hilo dueño, bajo seguimiento: se consulta con `is_finished`
+    /// (sin bloquear, dentro del plazo) y NO se extrae — perderlo sería
+    /// perder el medio de verificar la terminación.
+    hilo: Option<JoinHandle<()>>,
+    /// El resultado del cierre explícito, registrado por el hilo dueño
+    /// al ejecutar el apagado, ANTES de soltar el núcleo y de acusar.
+    slot_cierre: Option<Result<(), String>>,
+    op: OpRetirada,
+    /// El plazo total de la decisión de retirada: `PLAZO_APAGADO` en
+    /// producción; los bancos lo inyectan con `fijar_plazo_apagado`.
+    plazo: Duration,
+}
+
+impl ApagadoCompartido {
+    fn nuevo() -> Self {
+        Self {
+            datos: Mutex::new(DatosApagado {
+                hilo: None,
+                slot_cierre: None,
+                op: OpRetirada::NoIniciada,
+                plazo: PLAZO_APAGADO,
+            }),
+            listo: Condvar::new(),
+        }
+    }
+
+    /// El hilo dueño registra el resultado de su cierre explícito.
+    fn registrar_cierre(&self, r: Result<(), String>) {
+        let mut d = self.datos.lock().unwrap_or_else(|p| p.into_inner());
+        d.slot_cierre = Some(r);
+    }
+
+    fn slot_cierre(&self) -> Option<Result<(), String>> {
+        self.datos
+            .lock()
+            .unwrap_or_else(|p| p.into_inner())
+            .slot_cierre
+            .clone()
+    }
+
+    /// ¿El hilo dueño ya terminó? (Sin bloquear: `is_finished` no
+    /// consume el handle — el medio de verificación no se pierde.)
+    fn hilo_terminado(&self) -> bool {
+        let d = self.datos.lock().unwrap_or_else(|p| p.into_inner());
+        match &d.hilo {
+            Some(h) => h.is_finished(),
+            None => false,
+        }
+    }
+
+    /// Publica el resultado terminal de la operación y despierta a los
+    /// clones que lo observan. Publicar es UNA sola vez: lo primero que
+    /// se resuelve manda (un resultado tardío del hilo va al slot, no
+    /// reescribe la operación ya fallida).
+    fn publicar(&self, r: Result<(), String>) {
+        {
+            let mut d = self.datos.lock().unwrap_or_else(|p| p.into_inner());
+            if matches!(d.op, OpRetirada::Resuelta(_)) {
+                return;
+            }
+            d.op = OpRetirada::Resuelta(r);
+        }
+        self.listo.notify_all();
+    }
 }
 
 #[derive(Clone)]
 pub struct CadenaHandle {
     tx: Sender<CadenaCmd>,
+    apagado: Arc<ApagadoCompartido>,
 }
 
 impl std::fmt::Debug for CadenaHandle {
@@ -446,7 +583,10 @@ impl std::fmt::Debug for CadenaHandle {
 /// Abre la sesión mux FRESCA de la cadena (síncrono: el error del saludo se
 /// devuelve aquí) y arranca el hilo dueño de la sesión. Genérico sobre el
 /// transporte (v2.7): en vivo es el `FdTransport` de siempre; en los bancos,
-/// un transporte guionizado que modela el claim del fd compartido.
+/// un transporte guionizado que modela el claim del fd compartido. El
+/// `JoinHandle` del hilo queda guardado en el propietario compartido
+/// (v2.8): hasta la v2.7 se descartaba al nacer y nadie podía verificar
+/// la terminación del hilo si el acuse se perdía.
 pub fn spawn_cadena<T>(io: T, eps: Endpoints) -> Result<CadenaHandle, String>
 where
     T: BulkTransport + Send + 'static,
@@ -457,14 +597,25 @@ where
         nucleo.mux_version()
     ));
     let (tx, rx) = channel::<CadenaCmd>();
-    std::thread::Builder::new()
+    let apagado = Arc::new(ApagadoCompartido::nuevo());
+    let apagado_hilo = apagado.clone();
+    let hilo = std::thread::Builder::new()
         .name("anfitrion-mux-cadena".into())
-        .spawn(move || cadena_loop(nucleo, rx))
+        .spawn(move || cadena_loop(nucleo, rx, apagado_hilo))
         .map_err(|e| format!("no se pudo arrancar el hilo de la cadena: {}", e))?;
-    Ok(CadenaHandle { tx })
+    apagado
+        .datos
+        .lock()
+        .unwrap_or_else(|p| p.into_inner())
+        .hilo = Some(hilo);
+    Ok(CadenaHandle { tx, apagado })
 }
 
-fn cadena_loop<T: BulkTransport>(mut nucleo: NucleoCadena<T>, rx: Receiver<CadenaCmd>) {
+fn cadena_loop<T: BulkTransport>(
+    mut nucleo: NucleoCadena<T>,
+    rx: Receiver<CadenaCmd>,
+    apagado: Arc<ApagadoCompartido>,
+) {
     let mut pending_reads: Vec<(u32, usize, oneshot::Sender<Result<Vec<u8>, String>>)> =
         Vec::new();
     loop {
@@ -503,15 +654,22 @@ fn cadena_loop<T: BulkTransport>(mut nucleo: NucleoCadena<T>, rx: Receiver<Caden
                                 .to_string(),
                         ));
                     }
-                    // Soltar el transporte ANTES de responder — el mismo
-                    // orden del Shutdown del hub: el Drop del transporte
-                    // libera la interfaz sobre el fd compartido, y solo
-                    // con eso hecho se confirma el apagado. Quien re-prepara
-                    // tras este acuse reclama la interfaz sobre un fd ya
-                    // libre, sin que una liberación tardía le tumbe el
-                    // claim nuevo (el fallo que la v2.7 cierra).
+                    // **El cierre explícito COMPROBADO (v2.8), en el hilo
+                    // dueño y ANTES de soltar el núcleo**: su resultado
+                    // es el que acredita la liberación — queda guardado
+                    // en el slot compartido (sobrevive a la pérdida de
+                    // este acuse) y viaja en el acuse mismo. El Drop del
+                    // transporte al soltar el núcleo es solo el respaldo
+                    // best-effort: jamás sustituye a este resultado.
+                    // Soltar ANTES de responder — el orden del Shutdown
+                    // del hub — pa que quien re-prepara tras un acuse
+                    // `Ok` reclame sobre un fd ya libre, sin que una
+                    // liberación tardía le tumbe el claim nuevo (el
+                    // fallo que la v2.7 cierra).
+                    let resultado = nucleo.cerrar_transporte();
+                    apagado.registrar_cierre(resultado.clone());
                     drop(nucleo);
-                    let _ = reply.send(());
+                    let _ = reply.send(resultado);
                     return;
                 }
             }
@@ -556,24 +714,158 @@ fn cadena_loop<T: BulkTransport>(mut nucleo: NucleoCadena<T>, rx: Receiver<Caden
 }
 
 impl CadenaHandle {
-    /// **Apaga la sesión de forma SÍNCRONA (v2.7)**: manda el apagado al
-    /// hilo dueño y espera su acuse — cuando esta llamada devuelve, el
-    /// hilo ya soltó el transporte y la interfaz USB quedó liberada sobre
-    /// el fd compartido. Es la pieza que le faltaba al supervisor: hasta
-    /// la v2.6 el handle solo se soltaba (el hilo moría cuando caía el
+    /// **Apaga la sesión con confirmación y PLAZO TOTAL (v2.8)**: manda
+    /// el apagado al hilo dueño y espera su acuse — pero el acuse ya no
+    /// es un `()`: trae el resultado REAL del cierre explícito del
+    /// transporte, y la espera entera (acuse + verificación si el acuse
+    /// se pierde) cabe en `PLAZO_APAGADO`. Cuando devuelve `Ok`, el hilo
+    /// soltó el transporte y la liberación quedó ACREDITADA por el
+    /// cierre comprobado; cuando devuelve `Err`, la causa viene con él
+    /// — o la marca `RETIRADA_NO_CONFIRMADA` si no hubo forma de
+    /// acreditarla. Es la pieza que le faltaba al supervisor: hasta la
+    /// v2.6 el handle solo se soltaba (el hilo moría cuando caía el
     /// último clon del canal, a su aire), y esa liberación tardía podía
-    /// caer DESPUÉS de que la re-preparación reclamara la interfaz con el
-    /// transporte nuevo sobre el mismo fd — un RELEASEINTERFACE contra el
-    /// claim nuevo: el error 19 a mitad de escritura de la v2.5,
-    /// resucitado por el propio rescate. Con el apagado síncrono, el
-    /// orden queda garantizado: liberar el viejo → reclamar el nuevo.
+    /// caer DESPUÉS de que la re-preparación reclamara la interfaz con
+    /// el transporte nuevo sobre el mismo fd — un RELEASEINTERFACE
+    /// contra el claim nuevo: el error 19 a mitad de escritura de la
+    /// v2.5, resucitado por el propio rescate. Con el apagado síncrono
+    /// el orden quedó garantizado (v2.7: liberar el viejo → reclamar el
+    /// nuevo); con el acuse del resultado y el plazo, la garantía es
+    /// además VERIFICABLE: nada se da por liberado sin su `Ok`.
     pub fn apagar(&self) -> Result<(), String> {
-        let (tx, rx) = channel::<()>();
-        self.tx
-            .send(CadenaCmd::Apagar { reply: tx })
-            .map_err(|_| "el hilo de la cadena no responde".to_string())?;
-        rx.recv()
-            .map_err(|_| "el hilo de la cadena cerró sin confirmar el apagado".to_string())
+        let plazo = self
+            .apagado
+            .datos
+            .lock()
+            .unwrap_or_else(|p| p.into_inner())
+            .plazo;
+        self.apagar_con_plazo(plazo)
+    }
+
+    /// Inyecta el plazo total de la decisión de retirada (los bancos
+    /// usan ~200 ms; la producción corre con `PLAZO_APAGADO`). Vive en
+    /// el propietario compartido: todos los clones deciden con el mismo
+    /// plazo, lo fije quien lo fije.
+    pub fn fijar_plazo_apagado(&self, plazo: Duration) {
+        self.apagado
+            .datos
+            .lock()
+            .unwrap_or_else(|p| p.into_inner())
+            .plazo = plazo;
+    }
+
+    /// `apagar()` con el plazo inyectado (los bancos usan ~200 ms; la
+    /// producción, `PLAZO_APAGADO` vía `apagar()`).
+    ///
+    /// **Una sola operación coordina a todos los clones**: el primer
+    /// clon que apaga es el ejecutor; los demás observan el estado
+    /// compartido y reciben el MISMO resultado publicado — nunca un
+    /// éxito por defecto, nunca un «ya se solicitó». Si el plazo vence
+    /// mientras la operación sigue en curso, el observador devuelve
+    /// «retirada no confirmada» (un estado explícito, no un éxito).
+    pub fn apagar_con_plazo(&self, plazo: Duration) -> Result<(), String> {
+        let inicio = Instant::now();
+        // ¿Ejecutor u observador? Una sola operación por sesión.
+        let soy_ejecutor = {
+            let mut d = self
+                .apagado
+                .datos
+                .lock()
+                .unwrap_or_else(|p| p.into_inner());
+            match &d.op {
+                OpRetirada::Resuelta(r) => return r.clone(),
+                OpRetirada::EnCurso => false,
+                OpRetirada::NoIniciada => {
+                    d.op = OpRetirada::EnCurso;
+                    true
+                }
+            }
+        };
+        if soy_ejecutor {
+            let r = self.ejecutar_apagado(plazo, inicio);
+            self.apagado.publicar(r.clone());
+            return r;
+        }
+        // Observador: esperar el resultado publicado dentro de MI plazo.
+        let mut d = self
+            .apagado
+            .datos
+            .lock()
+            .unwrap_or_else(|p| p.into_inner());
+        loop {
+            if let OpRetirada::Resuelta(r) = &d.op {
+                return r.clone();
+            }
+            let restante = plazo.saturating_sub(inicio.elapsed());
+            if restante.is_zero() {
+                return Err(format!(
+                    "{}: la operación de retirada sigue en curso al vencer el plazo",
+                    RETIRADA_NO_CONFIRMADA
+                ));
+            }
+            let (g, _) = self
+                .apagado
+                .listo
+                .wait_timeout(d, restante)
+                .unwrap_or_else(|p| p.into_inner());
+            d = g;
+        }
+    }
+
+    /// El brazo ejecutor de `apagar_con_plazo`: manda el comando, espera
+    /// el acuse dentro del plazo y, si el acuse se pierde, resuelve con
+    /// lo verificable — el resultado registrado en el slot manda; el
+    /// hilo terminado sin registro es «no confirmada» (terminación ≠
+    /// liberación); el plazo vencido con el hilo vivo es «no
+    /// confirmada» devuelta DENTRO del plazo, con el `JoinHandle` bajo
+    /// seguimiento (no se pierde ni se hace `join()` sin límite).
+    fn ejecutar_apagado(&self, plazo: Duration, inicio: Instant) -> Result<(), String> {
+        let (tx, rx) = channel::<Result<(), String>>();
+        if self.tx.send(CadenaCmd::Apagar { reply: tx }).is_err() {
+            // El hilo ya no escucha: se resuelve con lo verificable.
+            return self.resolver_sin_acuse(plazo, inicio);
+        }
+        let restante = plazo.saturating_sub(inicio.elapsed());
+        match rx.recv_timeout(restante) {
+            Ok(r) => r,
+            Err(_) => self.resolver_sin_acuse(plazo, inicio),
+        }
+    }
+
+    /// La resolución cuando el acuse no llegó (canal roto o plazo
+    /// vencido esperando): (a) si el hilo registró su resultado de
+    /// cierre en el slot compartido, ESE resultado manda; (b) si el hilo
+    /// terminó sin registrar ninguno → no confirmada; (c) si el hilo
+    /// sigue vivo → se espera, SIN PASARSE del plazo total, a que
+    /// registre o termine; vencido el plazo con el hilo vivo → no
+    /// confirmada, devuelta dentro del plazo.
+    fn resolver_sin_acuse(&self, plazo: Duration, inicio: Instant) -> Result<(), String> {
+        loop {
+            if let Some(r) = self.apagado.slot_cierre() {
+                return r;
+            }
+            if self.apagado.hilo_terminado() {
+                return Err(format!(
+                    "{}: el hilo de la cadena terminó sin registrar el resultado de la liberación (terminar no es liberar)",
+                    RETIRADA_NO_CONFIRMADA
+                ));
+            }
+            if inicio.elapsed() >= plazo {
+                return Err(format!(
+                    "{}: venció el plazo de {} ms con el hilo de la cadena aún vivo; el hilo queda bajo seguimiento y esta operación no autoriza ningún reemplazo",
+                    RETIRADA_NO_CONFIRMADA,
+                    plazo.as_millis()
+                ));
+            }
+            std::thread::sleep(Duration::from_millis(2));
+        }
+    }
+
+    /// ¿El hilo dueño de la sesión ya terminó? El medio de verificación
+    /// de la terminación (v2.8): el `JoinHandle` vive en el propietario
+    /// compartido y consultarlo no lo consume.
+    pub fn hilo_terminado(&self) -> bool {
+        self.apagado.hilo_terminado()
     }
 
     pub async fn open(&self, dport: u16) -> Result<u32, String> {
@@ -1066,5 +1358,476 @@ mod tests {
             diario.lock().unwrap().contains(&"soltar:2".to_string()),
             "la sesión 2 también se libera al soltar su handle"
         );
+    }
+
+    // ── Bancos v2.8: el apagado CONFIRMADO ─────────────────────────────
+    //
+    // La v2.7 probaba el orden feliz; estos bancos prueban las ramas de
+    // fallo que la revisión por fragmentos (rondas 1–3 + Paso 1) exigió:
+    // el resultado real de la liberación viaja y manda; perder el acuse
+    // no autoriza nada; terminar no es liberar; una sola operación
+    // coordina a los clones.
+
+    use std::sync::atomic::{AtomicU32, Ordering};
+    use std::sync::Mutex as StdMutex;
+
+    const CAUSA_RELEASE: &str =
+        "RELEASEINTERFACE: No such device (os error 19) (errno 19)";
+    const ENODEV_BANCO: &str = "bulk OUT: No such device (os error 19) (errno 19)";
+
+    /// Una barrera de banco: el cierre explícito se queda retenido en
+    /// ella hasta que el banco la abre — la pausa forzada justo antes
+    /// de la última limpieza del transporte viejo.
+    struct Barrera {
+        abierta: StdMutex<bool>,
+        cv: std::sync::Condvar,
+    }
+
+    impl Barrera {
+        fn nueva() -> Arc<Self> {
+            Arc::new(Self {
+                abierta: StdMutex::new(false),
+                cv: std::sync::Condvar::new(),
+            })
+        }
+        fn esperar(&self) {
+            let mut g = self.abierta.lock().unwrap();
+            while !*g {
+                g = self.cv.wait(g).unwrap();
+            }
+        }
+        fn abrir(&self) {
+            *self.abierta.lock().unwrap() = true;
+            self.cv.notify_all();
+        }
+    }
+
+    /// El transporte guionizado de la v2.8: modela el claim/release del
+    /// fd compartido en un diario, con el cierre explícito comprobado
+    /// (`BulkTransport::cerrar`) — fallo inyectable y barrera opcionales.
+    /// Su `Drop` asienta «drop:{gen}»: el respaldo best-effort, que
+    /// jamás debe confundirse con la liberación registrada («release»).
+    struct TransporteDelCierre {
+        gen: u32,
+        entrantes: VecDeque<Vec<u8>>,
+        diario: Arc<StdMutex<Vec<String>>>,
+        cierres: Arc<AtomicU32>,
+        fallo_cierre: Option<String>,
+        barrera: Option<Arc<Barrera>>,
+    }
+
+    impl TransporteDelCierre {
+        fn nuevo(
+            gen: u32,
+            diario: Arc<StdMutex<Vec<String>>>,
+            cierres: Arc<AtomicU32>,
+        ) -> Self {
+            Self {
+                gen,
+                entrantes: VecDeque::from(vec![version_reply(2)]),
+                diario,
+                cierres,
+                fallo_cierre: None,
+                barrera: None,
+            }
+        }
+        fn anotar(&self, evento: String) {
+            self.diario.lock().unwrap().push(evento);
+        }
+    }
+
+    impl BulkTransport for TransporteDelCierre {
+        fn bulk_out(&mut self, _ep_num: u8, _data: &[u8]) -> Result<(), String> {
+            self.anotar(format!("out:{}", self.gen));
+            Ok(())
+        }
+        fn bulk_in(&mut self, _ep_num: u8, _max_len: usize) -> Result<Vec<u8>, String> {
+            self.entrantes
+                .pop_front()
+                .ok_or_else(|| "sin datos (timeout simulado)".to_string())
+        }
+        fn cerrar(&mut self) -> Result<(), String> {
+            self.cierres.fetch_add(1, Ordering::SeqCst);
+            self.anotar(format!("cierre:{}", self.gen));
+            if let Some(b) = &self.barrera {
+                b.esperar();
+            }
+            if let Some(e) = &self.fallo_cierre {
+                self.anotar(format!("cierre-falla:{}", self.gen));
+                return Err(e.clone());
+            }
+            self.anotar(format!("release:{}", self.gen));
+            Ok(())
+        }
+    }
+
+    impl Drop for TransporteDelCierre {
+        fn drop(&mut self) {
+            self.anotar(format!("drop:{}", self.gen));
+        }
+    }
+
+    fn esperar_hasta<F: Fn() -> bool>(cond: F, que: &str) {
+        for _ in 0..300 {
+            if cond() {
+                return;
+            }
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        panic!("no se cumplió a tiempo: {}", que);
+    }
+
+    /// **Banco 6(a) — el RELEASEINTERFACE falla**: el acuse que llega es
+    /// un acuse de ERROR con la causa original del ioctl (no hay acuse
+    /// de éxito posible), el resultado queda registrado (una segunda
+    /// llamada devuelve el mismo fallo sin reintentar el cierre) y el
+    /// medio de verificar la terminación sigue disponible.
+    #[test]
+    fn banco_a_release_en_error_devuelve_acuse_de_error_con_la_causa() {
+        let diario = Arc::new(StdMutex::new(Vec::new()));
+        let cierres = Arc::new(AtomicU32::new(0));
+        let mut t = TransporteDelCierre::nuevo(1, diario.clone(), cierres.clone());
+        t.fallo_cierre = Some(CAUSA_RELEASE.to_string());
+        let h = spawn_cadena(t, eps()).expect("la sesión abre");
+        let r = h.apagar();
+        assert_eq!(
+            r,
+            Err(CAUSA_RELEASE.to_string()),
+            "el acuse trae la causa original del ioctl, no un éxito"
+        );
+        // Registrado y publicado: la segunda llamada devuelve el fallo
+        // sin correr el cierre otra vez.
+        assert_eq!(h.apagar(), Err(CAUSA_RELEASE.to_string()));
+        assert_eq!(
+            cierres.load(Ordering::SeqCst),
+            1,
+            "el cierre explícito corrió una sola vez"
+        );
+        let d = diario.lock().unwrap().clone();
+        assert!(d.contains(&"cierre-falla:1".to_string()), "diario: {:?}", d);
+        assert!(
+            !d.contains(&"release:1".to_string()),
+            "ninguna liberación se anuncia como hecha: {:?}",
+            d
+        );
+        // El hilo terminó y sigue siendo verificable.
+        esperar_hasta(|| h.hilo_terminado(), "el hilo dueño terminó");
+    }
+
+    /// **Banco 6(b) variante 1 — se pierde el acuse y el hilo sigue
+    /// vivo al vencer el plazo** (el cierre retenido en la barrera):
+    /// `apagar` retorna DENTRO del plazo con «retirada no confirmada»,
+    /// el `JoinHandle` no se pierde (la terminación se verifica
+    /// después, cuando el hilo por fin muere) y la operación ya fallida
+    /// no se convierte en éxito cuando el hilo termina tarde.
+    #[test]
+    fn banco_b1_acuse_perdido_hilo_vivo_devuelve_no_confirmada_en_el_plazo() {
+        let diario = Arc::new(StdMutex::new(Vec::new()));
+        let cierres = Arc::new(AtomicU32::new(0));
+        let barrera = Barrera::nueva();
+        let mut t = TransporteDelCierre::nuevo(1, diario.clone(), cierres.clone());
+        t.barrera = Some(barrera.clone());
+        let h = spawn_cadena(t, eps()).expect("la sesión abre");
+        let t0 = Instant::now();
+        let r = h.apagar_con_plazo(Duration::from_millis(200));
+        let elapsed = t0.elapsed();
+        let e = r.unwrap_err();
+        assert!(
+            e.contains(RETIRADA_NO_CONFIRMADA),
+            "sin acuse ni registro, la retirada no se confirma: {}",
+            e
+        );
+        assert!(
+            elapsed < Duration::from_secs(2),
+            "la decisión volvió dentro del plazo, no tras un join sin límite: {:?}",
+            elapsed
+        );
+        // El medio de verificar la terminación NO se perdió: el hilo
+        // sigue vivo (retenido) y localizable.
+        assert!(!h.hilo_terminado(), "el hilo sigue vivo tras la barrera");
+        barrera.abrir();
+        esperar_hasta(|| h.hilo_terminado(), "el hilo terminó tras abrir la barrera");
+        // La operación ya fallida no autoriza nada después: el resultado
+        // publicado sigue siendo el fallo, aunque el hilo cerró tarde.
+        assert!(
+            h.apagar().unwrap_err().contains(RETIRADA_NO_CONFIRMADA),
+            "la terminación tardía no reescribe la operación fallida"
+        );
+    }
+
+    /// Un handle cuyo hilo ya murió y cuyo canal ya no escucha: el
+    /// acuse es imposible por construcción (banco 6(b) variante 2).
+    fn handle_sin_hilo(slot: Option<Result<(), String>>) -> CadenaHandle {
+        let apagado = Arc::new(ApagadoCompartido::nuevo());
+        if let Some(r) = slot {
+            apagado.registrar_cierre(r);
+        }
+        let hilo = std::thread::spawn(|| {});
+        apagado
+            .datos
+            .lock()
+            .unwrap_or_else(|p| p.into_inner())
+            .hilo = Some(hilo);
+        let (tx, rx) = channel::<CadenaCmd>();
+        drop(rx);
+        CadenaHandle { tx, apagado }
+    }
+
+    /// **Banco 6(b) variante 2 — sin acuse y el hilo terminó SIN
+    /// registrar resultado de liberación**: la terminación NO se
+    /// convierte en éxito — la retirada queda no confirmada.
+    #[test]
+    fn banco_b2_hilo_terminado_sin_registro_es_no_confirmada() {
+        let h = handle_sin_hilo(None);
+        let r = h.apagar_con_plazo(Duration::from_millis(200));
+        let e = r.unwrap_err();
+        assert!(
+            e.contains(RETIRADA_NO_CONFIRMADA),
+            "terminar no es liberar: {}",
+            e
+        );
+    }
+
+    /// **Banco 6(b) — el resultado registrado en el slot manda**: sin
+    /// acuse posible, si el hilo dejó su resultado de cierre guardado,
+    /// `apagar` devuelve ESE resultado (aquí, el error con su causa).
+    #[test]
+    fn banco_b2_sin_acuse_manda_el_resultado_registrado_en_el_slot() {
+        let h = handle_sin_hilo(Some(Err(CAUSA_RELEASE.to_string())));
+        assert_eq!(
+            h.apagar_con_plazo(Duration::from_millis(200)),
+            Err(CAUSA_RELEASE.to_string())
+        );
+        let h_ok = handle_sin_hilo(Some(Ok(())));
+        assert_eq!(h_ok.apagar_con_plazo(Duration::from_millis(200)), Ok(()));
+    }
+
+    /// **Banco 6(c) — la segunda solicitud tras una retirada fallida**:
+    /// el proveedor devuelve el fallo REGISTRADO con su causa; jamás un
+    /// `Ok` por el flag de «ya se solicitó». Y el espejo feliz: una
+    /// retirada confirmada sí da `Ok` inmediato sin repetir el cierre.
+    #[test]
+    fn banco_c_segunda_solicitud_tras_fallo_devuelve_el_fallo_registrado() {
+        use crate::provider::AnfitrionProvider;
+        use crate::supervisor::ProveedorRetirable;
+
+        let diario = Arc::new(StdMutex::new(Vec::new()));
+        let cierres = Arc::new(AtomicU32::new(0));
+        let mut t = TransporteDelCierre::nuevo(1, diario.clone(), cierres.clone());
+        t.fallo_cierre = Some(CAUSA_RELEASE.to_string());
+        let h = spawn_cadena(t, eps()).expect("la sesión abre");
+        let mut p = AnfitrionProvider::new(h, Vec::new());
+        assert_eq!(p.retirar(), Err(CAUSA_RELEASE.to_string()));
+        assert_eq!(
+            p.retirar(),
+            Err(CAUSA_RELEASE.to_string()),
+            "la segunda solicitud devuelve el fallo registrado, no un éxito implícito"
+        );
+        assert_eq!(cierres.load(Ordering::SeqCst), 1);
+
+        // El espejo feliz: confirmada una vez, `Ok` inmediato y sin
+        // repetir el cierre.
+        let diario2 = Arc::new(StdMutex::new(Vec::new()));
+        let cierres2 = Arc::new(AtomicU32::new(0));
+        let h2 = spawn_cadena(
+            TransporteDelCierre::nuevo(2, diario2, cierres2.clone()),
+            eps(),
+        )
+        .expect("la sesión 2 abre");
+        let mut p2 = AnfitrionProvider::new(h2, Vec::new());
+        assert_eq!(p2.retirar(), Ok(()));
+        assert_eq!(p2.retirar(), Ok(()));
+        assert_eq!(cierres2.load(Ordering::SeqCst), 1);
+    }
+
+    /// **Banco 6(d) — el orden completo, reforzado**: con el cierre
+    /// retenido en la barrera (la pausa justo antes de la última
+    /// limpieza del transporte viejo), el claim nuevo AÚN NO ocurrió;
+    /// concluida la retirada, el claim se permite y NINGÚN evento del
+    /// transporte viejo (ni liberación, ni E/S, ni su caída) aparece
+    /// después — tampoco al soltar el proveedor y los clones restantes.
+    #[test]
+    fn banco_d_orden_completo_sin_limpieza_vieja_tras_el_claim_nuevo() {
+        use crate::provider::AnfitrionProvider;
+        use crate::supervisor::ProveedorRetirable;
+
+        let diario = Arc::new(StdMutex::new(Vec::new()));
+        let cierres = Arc::new(AtomicU32::new(0));
+        let barrera = Barrera::nueva();
+        let mut t1 = TransporteDelCierre::nuevo(1, diario.clone(), cierres.clone());
+        t1.barrera = Some(barrera.clone());
+        let h1 = spawn_cadena(t1, eps()).expect("la sesión 1 abre");
+        let h1_clon = h1.clone();
+        let prov = AnfitrionProvider::new(h1, Vec::new());
+
+        // La retirada corre en su hilo: el cierre queda retenido en la
+        // barrera, justo antes del release.
+        let hilo_ret = std::thread::spawn(move || {
+            let mut prov = prov;
+            let r = prov.retirar();
+            (prov, r)
+        });
+        esperar_hasta(
+            || diario.lock().unwrap().contains(&"cierre:1".to_string()),
+            "el cierre viejo llegó a la barrera",
+        );
+        {
+            let d = diario.lock().unwrap().clone();
+            assert!(
+                !d.contains(&"release:1".to_string()),
+                "la última limpieza vieja aún no ocurrió: {:?}",
+                d
+            );
+            assert!(
+                !d.iter().any(|e| e == "claim:2"),
+                "el claim nuevo NO puede ocurrir con la retirada en curso: {:?}",
+                d
+            );
+        }
+        barrera.abrir();
+        let (prov, r) = hilo_ret.join().expect("el hilo de la retirada");
+        assert_eq!(r, Ok(()), "la retirada quedó confirmada");
+
+        // Concluida la retirada, el reemplazo se prepara: su claim.
+        diario.lock().unwrap().push("claim:2".to_string());
+        let h2 = spawn_cadena(
+            TransporteDelCierre::nuevo(2, diario.clone(), cierres.clone()),
+            eps(),
+        )
+        .expect("la sesión 2 abre");
+        assert_eq!(h2.apagar(), Ok(()));
+
+        // Soltar el proveedor y los clones restantes del viejo: nada
+        // del transporte 1 puede actuar ya.
+        drop(prov);
+        drop(h1_clon);
+        drop(h2);
+        let d = diario.lock().unwrap().clone();
+        let i_claim = d.iter().position(|e| e == "claim:2").unwrap();
+        let viejos_tras_claim: Vec<&String> = d[i_claim + 1..]
+            .iter()
+            .filter(|e| e.ends_with(":1"))
+            .collect();
+        assert!(
+            viejos_tras_claim.is_empty(),
+            "ningún evento del transporte viejo tras el claim nuevo: {:?} (diario: {:?})",
+            viejos_tras_claim,
+            d
+        );
+        assert_eq!(
+            d.iter().filter(|e| *e == "release:1").count(),
+            1,
+            "la liberación vieja ocurrió exactamente una vez, antes del claim: {:?}",
+            d
+        );
+    }
+
+    /// **Banco 6(e) — vence el plazo con el hilo vivo, en la pila
+    /// completa**: el paso cae por ENODEV → el supervisor pide la
+    /// retirada → el cierre se queda retenido → el supervisor devuelve
+    /// el error de retirada DENTRO del plazo, con su etapa explícita, y
+    /// llama CERO veces a re-preparar. Cuando el hilo por fin termina,
+    /// la operación ya fallida no autoriza ningún claim: el contador de
+    /// re-preparaciones sigue en cero y la retirada del proveedor sigue
+    /// devolviendo su fallo registrado.
+    #[test]
+    fn banco_e_plazo_vencido_el_supervisor_no_reprepara_ni_autoriza_despues() {
+        use crate::provider::AnfitrionProvider;
+        use crate::supervisor::{ProveedorRetirable, Supervisor};
+
+        let diario = Arc::new(StdMutex::new(Vec::new()));
+        let cierres = Arc::new(AtomicU32::new(0));
+        let barrera = Barrera::nueva();
+        let mut t = TransporteDelCierre::nuevo(1, diario.clone(), cierres.clone());
+        t.barrera = Some(barrera.clone());
+        let h = spawn_cadena(t, eps()).expect("la sesión abre");
+        h.fijar_plazo_apagado(Duration::from_millis(200));
+        let h_obs = h.clone();
+        let mut prov = AnfitrionProvider::new(h, Vec::new());
+        let mut sup = Supervisor::de_banco();
+        let repreparaciones = Arc::new(AtomicU32::new(0));
+        let rp = repreparaciones.clone();
+        let mut repreparar = move || -> Result<AnfitrionProvider, String> {
+            rp.fetch_add(1, Ordering::SeqCst);
+            Err("repreparar no debió ser llamado en este banco".to_string())
+        };
+        let rt = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .expect("runtime del banco");
+        let t0 = Instant::now();
+        let r: Result<(), String> = rt.block_on(async {
+            sup.ejecutar("sonda", &mut prov, &mut repreparar, |_p| async {
+                Err(ENODEV_BANCO.to_string())
+            })
+            .await
+        });
+        let elapsed = t0.elapsed();
+        let e = r.unwrap_err();
+        assert!(
+            e.contains("[etapa retirada]"),
+            "el error sube con la etapa explícita de retirada: {}",
+            e
+        );
+        assert!(
+            e.contains(RETIRADA_NO_CONFIRMADA),
+            "la causa es la retirada no confirmada: {}",
+            e
+        );
+        assert_eq!(
+            repreparaciones.load(Ordering::SeqCst),
+            0,
+            "sin retirada confirmada no hay re-preparación"
+        );
+        assert!(
+            elapsed < Duration::from_secs(5),
+            "el supervisor devolvió el error dentro del plazo: {:?}",
+            elapsed
+        );
+        // El hilo por fin termina (la barrera se abre): la operación ya
+        // fallida NO autoriza ningún claim después.
+        barrera.abrir();
+        esperar_hasta(|| h_obs.hilo_terminado(), "el hilo dueño terminó");
+        assert_eq!(
+            repreparaciones.load(Ordering::SeqCst),
+            0,
+            "la terminación tardía no autorizó ningún reemplazo"
+        );
+        assert!(
+            prov.retirar()
+                .unwrap_err()
+                .contains(RETIRADA_NO_CONFIRMADA),
+            "la retirada sigue siendo el fallo registrado"
+        );
+    }
+
+    /// **Banco 6(f) — dos clones solicitan apagar a la vez**: UNA sola
+    /// operación controla el cierre (el cierre explícito corre una sola
+    /// vez), ningún clon obtiene éxito prematuro y ambos observan el
+    /// mismo resultado terminal publicado.
+    #[test]
+    fn banco_f_dos_clones_a_la_vez_una_sola_operacion() {
+        let diario = Arc::new(StdMutex::new(Vec::new()));
+        let cierres = Arc::new(AtomicU32::new(0));
+        let h = spawn_cadena(
+            TransporteDelCierre::nuevo(1, diario, cierres.clone()),
+            eps(),
+        )
+        .expect("la sesión abre");
+        let h2 = h.clone();
+        let hilo = std::thread::spawn(move || h2.apagar());
+        let r_local = h.apagar();
+        let r_hilo = hilo.join().expect("el clon del otro hilo");
+        assert_eq!(r_local, Ok(()));
+        assert_eq!(r_hilo, Ok(()), "ambos clones observan el mismo resultado");
+        assert_eq!(
+            cierres.load(Ordering::SeqCst),
+            1,
+            "una sola operación ejecutó el cierre explícito"
+        );
+        // Y el resultado publicado manda en llamadas posteriores, sin
+        // repetir el cierre.
+        assert_eq!(h.apagar(), Ok(()));
+        assert_eq!(cierres.load(Ordering::SeqCst), 1);
     }
 }

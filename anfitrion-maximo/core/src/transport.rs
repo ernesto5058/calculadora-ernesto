@@ -210,16 +210,27 @@ impl FdTransport {
         Ok(())
     }
 
-    pub fn release_interface(&mut self) {
-        if self.claimed {
-            let mut v = self.target.interface as u32;
-            let _ = ioctl(
-                self.fd,
-                USBDEVFS_RELEASEINTERFACE,
-                &mut v as *mut u32 as *mut libc::c_void,
-            );
-            self.claimed = false;
+    /// **La liberación COMPROBADA (v2.8)**: RELEASEINTERFACE sobre el fd
+    /// y el resultado REAL del ioctl, con su causa (errno). Si el ioctl
+    /// falla, `claimed` NO se marca falso: la interfaz sigue reclamada a
+    /// ojos de este transporte y el error queda en pie pa quien decide
+    /// (el acuse de apagado de la cadena, el supervisor). Hasta la v2.7
+    /// este método descartaba el resultado (`let _ =`) y marcaba
+    /// `claimed = false` igual: una liberación fallida se anunciaba
+    /// como hecha y la corrida perdía la causa original del fallo.
+    pub fn release_interface(&mut self) -> Result<(), String> {
+        if !self.claimed {
+            return Ok(());
         }
+        let mut v = self.target.interface as u32;
+        ioctl(
+            self.fd,
+            USBDEVFS_RELEASEINTERFACE,
+            &mut v as *mut u32 as *mut libc::c_void,
+        )
+        .map_err(|e| format!("RELEASEINTERFACE: {}", e))?;
+        self.claimed = false;
+        Ok(())
     }
 
     /// CLEAR_FEATURE(ENDPOINT_HALT) en ambos extremos, como WebUSB `clearHalt`.
@@ -346,11 +357,22 @@ impl BulkTransport for FdTransport {
         buf.truncate(rc as usize);
         Ok(buf)
     }
+
+    /// El cierre explícito del trait ES la liberación comprobada: la
+    /// cadena lo corre en su hilo dueño al apagar y su resultado es el
+    /// que viaja en el acuse y queda registrado — no el del Drop.
+    fn cerrar(&mut self) -> Result<(), String> {
+        self.release_interface()
+    }
 }
 
 impl Drop for FdTransport {
     fn drop(&mut self) {
-        // Best-effort: devuelve la interfaz; el fd lo cierra Android.
-        self.release_interface();
+        // Respaldo best-effort (v2.8): si el cierre explícito no corrió
+        // (o corrió y falló, con `claimed` aún en pie), el Drop reintenta
+        // la liberación al destruirse — pero su resultado NO sustituye
+        // al del cierre explícito ya registrado: la causa original manda.
+        // El fd lo cierra Android.
+        let _ = self.release_interface();
     }
 }

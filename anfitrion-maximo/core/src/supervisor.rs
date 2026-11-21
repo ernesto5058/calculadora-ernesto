@@ -43,6 +43,14 @@
 //! viejo (su transporte cae de forma SÍNCRONA, con acuse) ANTES de
 //! re-preparar: liberar primero, reclamar después, nunca al revés.
 //!
+//! **v2.8 — la confirmación del rescate**: el acuse de la v2.7 no
+//! acreditaba el resultado de la liberación (el ioctl se descartaba,
+//! el flag se marcaba antes del resultado, el error se tragaba como
+//! aviso). Desde la v2.8 `retirar()` devuelve `Result` y `ejecutar`
+//! trata una retirada no confirmada como el fin honesto de la corrida:
+//! NO llama a `repreparar()` y el error sube con la etapa explícita de
+//! retirada (`[etapa retirada] …`) y la causa exacta.
+//!
 //! **La costura conocida:** Kotlin es dueño del fd (`UsbDeviceConnection`)
 //! y este núcleo no puede pedirle otro a mitad de corrida; la
 //! re-preparación trabaja sobre el mismo fd (re-enumerar +
@@ -61,22 +69,30 @@ pub const MAX_INTENTOS: u32 = 3;
 /// La pausa entre intentos: aire pa que el iPhone vuelva al bus.
 pub const PAUSA_REINTENTO: Duration = Duration::from_millis(1500);
 
-/// **Un proveedor cuyo transporte puede retirarse (v2.7).** El retiro es
-/// SÍNCRONO y COMPLETO: cuando `retirar()` devuelve, el transporte viejo
-/// ya soltó la interfaz USB sobre el fd compartido y su hilo murió — no
-/// queda ninguna liberación pendiente que pueda caer después. Es la
-/// propiedad que la re-preparación necesita: sobre un fd compartido, la
-/// liberación del transporte viejo (RELEASEINTERFACE) tumba TAMBIÉN el
-/// claim que el transporte nuevo acaba de hacer por el mismo fd, así que
-/// el orden no es negociable: **retirar el viejo → reclamar el nuevo**.
-/// Hasta la v2.6 el supervisor sustituía el proveedor soltando el viejo
-/// a su aire (su liberación llegaba cuando el último clon del handle
-/// cayera), y esa liberación tardía era capaz de tumbar el claim nuevo:
-/// el error 19 de la v2.5 resucitado por el propio rescate (revisión de
-/// diff sobre la v2.6). `retirar()` debe ser idempotente: retirar dos
-/// veces — o retirar un cascarón ya retirado — no libera dos veces.
+/// **Un proveedor cuyo transporte puede retirarse (v2.7 el orden,
+/// v2.8 la confirmación).** El retiro es SÍNCRONO y su resultado es
+/// PARTE del contrato: `Ok` solo cuando la liberación de la interfaz
+/// sobre el fd compartido quedó ACREDITADA por el cierre explícito
+/// comprobado del transporte — no queda ninguna liberación pendiente
+/// que pueda caer después. Es la propiedad que la re-preparación
+/// necesita: sobre un fd compartido, la liberación del transporte viejo
+/// (RELEASEINTERFACE) tumba TAMBIÉN el claim que el transporte nuevo
+/// acaba de hacer por el mismo fd, así que el orden no es negociable:
+/// **retirar el viejo → reclamar el nuevo**. Hasta la v2.6 el supervisor
+/// sustituía el proveedor soltando el viejo a su aire (su liberación
+/// llegaba cuando el último clon del handle cayera), y esa liberación
+/// tardía era capaz de tumbar el claim nuevo: el error 19 de la v2.5
+/// resucitado por el propio rescate (revisión de diff sobre la v2.6).
+/// En la v2.7 el retiro pasó a ser síncrono, pero su resultado se
+/// tragaba: un apagado no confirmado se anotaba como aviso y la
+/// re-preparación seguía. Desde la v2.8, `retirar()` devuelve su
+/// resultado y el supervisor NO re-prepara sin retirada confirmada.
+/// `retirar()` debe ser idempotente CON HONESTIDAD: retirar dos veces
+/// — o retirar un cascarón ya retirado — no libera dos veces, y una
+/// retirada fallida devuelve su fallo registrado, jamás un éxito
+/// implícito por haberla solicitado.
 pub trait ProveedorRetirable {
-    fn retirar(&mut self);
+    fn retirar(&mut self) -> Result<(), String>;
 }
 
 /// ¿Este error es una **desconexión del dispositivo**? La firma del
@@ -230,9 +246,11 @@ impl Supervisor {
     }
 
     /// Corre un PASO de la cadena con la supervisión completa: si cae por
-    /// desconexión, pausa → **retiro síncrono del proveedor viejo**
-    /// (`ProveedorRetirable::retirar` — su transporte libera la interfaz
-    /// del fd compartido y su hilo muere en el acto, v2.7) →
+    /// desconexión, pausa → **retiro síncrono y CONFIRMADO del proveedor
+    /// viejo** (`ProveedorRetirable::retirar` — su transporte libera la
+    /// interfaz del fd compartido con el cierre explícito comprobado y
+    /// su hilo muere en el acto; si la retirada no queda confirmada, la
+    /// corrida se detiene y el error sube con etapa de retirada, v2.8) →
     /// **re-preparación del transporte desde cero** (el `repreparar` de
     /// la cadena: transporte nuevo + sesión mux fresca, que SUSTITUYE al
     /// proveedor ya retirado) → el paso se reintenta sobre el proveedor
@@ -271,7 +289,26 @@ impl Supervisor {
                 // paso reintentado moriría con el mismo error 19 que se
                 // intentaba rescatar. Tras el retiro, sustituir el
                 // proveedor solo suelta un cascarón inerte.
-                provider.retirar();
+                //
+                // **LA CONFIRMACIÓN QUE LA v2.8 AÑADE**: si la retirada
+                // NO queda confirmada, la corrida se detiene AQUÍ — no
+                // se llama a `repreparar()` sobre el mismo fd por
+                // ninguna rama (ni error, ni timeout, ni reintento) y
+                // el error sube con la etapa explícita de retirada y su
+                // causa exacta, en el formato de origen de la casa
+                // (`[etapa X] …`), pa que no colapse a un «conexion»
+                // genérico al viajar hacia la superficie.
+                if let Err(causa) = provider.retirar() {
+                    let e = format!(
+                        "[etapa retirada] la retirada del transporte anterior no quedó confirmada: {} — la re-preparación no se intentó",
+                        causa
+                    );
+                    stage(&format!(
+                        "[supervisor] paso «{}» — la corrida se detiene sin re-preparar: {}",
+                        paso, e
+                    ));
+                    return Err(e);
+                }
                 match repreparar() {
                     Ok(nuevo) => {
                         *provider = nuevo;
@@ -335,9 +372,11 @@ mod tests {
     }
 
     /// Los proveedores numéricos de los bancos clásicos no tienen
-    /// transporte que retirar: el retiro es un no-op pa ellos.
+    /// transporte que retirar: su retiro siempre queda confirmado.
     impl ProveedorRetirable for u32 {
-        fn retirar(&mut self) {}
+        fn retirar(&mut self) -> Result<(), String> {
+            Ok(())
+        }
     }
 
     /// La clasificación: la firma del ENODEV, en sus formas reales de la
@@ -644,10 +683,11 @@ mod tests {
     }
 
     impl ProveedorRetirable for ProvSim {
-        fn retirar(&mut self) {
+        fn retirar(&mut self) -> Result<(), String> {
             if !self.sesion.retirada.swap(true, Ordering::SeqCst) {
                 self.sesion.fd.soltar();
             }
+            Ok(())
         }
     }
 
@@ -732,8 +772,8 @@ mod tests {
         let fd = FdSim::nuevo();
         {
             let mut p = ProvSim::nuevo(1, fd.clone());
-            p.retirar();
-            p.retirar();
+            p.retirar().expect("el retiro del sim se confirma");
+            p.retirar().expect("el segundo retiro también: idempotente");
         } // aquí cae el cascarón retirado
         let liberaciones = fd
             .eventos()
@@ -745,6 +785,90 @@ mod tests {
             "una sola liberación entre el retiro y la caída: {:?}",
             fd.eventos()
         );
+    }
+
+    // ── Banco v2.8: la retirada no confirmada detiene la corrida ──────
+
+    /// El proveedor cuya retirada NUNCA se confirma: devuelve la causa
+    /// del cierre fallido, como el proveedor real cuando el
+    /// RELEASEINTERFACE del transporte viejo devuelve error.
+    #[derive(Clone)]
+    struct ProvFalloRetiro {
+        retiradas: Arc<AtomicU32>,
+    }
+
+    impl ProveedorRetirable for ProvFalloRetiro {
+        fn retirar(&mut self) -> Result<(), String> {
+            self.retiradas.fetch_add(1, Ordering::SeqCst);
+            Err("RELEASEINTERFACE: No such device (os error 19) (errno 19)".to_string())
+        }
+    }
+
+    /// **Banco 6(a), el lado del supervisor**: el paso cae por ENODEV,
+    /// la retirada devuelve un acuse de ERROR → el error que sube trae
+    /// la etapa explícita de retirada y la causa ORIGINAL del cierre, y
+    /// `repreparar()` se llama CERO veces (el paso tampoco se
+    /// reintenta): sin retirada confirmada no hay reemplazo sobre el
+    /// mismo fd, por ninguna rama.
+    #[test]
+    fn ejecutar_retirada_no_confirmada_detiene_sin_repreparar() {
+        let rt = runtime();
+        rt.block_on(async {
+            let mut sup = Supervisor::de_banco();
+            let mut provider = ProvFalloRetiro {
+                retiradas: Arc::new(AtomicU32::new(0)),
+            };
+            let repreparaciones = Arc::new(AtomicU32::new(0));
+            let pasos = Arc::new(AtomicU32::new(0));
+            let rp = repreparaciones.clone();
+            let p = pasos.clone();
+            let mut repreparar = move || -> Result<ProvFalloRetiro, String> {
+                rp.fetch_add(1, Ordering::SeqCst);
+                Ok(ProvFalloRetiro {
+                    retiradas: Arc::new(AtomicU32::new(0)),
+                })
+            };
+            let r: Result<(), String> = sup
+                .ejecutar(
+                    "sonda",
+                    &mut provider,
+                    &mut repreparar,
+                    move |_prov: ProvFalloRetiro| {
+                        let p = p.clone();
+                        async move {
+                            p.fetch_add(1, Ordering::SeqCst);
+                            Err(ENODEV_OUT.to_string())
+                        }
+                    },
+                )
+                .await;
+            let e = r.unwrap_err();
+            assert!(
+                e.contains("[etapa retirada]"),
+                "la etapa de retirada es explícita, no un «conexion» genérico: {}",
+                e
+            );
+            assert!(
+                e.contains("RELEASEINTERFACE"),
+                "la causa original del cierre viaja en el error: {}",
+                e
+            );
+            assert_eq!(
+                repreparaciones.load(Ordering::SeqCst),
+                0,
+                "cero llamadas a re-preparar sin retirada confirmada"
+            );
+            assert_eq!(
+                pasos.load(Ordering::SeqCst),
+                1,
+                "el paso no se reintentó sobre un transporte no retirado"
+            );
+            assert_eq!(
+                provider.retiradas.load(Ordering::SeqCst),
+                1,
+                "la retirada se pidió una sola vez"
+            );
+        });
     }
 
     /// ejecutar: un error que no es desconexión NO toca el transporte —

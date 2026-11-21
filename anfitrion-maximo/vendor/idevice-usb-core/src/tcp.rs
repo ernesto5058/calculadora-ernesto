@@ -16,6 +16,20 @@ pub struct Endpoints {
 pub trait BulkTransport {
     fn bulk_out(&mut self, ep_num: u8, data: &[u8]) -> Result<(), String>;
     fn bulk_in(&mut self, ep_num: u8, max_len: usize) -> Result<Vec<u8>, String>;
+
+    /// **Cierre explícito COMPROBADO del transporte (v2.8 del anfitrión).**
+    /// El transporte que reclama un recurso compartido (la interfaz USB
+    /// sobre el fd) lo libera AQUÍ y devuelve el resultado REAL de esa
+    /// liberación, con su causa: quien se retira necesita saber si la
+    /// liberación quedó hecha, no solo que se intentó. El default es
+    /// `Ok(())` — la mayoría de los transportes no reclama nada al nacer
+    /// ni debe nada al morir (su `Drop` basta). El `Drop` de un
+    /// transporte con claim queda como respaldo best-effort de este
+    /// cierre: puede reintentar la liberación, pero jamás sustituye ni
+    /// convierte en éxito el resultado que este método haya registrado.
+    fn cerrar(&mut self) -> Result<(), String> {
+        Ok(())
+    }
 }
 
 pub struct TcpConn {
