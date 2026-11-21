@@ -30,7 +30,7 @@
     --bg-0: #F6F4EE; --bg-1: #FFFFFF; --bg-2: #FFFFFF; --bg-3: #FFFFFF; --bg-chat: #EEF1F5;
     --glass: rgba(255,255,255,.88); --glass-borde: rgba(0,0,0,.16);
     --borde: rgba(0,0,0,.16); --borde-fuerte: rgba(0,0,0,.28); --linea: rgba(0,0,0,.12);
-    --txt-1: #12151A; --txt-2: rgba(18,21,26,.74); --txt-3: rgba(18,21,26,.56); --txt-sobre-dorado: #FFFFFF;
+    --txt-1: #12151A; --txt-2: rgba(18,21,26,.74); --txt-3: rgba(18,21,26,.68); --txt-sobre-dorado: #FFFFFF;
     --dorado: #0B5FFF; --dorado-claro: #0B4FD6; --dorado-oscuro: #0843B8;
     --dorado-grad: linear-gradient(135deg, #3D8BFF 0%, #0B5FFF 48%, #0A4CD6 100%);
     --dorado-suave: rgba(11,95,255,.10); --dorado-borde: rgba(11,95,255,.48);
@@ -240,6 +240,18 @@
   .micBtn .ic { width: 20px; height: 20px; }
   .fijadoBar { display: none; background: var(--dorado-suave); border: 1px solid var(--dorado-borde); color: var(--dorado-claro); border-radius: 12px; padding: 9px 12px; font-size: 13px; margin-bottom: 10px; overflow-wrap: anywhere; }
   .tempLinea { display: none; color: var(--txt-3); font-size: 12px; margin-bottom: 8px; }
+  /* ===== v39 · CHAT PRO: presión larga, tarjetas, cabecera viva ===== */
+  .prensando { opacity: .72; }
+  .cabEstado { color: var(--txt-2); font-size: 12.5px; margin-top: 1px; }
+  .cabEstado b { color: var(--txt-1); }
+  .parteBtn { display: flex; align-items: center; justify-content: center; gap: 8px; width: calc(100% - 24px); min-height: 48px; margin: 10px 12px 0; padding: 12px; border-radius: 14px; background: var(--dorado-suave); border: 1px solid var(--dorado-borde); color: var(--txt-1); font-weight: 700; font-size: 15px; cursor: pointer; }
+  .parteBtn:active { background: var(--dorado-borde); }
+  .tarjChat { background: var(--bg-2); border: 1px solid var(--borde-fuerte); border-radius: 14px; padding: 10px 12px; min-width: 210px; max-width: 280px; }
+  .tarjChat .tarjTit { font-weight: 800; font-size: 14.5px; margin-bottom: 4px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .tarjChat .tarjDet { font-size: 13.5px; line-height: 1.5; color: var(--txt-1); }
+  .tarjChat .tarjDet span { color: var(--txt-2); }
+  .parteHoja input { width: 100%; margin: 4px 0 8px; }
+  .parteHoja label { font-size: 13px; font-weight: 600; color: var(--txt-2); }
   .msgSistema { text-align: center; color: var(--txt-2); font-size: 12.5px; margin: 12px auto; background: var(--bg-2); border-radius: var(--r-pildora); padding: 6px 14px; max-width: 88%; }
   .msg .cita { display: block; border-left: 3px solid var(--dorado); background: var(--dorado-suave); border-radius: 6px; padding: 5px 8px; margin-bottom: 6px; font-size: 12.5px; opacity: .9; overflow-wrap: anywhere; }
   .msg .eliminado { font-style: italic; opacity: .75; }
@@ -355,12 +367,37 @@
   .stChip.rev { background: rgba(76,195,255,.12); color: var(--mt-azul-claro); }
   .stChip.no { background: var(--rojo-suave); color: var(--rojo); }
   .pagoTot { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
-  .pagoTot .pt { flex: 1; min-width: 100px; background: var(--bg-0); border: 1px solid var(--borde); border-radius: 14px; padding: 10px 12px; text-align: center; }
-  .pagoTot .pt .n { font-family: var(--fuente-num); font-variant-numeric: tabular-nums; font-size: 22px; font-weight: 700; }
+  /* D1 (v38): la caja puede encoger (min-width:0; el mínimo de 100px
+     desbordaba la tarjeta) y el número va en una línea con el tamaño que
+     le pone pintarPago según su longitud — a 22px fijos «$1,200.00»
+     medía 119px contra 77px de caja y se cortaba (Ojo 2026-11-17). */
+  .pagoTot .pt { flex: 1; min-width: 0; overflow: hidden; background: var(--bg-0); border: 1px solid var(--borde); border-radius: 14px; padding: 10px 8px; text-align: center; }
+  .pagoTot .pt .n { font-family: var(--fuente-num); font-variant-numeric: tabular-nums; font-size: 22px; font-weight: 700; white-space: nowrap; }
   .pagoTot .pt .l { color: var(--txt-2); font-size: 12px; line-height: 1.35; }
   .pagoRow { padding: 12px 2px; border-bottom: 1px solid var(--linea); font-size: 15px; line-height: 1.55; }
   .pagoRow:last-child { border-bottom: none; }
   .pagoRow .prF { color: var(--txt-3); font-size: 13px; }
+  /* C2 · botones de cobro por ciclo (A0/A/B): enormes, de calle */
+  .cicloBtns { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+  .cicloBtns button { width: 100%; min-height: 56px; padding: 12px 14px; border-radius: 14px; border: 1px solid var(--borde-fuerte); background: #FFFFFF; color: var(--txt-1); font-size: 16px; font-weight: 700; cursor: pointer; text-align: left; }
+  .cicloBtns button.activa { background: var(--dorado-suave); border-color: var(--dorado); }
+  .cicloBtns button:active { transform: scale(.98); }
+  .cicloBtns button:disabled { opacity: .55; cursor: wait; }
+  .cicloBtns .rango { display: block; font-size: 13px; font-weight: 400; color: var(--txt-2); margin-top: 2px; }
+  /* Oleada PRO v37 · cadena de dinero: PLANO premium (sin 3D, sin
+     degradados decorativos): un paso de tono + hairline, cifras
+     tabulares, el color solo significa estado. */
+  .cadenaPRO { background: var(--bg-0); border: 1px solid var(--borde); border-radius: 14px; padding: 12px 14px; margin-top: 10px; }
+  .cadenaPRO > b { font-size: 15px; }
+  .cadenaPasos { color: var(--txt-2); font-size: 13.5px; line-height: 1.5; margin: 4px 0 6px; }
+  .cadenaFila { display: flex; justify-content: space-between; gap: 12px; padding: 5px 0; border-top: 1px solid var(--linea); font-size: 14.5px; }
+  .cadenaFila span { color: var(--txt-2); }
+  .cadenaFila b { font-family: var(--fuente-num); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .cadenaFila.total b { font-size: 17px; }
+  .cadenaNota { color: var(--txt-2); font-size: 13.5px; line-height: 1.5; margin-top: 6px; }
+  .topeBar { height: 10px; border-radius: 999px; background: rgba(0,0,0,.10); margin-top: 10px; overflow: hidden; }
+  .topeFill { height: 100%; border-radius: 999px; background: var(--dorado); }
+  .topeAviso { background: var(--ambar-suave); color: var(--txt-1); border: 1px solid rgba(176,125,16,.35); border-radius: 12px; padding: 10px 12px; font-size: 14px; line-height: 1.5; margin-top: 10px; }
   .adjScrim { display: none; position: fixed; inset: 0; z-index: 55; background: rgba(10,12,16,.42); }
   .adjScrim.abierta { display: block; }
   .adjHojaPRO { position: fixed; left: 0; right: 0; bottom: 0; top: auto; margin: 0 auto; max-width: 560px; z-index: 56; border-radius: 20px 20px 0 0; padding: 10px 10px calc(14px + env(safe-area-inset-bottom)); }
@@ -372,7 +409,61 @@
   #guiaBox .gBtns .go { margin-top: 0; flex: 1; }
   .guiaRing { outline: 3px solid rgba(232,184,75,.95) !important; outline-offset: 3px; border-radius: 14px; animation: guiaPulso 1.2s ease-in-out infinite; position: relative; z-index: 65; }
   @keyframes guiaPulso { 0%,100% { box-shadow: 0 0 0 0 rgba(232,184,75,.45); } 50% { box-shadow: 0 0 0 9px rgba(232,184,75,0); } }
-</style><script>window.SENTRY_CASA={app:"mitrabajo",version:"1.8.0",dsn:"https://c55f15054776babcf29ee7023c77f250@o4512419765354496.ingest.us.sentry.io/4512419773087744"};</script>
+  /* ===== PULIDO OJO · Chat PRO v39 (solo presentación) =====
+     1) La fila de búsqueda vive en flujo normal, con fondo propio y
+        por encima del hilo; el hilo gana aire arriba (también al
+        hacer scroll hasta el inicio) pa que la primera burbuja se
+        lea entera y nunca quede bajo la fila. */
+  .chatBuscarRow { position: relative; z-index: 3; background: #FFFFFF; }
+  .hiloWA { padding-top: 16px; scroll-padding-top: 16px; }
+  /* 2) Placeholder del compositor: dos líneas completas en vacío
+        (line-height y altura fijas; el compositor es estático, sin
+        auto-crecimiento que romper). */
+  .compBox textarea { line-height: 1.35; height: 58px; padding: 6px 0; }
+  /* 3) Menú de presión larga: hoja fija SOBRE la barra de pestañas
+        (mismo patrón que .adjHojaPRO), con scroll interno si no cabe. */
+  .chatCard .menuMsg { position: fixed; left: 8px; right: 8px; bottom: calc(84px + env(safe-area-inset-bottom)); top: auto; z-index: 57; max-width: 544px; margin: 0 auto; max-height: 52vh; overflow-y: auto; box-shadow: 0 14px 34px rgba(0,0,0,.25); }
+  /* ===== PRO v40: Ahora · sincronización · 3 estados · cerrar el día ·
+     plantillas · línea de tiempo. Mismo lenguaje visual de la cara
+     (claro de alto contraste, acento azul vía --dorado): plano, sin 3D. */
+  .syncBar { display: block; width: 100%; margin: 10px 0 2px; padding: 9px 14px; border-radius: 999px; border: 1px solid var(--borde-fuerte); background: var(--bg-1); color: var(--txt-1); font-size: 14px; font-weight: 700; cursor: pointer; text-align: center; box-shadow: var(--sombra-1); }
+  .syncBar.ok { border-color: rgba(23,114,69,.45); color: var(--verde); }
+  .syncBar.esp { border-color: rgba(138,97,0,.45); color: var(--ambar); }
+  .syncBar.mal { border-color: rgba(192,53,71,.55); color: var(--rojo); }
+  .syncHoja { display: none; position: fixed; inset: 0; z-index: 80; background: rgba(10,12,16,.45); }
+  .syncHoja.abierta { display: block; }
+  .syncHojaIn { position: absolute; left: 0; right: 0; bottom: 0; max-width: 560px; margin: 0 auto; max-height: 78vh; overflow-y: auto; background: #FFFFFF; border-radius: 20px 20px 0 0; padding: 16px 16px calc(16px + env(safe-area-inset-bottom)); box-shadow: var(--sombra-2); }
+  .syncTit { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; font-size: 17px; }
+  .syncItem { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 10px 0; border-top: 1px solid var(--linea); font-size: 15px; }
+  .syncItem small { color: var(--txt-2); }
+  .stChip.mal { background: var(--rojo-suave); color: var(--rojo); }
+  .ahGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 12px 0; }
+  .ahTile { background: var(--bg-0); border: 1px solid var(--borde); border-radius: 14px; padding: 12px; }
+  .ahLab { font-size: 13.5px; font-weight: 600; color: var(--txt-2); }
+  .ahNum { font-size: 26px; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1.15; }
+  .ahCta { margin-top: 10px; min-height: 60px; font-size: 17px; }
+  .ahSecRow { display: flex; gap: 10px; margin-top: 12px; }
+  .ahSecRow .miniBtn { flex: 1; min-height: 48px; font-size: 15px; }
+  .teRow { display: flex; justify-content: space-between; align-items: center; gap: 12px; width: 100%; text-align: left; background: var(--bg-0); border: 1px solid var(--borde); border-radius: 14px; padding: 12px 14px; margin: 8px 0; font-size: 15px; color: var(--txt-1); cursor: pointer; }
+  div.teRow { cursor: default; }
+  .teRow small { color: var(--txt-2); }
+  .teNum { font-size: 19px; font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .tlPasos { margin-top: 8px; font-size: 13.5px; color: var(--txt-2); }
+  .tlPasos .tlOk { color: var(--verde); font-weight: 700; }
+  .tlPasos .tlAhora { color: var(--ambar); font-weight: 700; }
+  .tlPasos .tlPend { color: var(--txt-3); }
+  .cdItem { display: flex; gap: 10px; align-items: flex-start; padding: 11px 12px; border: 1px solid var(--borde); border-radius: 14px; margin: 8px 0; font-size: 15.5px; background: var(--bg-0); }
+  .cdItem.ok { border-color: rgba(23,114,69,.4); }
+  .cdItem.falta { border-color: rgba(138,97,0,.45); }
+  .cdItem span { font-weight: 800; }
+  .cdItem.ok span { color: var(--verde); }
+  .cdItem.falta span { color: var(--ambar); }
+  .planTx { border: 1px solid var(--borde); border-radius: 14px; padding: 12px; margin: 10px 0; background: var(--bg-0); }
+  .planTxt { font-size: 15px; line-height: 1.5; white-space: normal; }
+  .planBtns { display: flex; gap: 8px; margin-top: 10px; }
+  .planBtns .miniBtn { flex: 1; min-height: 44px; }
+  #pinGate { z-index: 90; }
+</style><script>window.SENTRY_CASA={app:"mitrabajo",version:"1.10.0",dsn:"https://c55f15054776babcf29ee7023c77f250@o4512419765354496.ingest.us.sentry.io/4512419773087744"};</script>
 <script defer crossorigin="anonymous" integrity="sha384-48iagrZwMa6wkDoJKNyCk4jgMHcOcsBK/DzZAJInl1ZhtunellJDCRNZuomfHefF" src="https://browser.sentry-cdn.com/8.38.0/bundle.min.js"></script>
 </head>
 <body>
@@ -422,10 +513,21 @@
 
   <div class="tarifa" id="tvBox" style="display:none"></div>
 
+  <button type="button" id="syncBar" class="syncBar hide"></button>
+  <div id="syncHoja" class="syncHoja">
+    <div class="syncHojaIn">
+      <div class="syncTit"><b>Sincronización</b><button type="button" class="miniBtn" id="sync_cerrar">Cerrar</button></div>
+      <div id="sync_lista"></div>
+      <button class="go" id="sync_reintentar" type="button">Reintentar ahora</button>
+      <div class="hint">Lo guardado en tu teléfono no se pierde: sale solo cuando vuelva la conexión. Nada se manda dos veces: cada cosa lleva su número de operación y el servidor la reconoce si ya entró.</div>
+    </div>
+  </div>
+
   <div class="warn" id="bootWarn" style="display:none"></div>
 
   <div class="tabs tabbar">
-    <div class="tab on" id="tabCalc"><svg class="ic" aria-hidden="true"><use href="#i-calc"/></svg><span class="tabTx">Calculadora</span></div>
+    <div class="tab on" id="tabAhora"><svg class="ic" aria-hidden="true"><use href="#i-brief"/></svg><span class="tabTx">Ahora</span></div>
+    <div class="tab" id="tabCalc"><svg class="ic" aria-hidden="true"><use href="#i-calc"/></svg><span class="tabTx">Calculadora</span></div>
     <div class="tab" id="tabRep"><svg class="ic" aria-hidden="true"><use href="#i-send"/></svg><span class="tabTx">Reportar</span></div>
     <div class="tab" id="tabPanel"><svg class="ic" aria-hidden="true"><use href="#i-chart"/></svg><span class="tabTx">Mi panel</span></div>
     <div class="tab" id="tabAyuda"><svg class="ic" aria-hidden="true"><use href="#i-chat"/></svg><span class="tabTx">Chat</span><span id="chatBadge" class="cbadge hide">0</span></div>
@@ -438,13 +540,33 @@
     <a class="btnUpd" id="updLink" href="#">Descargar la actualización</a>
   </div>
 
+  <!-- ============ AHORA (PRO v40 · A1) ============ -->
+  <div id="viewAhora">
+    <div class="card">
+      <h2 id="ah_saludo">¿Qué vas a hacer ahora?</h2>
+      <div class="hint">Tu dinero y tus pendientes, de un vistazo — y las dos cosas que más haces, a un toque.</div>
+      <div class="ahGrid">
+        <div class="ahTile"><div class="ahLab">💰 En tu mano</div><div class="ahNum" id="ah_mano">—</div></div>
+        <div class="ahTile"><div class="ahLab">🕐 Vueltas esperando prueba</div><div class="ahNum" id="ah_esperas">—</div></div>
+        <div class="ahTile"><div class="ahLab">📝 Reportes sin confirmar</div><div class="ahNum" id="ah_reportes">—</div></div>
+        <div class="ahTile"><div class="ahLab">💬 Mensajes sin leer</div><div class="ahNum" id="ah_msgs">—</div></div>
+      </div>
+      <button class="go ahCta" id="ah_rep" type="button"><svg class="ic" aria-hidden="true"><use href="#i-send"/></svg> Reportar trato</button>
+      <button class="go ahCta" id="ah_parte" type="button"><svg class="ic" aria-hidden="true"><use href="#i-clock"/></svg> Enviar parte de vuelta</button>
+      <div class="ahSecRow">
+        <button type="button" class="miniBtn" id="ah_calc">🧮 Calculadora</button>
+        <button type="button" class="miniBtn" id="ah_cerrar">🌙 Cerrar el día</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ============ CALCULADORA ============ -->
-  <div id="viewCalc">
+  <div id="viewCalc" class="hide">
     <div class="card">
       <h2><svg class="ic" aria-hidden="true"><use href="#i-phone"/></svg> Saldo — ¿cuánto cobro?</h2>
       <div class="hint">Cobras <b>tu % según tus estrellas</b> del excedente de cada recarga de 360 que consigas. Tu nivel y tu % viven en «Mi panel».</div>
       <button type="button" class="hintBtn" data-hint="h_calc_s">ⓘ ¿Cómo se calcula?</button>
-      <div class="hintFull hide" id="h_calc_s">Consigues una recarga de 360 y cobras tu % según tus estrellas del excedente: lo que se gana por encima del precio que pagaste. Pon el precio que lograste y la app te dice tu parte al momento. Entre más barato consigas la recarga, más cobras tú.</div>
+      <div class="hintFull hide" id="h_calc_s">Consigues una recarga de 360 y cobras tu % según tus estrellas del excedente: lo que se gana por encima del precio que pagaste. Pon el precio que lograste y la app te dice tu parte estimada al momento; tu pago final se cuadra por ciclo en «Mi pago», con la cadena completa de tu ciclo. Entre más barato consigas la recarga, más cobras tú.</div>
       <label>Precio que conseguiste por la recarga de 360 (CUP)</label>
       <input type="number" id="s_precio" inputmode="decimal" placeholder="Ej: 950">
       <div class="chips">
@@ -465,9 +587,9 @@
 
     <div class="card">
       <h2><svg class="ic" aria-hidden="true"><use href="#i-bank"/></svg> Transferencia — ¿cuánto cobro?</h2>
-      <div class="hint">Cobras <b>tu % según tus estrellas</b> de la ganancia de la vuelta completa, cuando la vuelta cierra. Tu nivel y tu % viven en «Mi panel».</div>
+      <div class="hint">Esta calculadora te da un <b>estimado al momento</b> con tu % según tus estrellas. Tu pago final no sale de aquí: se cuadra <b>por ciclo</b> en «Mi pago», con la cadena completa de tu ciclo. Tu nivel y tu % viven en «Mi panel».</div>
       <button type="button" class="hintBtn" data-hint="h_calc_t">ⓘ ¿Cómo se calcula?</button>
-      <div class="hintFull hide" id="h_calc_t">Traes a una persona conocida que cambia efectivo por transferencia. Cobras tu % según tus estrellas de la ganancia de la vuelta completa, cuando la vuelta cierra. Solo se aceptan tratos <b>al 25% o más</b>: por debajo, la app te avisa y no hay trato.</div>
+      <div class="hintFull hide" id="h_calc_t">Traes a una persona conocida que cambia efectivo por transferencia. La calculadora estima tu comisión con tu % según tus estrellas; tu pago final se cuadra por ciclo en «Mi pago»: ganancia de tu ciclo → tu % del ciclo → redondeo a la decena (el 5 baja) → menos lo que se recupera → lo que te pagan. Solo se aceptan tratos <b>al 25% o más</b>: por debajo, la app te avisa y no hay trato.</div>
       <label>Efectivo que entrega la persona (CUP)</label>
       <input type="number" id="t_ef" inputmode="decimal" placeholder="Ej: 5000">
       <label>¿Al cuánto es el trato? (<span id="t_pct_lab">30</span>%)</label>
@@ -524,6 +646,13 @@
       <div class="hint" id="r_foto_nom">Si tienes la captura o foto del trato, súbela: Ernesto la ve junto a tu reporte. Se comprime sola.</div>
       <div class="ok" id="r_editando" style="display:none">Estás corrigiendo un reporte pendiente: al enviar, se actualiza el mismo (Ernesto verá que fue editado). <button type="button" class="miniBtn" id="r_cancel_edit">Cancelar</button></div>
       <button class="go" id="r_btn"><svg class="ic" aria-hidden="true"><use href="#i-send"/></svg> Enviar reporte a Ernesto</button>
+      <div class="res" id="r_previo" style="display:none">
+        <div class="lab"><svg class="ic mini" aria-hidden="true"><use href="#i-check"/></svg> ANTES DE ENVIAR — REVISA TU REPORTE</div>
+        <div class="det" id="r_previo_txt"></div>
+        <div class="warn" id="r_previo_dup" style="display:none"></div>
+        <button class="go" id="r_conf" type="button">Enviar reporte</button>
+        <button type="button" class="miniBtn" id="r_prev_cancel">Revisar los datos</button>
+      </div>
       <div class="res" id="r_res" style="display:none">
         <div class="lab"><svg class="ic mini" aria-hidden="true"><use href="#i-check"/></svg> REPORTE ENVIADO</div>
         <div class="det">Quedó <b>pendiente</b>. Cuando Ernesto lo confirme, tu comisión aparece en «Mi panel».</div>
@@ -555,10 +684,11 @@
         <div class="chatHeadTx">
           <div class="chatNom">Ernesto</div>
           <div class="cpres" id="c_pres">Ernesto · —</div>
+          <div class="cabEstado" id="c_estado" style="display:none"></div>
         </div>
         <button type="button" class="chatIco" id="c_info" aria-label="Qué significan los estados"><svg class="ic" aria-hidden="true"><use href="#i-help"/></svg></button>
       </div>
-      <div class="hint" id="c_estados" style="display:none">Tus mensajes, como en WhatsApp: <b>✓</b> enviado (salió de tu app y quedó guardado) · <b>✓✓</b> entregado (el panel de Ernesto recibió el mensaje) · <b>✓✓ Visto</b> (Ernesto abrió el chat y lo leyó) · <b>🕐</b> en cola (guardado en tu teléfono: sale solo cuando vuelva la conexión) · <b>⚠️ No se pudo enviar</b> (la app lo intentó 3 veces: toca el mensaje para reintentar). Foto: toca el clip 📎 y elige «Foto o vídeo» (o «Cámara» para hacerla al momento); con «Documento» mandas un archivo. La foto y el texto salen en UN solo mensaje. Toca un mensaje para responder, reaccionar ❤️👍😂👏🔥, o editar/eliminar los tuyos.</div>
+      <div class="hint" id="c_estados" style="display:none">Tus mensajes, como en WhatsApp: <b>✓</b> enviado (salió de tu app y quedó guardado) · <b>✓✓</b> entregado (el panel de Ernesto recibió el mensaje) · <b>✓✓ Visto</b> (Ernesto abrió el chat y lo leyó) · <b>🕐</b> en cola (guardado en tu teléfono: sale solo cuando vuelva la conexión) · <b>⚠️ No se pudo enviar</b> (la app lo intentó 3 veces: toca el mensaje para reintentar). Foto: toca el clip 📎 y elige «Foto o vídeo» (o «Cámara» para hacerla al momento); con «Documento» mandas un archivo. La foto y el texto salen en UN solo mensaje. Mantén presionado un mensaje para responder, reaccionar ❤️👍😂👏🔥, o editar/eliminar los tuyos.</div>
       <div class="fijadoBar" id="c_fijado"></div>
       <div class="tempLinea" id="c_temp"></div>
       <div class="chatBuscarRow">
@@ -574,6 +704,31 @@
         <button type="button" class="adjFila" id="c_adj_foto"><span class="adjIco"><svg class="ic" aria-hidden="true"><use href="#i-img"/></svg></span><span class="adjTx"><b>Foto o vídeo</b><small>Elige de tu galería</small></span></button>
         <button type="button" class="adjFila" id="c_adj_cam"><span class="adjIco"><svg class="ic" aria-hidden="true"><use href="#i-cam"/></svg></span><span class="adjTx"><b>Cámara</b><small>Haz la foto ahora</small></span></button>
         <button type="button" class="adjFila" id="c_adj_arch"><span class="adjIco"><svg class="ic" aria-hidden="true"><use href="#i-file"/></svg></span><span class="adjTx"><b>Documento</b><small>Archivos (máx 5 MB)</small></span></button>
+      </div>
+      <button type="button" class="parteBtn" id="c_parte_btn"><svg class="ic" aria-hidden="true"><use href="#i-cash"/></svg> Ya compré — mandar el parte</button>
+      <div class="adjScrim" id="c_parte_scrim"></div>
+      <div class="adjHojaPRO parteHoja" id="c_parte_hoja">
+        <div class="adjHojaTit">Parte de compra — Ya compré<button type="button" class="miniBtn" id="c_parte_cerrar">✕</button></div>
+        <label>¿Qué vuelta operaste?</label>
+        <div class="tiposel">
+          <div class="tab on" id="cp_tipo_s">Saldo</div>
+          <div class="tab" id="cp_tipo_t">Transferencia</div>
+        </div>
+        <div id="cp_box_s">
+          <label>Tasa que pactaste: precio por cada recarga de 360 (CUP)</label>
+          <input type="number" id="cp_tasa" inputmode="decimal" placeholder="Ej: 1000">
+        </div>
+        <div id="cp_box_t" class="hide">
+          <label>¿Al cuánto es el trato? (%)</label>
+          <input type="number" id="cp_pct" inputmode="decimal" placeholder="Ej: 30">
+        </div>
+        <label>Total que pagaste en efectivo (CUP)</label>
+        <input type="number" id="cp_total" inputmode="decimal" placeholder="Ej: 4000">
+        <label>Teléfono de quien te vendió (opcional)</label>
+        <input type="tel" id="cp_tel" inputmode="tel" placeholder="Ej: 51234567">
+        <button class="go" id="cp_btn" type="button">Enviar el parte a Ernesto</button>
+        <div class="ok" id="cp_ok" style="display:none"></div>
+        <div class="warn" id="cp_warn"></div>
       </div>
       <div class="compWA">
         <div class="compBox">
@@ -604,8 +759,17 @@
       <div class="sesLab">Tu sesión: <b id="p_ses">—</b></div>
       <button type="button" class="navCard" id="navEsperas"><span class="nIc"><svg class="ic" aria-hidden="true"><use href="#i-clock"/></svg></span><span class="nTx"><b>Mis esperas</b><small>Tus vueltas en camino: qué falta por llegar y lo que ya se asentó. Aquí también mandas el parte de una vuelta nueva.</small></span><span class="nBadge hide" id="navEspBadge">0</span><span class="nChev"><svg class="ic" aria-hidden="true"><use href="#i-back"/></svg></span></button>
       <button type="button" class="navCard" id="navPago"><span class="nIc"><svg class="ic" aria-hidden="true"><use href="#i-cash"/></svg></span><span class="nTx"><b>Mi pago</b><small id="navPagoTxt">Lo que ya tienes asegurado, lo que depende de la venta y lo que ya te pagaron.</small></span><span class="nChev"><svg class="ic" aria-hidden="true"><use href="#i-back"/></svg></span></button>
+      <button type="button" class="navCard" id="navCerrar"><span class="nIc">🌙</span><span class="nTx"><b>Cerrar el día</b><small>Qué te falta para terminar limpio: mano, vueltas, reportes y envíos pendientes.</small></span><span class="nChev"><svg class="ic" aria-hidden="true"><use href="#i-back"/></svg></span></button>
       <div class="warn" id="p_warn"></div>
       <div id="p_body" class="hide">
+        <div id="tresEst" class="hide">
+          <label>💰 Tu dinero en 3 estados</label>
+          <button type="button" class="teRow" id="te_row_mano"><span><b>En mano</b><br><small>Puedes devolverlo; sigue en tu mano hasta que Ernesto lo reciba en persona.</small></span><b class="teNum" id="te_mano">—</b></button>
+          <div class="teRow"><span><b>Trabajando</b><br><small>Está metido en vueltas; se liquida al cerrar el ciclo.</small></span><b class="teNum" id="te_trab">—</b></div>
+          <button type="button" class="teRow" id="te_row_aseg"><span><b>Por cobrar · Asegurado pendiente</b><br><small>Es tuyo pase lo que pase con la venta.</small></span><b class="teNum" id="te_aseg">—</b></button>
+          <button type="button" class="teRow" id="te_row_prem"><span><b>Por cobrar · Premio por venta</b> <span class="stChip esp">Condicional</span><br><small>Depende de cómo se venda; no es lo mismo que lo asegurado.</small></span><b class="teNum" id="te_prem">—</b></button>
+          <div class="hint">Lo asegurado y el premio NO se suman como si fueran una sola cosa segura: uno es tuyo y el otro depende de la venta. El detalle completo está en «Mi pago».</div>
+        </div>
         <div id="p_cupo" class="hide">
           <div class="total">
             <div class="lab">TU NIVEL · MI CUPO</div>
@@ -630,6 +794,11 @@
               <label style="font-weight:400;text-transform:none;letter-spacing:0"><input type="checkbox" id="cap_cierre" style="width:auto"> Es mi cierre — quiero parar</label>
               <div class="warn" id="cap_warn"></div>
               <button type="button" class="go" id="cap_enviar">Enviar la solicitud</button>
+              <div class="res" id="cap_conf" style="display:none">
+                <div class="det" id="cap_conf_txt"></div>
+                <button type="button" class="go" id="cap_conf_si">Sí, solicitar la devolución</button>
+                <button type="button" class="miniBtn" id="cap_conf_no">No, volver</button>
+              </div>
               <button type="button" class="miniBtn" id="cap_cancelar">Cancelar</button>
               <div class="hint">La solicitud NO mueve tu dinero: tu capital sigue contado en tu mano hasta que Ernesto lo reciba en persona y lo confirme en su app.</div>
             </div>
@@ -702,9 +871,10 @@
     <button type="button" class="volverBtn" id="mp_volver"><svg class="ic" aria-hidden="true"><use href="#i-back"/></svg> Mi panel</button>
     <div class="card">
       <h2><svg class="ic" aria-hidden="true"><use href="#i-cash"/></svg> Mi pago</h2>
-      <div class="hint">Tu pago por vuelta, en claro: lo <b>asegurado</b> es tuyo pase lo que pase con la venta; el <b>premio</b> depende de cómo se venda, y aquí ves también lo que <b>ya te pagaron</b>.</div>
+      <div class="hint">Tu pago por vuelta, en claro: lo <b>asegurado</b> es tuyo pase lo que pase con la venta; el <b>premio por venta</b> depende de cómo se venda, y aquí ves también lo que <b>ya te pagaron</b>. En cada ciclo ves además tu <b>cadena de pago</b> completa — ganancia de tu ciclo → tu % → redondeo a la decena (el 5 baja) → menos lo que se recupera → lo que te pagan —, tu <b>por recuperar</b> si quedó un cuadre de un ciclo anterior, y tu <b>avance contra el tope</b> del ciclo: exactamente lo mismo que ve Ernesto, con tus números.</div>
       <div class="warn" id="mp_warn"></div>
       <div id="mp_totales"></div>
+      <div id="mp_ganado"></div>
     </div>
     <div class="card">
       <h2><svg class="ic" aria-hidden="true"><use href="#i-phone"/></svg> Vueltas de saldo</h2>
@@ -713,6 +883,16 @@
     <div class="card">
       <h2><svg class="ic" aria-hidden="true"><use href="#i-bank"/></svg> Vueltas de transferencia</h2>
       <div id="mp_transf"><div class="hint">Cargando…</div></div>
+    </div>
+  </div>
+
+  <!-- ============ CERRAR EL DÍA (PRO v40 · C5) ============ -->
+  <div id="viewCerrar" class="hide">
+    <button type="button" class="volverBtn" id="cd_volver"><svg class="ic" aria-hidden="true"><use href="#i-back"/></svg> Mi panel</button>
+    <div class="card">
+      <h2>🌙 Cerrar el día</h2>
+      <div class="hint">Esto SOLO te enseña qué te falta pa terminar limpio: nada se cierra, se manda ni se devuelve solo desde aquí.</div>
+      <div id="cd_lista"><div class="hint">Cargando tu día…</div></div>
     </div>
   </div>
 
@@ -732,6 +912,10 @@
       </div>
       <button class="go" id="tx_generar" type="button">Generar textos</button>
       <div id="tx_out" style="margin-top:12px"></div>
+      <label>Plantillas sin internet</label>
+      <div class="hint" id="tx_tarifa_fecha"></div>
+      <div class="hint">Estas plantillas salen SOLO de la tarifa guardada en tu teléfono: ningún número se inventa. Si la fecha de la tarifa es vieja, confirma los precios antes de publicar.</div>
+      <div id="tx_plantillas"></div>
       <label>Historial (últimas 30, en este teléfono)</label>
       <div id="tx_hist"></div>
     </div>
@@ -768,6 +952,18 @@
       <h2><svg class="ic" aria-hidden="true"><use href="#i-bell"/></svg> Avisos</h2>
       <div class="hint" id="pf_push_txt">Recibe un aviso en la pantalla cuando Ernesto apruebe un trato, te pague o te escriba. El permiso se pide solo al tocar el botón.</div>
       <button class="go" id="pf_push" type="button">Activar avisos</button>
+    </div>
+    <div class="card">
+      <h2><svg class="ic" aria-hidden="true"><use href="#i-lock"/></svg> Bloqueo de reapertura (PIN)</h2>
+      <div class="hint">Un PIN de 4 a 6 números pa abrir la app en ESTE teléfono. Es solo un candado de pantalla: tu código personal sigue siendo tu llave con Ernesto, este PIN no se manda a ningún servidor y no protege tus datos como un cifrado. Si lo olvidas, cierra la sesión desde la pantalla del PIN y entra con tu código.</div>
+      <div class="hint" id="pin_estado"></div>
+      <label>PIN nuevo</label>
+      <input type="password" id="pin_nuevo" inputmode="numeric" maxlength="6" autocomplete="off" placeholder="4 a 6 números">
+      <button class="go" id="pin_guardar" type="button">Activar / cambiar PIN</button>
+      <button type="button" class="miniBtn" id="pin_quitar">Quitar el PIN</button>
+      <button type="button" class="miniBtn" id="pin_bloquear">Bloquear ahora</button>
+      <div class="warn" id="pin_warn"></div>
+      <div class="ok" id="pin_ok" style="display:none"></div>
     </div>
     <div class="card">
       <h2><svg class="ic" aria-hidden="true"><use href="#i-key"/></svg> Cambiar mi código</h2>
@@ -813,6 +1009,20 @@
     <button class="go" id="l_btn" type="button">Entrar</button>
     <div class="warn" id="l_warn"></div>
     <a class="gateWa" href="https://wa.me/5351231558?text=Hola%20Ernesto%2C%20no%20puedo%20entrar%20a%20Mi%20Trabajo%2C%20necesito%20mi%20c%C3%B3digo.">¿No tienes código o lo perdiste?<br>Escríbele a Ernesto por WhatsApp</a>
+  </div>
+</div>
+
+<!-- ============ CANDADO DE REAPERTURA (PRO v40 · B6, solo local) ============ -->
+<div id="pinGate" class="gate" style="display:none">
+  <div class="gateCard">
+    <div class="glogo"><svg class="ic" aria-hidden="true"><use href="#i-lock"/></svg></div>
+    <div class="gateTitle">MI <span class="gold">TRABAJO</span></div>
+    <p class="gateTxt">Escribe tu <b>PIN de reapertura</b> para seguir. Es el candado de este teléfono; tu sesión sigue guardada detrás de él.</p>
+    <label for="pin_in">Tu PIN</label>
+    <input type="password" id="pin_in" inputmode="numeric" maxlength="6" autocomplete="off" placeholder="••••">
+    <button class="go" id="pin_btn" type="button">Abrir</button>
+    <div class="warn" id="pin_gwarn"></div>
+    <a class="gateWa" href="#" id="pin_salir">¿Olvidaste el PIN?<br>Cierra la sesión y entra con tu código</a>
   </div>
 </div>
 

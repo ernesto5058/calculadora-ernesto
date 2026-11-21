@@ -1,12 +1,174 @@
 "use strict";
-/*__SENTRY_CASA__*/
-var APP_VERSION = "1.8.0";
+/* =====================================================================
+   SENTRY DE LA CASA — errores en producción (estudio de huecos, TOP 2)
+   ---------------------------------------------------------------------
+   Qué hace: si la app revienta en el teléfono de un buscador o de un
+   cliente, el error viaja solo al panel de Sentry con pantalla y
+   versión — SIN datos sensibles: el escrubado de abajo quita códigos
+   de acceso, teléfonos, adjuntos, cuerpos de petición (texto del chat)
+   y lo tecleado en los campos ANTES de que el evento salga.
+
+   Cómo se enchufa (detalle en README.md de esta carpeta):
+   · En el <head> va el bloque de bloque-head.html (config + SDK CDN).
+   · Este archivo se inyecta en app.js vía ensamblar, con el marcador
+     SENTRY_CASA y el mismo patrón que el de PUSH_CLIENTE, en
+     Mi Trabajo y Mi Negocio; en Mercado y la paginita su contenido se
+     pega tal cual dentro de un script antes del cierre del body.
+
+   Reglas duras:
+   · Sin DSN (o sin SDK, p. ej. APK sin red) NO hace nada: no-op total.
+   · Jamás rompe la app: todo va envuelto y cualquier fallo interno
+     del propio Sentry se traga en silencio.
+   · Sin Session Replay a propósito: grabar la pantalla podría filmar
+     datos de clientes; solo viajan errores.
+   ===================================================================== */
+(function () {
+  "use strict";
+  try {
+    var cfg = (typeof window !== "undefined" && window.SENTRY_CASA) || null;
+    if (!cfg || !cfg.dsn || !cfg.app) return; /* sin DSN: no-op total */
+
+    /* ---------- escrubado: lo sensible NUNCA sale ---------- */
+    var REGLAS = [
+      [/eyJ[A-Za-z0-9_-]{10,}(\.[A-Za-z0-9_-]{10,})+/g, "[token oculto]"],
+      [/data:[a-z0-9.+-]+\/[a-z0-9.+-]+;base64,[A-Za-z0-9+/=]+/gi, "[adjunto oculto]"],
+      [/\b[A-Za-z0-9+/]{80,}={0,2}\b/g, "[adjunto oculto]"],
+      [/(Bearer\s+)[A-Za-z0-9._-]+/gi, "$1[oculto]"],
+      [/(\bhttps?:\/\/[^\s?'"<>]+)\?[^\s'"<>]*/g, "$1"],
+      [/\b[A-ZÁÉÍÓÚÑ]{2,}-[A-Z0-9]{2,}\b/g, "[código oculto]"],
+      [/\+?53[\s.-]?\d{4}[\s.-]?\d{4}\b/g, "[teléfono oculto]"],
+      [/\b5\d{7}\b/g, "[teléfono oculto]"]
+    ];
+    function ocultar(s) {
+      if (typeof s !== "string") return s;
+      var out = s;
+      for (var i = 0; i < REGLAS.length; i++) out = out.replace(REGLAS[i][0], REGLAS[i][1]);
+      return out;
+    }
+    function limpiarUrl(u) {
+      if (typeof u !== "string") return u;
+      var sinQuery = u.split("?")[0].split("#")[0];
+      return ocultar(sinQuery);
+    }
+    var CLAVE_SENSIBLE = /adj|dato|mensaje|chat|telefon|celular|codigo|código|clave|password|token|secret|auth/i;
+    function escrubarDato(v, prof) {
+      if (prof > 6) return "[…]";
+      if (typeof v === "string") return ocultar(v);
+      if (Array.isArray(v)) {
+        var a = [];
+        for (var i = 0; i < v.length; i++) a.push(escrubarDato(v[i], prof + 1));
+        return a;
+      }
+      if (v && typeof v === "object") {
+        var o = {};
+        for (var k in v) {
+          if (!Object.prototype.hasOwnProperty.call(v, k)) continue;
+          o[k] = CLAVE_SENSIBLE.test(k) ? "[oculto]" : escrubarDato(v[k], prof + 1);
+        }
+        return o;
+      }
+      return v;
+    }
+    function antesDeEnviar(ev) {
+      try {
+        if (!ev || typeof ev !== "object") return ev;
+        if (ev.user) delete ev.user; /* la identidad puede ser el código */
+        if (typeof ev.message === "string") ev.message = ocultar(ev.message);
+        if (ev.request) {
+          ev.request.url = limpiarUrl(ev.request.url || "");
+          if (ev.request.query_string) ev.request.query_string = "";
+          delete ev.request.data;    /* el cuerpo puede ser texto del chat */
+          delete ev.request.cookies;
+          ev.request.headers = {};
+        }
+        if (ev.exception && ev.exception.values) {
+          for (var i = 0; i < ev.exception.values.length; i++) {
+            var ex = ev.exception.values[i];
+            if (typeof ex.value === "string") ex.value = ocultar(ex.value);
+            if (ex.stacktrace && ex.stacktrace.frames) {
+              for (var j = 0; j < ex.stacktrace.frames.length; j++) {
+                var fr = ex.stacktrace.frames[j];
+                if (typeof fr.filename === "string") fr.filename = limpiarUrl(fr.filename);
+                if (fr.vars) fr.vars = escrubarDato(fr.vars, 0);
+              }
+            }
+          }
+        }
+        if (ev.breadcrumbs) {
+          for (var b = 0; b < ev.breadcrumbs.length; b++) {
+            var bc = ev.breadcrumbs[b];
+            if (typeof bc.message === "string") bc.message = ocultar(bc.message);
+            if (bc.data) bc.data = escrubarDato(bc.data, 0);
+          }
+        }
+        if (ev.extra) ev.extra = escrubarDato(ev.extra, 0);
+        if (ev.contexts) ev.contexts = escrubarDato(ev.contexts, 0);
+        return ev;
+      } catch (e) {
+        return null; /* si el escrubado falla, el evento NO sale: privacidad manda */
+      }
+    }
+    function antesDeMiga(crumb) {
+      try {
+        if (!crumb) return crumb;
+        if (crumb.category === "console") return null;   /* la consola puede llevar datos */
+        if (crumb.category === "ui.input") return null;  /* lo tecleado: códigos */
+        if (typeof crumb.message === "string") crumb.message = ocultar(crumb.message);
+        if (crumb.data) crumb.data = escrubarDato(crumb.data, 0);
+        return crumb;
+      } catch (e) {
+        return null;
+      }
+    }
+
+    /* ---------- arranque: el SDK va con defer; esperamos a que llegue ---------- */
+    var listo = false;
+    function intentarInit() {
+      if (listo) return true;
+      if (typeof window === "undefined" || !window.Sentry || !window.Sentry.init) return false;
+      try {
+        window.Sentry.init({
+          dsn: cfg.dsn,
+          release: String(cfg.app) + "@" + String(cfg.version || "1"),
+          environment: "production",
+          sendDefaultPii: false,
+          tracesSampleRate: 0.1,
+          maxBreadcrumbs: 30,
+          beforeSend: antesDeEnviar,
+          beforeBreadcrumb: antesDeMiga
+        });
+        if (window.Sentry.setTag) window.Sentry.setTag("app", String(cfg.app));
+        listo = true;
+        window.__sentryCasa = { app: String(cfg.app), version: String(cfg.version || "1") };
+        /* Prueba de fuego: abrir la app con ?prueba-sentry=1 dispara un
+           error FALSO (teléfono y código inventados) pa verificar en el
+           panel que el evento llega Y que el escrubado los oculta. */
+        var q = String((window.location && window.location.search) || "");
+        if (/[?&]prueba-sentry=1\b/.test(q) && window.Sentry.captureException) {
+          window.Sentry.captureException(new Error("Prueba de fuego Sentry — tel 50000000 — codigo FALSO-123"));
+          window.__sentryPrueba = true;
+        }
+        return true;
+      } catch (e) {
+        return true; /* Sentry jamás rompe la app: si init falla, se acabó */
+      }
+    }
+    var intentos = 0;
+    (function paso() {
+      if (intentarInit()) return;
+      intentos++;
+      if (intentos <= 24) setTimeout(paso, 250); /* ~6 s de margen al CDN */
+    })();
+  } catch (e) { /* silencio total: la app manda */ }
+})();
+
+var APP_VERSION = "1.10.0";
 /* Tarifa de respaldo (E-7, Tanda Nº6): SOLO se usa si nunca llegó ni
    datos.json ni la tarifa viva, y mientras manda ella la app lo dice
    a la vista («RESPALDO» + su origen en tarifaText/pintaFrescura).
    La tarifa viva viene de leer_tarifa; datos.json es la publicada. */
 var DEFAULT_TARIFA = { ingresoRef360: 1092.65, libroRef: 1110, salidaRef: 950,
-  pctSaldo: 25, pctTransf: 20, pisoTransf: 25,
+  pctSaldo: 26.2, pctTransf: 20, pisoTransf: 25,
   bonoSaldoMeta: 150, bonoSaldoMonto: 300, bonoTransfMeta: 10, bonoTransfMonto: 300 };
 var DATA = { tarifa: DEFAULT_TARIFA, actualizado: "" };
 var T = DEFAULT_TARIFA;
@@ -24,6 +186,52 @@ var SB_URL = "https://otsudfgwpapkluusrlnj.supabase.co/rest/v1/reportes";
 var SB_RPC = SB_URL.replace("/reportes", "/rpc/");
 var SB_KEY = "sb_publishable_Uchl5QnojJkZbXR5ar8vDg_5CXnqi_d";
 function sbHeaders(){ return { "apikey": SB_KEY, "Authorization": "Bearer " + SB_KEY, "Content-Type": "application/json" }; }
+
+/* ===== PRO v40 · CLIENTE ÚNICO DE API (B1: nada falla en silencio) =====
+   Toda llamada a las puertas pasa por apiLlamar: timeout de 12 s, UN
+   reintento ante fallo de red (nunca ante respuesta HTTP: el servidor
+   ya decidió y reintentar no cambia su veredicto) y resultado
+   normalizado { ok, estado, status, data, error } con estado en
+   ok | sinred | error. Cada fallo queda en el registro local
+   busc_errores — solo puerta, status y hora: jamás cuerpos, teléfonos
+   ni notas — y se anuncia al Sentry de la casa si está vivo. Así se
+   separa «no hay red» de «el servidor está roto» sin romper la app. */
+var API_TIMEOUT_MS = 12000;
+function apiErrores(){ try { return JSON.parse(localStorage.getItem("busc_errores") || "[]"); } catch(e){ return []; } }
+function apiRegistrarError(fn, status, detalle){
+  try {
+    var a = apiErrores();
+    a.push({ fn: String(fn || ""), status: Number(status) || 0, detalle: String(detalle || "").slice(0, 120), ts: Date.now() });
+    while (a.length > 30) a.shift();
+    localStorage.setItem("busc_errores", JSON.stringify(a));
+  } catch(e){}
+  try { if (window.Sentry && Sentry.captureMessage) Sentry.captureMessage("api " + fn + " HTTP " + status, "warning"); } catch(e){}
+}
+function apiFetch(fn, body){
+  if (!window.fetch) return Promise.resolve({ ok: false, estado: "sinred", status: 0, data: null, error: "sin conexión" });
+  var ctl = (typeof AbortController !== "undefined") ? new AbortController() : null;
+  var t = ctl ? setTimeout(function(){ try { ctl.abort(); } catch(e){} }, API_TIMEOUT_MS) : null;
+  var opts = { method: "POST", headers: sbHeaders(), body: JSON.stringify(body || {}) };
+  if (ctl) opts.signal = ctl.signal;
+  return fetch(SB_RPC + fn, opts).then(function(r){
+    if (t) clearTimeout(t);
+    return r.json().catch(function(){ return {}; }).then(function(j){
+      if (r.ok) { marcarRedOk(); return { ok: true, estado: "ok", status: r.status, data: j, error: "" }; }
+      var msg = (j && (j.message || j.hint)) || ("HTTP " + r.status);
+      apiRegistrarError(fn, r.status, msg);
+      return { ok: false, estado: "error", status: r.status, data: j, error: msg };
+    });
+  }).catch(function(e){
+    if (t) clearTimeout(t);
+    return { ok: false, estado: "sinred", status: 0, data: null, error: "sin conexión" };
+  });
+}
+function apiLlamar(fn, body){
+  return apiFetch(fn, body).then(function(r){
+    if (r.estado !== "sinred") return r;
+    return apiFetch(fn, body);   /* un solo reintento: la red de la calle parpadea */
+  });
+}
 
 /* ===== v1.4.4: red honesta + opId =====
    ULTIMA_RED_OK = cuándo respondió la API por última vez de verdad.
@@ -46,19 +254,52 @@ function fmt(n){ return "$" + n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",")
 function fmtN(n){ return n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ","); }
 function ico(n, cls){ return '<svg class="ic ' + (cls || "") + '" aria-hidden="true"><use href="#' + n + '"/></svg>'; }
 
-/* ===== Fórmulas del esquema v2 (idénticas a las de Ernesto) ===== */
+/* ===== PRO v40 · NÚCLEO DE DINERO PURO (B3) =====
+   Las reglas de dinero, aisladas SIN DOM ni red pa poder probarlas
+   solas. Las fórmulas son LAS MISMAS del esquema v2 que ya corrían en
+   las calculadoras: el núcleo no cambia ni una cuenta, solo la aísla.
+   Reglas de la casa que viven aquí: el redondeo es SOLO al final, a la
+   decena más cercana con el 5 hacia abajo (las sobras van a
+   reinversión: eso lo cuadra el servidor por ciclo); sin ganancia no
+   hay comisión; la comisión es el % del buscador sobre la ganancia. */
+var DINERO_NUCLEO = {
+  excedenteSaldo: function(ingresoRef360, precio){ return ingresoRef360 - precio; },
+  comisionSaldo: function(ingresoRef360, precio, pct, cant){
+    var exc = ingresoRef360 - precio;            // excedente por cada 360
+    if (exc <= 0) return { fee: 0, exc: exc };
+    return { fee: exc * (pct/100) * cant, exc: exc };
+  },
+  comisionTransf: function(efectivo, pct, libroRef, salidaRef, pctTransf){
+    var recibe = efectivo * (1 + pct/100);                       // transferencia recibida
+    var qusd = recibe / libroRef;                                // QUSD comprados
+    var regreso = qusd * salidaRef;                              // efectivo de vuelta
+    var ganancia = regreso - efectivo;                           // ganancia de la vuelta
+    return { recibe: recibe, qusd: qusd, regreso: regreso,
+             ganancia: ganancia, fee: Math.max(0, ganancia) * (pctTransf/100) };
+  },
+  pisoTransfOk: function(pct, piso){ return pct >= piso; },
+  redondeoDecena: function(n){
+    var a = Math.abs(Number(n) || 0), d = Math.floor(a / 10), r = a - d * 10;
+    var red = (r > 5 ? (d + 1) * 10 : d * 10);   // el 5 exacto BAJA
+    return n < 0 ? -red : red;
+  },
+  cadenaCiclo: function(ganancia, pct, recupero){
+    var g = Number(ganancia) || 0, rec0 = Math.max(0, Number(recupero) || 0);
+    if (g <= 0) return { ganancia: g, bruto: 0, redondeado: 0, recupero: 0, pago: 0, sinGanancia: true };
+    var bruto = g * (pct/100);
+    var redondeado = DINERO_NUCLEO.redondeoDecena(bruto);
+    var rec = Math.min(redondeado, rec0);
+    return { ganancia: g, bruto: bruto, redondeado: redondeado, recupero: rec, pago: redondeado - rec, sinGanancia: false };
+  }
+};
+
+/* ===== Fórmulas del esquema v2 (idénticas a las de Ernesto) =====
+   v40: delegan en el núcleo puro de arriba — mismos números. */
 function comisionSaldo(precio, cant){
-  var exc = T.ingresoRef360 - precio;            // excedente por cada 360
-  if (exc <= 0) return { fee: 0, exc: exc };
-  return { fee: exc * (T.pctSaldo/100) * cant, exc: exc };
+  return DINERO_NUCLEO.comisionSaldo(T.ingresoRef360, precio, T.pctSaldo, cant);
 }
 function comisionTransf(efectivo, pct){
-  var recibe = efectivo * (1 + pct/100);                       // transferencia recibida
-  var qusd = recibe / T.libroRef;                              // QUSD comprados
-  var regreso = qusd * T.salidaRef;                            // efectivo de vuelta
-  var ganancia = regreso - efectivo;                           // ganancia de la vuelta
-  return { recibe: recibe, qusd: qusd, regreso: regreso,
-           ganancia: ganancia, fee: Math.max(0, ganancia) * (T.pctTransf/100) };
+  return DINERO_NUCLEO.comisionTransf(efectivo, pct, T.libroRef, T.salidaRef, T.pctTransf);
 }
 
 function calcSaldo(){
@@ -68,13 +309,13 @@ function calcSaldo(){
   var r = comisionSaldo(p, c);
   if (r.exc <= 0){
     res.style.display = "none"; warn.style.display = "block";
-    warn.textContent = "A ese precio no hay excedente: cobrarías $0.00. Negocia más bajo — mientras más bajo el precio, más cobras tú.";
+    warn.textContent = "Este precio no deja excedente para tu comisión: cobrarías $0.00. Negocia más bajo — mientras más bajo el precio, más cobras tú.";
     return;
   }
   warn.style.display = "none"; res.style.display = "block";
   $("s_fee").textContent = fmt(r.fee);
-  $("s_det").innerHTML = "Excedente por recarga: " + fmtN(r.exc) + " CUP · tu " + esc(T.pctSaldo) + "% = " + fmtN(r.fee / c) + " por recarga" +
-    (c > 1 ? " · × " + c + " recargas" : "") + "<br>Entre más barato consigas, más ganas.";
+  $("s_det").innerHTML = "Precio de referencia: " + fmtN(T.ingresoRef360) + " CUP por recarga · Excedente por recarga: " + fmtN(r.exc) + " CUP<br>Tu comisión: " + esc(T.pctSaldo) + "% del excedente = " + fmtN(r.fee / c) + " por recarga" +
+    (c > 1 ? " · × " + c + " recargas = " + fmt(r.fee) + " en total" : "") + "<br><b>Mínimo para aceptar:</b> la recarga tiene que salirte por menos de " + fmtN(T.ingresoRef360) + " CUP; a ese precio o más, no te queda excedente.<br>Es un estimado: tu pago final se cuadra por ciclo en «Mi pago».";
 }
 function calcTransf(){
   var ef = num("t_ef"), pct = num("t_pct");
@@ -83,7 +324,7 @@ function calcTransf(){
   if (ef === null || ef <= 0 || pct === null){ res.style.display = "none"; warn.style.display = "none"; ok.style.display = "none"; return; }
   if (pct < T.pisoTransf){
     res.style.display = "none"; ok.style.display = "none"; warn.style.display = "block";
-    warn.textContent = "Ese trato no se acepta: el mínimo es al " + T.pisoTransf + "%. Negocia más alto o no hay trato.";
+    warn.textContent = "Este trato está por debajo del mínimo permitido: " + T.pisoTransf + "%. Negocia más alto o no hay trato.";
     return;
   }
   warn.style.display = "none";
@@ -95,7 +336,7 @@ function calcTransf(){
   }
   ok.style.display = "none"; res.style.display = "block";
   $("t_fee").textContent = fmt(r.fee);
-  $("t_det").innerHTML = "La persona recibe " + fmtN(r.recibe) + " por transferencia · la vuelta gana " + fmtN(r.ganancia) + " CUP · tu " + esc(T.pctTransf) + "% = tu comisión.<br>Se paga cuando la vuelta cierra.";
+  $("t_det").innerHTML = "La persona recibe " + fmtN(r.recibe) + " por transferencia · la vuelta gana " + fmtN(r.ganancia) + " CUP · tu " + esc(T.pctTransf) + "% = tu comisión estimada.<br>Tu pago final se cuadra por ciclo en «Mi pago», con la cadena completa de tu ciclo.";
 }
 
 /* ===== Sesión: login único con validación real ===== */
@@ -120,15 +361,15 @@ function nombreLocal(){ try { var pf = perfilLocalGet(); if (pf && pf.nombre) re
    Resuelve {estado:"ok", codigo, nombre} | {estado:"no"} | {estado:"sinred"}. */
 function rpcValidar(code){
   if (!window.fetch) return Promise.resolve({ estado: "sinred" });
-  return fetch(SB_RPC + "validar_usuario", { method: "POST", headers: sbHeaders(),
-      body: JSON.stringify({ p_codigo: code }) })
-    .then(function(r){ if (r.ok) marcarRedOk(); return r.ok ? r.json() : Promise.reject(new Error("HTTP " + r.status)); })
-    .then(function(rows){
-      if (rows && rows.length && rows[0].activo !== false)
-        return { estado: "ok", codigo: normCod(rows[0].codigo || code), nombre: rows[0].nombre || "", pausa: rows[0].bloqueado === true };
-      return { estado: "no" };
-    })
-    .catch(function(){ return { estado: "sinred" }; });
+  /* v40: por el cliente único (timeout + registro de errores); el
+     contrato de salida no cambia: ok | no | sinred. */
+  return apiLlamar("validar_usuario", { p_codigo: code }).then(function(r){
+    if (!r.ok) return { estado: "sinred" };
+    var rows = r.data;
+    if (rows && rows.length && rows[0].activo !== false)
+      return { estado: "ok", codigo: normCod(rows[0].codigo || code), nombre: rows[0].nombre || "", pausa: rows[0].bloqueado === true };
+    return { estado: "no" };
+  });
 }
 
 /* v1.5.3 (E-18): la carga inicial ya NO es todo-o-nada — cada pieza
@@ -263,7 +504,7 @@ function tarifaText(){
     : TARIFA_FUENTE === "publicada" ? "<b>Tarifa publicada</b> (respaldo: la viva no respondió)"
     : "<b>⚠ RESPALDO</b> — tarifa guardada en la app, sin conexión: puede estar vieja";
   return fuente + (DATA.actualizado ? " (" + esc(DATA.actualizado) + ")" : "") +
-    " · Saldo: cobras el <b>" + T.pctSaldo + "%</b> del excedente · Transferencia: el <b>" + T.pctTransf + "%</b> de la ganancia, mínimo al <b>" + T.pisoTransf + "%</b>" +
+    " · Saldo: estimas cobrar el <b>" + T.pctSaldo + "%</b> del excedente · Transferencia: el <b>" + T.pctTransf + "%</b> de la ganancia, mínimo al <b>" + T.pisoTransf + "%</b> · Es un estimado: tu pago final se cuadra por ciclo en «Mi pago»" +
     " · Bonos: <b>" + fmt(T.bonoSaldoMonto) + "</b> con " + T.bonoSaldoMeta + " recargas/semana · <b>" + fmt(T.bonoTransfMonto) + "</b> con " + T.bonoTransfMeta + " tratos/semana";
 }
 
@@ -360,25 +601,31 @@ function enviarReporte(rp){
      el subconjunto viejo PostgREST no puede elegir (HTTP 300
      PGRST203) y el reporte nunca salía aunque hubiera internet. */
   if (!rp.opId) rp.opId = nuevoOpId();
+  if (!rp.creadoEn) rp.creadoEn = Date.now();
+  rp.intentos = (rp.intentos || 0) + 1;
+  rp.estadoCola = "enviando";
   var cuerpoRep = { p_buscador: rp.buscador, p_tipo: rp.tipo, p_precio: rp.precio, p_porc: rp.porc,
     p_cantidad: rp.cantidad, p_telefono: rp.telefono || null, p_nota: rp.nota || null,
     p_adj_tipo: (rp.adj && rp.adj.datos) ? (rp.adj.tipo || "foto") : null,
     p_adj_datos: (rp.adj && rp.adj.datos) ? rp.adj.datos : null,
     p_op_id: rp.opId };
-  return fetch(SB_RPC + "registrar_reporte", { method: "POST", headers: sbHeaders(),
-    body: JSON.stringify(cuerpoRep)
-  }).then(function(r){
-      if (r.ok) return r.json();
-      return r.json().catch(function(){ return {}; }).then(function(e){
-        if (e && e.message && e.message.indexOf("no autorizado") !== -1) rp.error = "noautorizado";
-        if (e && e.message && e.message.indexOf("pausa") !== -1) rp.error = "pausa";
-        return Promise.reject(new Error("HTTP " + r.status));
-      });
-    })
-    .then(function(id){
-      if (id) { rp.id = id; rp.enviado = true; liberarPausa(); }   /* v1.5.3 (E-6) */
-      return !!rp.id;
-    }).catch(function(){ return false; });
+  /* v40: por el cliente único. La puerta deduplica por p_op_id en el
+     servidor (si la operación ya entró, devuelve su id): reenviar el
+     mismo reporte NUNCA lo duplica. El estado de la cola queda en el
+     propio reporte: aceptado | guardado (sin red) | error visible. */
+  return apiLlamar("registrar_reporte", cuerpoRep).then(function(r){
+    if (!r.ok) {
+      var e = r.data || {};
+      if (e.message && e.message.indexOf("no autorizado") !== -1) rp.error = "noautorizado";
+      if (e.message && e.message.indexOf("pausa") !== -1) rp.error = "pausa";
+      rp.estadoCola = r.estado === "sinred" ? "guardado" : "error";
+      rp.ultimoError = r.estado === "sinred" ? "sin conexión" : ("HTTP " + r.status);
+      return false;
+    }
+    var id = r.data;
+    if (id) { rp.id = id; rp.enviado = true; rp.estadoCola = "aceptado"; rp.ultimoError = ""; liberarPausa(); }   /* v1.5.3 (E-6) */
+    return !!rp.id;
+  });
 }
 function syncReportes(){
   var a = outboxGet(); if (!a.length) return;
@@ -390,18 +637,22 @@ function syncReportes(){
   chain.then(function(){
     /* v1.5.3 (E-4): se fusiona sobre la outbox FRESCA por opId — la
        foto vieja `a` jamas sobrescribe un reporte que haya entrado
-       mientras se despachaba. */
-    if (changed) {
-      var aF = outboxGet();
-      aF.forEach(function(x){ var src = pend.filter(function(y){ return y.opId === x.opId; })[0]; if (src && src.enviado) { x.enviado = true; x.id = src.id; } });
-      outboxSet(aF); a = aF;
-    }
+       mientras se despachaba. v40: la fusión también persiste el
+       estado de la cola (intentos, estado, último error) cuando el
+       envío FALLÓ — si no, el fallo volvía a ser invisible. */
+    var aF = outboxGet();
+    aF.forEach(function(x){
+      var src = pend.filter(function(y){ return y.opId === x.opId; })[0];
+      if (!src) return;
+      if (src.enviado) { x.enviado = true; x.id = src.id; changed = true; }
+      x.intentos = src.intentos; x.estadoCola = src.estadoCola; x.ultimoError = src.ultimoError;
+    });
+    outboxSet(aF); a = aF;
     // refrescar estados de los ya enviados (por si Ernesto ya decidió)
     var ids = a.filter(function(rp){ return rp.enviado && rp.id && rp.estado === "pendiente"; }).map(function(rp){ return rp.id; });
     if (!ids.length || !window.fetch) { renderOutbox(); return; }
-    fetch(SB_RPC + "estado_reportes", { method: "POST", headers: sbHeaders(),
-        body: JSON.stringify({ p_ids: ids }) })
-      .then(function(r){ return r.ok ? r.json() : []; }).then(function(rows){
+    apiLlamar("estado_reportes", { p_ids: ids })
+      .then(function(r){ return r.ok ? r.data : []; }).then(function(rows){
         var map = {}; (rows || []).forEach(function(x){ map[x.id] = x; });
         var aF2 = outboxGet();   /* v1.5.3 (E-4): fusion sobre la fresca tambien al pintar estados */
         aF2.forEach(function(rp){
@@ -431,19 +682,69 @@ function reportar(){
     var ef = num("r_ef"), pc = num("r_pct");
     if (ef === null || ef <= 0) return fallo("Escribe el efectivo que entrega la persona.");
     if (pc === null) return fallo("Escribe al cuánto es el trato (%).");
-    if (pc < T.pisoTransf) return fallo("Ese trato no se acepta: el mínimo es al " + T.pisoTransf + "%. Negocia más alto.");
+    if (pc < T.pisoTransf) return fallo("Este trato está por debajo del mínimo permitido: " + T.pisoTransf + "%. Negocia más alto.");
     rp.porc = pc; rp.cantidad = ef;
   }
   if (!tel) return fallo("Escribe el teléfono del vendedor — Ernesto lo necesita para confirmar el trato.");
   if (typeof REP_FOTO !== "undefined" && REP_FOTO) rp.adj = REP_FOTO;   /* v1.4.0: comprobante */
+  /* v40 (A4+C4): ANTES de enviar, el resumen en claro + aviso de
+     duplicado probable. Nada sale sin que el buscador vea qué va a
+     reportar y cuánto estima ganar; si ya reportó algo igual hace
+     poco, la app lo dice y él decide («Sí, es otro»). */
+  rp.creadoEn = Date.now();
+  var pe = pctEstrellas();
+  var resumen, feeEst = 0;
+  if (rp.tipo === "saldo") {
+    var rr = comisionSaldo(rp.precio, rp.cantidad);
+    feeEst = rr.exc > 0 ? rr.exc * (pe.s / 100) * rp.cantidad : 0;
+    resumen = "Vas a reportar: <b>" + rp.cantidad + " recarga(s) de 360 a " + fmtN(rp.precio) + " CUP</b> · teléfono " + esc(rp.telefono) + ".<br>Tu comisión estimada si Ernesto lo confirma: <b>" + fmt(feeEst) + "</b> (estimado: el pago se cuadra por ciclo).";
+  } else {
+    var rt = comisionTransf(rp.cantidad, rp.porc);
+    feeEst = Math.max(0, rt.ganancia) * (pe.t / 100);
+    resumen = "Vas a reportar: <b>transferencia de " + fmtN(rp.cantidad) + " CUP al " + rp.porc + "%</b> · teléfono " + esc(rp.telefono) + ".<br>Tu comisión estimada al cerrar la vuelta: <b>" + fmt(feeEst) + "</b> (estimado: el pago se cuadra por ciclo).";
+  }
+  if (!rp.adj) resumen += "<br>Sin foto del comprobante: <b>tarda más en confirmarse</b> (la foto es opcional, no obligatoria).";
+  var dup = null;
+  outboxGet().forEach(function(x){
+    if (!x.creadoEn || (Date.now() - x.creadoEn) > 30 * 60000) return;
+    if (x.tipo !== rp.tipo || String(x.telefono || "") !== String(rp.telefono)) return;
+    var mismo = rp.tipo === "saldo"
+      ? (Number(x.precio) === Number(rp.precio) && Number(x.cantidad) === Number(rp.cantidad))
+      : (Number(x.porc) === Number(rp.porc) && Number(x.cantidad) === Number(rp.cantidad));
+    if (mismo) dup = x;
+  });
+  RP_PENDIENTE = rp;
+  $("r_previo_txt").innerHTML = resumen;
+  var dupBox = $("r_previo_dup");
+  if (dup) {
+    var mins = Math.max(1, Math.round((Date.now() - dup.creadoEn) / 60000));
+    dupBox.style.display = "block";
+    dupBox.textContent = "⚠️ Ya reportaste algo parecido hace " + mins + " min (mismo teléfono, tipo y monto). Si es el MISMO trato, no lo mandes dos veces: toca «Revisar los datos».";
+    $("r_conf").textContent = "Sí, es otro trato — enviar";
+  } else {
+    dupBox.style.display = "none";
+    $("r_conf").textContent = "Enviar reporte";
+  }
+  $("r_previo").style.display = "block";
+  try { $("r_previo").scrollIntoView({ block: "center" }); } catch(e){}
+}
+var RP_PENDIENTE = null;
+function reportarEnviar(){
+  var rp = RP_PENDIENTE; if (!rp) return;
+  RP_PENDIENTE = null;
+  $("r_previo").style.display = "none";
+  var warn = $("r_warn"), res = $("r_res");
+  warn.style.display = "none";
+  function fallo(msg){ warn.style.display = "block"; warn.textContent = msg; }
   var a = outboxGet(); a.push(rp); outboxSet(a); renderOutbox();
   enviarReporte(rp).then(function(ok){
-    if (ok) {   /* v1.5.3 (E-4): fusion por opId sobre la outbox fresca (la foto `a` ya puede estar vieja) */
-      var aF = outboxGet();
-      aF.forEach(function(x){ if (x.opId === rp.opId) { x.id = rp.id; x.enviado = true; } });
-      outboxSet(aF);
-    }
-    renderOutbox();
+    /* fusión por opId sobre la outbox fresca (la foto `a` ya puede
+       estar vieja) — v40: se persiste TAMBIÉN el estado de la cola
+       cuando falló (intentos, estado, último error). */
+    var aF = outboxGet();
+    aF.forEach(function(x){ if (x.opId === rp.opId) { x.id = rp.id; x.enviado = !!rp.enviado; x.estadoCola = rp.estadoCola; x.intentos = rp.intentos; x.ultimoError = rp.ultimoError; if (rp.error) x.error = rp.error; } });
+    outboxSet(aF);
+    renderOutbox(); pintarSyncBar();
     if (ok) { res.style.display = "block"; }
     else if (rp.error === "noautorizado") fallo("Tu código no está autorizado en el sistema de Ernesto. Si eres del equipo, revísalo con él: puede estar mal escrito o desactivado.");
     else fallo("No se pudo enviar ahora: el reporte quedó guardado en tu teléfono y se reintenta solo cuando abras la app con conexión.");
@@ -483,9 +784,13 @@ function checkUpdate(){
 var ULTIMO_ERR_CHAT = null;
 function rpcChat(fn, body){
   if (!window.fetch) return Promise.resolve(null);
-  return fetch(SB_RPC + fn, { method: "POST", headers: sbHeaders(), body: JSON.stringify(body) })
-    .then(function(r){ if (r.ok) marcarRedOk(); if (!r.ok) ULTIMO_ERR_CHAT = { fn: fn, status: r.status }; return r.ok ? r.json() : null; })
-    .catch(function(){ ULTIMO_ERR_CHAT = { fn: fn, status: 0 }; return null; });
+  /* v40: por el cliente único — timeout, un reintento de red y error
+     registrado; el contrato no cambia: JSON o null, y ULTIMO_ERR_CHAT
+     sigue guardando el último fallo pa los textos en humano. */
+  return apiLlamar(fn, body).then(function(r){
+    if (!r.ok) ULTIMO_ERR_CHAT = { fn: fn, status: r.status };
+    return r.ok ? r.data : null;
+  });
 }
 /* Latido: Ernesto ve en su panel quién está en línea (< 3 min).
    v1.3.1: al abrir la app también se sellan como RECIBIDOS los
@@ -767,6 +1072,73 @@ function pintarPreviaAdjMT(){
   wrap.appendChild(botonQuitarAdjMT());
   an.appendChild(wrap);
 }
+/* ===== v39 · «YA COMPRÉ»: PARTE DESDE EL CHAT, OFFLINE-FIRST =====
+   Cola propia busc_parte_outbox (patrón de la casa: se guarda en el
+   teléfono con su opId y sale sola al volver la red; el servidor
+   deduplica por ese opId — despachar dos veces jamás duplica).
+   Despacha parte_crear del contrato; la tarjeta del parte aparece
+   en el hilo cuando el mensaje se asienta en el servidor. El
+   formulario de Mis esperas NO se toca. */
+var PARTE_OUT_LS = "busc_parte_outbox";
+var PARTE_OUT_MEM = null;
+function parteOutGet(){
+  if (PARTE_OUT_MEM) return PARTE_OUT_MEM;
+  try { PARTE_OUT_MEM = JSON.parse(localStorage.getItem(PARTE_OUT_LS) || "[]"); } catch(e){ PARTE_OUT_MEM = []; }
+  return PARTE_OUT_MEM;
+}
+function parteOutSet(a){
+  PARTE_OUT_MEM = a;
+  try { localStorage.setItem(PARTE_OUT_LS, JSON.stringify(a)); } catch(e){}
+}
+var parteDespachando = false;
+function despacharParte(){
+  if (parteDespachando || EN_PAUSA || !SESION) return;
+  var a = parteOutGet(); if (!a.length) return;
+  var item = a.filter(function(x){ return !x.fallida; })[0];
+  if (!item) return;
+  parteDespachando = true;
+  rpcChat("parte_crear", { p_codigo: SESION, p_tipo: item.tipo, p_tasa: item.tasa,
+    p_total_pagado: Math.round(item.total), p_telefono: item.telefono || null, p_op_id: item.opId }).then(function(r){
+    parteDespachando = false;
+    if (r && r.ok) {
+      parteOutSet(parteOutGet().filter(function(x){ return x.opId !== item.opId; }));
+      pintarChat(CHAT_MSGS);
+      chatCargar();      /* la tarjeta del parte entra con el hilo */
+      cargarEsperas();
+      pintarSyncBar();
+      if (parteOutGet().length) despacharParte();
+    } else {
+      var aF = parteOutGet();
+      aF.forEach(function(x){ if (x.opId === item.opId) { x.intentos = (x.intentos || 0) + 1; x.ultimoError = "no se pudo enviar"; if (x.intentos >= 3) x.fallida = true; } });
+      parteOutSet(aF);
+      pintarChat(CHAT_MSGS);
+      pintarSyncBar();
+    }
+  });
+}
+function burbujaParteColaInnerMT(it){
+  var h = '<div class="tarjChat tarjParte"><div class="tarjTit">Parte de compra ' + '<span class="stChip esp">' + (it.fallida ? "No se pudo enviar" : "En cola 🕐") + '</span></div><div class="tarjDet">'
+    + '<span>Tipo:</span> ' + (it.tipo === "transferencia" ? "Transferencia" : "Saldo") + '<br>'
+    + '<span>Tasa:</span> ' + fmtMilesT3(Number(it.tasa) || 0) + '<br>'
+    + '<span>Total pagado:</span> ' + fmtMilesT3(Number(it.total) || 0) + ' CUP'
+    + (it.telefono ? '<br><span>Teléfono:</span> ' + escChat(it.telefono) : '')
+    + '<br><span>' + (it.fallida ? "Toca la tarjeta para reintentar." : "Guardado en tu teléfono: sale solo cuando vuelva la conexión.") + '</span></div></div>';
+  return '<div class="bur">' + h + '</div>';
+}
+function firmaParteColaMT(it){ return JSON.stringify([it.tipo || "", it.tasa || 0, it.total || 0, it.fallida ? 1 : 0]); }
+function crearNodoParteColaMT(it){
+  var nodo = document.createElement("div");
+  nodo.className = "msg me";
+  nodo.innerHTML = burbujaParteColaInnerMT(it);
+  if (it.fallida) {
+    nodo.addEventListener("click", function(){
+      var aR = parteOutGet();
+      aR.forEach(function(x){ if (x.opId === it.opId) { x.intentos = 0; x.fallida = false; } });
+      parteOutSet(aR); pintarChat(CHAT_MSGS); despacharParte();
+    });
+  }
+  return nodo;
+}
 function pintarChat(msgs){
   var box = $("c_hilo"); if (!box) return;
   CHAT_MSGS = msgs || [];
@@ -960,14 +1332,14 @@ function cargarVivo(){ leerTarifaViva(); leerPanelVivo(); cargarDinero(); leerTa
 var DINERO = null;
 function cargarDinero(){
   if (!SESION) return;
-  fetch(SB_RPC + "dinero_leer_estado", { method: "POST", headers: sbHeaders(), body: JSON.stringify({ p_codigo: SESION }) })
-    .then(function(r){ return r.ok ? r.json() : null; })
-    .then(function(d){
-      if (!d || d.rol !== "buscador") return;
-      DINERO = d;
-      if (d.estrellas) { T.pctSaldo = Number(d.estrellas.pct_saldo); T.pctTransf = Number(d.estrellas.pct_transferencia); }
-      pintarCupo(); pintarTarifaViva(); estReporte(); syncDev();
-    }).catch(function(){});
+  apiLlamar("dinero_leer_estado", { p_codigo: SESION }).then(function(r){
+    var d = r.ok ? r.data : null;
+    if (!d || d.rol !== "buscador") return;
+    DINERO = d;
+    pintarCabeceraVivaMT();
+    if (d.estrellas) { T.pctSaldo = Number(d.estrellas.pct_saldo); T.pctTransf = Number(d.estrellas.pct_transferencia); }
+    pintarCupo(); pintarTarifaViva(); estReporte(); syncDev();
+  });
 }
 function pintarCupo(){
   var box = $("p_cupo"); if (!box || !DINERO || !DINERO.estrellas) return;
@@ -995,6 +1367,8 @@ function pintarCupo(){
   });
   $("cu_vueltas").innerHTML = html ? ('<label>Tus vueltas abiertas</label>' + html) : "";
   pintarCapital();
+  try { pintarTresEstados(); } catch(e){}   /* v40: tarjeta de 3 estados */
+  try { pintarAhora(); } catch(e){}         /* v40: pantalla Ahora */
 }
 
 /* ===== v1.8.0: DEVOLVER CAPITAL (solicitud; el libro solo se mueve
@@ -1019,13 +1393,16 @@ function syncDev(){
     if (i >= l.length) { devOutboxSet(devOutbox().filter(function(x){ return !x.enviado; })); pintarCupo(); return; }
     var it = l[i];
     if (it.enviado) return paso(i + 1);
-    fetch(SB_RPC + "dinero_registrar_devolucion_efectivo", { method: "POST", headers: sbHeaders(), body: JSON.stringify({ p_codigo: SESION, p_buscador: SESION, p_monto: it.monto, p_medio: "efectivo", p_prueba: false, p_es_cierre: !!it.es_cierre, p_cliente_id: it.opId }) })
-      .then(function(r){ return r.ok ? r.json() : null; })
-      .then(function(d){
-        if (d && d.ok) { it.enviado = true; devOutboxSet(l); cargarDinero(); }
+    /* v40: por el cliente único; la puerta deduplica por p_cliente_id
+       (si ya entró, devuelve la misma devolución con repetida=true). */
+    it.intentos = (it.intentos || 0) + 1;
+    apiLlamar("dinero_registrar_devolucion_efectivo", { p_codigo: SESION, p_buscador: SESION, p_monto: it.monto, p_medio: "efectivo", p_prueba: false, p_es_cierre: !!it.es_cierre, p_cliente_id: it.opId })
+      .then(function(r){
+        var d = r.ok ? r.data : null;
+        if (d && d.ok) { it.enviado = true; it.ultimoError = ""; devOutboxSet(l); cargarDinero(); }
+        else it.ultimoError = r.estado === "sinred" ? "sin conexión" : (r.error || "error");
         paso(i + 1);
-      })
-      .catch(function(){ paso(i + 1); });
+      });
   })(0);
 }
 function pintarCapital(){
@@ -1063,8 +1440,20 @@ function capEnviar(){
   var monto = Number($("cap_monto").value);
   if (!monto || monto <= 0) return fallo("Escribe el monto o toca «Todo lo que tengo en mano».");
   if (monto > devDevolvible()) return fallo("Solo puedes devolver lo que tienes en mano: " + fmtN(devDevolvible()) + ".");
+  /* v40 (A8): confirmación destructiva con el monto en palabras
+     claras ANTES de crear la solicitud — un toque no basta. */
+  CAP_CONF_MONTO = monto;
+  $("cap_conf_txt").textContent = "¿Seguro que quieres solicitar devolver " + fmtN(monto) + " CUP? La solicitud NO mueve tu dinero: sigue contado en tu mano hasta que Ernesto lo reciba en persona y lo confirme.";
+  $("cap_conf").style.display = "block";
+}
+var CAP_CONF_MONTO = 0;
+function capEnviarReal(){
+  $("cap_conf").style.display = "none";
+  var ok = $("cap_ok");
+  var monto = CAP_CONF_MONTO;
+  if (!monto || monto <= 0) return;
   var l = devOutbox();
-  l.push({ opId: nuevoOpId(), monto: monto, es_cierre: !!$("cap_cierre").checked, enviado: false, ts: Date.now() });
+  l.push({ opId: nuevoOpId(), monto: monto, es_cierre: !!$("cap_cierre").checked, enviado: false, ts: Date.now(), creadoEn: Date.now(), intentos: 0, ultimoError: "" });
   devOutboxSet(l);
   $("cap_monto").value = ""; $("cap_cierre").checked = false;
   $("cap_form").classList.add("hide");
@@ -1143,8 +1532,8 @@ setInterval(function(){
   try { despacharChat(); } catch(e){}
   try { if (!$("viewAyuda").classList.contains("hide")) chatCargar(); } catch(e){}
 }, 20000);
-window.addEventListener("online", function(){ try { despacharChat(); } catch(e){} try { syncReportes(); } catch(e){} try { syncDev(); } catch(e){} try { if (SESION) chatCargar(); } catch(e){} });   /* v1.5.3 (E-5): tambien la cola de REPORTES */
-window.addEventListener("focus", function(){ try { despacharChat(); } catch(e){} try { syncReportes(); } catch(e){} });   /* v1.5.3 (E-5): al recuperar el foco */
+window.addEventListener("online", function(){ try { despacharChat(); } catch(e){} try { despacharParte(); } catch(e){} try { syncReportes(); } catch(e){} try { syncDev(); } catch(e){} try { if (SESION) chatCargar(); } catch(e){} });   /* v1.5.3 (E-5): tambien la cola de REPORTES */
+window.addEventListener("focus", function(){ try { despacharChat(); } catch(e){} try { despacharParte(); } catch(e){} try { syncReportes(); } catch(e){} });   /* v1.5.3 (E-5): al recuperar el foco */
 setInterval(function(){
   // v1.3.1: con el chat abierto, el hilo se refresca para que los estados
   // (entregado/visto) cambien solos, estilo WhatsApp.
@@ -1178,11 +1567,15 @@ seguro(function(){ syncReportes(); }, "el envío de reportes");
     try { history.replaceState(null, "", window.location.pathname + window.location.hash); } catch(e){}
     mostrarGate("");
     intentarLogin(urlCod, true).then(function(ok){
-      if (ok) showView("Panel");   // v1.4.5: quien entra por su enlace aterriza en «Mi panel»
+      if (ok) showView("Ahora");   // v40 (A1): la apertura es «Ahora» (en v1.4.5 era «Mi panel»)
       else if (previa && previa !== urlCod) entrar(previa);   // enlace malo: se respeta la sesión que hubiera
     });
   } else if (previa) {
-    entrar(previa);
+    /* v40 (B6): si activó el PIN de reapertura, la sesión guardada NO
+       entra sola: primero el candado local. El PIN jamás sustituye al
+       código — solo protege la pantalla de este teléfono. */
+    if (pinGuardado()) mostrarPinGate(previa);
+    else entrar(previa);
   } else {
     mostrarGate("");
   }
@@ -1201,7 +1594,7 @@ function consumirEnlaceApp(url){
   var cod = "";
   try { cod = normCod(new URL(String(url || "")).searchParams.get("codigo")); } catch(e){}
   if (!cod) return;
-  if (SESION && SESION === cod) { showView("Panel"); return; }
+  if (SESION && SESION === cod) { showView("Ahora"); return; }   /* v40 (A1): la apertura es «Ahora» */
   var previa = SESION;
   intentarLogin(cod, true).then(function(ok){
     if (ok) showView("Panel");
@@ -1254,7 +1647,85 @@ var TextosMotor = (function(){
   }
   return { miles: miles, historialPush: historialPush };
 })();
-/*__PUSH_CLIENTE__*/
+/* =====================================================================
+   AVISOS — cliente Web Push propio (VAPID) compartido por las dos PWA.
+   La clave PÚBLICA VAPID no es secreta: va aquí y en el cliente.
+   La PRIVADA vive SOLO como secreto de la Edge Function «avisos».
+   Reglas de Apple (WebKit): el permiso se pide SOLO tras un toque del
+   usuario y solo funciona desde la app INSTALADA (iOS 16.4+).
+   La registración de la suscripción la hace cada app con SU puerta
+   (registrar_push / registrar_push_admin): este módulo solo sabe
+   pedir permiso y suscribir; el guardado lo inyecta la app.
+   ===================================================================== */
+var VAPID_PUBLICA = "BJ67VUe8_m2Jgvj1S-CIJwhpR_Pt0BgS8nzUHa1JRkrXYF4mntKK5CdU7KQZGIMGJixx13RxHLR7fB0luZoMD9o";
+
+function vapidBytes(base64url){
+  var pad = "=".repeat((4 - (base64url.length % 4)) % 4);
+  var b64 = (base64url + pad).replace(/-/g, "+").replace(/_/g, "/");
+  var raw = atob(b64);
+  var arr = new Uint8Array(raw.length);
+  for (var i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i);
+  return arr;
+}
+function esIOS(){
+  return /iphone|ipad|ipod/i.test(navigator.userAgent || "");
+}
+function estaInstalada(){
+  try {
+    if (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches) return true;
+    if (window.navigator.standalone === true) return true; /* iOS clásico */
+  } catch(e){}
+  return false;
+}
+/* Estado para pintar el botón: 'ok' | 'denegado' | 'instalar' | 'navegador' | 'sin-soporte' */
+function estadoPush(){
+  if (!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) {
+    if (esIOS() && !estaInstalada()) return "instalar";
+    return "sin-soporte";
+  }
+  if (Notification.permission === "denied") return "denegado";
+  if (Notification.permission === "granted") return "ok";
+  if (esIOS() && !estaInstalada()) return "instalar";
+  return "pedir";
+}
+/* TANDA 6 · E-12: ¿la suscripción viva usa la clave VAPID ACTUAL?
+   Tras una rotación de claves, una suscripción vieja queda muda
+   (el servidor ya no puede empujar con ella) y la UI decía «ok». */
+function mismaClaveVapid(sub){
+  try {
+    var k = sub && sub.options && sub.options.applicationServerKey;
+    if (!k) return false;
+    var a = new Uint8Array(k), b = vapidBytes(VAPID_PUBLICA);
+    if (a.length !== b.length) return false;
+    for (var i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
+    return true;
+  } catch(e){ return false; }
+}
+function suscribirPush(reg){
+  return reg.pushManager.subscribe({
+    userVisibleOnly: true,
+    applicationServerKey: vapidBytes(VAPID_PUBLICA)
+  });
+}
+/* Debe llamarse DENTRO del toque del usuario (requisito Apple).
+   guardar(suscripcionJson, plataforma) -> Promise de la app. */
+function activarPush(guardar){
+  if (!("serviceWorker" in navigator)) return Promise.reject(new Error("sin service worker"));
+  return navigator.serviceWorker.ready.then(function(reg){
+    return Notification.requestPermission().then(function(perm){
+      if (perm !== "granted") throw new Error("permiso no concedido");
+      return reg.pushManager.getSubscription().then(function(sub){
+        if (sub && mismaClaveVapid(sub)) return sub;
+        if (sub) return sub.unsubscribe().then(function(){ return suscribirPush(reg); });
+        return suscribirPush(reg);
+      });
+    }).then(function(sub){
+      var plataforma = esIOS() ? "ios" : (/android/i.test(navigator.userAgent || "") ? "android" : "web");
+      return guardar(sub.toJSON(), plataforma);
+    });
+  });
+}
+
 
 /* ========== VOZ PRO v1.4.2 + TIMBRE REALTIME (módulo global) ==========
    El formato real manda: notas viejas llegan sin mime y se olfatea por la
@@ -1426,14 +1897,11 @@ function rtTimbreMT() {
 var EN_PAUSA = false;
 function rpcMsg(fn, body){
   if (!window.fetch) return Promise.resolve({ ok: false, error: "sin fetch" });
-  return fetch(SB_RPC + fn, { method: "POST", headers: sbHeaders(), body: JSON.stringify(body) })
-    .then(function(r){
-      return r.json().catch(function(){ return {}; }).then(function(j){
-        if (r.ok) { marcarRedOk(); return { ok: true, data: j }; }
-        return { ok: false, error: (j && j.message) || ("HTTP " + r.status), data: j };
-      });
-    })
-    .catch(function(e){ return { ok: false, error: String(e) }; });
+  /* v40: por el cliente único; el contrato { ok, data, error } no cambia. */
+  return apiLlamar(fn, body).then(function(r){
+    if (r.ok) return { ok: true, data: r.data };
+    return { ok: false, error: r.error, data: r.data };
+  });
 }
 function marcarPausaSiToca(errTxt){
   if (errTxt && String(errTxt).indexOf("pausa") !== -1) {
@@ -1539,6 +2007,7 @@ function renderPanel(){
 var CHAT_RESP = null;      /* mensaje citado al responder */
 var CHAT_ADJ = null;       /* adjunto listo para enviar */
 var CHAT_FIJADO = null;    /* mensaje fijado por Ernesto */
+var CHAT_FIJADO_TIPO = null; /* v39: adj_tipo del fijado (leer_chat: fijado_tipo) */
 var CHAT_TEMP_SEG = 0;     /* mensajes temporales (segundos; 0 = no) */
 var MENU_MSG = null;
 var EMOJIS_REAC = ["❤️", "👍", "😂", "👏", "🔥"];
@@ -1594,9 +2063,10 @@ function despacharChat(){
          eterno de Mi Negocio: nada de relojes mudos sin salida).
          El mensaje NO se pierde: sigue en la cola. */
       var aF = chatOutGet();
-      aF.forEach(function(x){ if (x.opId === item.opId) { x.intentos = (x.intentos || 0) + 1; if (x.intentos >= 3) x.fallida = true; } });
+      aF.forEach(function(x){ if (x.opId === item.opId) { x.intentos = (x.intentos || 0) + 1; x.ultimoError = String(r.error || "no se pudo enviar"); if (x.intentos >= 3) x.fallida = true; } });
       chatOutSet(aF);
       pintarChat(CHAT_MSGS);
+      pintarSyncBar();
     }
   });
 }
@@ -1619,8 +2089,16 @@ function tempTexto(seg){
    sale del ID del mensaje y los mapas no se borran jamás: solo se
    retira la entrada del nodo que sale del hilo. */
 var hiloNodosMT = {}, hiloFirmasMT = {}, hiloClavesMT = {};
+function datosAdjMT(m){
+  var d = m && m.adj_datos;
+  if (!d) return null;
+  if (typeof d === "object") return d;
+  try { var j = JSON.parse(String(d)); return (j && typeof j === "object") ? j : null; } catch(e){ return null; }
+}
 function firmaMsgMT(m){
-  return JSON.stringify([m.texto || "", m.borrado ? 1 : 0, m.editado ? 1 : 0, m.leido ? 1 : 0, m.recibido ? 1 : 0,
+  var snap = (m.adj_tipo === "parte" || m.adj_tipo === "tarifa") ? String(m.adj_datos || "") : "";
+  if (m.adj_tipo === "parte") { var dpF = datosAdjMT(m) || {}; var peF = PARTE_EST[dpF.parte_id || dpF.id]; if (peF) snap += "|" + (peF.estado || "") + "|" + (peF.motivo_rechazo || ""); }
+  return JSON.stringify([m.texto || "", m.borrado ? 1 : 0, m.editado ? 1 : 0, m.leido ? 1 : 0, m.recibido ? 1 : 0, snap,
     m.adj_tipo || "", m.adj_datos ? String(m.adj_datos).length : 0, String(m.adj_datos || "").slice(0, 24),
     m.adj_dur || 0, m.resp_texto || "", m.resp_autor || "",
     ((m.reacciones || []).map(function(r){ return r.emoji + r.total; }).join(","))]);
@@ -1632,7 +2110,10 @@ function burbujaInnerMT(m){
   if (m.borrado) inner = '<span class="eliminado">Este mensaje fue eliminado</span>';
   else {
     if (m.resp_texto) inner += '<span class="cita">' + escChat(m.resp_autor === SESION ? "Tú" : (m.resp_autor || "")) + ": " + escChat(String(m.resp_texto).slice(0, 90)) + "</span>";
-    if (m.adj_tipo === "foto" && m.adj_datos) { var srcF153 = srcSeguroAdjMT(m.adj_datos, m.adj_mime); if (srcF153) inner += '<img class="adjFoto" alt="Foto" src="' + srcF153 + '">'; }
+    if (m.adj_tipo === "parte") inner += tarjetaParteMT(m);
+    else if (m.adj_tipo === "tarifa") inner += tarjetaTarifaMT(m);
+    else if (m.adj_tipo === "tarifa_viva") inner += '<div class="tarjChat"><div class="tarjTit">Tarifa vigente</div><div class="tarjDet">La tarifa actual va fijada arriba, con su hora.</div></div>';
+    else if (m.adj_tipo === "foto" && m.adj_datos) { var srcF153 = srcSeguroAdjMT(m.adj_datos, m.adj_mime); if (srcF153) inner += '<img class="adjFoto" alt="Foto" src="' + srcF153 + '">'; }
     else if (m.adj_tipo === "foto" && m.adj_tiene) inner += '<span class="adjCargando" data-adjpend="' + esc(m.id) + '">Foto · cargando…</span>';
     else if (m.adj_tipo === "voz" && m.adj_datos) inner += reproductorVozHtmlMT(m);
     else if (m.adj_tipo === "voz" && m.adj_tiene) inner += '<span class="adjCargando" data-adjpend="' + esc(m.id) + '">Nota de voz · toca para cargarla</span>';
@@ -1645,6 +2126,108 @@ function burbujaInnerMT(m){
     reac = '<div class="reacRow">' + m.reacciones.map(function(r){ return '<span class="reac">' + esc(r.emoji) + " " + esc(r.total) + "</span>"; }).join("") + "</div>";
   }
   return '<div class="bur">' + inner + "</div>" + reac;
+}
+/* ===== v39 · TARJETAS DE PARTE Y TARIFA (solo lectura en MT) =====
+   El estado que manda es el del servidor: al pintar una tarjeta de
+   parte se refresca con parte_leer (con freno de 15 s por parte y
+   sin reintentar los estados finales) y la burbuja se repinta sola
+   al asentarse. El snapshot solo pinta mientras no hay lectura. */
+var PARTE_EST = {}, PARTE_EST_EN = {};
+function estadoParteChip(est){
+  if (est === "confirmada") return '<span class="stChip okk">Espera creada ✓</span>';
+  if (est === "rechazada") return '<span class="stChip no">Rechazada</span>';
+  return '<span class="stChip esp">Esperando confirmación</span>';
+}
+function tarjetaParteMT(m){
+  var d = datosAdjMT(m) || {};
+  var est = (PARTE_EST[d.parte_id] && PARTE_EST[d.parte_id].estado) || d.estado || "pendiente";
+  var vivo = PARTE_EST[d.parte_id] || d;
+  var h = '<div class="tarjChat tarjParte"><div class="tarjTit">Parte de compra ' + estadoParteChip(est) + '</div><div class="tarjDet">'
+    + '<span>Tipo:</span> ' + escChat(vivo.tipo === "transferencia" ? "Transferencia" : "Saldo") + '<br>'
+    + '<span>Tasa:</span> ' + escChat(fmtMilesT3(Number(vivo.tasa) || 0)) + '<br>'
+    + '<span>Total pagado:</span> ' + escChat(fmtMilesT3(Number(vivo.total_pagado) || 0)) + ' CUP'
+    + (vivo.telefono ? '<br><span>Teléfono:</span> ' + escChat(vivo.telefono) : '');
+  if (est === "rechazada" && vivo.motivo_rechazo) h += '<br><span>Motivo:</span> ' + escChat(vivo.motivo_rechazo);
+  return h + '</div></div>';
+}
+function tarjetaTarifaMT(m){
+  var d = datosAdjMT(m) || {};
+  function n(v){ return (v === undefined || v === null || v === "") ? null : fmtMilesT3(Number(v) || 0); }
+  var filas = "";
+  if (n(d.ingresoRef360) !== null) filas += '<span>Ingreso por recarga de 360:</span> ' + n(d.ingresoRef360) + ' CUP<br>';
+  if (n(d.salidaRef) !== null) filas += '<span>Salida de referencia:</span> ' + n(d.salidaRef) + '<br>';
+  if (d.pctSaldo !== undefined && d.pctSaldo !== null) filas += '<span>Tu % en saldo:</span> ' + escChat(d.pctSaldo) + '%<br>';
+  if (d.pctTransf !== undefined && d.pctTransf !== null) filas += '<span>Tu % en transferencia:</span> ' + escChat(d.pctTransf) + '%<br>';
+  if (n(d.pisoTransf) !== null) filas += '<span>Piso de transferencia:</span> ' + n(d.pisoTransf) + '%<br>';
+  var hora = d.actualizado || m.creado || "";
+  return '<div class="tarjChat tarjTarifa"><div class="tarjTit">Tarifa</div><div class="tarjDet">' + filas
+    + '<span>Tarifa de las ' + escChat(horaChat(hora)) + '</span></div></div>';
+}
+function refrescarParteEstadoMT(m){
+  var d = datosAdjMT(m) || {};
+  var pid = d.parte_id || d.id;
+  if (!pid || !SESION) return;
+  var prev = PARTE_EST[pid];
+  if (prev && (prev.estado === "confirmada" || prev.estado === "rechazada")) return;
+  var ahora = Date.now();
+  if (PARTE_EST_EN[pid] && ahora - PARTE_EST_EN[pid] < 15000) return;
+  PARTE_EST_EN[pid] = ahora;
+  rpcChat("parte_leer", { p_codigo: SESION, p_parte_id: pid }).then(function(r){
+    if (r && r.ok && r.estado) {
+      PARTE_EST[pid] = r;
+      var mm = (CHAT_MSGS || []).filter(function(x){ return String(x.id) === String(m.id); })[0];
+      if (mm) pintarChat(CHAT_MSGS);
+    }
+  });
+}
+/* ===== v39 · PRESIÓN LARGA REAL (espejo de armarPrensa de MN) =====
+   550 ms, se cancela si el dedo se mueve más de 10 px y el clic que
+   sigue a una presión cumplida se suprime: el menú SOLO se abre así.
+   El clic normal sobre el texto ya no abre nada; los medios guardan
+   su clic (foto→visor, voz→reproductor) porque un toque corto nunca
+   cumple los 550 ms. */
+function armarPrensaMT(el, abrir){
+  if (!el) return;
+  el.classList.add("prensable");
+  var timer = null, x0 = 0, y0 = 0, listo = false;
+  function limpiar(){ if (timer) { clearTimeout(timer); timer = null; } el.classList.remove("prensando"); }
+  el.addEventListener("pointerdown", function(e){
+    if (e.target.closest && e.target.closest("input, textarea, select, button, label, a")) return;
+    x0 = e.clientX || 0; y0 = e.clientY || 0; listo = false;
+    el.classList.add("prensando");
+    timer = setTimeout(function(){ timer = null; listo = true; el.classList.remove("prensando"); abrir(); }, 550);
+  });
+  el.addEventListener("pointermove", function(e){
+    if (timer && (Math.abs((e.clientX || 0) - x0) > 10 || Math.abs((e.clientY || 0) - y0) > 10)) limpiar();
+  });
+  ["pointerup", "pointercancel", "pointerleave"].forEach(function(ev){ el.addEventListener(ev, limpiar); });
+  el.addEventListener("contextmenu", function(e){ e.preventDefault(); });
+  el.addEventListener("click", function(e){ if (listo) { listo = false; e.preventDefault(); e.stopPropagation(); } }, true);
+}
+/* ===== v39 · CABECERA VIVA =====
+   En mano · Libre · Mi ganancia, SOLO de las respuestas ya cargadas
+   (esperas_mi_estado y dinero_leer_estado). Mi ganancia = la suma
+   de las comisiones de TUS vueltas de dinero_leer_estado (la pagada
+   o, si aún no, la proyectada de esa vuelta). Sin fuente, la cifra
+   se omite: jamás se inventa. Vive fuera de #c_hilo y de #c_txt. */
+function pintarCabeceraVivaMT(){
+  var el = $("c_estado"); if (!el) return;
+  var partes = [];
+  var enMano = (ESPERAS && ESPERAS.en_mano !== undefined && ESPERAS.en_mano !== null) ? Number(ESPERAS.en_mano)
+    : (DINERO && DINERO.en_mano !== undefined && DINERO.en_mano !== null) ? Number(DINERO.en_mano) : null;
+  if (enMano !== null && isFinite(enMano)) partes.push("En mano <b>" + fmtMilesT3(enMano) + " CUP</b>");
+  if (ESPERAS && ESPERAS.libre !== undefined && ESPERAS.libre !== null) partes.push("Libre <b>" + fmtMilesT3(Number(ESPERAS.libre) || 0) + " CUP</b>");
+  if (DINERO && Array.isArray(DINERO.vueltas) && DINERO.vueltas.length) {
+    var g = 0, hay = false;
+    DINERO.vueltas.forEach(function(v){
+      var c = (v.pago_hecho && v.comision !== undefined && v.comision !== null) ? Number(v.comision)
+        : (v.proyeccion && v.proyeccion.comision_proyectada !== undefined && v.proyeccion.comision_proyectada !== null) ? Number(v.proyeccion.comision_proyectada) : null;
+      if (c !== null && isFinite(c)) { g += c; hay = true; }
+    });
+    if (hay) partes.push("Mi ganancia <b>" + fmtMilesT3(g) + " CUP</b>");
+  }
+  el.innerHTML = partes.join(" · ");
+  el.style.display = partes.length ? "block" : "none";
 }
 function alistarNodoMsgMT(nodo, id){
   nodo.querySelectorAll("[data-adjpend]").forEach(function(el){
@@ -1672,7 +2255,8 @@ function crearNodoMsgMT(m){
   nodo.setAttribute("data-mid", String(m.id));
   nodo.innerHTML = burbujaInnerMT(m);
   hiloClavesMT["m:" + String(m.id)] = "vm" + String(m.id).replace(/[^a-zA-Z0-9]/g, "");
-  nodo.addEventListener("click", function(){ abrirMenuMsg(Number(nodo.getAttribute("data-mid"))); });
+  armarPrensaMT(nodo, function(){ abrirMenuMsg(Number(nodo.getAttribute("data-mid"))); });
+  if (m.adj_tipo === "parte") refrescarParteEstadoMT(m);
   alistarNodoMsgMT(nodo, m.id);
   return nodo;
 }
@@ -1717,7 +2301,20 @@ function pintarChat(msgs){
   CHAT_MSGS = msgs;
   var fj = $("c_fijado");
   if (fj) {
-    if (CHAT_FIJADO && !CHAT_FIJADO.borrado) { fj.style.display = "block"; fj.textContent = "Fijado: " + (CHAT_FIJADO.texto || "Mensaje fijado"); }
+    var tipoFij = CHAT_FIJADO_TIPO || (CHAT_FIJADO && CHAT_FIJADO.adj_tipo) || null;
+    if (tipoFij === "tarifa_viva") {
+      /* v39: fijado de tarifa VIVA — se pinta la tarifa ACTUAL de
+         leer_tarifa con su hora, nunca un texto congelado; se
+         refresca con cada repintado del hilo. */
+      fj.style.display = "block";
+      if (TARIFA_VIVA) {
+        fj.textContent = "Fijado · Tarifa vigente: ingreso por recarga de 360 " + fmtMilesT3(TARIFA_VIVA.ingresoRef360) + " CUP · salida " + fmtMilesT3(TARIFA_VIVA.salidaRef) + " · Tarifa de las " + horaChat(TARIFA_VIVA_EN);
+      } else {
+        fj.textContent = "Fijado · Tarifa vigente (cargando la tarifa actual…)";
+        leerTarifaViva();
+      }
+    }
+    else if (CHAT_FIJADO && !CHAT_FIJADO.borrado) { fj.style.display = "block"; fj.textContent = "Fijado: " + (CHAT_FIJADO.texto || "Mensaje fijado"); }
     else fj.style.display = "none";
   }
   var tl = $("c_temp");
@@ -1736,8 +2333,12 @@ function pintarChat(msgs){
   if (!filtro && colaChat.length) {
     colaChat.forEach(function(it){ deseados.push({ k: "cola:" + it.opId, cola: it }); });
   }
+  var colaPartes = parteOutGet();
+  if (!filtro && colaPartes.length) {
+    colaPartes.forEach(function(it){ deseados.push({ k: "pcola:" + it.opId, pcola: it }); });
+  }
   if (!deseados.length) {
-    deseados.push((!msgs.length && !colaChat.length)
+    deseados.push((!msgs.length && !colaChat.length && !colaPartes.length)
       ? { k: "vacio", txt: "Todavía no hay mensajes. Escríbele a Ernesto lo que necesites: dudas de un trato, algo que no funciona o una idea." }
       : { k: "sinres", txt: "Ningún mensaje coincide con la búsqueda en lo cargado. Prueba «Buscar más»." });
   }
@@ -1760,6 +2361,7 @@ function pintarChat(msgs){
     if (!nodo) {
       if (dd.m) { nodo = crearNodoMsgMT(dd.m); hiloFirmasMT[dd.k] = firmaMsgMT(dd.m); }
       else if (dd.cola) { nodo = crearNodoColaMT(dd.cola); hiloFirmasMT[dd.k] = firmaColaMT(dd.cola); }
+      else if (dd.pcola) { nodo = crearNodoParteColaMT(dd.pcola); hiloFirmasMT[dd.k] = firmaParteColaMT(dd.pcola); }
       else {
         nodo = document.createElement("div");
         if (dd.sep) { nodo.className = "fechaSep"; nodo.innerHTML = "<span>" + escChat(etiquetaFechaChat(dd.creado)) + "</span>"; }
@@ -1773,8 +2375,12 @@ function pintarChat(msgs){
       if (hiloFirmasMT[dd.k] !== f) {
         hiloFirmasMT[dd.k] = f;
         nodo.innerHTML = burbujaInnerMT(dd.m);
+        if (dd.m.adj_tipo === "parte") refrescarParteEstadoMT(dd.m);
         alistarNodoMsgMT(nodo, dd.m.id);
       }
+    } else if (dd.pcola) {
+      var fp = firmaParteColaMT(dd.pcola);
+      if (hiloFirmasMT[dd.k] !== fp) { hiloFirmasMT[dd.k] = fp; nodo.innerHTML = burbujaParteColaInnerMT(dd.pcola); }
     } else if (dd.cola) {
       var fc = firmaColaMT(dd.cola);
       if (hiloFirmasMT[dd.k] !== fc) {
@@ -1905,11 +2511,13 @@ function chatCargar(){
     if (r && r.ok && r.mensajes) {
       chatFallos = 0;
       CHAT_FIJADO = r.fijado || null;
+      CHAT_FIJADO_TIPO = r.fijado_tipo || (r.fijado && r.fijado.adj_tipo) || null;
       CHAT_TEMP_SEG = Number(r.temporal_seg || 0);
       fusionarAdjuntosCache(r.mensajes);
       pintarChat(r.mensajes); pintarBadge(0);
       cargarAdjuntosPendientes();   /* v1.5.3 (E-9): los adjuntos llegan una vez, no en cada sondeo */
       despacharChat();   // si el chat cargó, la red responde: que salga la cola
+      despacharParte();   /* v39: y la cola de partes «Ya compré» */
     } else if (!CHAT_MSGS.length && !chatOutGet().length) {
       var box = $("c_hilo");
       if (ULTIMO_ERR_CHAT && ULTIMO_ERR_CHAT.status === 404) {
@@ -1941,7 +2549,7 @@ function chatEnviar(){
      pierde ni hay que reintentar a mano: sale solo. */
   var item = { opId: nuevoOpId(), texto: txt, respId: CHAT_RESP ? CHAT_RESP.id : null,
     adj: CHAT_ADJ ? { tipo: CHAT_ADJ.tipo, datos: CHAT_ADJ.datos, nombre: CHAT_ADJ.nombre || null, tam: CHAT_ADJ.tam || null, mime: CHAT_ADJ.mime || null, dur: CHAT_ADJ.dur || null } : null,
-    creado: new Date().toISOString() };
+    creado: new Date().toISOString(), creadoEn: Date.now(), intentos: 0, ultimoError: "" };
   var a = chatOutGet(); a.push(item); chatOutSet(a);
   $("c_txt").value = ""; CHAT_RESP = null; CHAT_ADJ = null;
   var rb = $("c_resp"); if (rb) rb.style.display = "none";
@@ -2318,7 +2926,7 @@ function irTab(v){
     var tabEl = (t && t.closest) ? t.closest(".tab") : null;
     if (!tabEl || !tabEl.id) return;
     var v = tabEl.id.replace("tab", "");
-    if (["Calc", "Rep", "Panel", "Ayuda", "Textos", "Perfil"].indexOf(v) >= 0) irTab(v);
+    if (["Ahora", "Calc", "Rep", "Panel", "Ayuda", "Textos", "Perfil"].indexOf(v) >= 0) irTab(v);
   });
 })();
 
@@ -2432,7 +3040,7 @@ function showView(v){
     $("c_buscar_mas").addEventListener("click", function(){
       var q = ($("c_buscar").value || "").trim(); if (!q || !SESION) return;
       rpcChat("leer_chat", { p_codigo: SESION, p_con: "ADMIN", p_clave: SESION, p_buscar: q }).then(function(r){
-        if (r && r.ok && r.mensajes) { CHAT_FIJADO = r.fijado || CHAT_FIJADO; pintarChat(r.mensajes); }
+        if (r && r.ok && r.mensajes) { CHAT_FIJADO = r.fijado || CHAT_FIJADO; CHAT_FIJADO_TIPO = r.fijado_tipo || CHAT_FIJADO_TIPO; pintarChat(r.mensajes); }
       });
     });
     var grabando = null, recMT = null, chunksMT = [], grabT0MT = 0, grabTickMT = null;
@@ -2570,7 +3178,7 @@ reportar = function(){
      teclea más, la app lo frena con la explicación y NO manda nada;
      el servidor frena igual si la foto cambió.
    · Mi pago: lectura por pago_mi_estado — lo asegurado (fijo), el
-     premio (depende de la venta) y lo ya pagado, saldo y
+     premio por venta (depende de la venta) y lo ya pagado, saldo y
      transferencia separados. La pantalla pinta SOLO los campos de la
      puerta: la cocina del dueño no existe en esta vista.
    · Chat: pintarChat queda envuelto con la GUARDA DE FOCO — si el
@@ -2592,6 +3200,7 @@ function fmtFechaCorta(iso){
   return d.getDate() + " de " + meses[d.getMonth()] + " · " + p(d.getHours()) + ":" + p(d.getMinutes());
 }
 function estadoEspera(e){
+  if (e.estado === "fuera_de_ciclo" || e.fuera_de_ciclo === true || e.excedido === true) return { txt: "Fuera de ciclo, a revisar con Ernesto", cls: "rev" };
   if (e.estado === "abierta") return { txt: "Esperando que llegue el SMS", cls: "esp" };
   if (e.estado === "cumplida") return { txt: "Asentada", cls: "okk" };
   if (e.estado === "vencida") return { txt: "Ernesto la está revisando", cls: "rev" };
@@ -2637,9 +3246,21 @@ function pintarEsperas(){
     var tasa = (e.tipo === "saldo" && e.tasa_pactada)
       ? "<br>Tasa de tu parte: " + fmtMilesT3(Math.round(Number(e.tasa_pactada) * 360)) + " CUP por recarga de 360" : "";
     var vueltas = Number(e.vueltas) > 0 ? "<br>De esta espera nació tu vuelta." : "";
+    var fuera = (e.estado === "fuera_de_ciclo" || e.fuera_de_ciclo === true || e.excedido === true)
+      ? '<div class="topeAviso">Esta compra pasó el tope de tu ciclo y quedó <b>fuera de ciclo, a revisar con Ernesto</b>. No se perdió ni se asentó en silencio: queda marcada para cuadrarla con él.</div>' : "";
+    /* v40 (A6): la espera como LÍNEA DE TIEMPO — qué paso va y qué
+       falta, sin prometer plazos que el sistema no puede garantizar. */
+    var pasos = "";
+    if (asentada) pasos = '<div class="tlPasos"><span class="tlOk">✓ Parte enviado</span> → <span class="tlOk">✓ Prueba recibida</span> → <span class="tlOk">✓ Asentada</span></div>';
+    else if (e.estado === "abierta") {
+      var hace = "";
+      var t0 = e.creada_en ? Date.parse(e.creada_en) : NaN;
+      if (isFinite(t0)) { var hh = Math.max(0, (Date.now() - t0) / 3600000); hace = hh < 1 ? " · hace menos de 1 h" : " · hace " + Math.round(hh) + " h"; }
+      pasos = '<div class="tlPasos"><span class="tlOk">✓ Parte enviado</span> → <span class="tlAhora">● Esperando prueba' + hace + '</span> → <span class="tlPend">Asentada</span></div>';
+    }
     return '<div class="espRow"><div class="espTop"><b>' + (e.tipo === "saldo" ? "Vuelta de saldo" : "Vuelta de transferencia") + '</b>'
       + '<span class="stChip ' + st.cls + '">' + st.txt + '</span></div>'
-      + '<div class="espDet">' + monto + tasa + vueltas + "<br>" + fmtFechaCorta(e.creada_en) + "</div></div>";
+      + '<div class="espDet">' + monto + tasa + vueltas + "<br>" + fmtFechaCorta(e.creada_en) + "</div>" + pasos + fuera + "</div>";
   }).join("");
 }
 function esperasCacheSet(){ try { localStorage.setItem("busc_esperas_cache", JSON.stringify({ codigo: SESION, datos: ESPERAS })); } catch(e){} }
@@ -2650,7 +3271,7 @@ function esperasCacheGet(){
 function cargarEsperas(){
   if (!SESION) return;
   rpcChat("esperas_mi_estado", { p_codigo: SESION }).then(function(r){
-    if (r && r.ok && Array.isArray(r.esperas)) { ESPERAS = r; esperasCacheSet(); pintarEsperas(); }
+    if (r && r.ok && Array.isArray(r.esperas)) { ESPERAS = r; esperasCacheSet(); pintarEsperas(); pintarCabeceraVivaMT(); try { pintarAhora(); } catch(e){} }
     else if (!ESPERAS) { var c = esperasCacheGet(); if (c) { ESPERAS = c; pintarEsperas(); } }
   });
 }
@@ -2680,15 +3301,63 @@ function enviarParte(){
     btn.disabled = false;
     if (r && r.ok) {
       okEl.style.display = "block";
-      okEl.textContent = "Parte enviado: tu espera nació por " + fmtMilesT3(r.cantidad_esperada) + (esSaldo ? " de saldo." : " CUP de transferencia.") + " Cuando llegue su prueba, se asienta sola y la ves aquí como «Asentada».";
+      okEl.textContent = (r.fuera_de_ciclo === true || r.excedido === true)
+        ? "Parte enviado, pero pasó el tope de tu ciclo: quedó fuera de ciclo, a revisar con Ernesto. Queda marcado para cuadrarlo con él, sin asentarse en silencio."
+        : "Parte enviado: tu espera nació por " + fmtMilesT3(r.cantidad_esperada) + (esSaldo ? " de saldo." : " CUP de transferencia.") + " Cuando llegue su prueba, se asienta sola y la ves aquí como «Asentada».";
       $("ep_total").value = ""; if (esSaldo) $("ep_tasa").value = ""; else $("ep_pct").value = "";
       cargarEsperas();
     } else if (r && r.motivo === "supera_tu_efectivo") {
       if (ESPERAS) { ESPERAS.libre = r.libre; ESPERAS.en_mano = r.en_mano; ESPERAS.comprometido = r.comprometido; pintarEsperas(); }
       fallo("Te pasas de tu efectivo: según el servidor tienes " + fmtMilesT3(r.libre) + " CUP libres para operar. Revisa el total: no se creó ninguna espera.");
+    } else if (r && (r.motivo === "fuera_de_ciclo" || r.motivo === "supera_tope_ciclo" || r.motivo === "tope_ciclo")) {
+      cargarEsperas();
+      fallo("Ese parte pasa el tope de tu ciclo: quedó fuera de ciclo, a revisar con Ernesto. No se asentó en silencio: queda marcado para cuadrarlo con él.");
     } else if (r && r.motivo === "tasa_invalida") fallo("Esa tasa no vale: tiene que ser mayor que cero.");
     else fallo("No se pudo enviar el parte ahora. Revisa tu conexión y tócalo otra vez: no se creó ninguna espera.");
   });
+}
+
+/* ===== v39 · HOJA DEL PARTE EN EL CHAT («Ya compré») =====
+   Mismos campos y MISMAS validaciones que enviarParte() de Mis
+   esperas (tipo, tasa, total contra el efectivo libre, teléfono);
+   la diferencia es el transporte: encola en busc_parte_outbox y
+   despacha parte_crear — Ernesto confirma y la espera nace. */
+var CP_TIPO = "saldo";
+function abrirHojaParteChat(){
+  var h = $("c_parte_hoja"), sc = $("c_parte_scrim");
+  if (h) h.classList.add("abierta");
+  if (sc) sc.classList.add("abierta");
+  var wEl = $("cp_warn"); if (wEl) wEl.style.display = "none";
+  var oEl = $("cp_ok"); if (oEl) oEl.style.display = "none";
+}
+function cerrarHojaParteChat(){
+  var h = $("c_parte_hoja"), sc = $("c_parte_scrim");
+  if (h) h.classList.remove("abierta");
+  if (sc) sc.classList.remove("abierta");
+}
+function enviarParteChat(){
+  var warn = $("cp_warn"), okEl = $("cp_ok");
+  if (warn) warn.style.display = "none"; if (okEl) okEl.style.display = "none";
+  function fallo(m){ if (warn) { warn.style.display = "block"; warn.textContent = m; } }
+  if (!SESION) return fallo("Primero entra con tu código personal.");
+  if (EN_PAUSA) return fallo("Estás en pausa: habla con Ernesto");
+  var esSaldo = CP_TIPO === "saldo";
+  var tasa = esSaldo ? num("cp_tasa") : num("cp_pct");
+  var total = num("cp_total");
+  if (tasa === null || tasa <= 0) return fallo(esSaldo
+    ? "Escribe la tasa que pactaste: el precio por cada recarga de 360. Sin tasa no hay parte."
+    : "Escribe al cuánto es el trato (%). Sin eso no hay parte.");
+  if (total === null || total <= 0) return fallo("Escribe el total que pagaste en efectivo (CUP).");
+  var libre = libreActual();
+  if (libre !== null && total > libre) return fallo("Te pasas de tu efectivo: tienes " + fmtMilesT3(libre) + " CUP libres para operar (lo de tu mano menos lo que ya espera) y el parte dice " + fmtMilesT3(total) + " CUP. Revisa el total: no se mandó nada.");
+  var item = { opId: nuevoOpId(), tipo: CP_TIPO, tasa: tasa, total: Math.round(total),
+    telefono: ($("cp_tel").value || "").trim() || null, creado: new Date().toISOString(), creadoEn: Date.now(), intentos: 0, ultimoError: "" };
+  var a = parteOutGet(); a.push(item); parteOutSet(a);
+  if (okEl) { okEl.style.display = "block"; okEl.textContent = "Parte guardado en tu teléfono (en cola): sale solo cuando vuelva la conexión y Ernesto lo confirma."; }
+  $("cp_total").value = ""; if (esSaldo) $("cp_tasa").value = ""; else $("cp_pct").value = "";
+  cerrarHojaParteChat();
+  pintarChat(CHAT_MSGS);
+  despacharParte();
 }
 
 /* ===== Mi pago ===== */
@@ -2699,14 +3368,134 @@ function pagoCacheGet(){
 }
 function pagoLineaPremio(v){
   var premio = Number(v.premio) || 0, redondeo = Number(v.redondeo) || 0;
-  if (premio > 0) return "Premio: ya te pagaron <b>" + fmt(premio) + "</b> por la venta" + (redondeo > 0 ? " (con " + fmt(redondeo) + " de ajuste en efectivo)" : "") + ".";
-  if (v.estado === "vendido_sin_premio") return "Premio: la venta no dejó premio en esta vuelta.";
-  return "Premio: todavía depende de la venta — se sabe cuando Ernesto venda.";
+  if (premio > 0) return "Premio por venta: ya te pagaron <b>" + fmt(premio) + "</b> por la venta" + (redondeo > 0 ? " (con " + fmt(redondeo) + " de ajuste de redondeo ya aplicado en ese pago)" : "") + ".";
+  if (v.estado === "vendido_sin_premio") return "Premio por venta: esta vuelta se vendió sin dejarlo.";
+  return "Premio por venta: todavía depende de la venta — se sabe cuando Ernesto venda.";
 }
 function pagoFilaHtml(v){
   return '<div class="pagoRow"><span class="prF">' + fmtFechaCorta(v.creada_en) + "</span><br>"
     + "Lo asegurado: <b>" + fmt(Number(v.fijo) || 0) + "</b> · es tuyo pase lo que pase con la venta.<br>"
-    + pagoLineaPremio(v) + "<br>Ya te pagaron en total: <b>" + fmt(Number(v.total) || 0) + "</b></div>";
+    + pagoLineaPremio(v) + "<br>Ya te pagaron en total: <b>" + fmt(Number(v.total) || 0) + "</b>"
+    + pagoLineaGanado(v) + pagoLineaCadena(v) + pagoLineaRecuperar(v) + pagoLineaTope(v) + pagoLineaCiclo(v) + "</div>";
+}
+/* ===== OLEADA PRO · CADENA DE DINERO (v37 · MT2 portadora) =====
+   El buscador ve EXACTAMENTE lo mismo que ve Ernesto, con sus
+   números: los campos vienen de pago_mi_estado por liquidación
+   (reparto / por_recuperar / tope, contrato congelado 2026-11-17).
+   MT2 (corrección tras supervisora, mecanismo SERVIDOR-PRO2 §4):
+   esos tres bloques viajan SOLO en la liquidación portadora de la
+   entrega — la de mayor (creada_en, id) — marcada con
+   reparto_portador: true; las demás traen los tres en null y
+   reparto_portador: false. La app los lee ÚNICAMENTE de la
+   portadora: la cadena se enseña UNA vez por entrega, no por
+   vuelta. Sin portadora (payload viejo), no se pinta ningún bloque
+   de reparto/por-recuperar/tope y no se inventa ninguna cifra.
+   Si un campo no viene, su bloque NO se pinta: la app degrada sin
+   romperse y jamás inventa una cifra. Nada se recalcula aquí: la
+   cadena solo enseña los números que manda el servidor. */
+function pagoEsPortadora(v){
+  return !!(v && v.reparto_portador === true);
+}
+function fmtPctPRO(n){
+  var s = String(Number(n));
+  return s.replace(".", ",");
+}
+function pagoLineaCadena(v){
+  if (!pagoEsPortadora(v)) return "";
+  if (!v || !v.reparto || typeof v.reparto !== "object") return "";
+  var r = v.reparto;
+  if (r.ganancia_ciclo === undefined || r.ganancia_ciclo === null) return "";
+  /* es_proyeccion: true (ciclo abierto) = proyección, no resta
+     recuperación y el pago NO es firme. Firme solo con false. */
+  var esProy = r.es_proyeccion !== false;
+  var pct = (r.pct_buscador !== undefined && r.pct_buscador !== null) ? fmtPctPRO(r.pct_buscador) : "26,2";
+  var h = '<div class="cadenaPRO"><b>Tu cadena de pago de este ciclo' + (esProy ? ' (proyección)' : '') + '</b>'
+    + '<div class="cadenaPasos">ganancia de tu ciclo → tu ' + pct + '% → redondeo a la decena (el 5 baja)' + (esProy ? ' → lo que te pagarían (proyección)' : ' → menos lo que se recupera → lo que te pagan') + '</div>';
+  h += '<div class="cadenaFila"><span>Ganancia de tu ciclo</span><b>' + fmt(Number(r.ganancia_ciclo) || 0) + '</b></div>';
+  if (r.comision_bruta !== undefined && r.comision_bruta !== null)
+    h += '<div class="cadenaFila"><span>Tu ' + pct + '% de esa ganancia</span><b>' + fmt(Number(r.comision_bruta) || 0) + '</b></div>';
+  if (r.comision_redondeada !== undefined && r.comision_redondeada !== null)
+    h += '<div class="cadenaFila"><span>Tras el redondeo a la decena (el 5 baja)</span><b>' + fmt(Number(r.comision_redondeada) || 0) + '</b></div>';
+  if (r.recuperacion_aplicada !== undefined && r.recuperacion_aplicada !== null && (Number(r.recuperacion_aplicada) || 0) > 0)
+    h += '<div class="cadenaFila"><span>Menos lo que se recupera en este ciclo</span><b>−' + fmt(Number(r.recuperacion_aplicada) || 0) + '</b></div>';
+  if (r.pago_buscador !== undefined && r.pago_buscador !== null)
+    h += '<div class="cadenaFila total"><span>' + (esProy ? 'Lo que te pagarían (proyección)' : 'Lo que te pagan') + '</span><b>' + fmt(Number(r.pago_buscador) || 0) + '</b></div>';
+  if (esProy)
+    h += '<div class="cadenaNota">Es una proyección: tu ciclo sigue abierto y todavía no se resta lo que se recupera. El pago firme se sabe cuando el ciclo cierre.</div>';
+  if ((r.libre_ernesto !== undefined && r.libre_ernesto !== null) || (r.reinversion_fondo !== undefined && r.reinversion_fondo !== null)) {
+    h += '<div class="cadenaNota">El resto de la ganancia también tiene su camino, el mismo que ve Ernesto:';
+    if (r.libre_ernesto !== undefined && r.libre_ernesto !== null)
+      h += ' la parte libre de Ernesto es <b>' + fmt(Number(r.libre_ernesto) || 0) + '</b>' + ((r.pct_libre !== undefined && r.pct_libre !== null) ? ' (su ' + fmtPctPRO(r.pct_libre) + '%)' : '');
+    if (r.reinversion_fondo !== undefined && r.reinversion_fondo !== null)
+      h += (r.libre_ernesto !== undefined && r.libre_ernesto !== null ? ' y' : '') + ' vuelven al fondo <b>' + fmt(Number(r.reinversion_fondo) || 0) + '</b>' + ((r.pct_reinversion !== undefined && r.pct_reinversion !== null) ? ' (el ' + fmtPctPRO(r.pct_reinversion) + '% de reinversión, la parte mayor)' : ' de reinversión') + '.';
+    else h += '.';
+    h += '</div>';
+  }
+  return h + '</div>';
+}
+function pagoLineaRecuperar(v){
+  if (!pagoEsPortadora(v)) return "";
+  if (!v || !v.por_recuperar || typeof v.por_recuperar !== "object") return "";
+  var p = v.por_recuperar;
+  if (p.total === undefined || p.total === null || (Number(p.total) || 0) <= 0) return "";
+  var tot = Number(p.total) || 0, rec = Number(p.recuperado) || 0;
+  var res = (p.restante !== undefined && p.restante !== null) ? (Number(p.restante) || 0) : Math.max(0, tot - rec);
+  var h = '<div class="cadenaPRO"><b>Por recuperar de un ciclo anterior (cuadre)</b>'
+    + '<div class="cadenaFila"><span>En total</span><b>' + fmt(tot) + '</b></div>'
+    + '<div class="cadenaFila"><span>Ya recuperado</span><b>' + fmt(rec) + '</b></div>'
+    + '<div class="cadenaFila"><span>Te queda por cuadrar</span><b>' + fmt(res) + '</b></div>';
+  if (p.ritmo !== undefined && p.ritmo !== null && (Number(p.ritmo) || 0) > 0 && res > 0)
+    h += '<div class="cadenaFila"><span>Ritmo: se descuenta de tu comisión</span><b>' + fmt(Number(p.ritmo) || 0) + ' por ciclo</b></div>';
+  h += '<div class="cadenaNota">Es un cuadre entre ciclos, sin drama: lo que se recupera va a reinversión — vuelve al fondo y sigue trabajando para los próximos ciclos.</div></div>';
+  return h;
+}
+function pagoLineaTope(v){
+  if (!pagoEsPortadora(v)) return "";
+  if (!v || !v.tope || typeof v.tope !== "object") return "";
+  var t = v.tope;
+  if (t.capital_entrega === undefined || t.capital_entrega === null) return "";
+  var ent = Number(t.capital_entrega) || 0, com = Number(t.capital_comprado) || 0;
+  var queda = (t.capital_restante !== undefined && t.capital_restante !== null) ? (Number(t.capital_restante) || 0) : (ent - com);
+  var pctBar = ent > 0 ? Math.max(0, Math.min(100, Math.round(com / ent * 100))) : 0;
+  var h = '<div class="cadenaPRO"><b>Avance contra el tope de tu ciclo</b>'
+    + '<div class="cadenaFila"><span>Capital que te entregaron</span><b>' + fmt(ent) + '</b></div>'
+    + '<div class="cadenaFila"><span>Llevas comprado</span><b>' + fmt(com) + '</b></div>'
+    + '<div class="cadenaFila"><span>Te queda por comprar</span><b>' + fmt(Math.max(0, queda)) + '</b></div>'
+    + '<div class="topeBar"><div class="topeFill" style="width:' + pctBar + '%"></div></div>'
+    + '<div class="cadenaNota">' + pctBar + '% del capital de este ciclo ya está comprado.</div>';
+  if (t.excedido)
+    h += '<div class="topeAviso">Una compra tuya pasó el tope de este ciclo y quedó <b>fuera de ciclo, a revisar con Ernesto</b>. No se perdió ni se asentó en silencio: queda marcada para cuadrarla con él.</div>';
+  return h + '</div>';
+}
+/* v29 · PRO (barrido M3): ganado / entregado / pendiente por vuelta y
+   en total, con los campos aditivos de pago_mi_estado (ganado_comision,
+   ganado_premio, entregado, pendiente_entrega). Si la puerta aún no
+   los trae, la línea no se pinta: degrada sin romper. «Ganado» es lo
+   calculado; «entregado» solo lo que Ernesto confirmó en mano. */
+function pagoLineaGanado(v){
+  if (!v || v.ganado_comision === undefined || v.ganado_comision === null) return "";
+  var gc = Number(v.ganado_comision) || 0, gp = Number(v.ganado_premio) || 0;
+  var ent = Number(v.entregado) || 0;
+  var pend = (v.pendiente_entrega !== undefined && v.pendiente_entrega !== null) ? Number(v.pendiente_entrega) : (gc + gp - ent);
+  return "<br>Ganado en esta vuelta: <b>" + fmt(gc + gp) + "</b> (comisión " + fmt(gc) + " + premio por venta " + fmt(gp) + ") · Entregado: <b>" + fmt(ent) + "</b>"
+    + (pend > 0 ? " · Te falta por recibir: <b>" + fmt(pend) + "</b>" : " · Nada pendiente de entrega.");
+}
+/* D1 (v38): tamaño de las cifras de .pagoTot según la longitud del
+   importe más largo DE LA FILA (las 3 cajitas al mismo tamaño). A 22px
+   fijos «$1,200.00» medía 119px contra 77px interiores de caja y se
+   cortaba (Ojo 2026-11-17). Avance tabular mono: 0,60 em/carácter;
+   interior de caja 85px → fs = 84/(0,63·n) garantiza que cabe hasta
+   $999,999.00 (12px), sin bajar del mínimo legible del sistema. */
+function pagoTotFs(n){
+  var fs = Math.floor(84 / (0.63 * Math.max(1, n)));
+  return Math.max(12, Math.min(22, fs));
+}
+function pagoTotHtml(celdas, estilo){
+  var n = celdas.reduce(function(a, c){ return Math.max(a, String(c[0]).length); }, 0);
+  var fs = pagoTotFs(n);
+  return '<div class="pagoTot"' + (estilo || "") + '>' + celdas.map(function(c){
+    return '<div class="pt"><div class="n" style="font-size:' + fs + 'px">' + c[0] + '</div><div class="l">' + c[1] + '</div></div>';
+  }).join("") + '</div>';
 }
 function pintarPago(){
   var tot = $("mp_totales"), bs = $("mp_saldo"), bt = $("mp_transf");
@@ -2716,16 +3505,116 @@ function pintarPago(){
   var vt = PAGO.vueltas.filter(function(v){ return v.tipo === "transferencia"; });
   function suma(arr, k){ return arr.reduce(function(a, v){ return a + (Number(v[k]) || 0); }, 0); }
   var aseg = suma(PAGO.vueltas, "fijo"), prem = suma(PAGO.vueltas, "premio"), pag = suma(PAGO.vueltas, "total");
-  tot.innerHTML = '<div class="pagoTot">'
-    + '<div class="pt"><div class="n">' + fmt(aseg) + '</div><div class="l">Lo asegurado (tuyo pase lo que pase)</div></div>'
-    + '<div class="pt"><div class="n">' + fmt(prem) + '</div><div class="l">Premio ya pagado (dependía de la venta)</div></div>'
-    + '<div class="pt"><div class="n">' + fmt(pag) + '</div><div class="l">Ya te pagaron en total</div></div></div>';
+  tot.innerHTML = pagoTotHtml([
+    [fmt(aseg), "Lo asegurado (tuyo pase lo que pase)"],
+    [fmt(prem), "Premio por venta ya pagado (dependía de la venta)"],
+    [fmt(pag), "Ya te pagaron en total"]
+  ]);
+  var gan = $("mp_ganado");
+  if (gan) {
+    if (PAGO.ganado_comision !== undefined && PAGO.ganado_comision !== null) {
+      var gcT = Number(PAGO.ganado_comision) || 0, gpT = Number(PAGO.ganado_premio) || 0;
+      var entT = Number(PAGO.entregado) || 0;
+      var pendT = (PAGO.pendiente_entrega !== undefined && PAGO.pendiente_entrega !== null) ? Number(PAGO.pendiente_entrega) : (gcT + gpT - entT);
+      gan.innerHTML = '<div class="cadenaPRO"><b>Tu pago en 4 pasos</b>'
+        + '<div class="cadenaFila"><span>1 · Ganaste para el ciclo</span><b>' + fmt(gcT + gpT) + '</b></div>'
+        + '<div class="cadenaFila"><span>2 · Tu parte asegurada (tuya pase lo que pase)</span><b>' + fmt(gcT) + '</b></div>'
+        + '<div class="cadenaFila"><span>3 · Ya te entregaron</span><b>' + fmt(entT) + '</b></div>'
+        + '<div class="cadenaFila"><span>4 · Te pagan (te falta por recibir)</span><b>' + fmt(Math.max(0, pendT)) + '</b></div>'
+        + '<div class="hint">El redondeo se hace al final, a la decena más cercana; el 5 baja, y las sobras van a reinversión. El detalle completo, vuelta por vuelta, está abajo.</div></div>'
+        + pagoTotHtml([
+        [fmt(gcT + gpT), "Ganado en total (comisión " + fmt(gcT) + " + premio por venta " + fmt(gpT) + ")"],
+        [fmt(entT), "Entregado (Ernesto te lo puso en la mano y lo confirmó)"],
+        [fmt(Math.max(0, pendT)), pendT > 0 ? "Te falta por recibir" : "Nada pendiente de entrega"]
+      ], ' style="margin-top:10px"')
+        + '<div class="hint">Ganado es lo que el sistema calculó; entregado solo cuenta cuando el efectivo cambió de mano de verdad y Ernesto lo confirma.</div>';
+    } else gan.innerHTML = "";
+  }
   var nav = $("navPagoTxt");
   if (nav) nav.textContent = PAGO.vueltas.length
     ? "Asegurado: " + fmt(aseg) + " · ya te pagaron " + fmt(pag) + " en total."
     : "Lo que ya tienes asegurado, lo que depende de la venta y lo que ya te pagaron.";
   bs.innerHTML = vs.length ? vs.map(pagoFilaHtml).join("") : '<div class="hint">Todavía no tienes vueltas de saldo con pago calculado. Cuando una vuelta tuya nazca, su pago aparece aquí.</div>';
   bt.innerHTML = vt.length ? vt.map(pagoFilaHtml).join("") : '<div class="hint">Todavía no tienes vueltas de transferencia con pago calculado. Cuando una vuelta tuya nazca, su pago aparece aquí.</div>';
+  document.querySelectorAll("[data-ciclo-op]").forEach(function(b){
+    b.addEventListener("click", function(){ elegirPagoCicloMT(b); });
+  });
+  try { pintarTresEstados(); } catch(e){}   /* v40: «Por cobrar» partido */
+}
+/* C2 · EL COBRO POR CICLO (A0/A/B) en palabras de calle: la tarjeta de
+   cada vuelta enseña SUS tres opciones con los montos que manda el
+   servidor (sin recalcular nada aquí), SU elección y el estado de su
+   adelanto. El identificador de la liquidación se lee de
+   liquidacion_id / id / liquidacion; si la puerta no lo manda, se ven
+   los montos y la elección, pero sin botones (degradación declarada). */
+function pagoCicloId(v){ return v.liquidacion_id || v.id || v.liquidacion || null; }
+function pagoEleccionTxt(e){
+  return e === "a0" ? "Al entregar el capital (adelanto sobre tu plan)"
+    : e === "ahora" ? "Ahora, con el descuento"
+    : e === "despues" ? "Al venderse, exacto" : null;
+}
+function pagoLineaCiclo(v){
+  if (!v) return "";
+  var trae = v.comision_ahora !== undefined || v.comision_despues !== undefined
+    || v.adelanto_monto !== undefined || v.eleccion_pago !== undefined;
+  if (!trae) return "";
+  var lid = pagoCicloId(v);
+  var gc = Number(v.ganado_comision !== undefined && v.ganado_comision !== null ? v.ganado_comision : v.comision_ciclo) || 0;
+  var vendidas = v.ahora && v.ahora.saldo_vendido !== undefined && v.ahora.saldo_vendido !== null ? (Number(v.ahora.saldo_vendido) || 0) : 0;
+  var sinCompras = gc === 0 && vendidas === 0;
+  var bloqueada = (Number(v.entregado_comision) || 0) > 0 || (Number(v.adelanto_entregado) || 0) > 0;
+  var elegida = v.eleccion_pago || null;
+  var h = "<br><b>¿Cómo quieres cobrar la comisión de esta vuelta?</b>";
+  if (elegida) h += "<br>Tu elección: <b>" + (pagoEleccionTxt(elegida) || elegida) + "</b>";
+  var botones = "", lineas = "";
+  function pieza(op, etiqueta, rango){
+    if (lid && !bloqueada) {
+      botones += '<button type="button" data-ciclo-op="' + op + '" data-lid="' + lid + '" data-plan="' + (v.recargas_plan !== undefined && v.recargas_plan !== null ? v.recargas_plan : "") + '"'
+        + (elegida === op ? ' class="activa"' : "") + '>' + etiqueta
+        + (rango ? '<span class="rango">' + rango + '</span>' : "") + '</button>';
+    } else {
+      lineas += "<br>" + (elegida === op ? "<b>" + etiqueta + "</b>" : etiqueta) + (rango ? "<br>" + rango : "");
+    }
+  }
+  if (sinCompras && v.adelanto_monto !== undefined && v.adelanto_monto !== null && (Number(v.adelanto_monto) || 0) > 0) {
+    var rango = "";
+    if (v.estimada_min !== undefined && v.estimada_min !== null && v.estimada_max !== undefined && v.estimada_max !== null)
+      rango = "Se estima entre " + fmt(Number(v.estimada_min) || 0) + " y " + fmt(Number(v.estimada_max) || 0) + " si cumples tu plan" + (v.recargas_plan ? " de " + v.recargas_plan + " recargas" : "") + ".";
+    pieza("a0", "Al entregar el capital: " + fmt(Number(v.adelanto_monto) || 0), rango);
+  }
+  if (v.comision_ahora !== undefined && v.comision_ahora !== null)
+    pieza("ahora", "Ahora: " + fmt(Number(v.comision_ahora) || 0) + (v.descuento_pct !== undefined && v.descuento_pct !== null ? " (te descuentan el " + String(v.descuento_pct).replace(".", ",") + " % por cobrar ya)" : ""));
+  if (v.comision_despues !== undefined && v.comision_despues !== null)
+    pieza("despues", "Al venderse: " + fmt(Number(v.comision_despues) || 0) + " exactos");
+  if (botones) h += '<div class="cicloBtns">' + botones + "</div>";
+  h += lineas;
+  if (bloqueada && (v.comision_ahora !== undefined || v.adelanto_monto !== undefined))
+    h += "<br>Tu elección ya quedó fija: Ernesto ya te entregó dinero de esta vuelta.";
+  if (!lid && (v.comision_ahora !== undefined || v.adelanto_monto !== undefined))
+    h += "<br>Los botones de esta vuelta se están activando: por ahora ves los montos y tu elección aquí.";
+  if (elegida === "a0" && (Number(v.adelanto_entregado) || 0) > 0)
+    h += "<br>Adelanto entregado: <b>" + fmt(Number(v.adelanto_entregado) || 0) + "</b> — se cuadra al cerrar el ciclo.";
+  if (v.cuadre_adelanto !== undefined && v.cuadre_adelanto !== null && gc > 0) {
+    var cu = Number(v.cuadre_adelanto) || 0;
+    if (cu > 0) h += "<br>Cuadre al cerrar el ciclo: te faltan <b>" + fmt(cu) + "</b> por completar.";
+    else if (cu < 0) h += "<br>Cuadre al cerrar el ciclo: el adelanto pasó por <b>" + fmt(-cu) + "</b> — ese exceso se descuenta de tu próximo ciclo.";
+    else h += "<br>Cuadre al cerrar el ciclo: el adelanto cuadró exacto.";
+  }
+  return h;
+}
+function elegirPagoCicloMT(btn){
+  if (!SESION || !btn) return;
+  var lid = btn.getAttribute("data-lid"), op = btn.getAttribute("data-ciclo-op"), plan = btn.getAttribute("data-plan");
+  var datos = { p_codigo: SESION, p_liquidacion_id: lid, p_opcion: op, p_prueba: false };
+  if (op === "a0") datos.p_recargas_plan = plan ? Number(plan) : null;
+  var fila = btn.closest ? btn.closest(".pagoRow") : null;
+  if (fila) fila.querySelectorAll("[data-ciclo-op]").forEach(function(b){ b.disabled = true; });
+  rpcChat("dinero_elegir_pago", datos).then(function(r){
+    var warn = $("mp_warn");
+    if (r && r.ok !== false) { cargarPago(); return; }
+    if (fila) fila.querySelectorAll("[data-ciclo-op]").forEach(function(b){ b.disabled = false; });
+    if (warn) { warn.style.display = "block"; warn.textContent = "No se pudo guardar tu elección ahora. Revisa tu conexión y tócalo otra vez: no se guardó nada."; }
+  });
 }
 function cargarPago(){
   if (!SESION) return;
@@ -2832,6 +3721,13 @@ if (SESION && !guiaVistaT3()) setTimeout(function(){ if (SESION && GUIA_I_T3 < 0
     $("ep_tipo_s").addEventListener("click", function(){ EP_TIPO = "saldo"; $("ep_tipo_s").classList.add("on"); $("ep_tipo_t").classList.remove("on"); $("ep_box_s").classList.remove("hide"); $("ep_box_t").classList.add("hide"); });
     $("ep_tipo_t").addEventListener("click", function(){ EP_TIPO = "transferencia"; $("ep_tipo_t").classList.add("on"); $("ep_tipo_s").classList.remove("on"); $("ep_box_t").classList.remove("hide"); $("ep_box_s").classList.add("hide"); });
     $("ep_btn").addEventListener("click", enviarParte);
+    /* v39: hoja del parte en el chat («Ya compré») */
+    $("c_parte_btn").addEventListener("click", abrirHojaParteChat);
+    $("c_parte_cerrar").addEventListener("click", cerrarHojaParteChat);
+    $("c_parte_scrim").addEventListener("click", cerrarHojaParteChat);
+    $("cp_btn").addEventListener("click", enviarParteChat);
+    $("cp_tipo_s").addEventListener("click", function(){ CP_TIPO = "saldo"; $("cp_tipo_s").classList.add("on"); $("cp_tipo_t").classList.remove("on"); $("cp_box_s").classList.remove("hide"); $("cp_box_t").classList.add("hide"); });
+    $("cp_tipo_t").addEventListener("click", function(){ CP_TIPO = "transferencia"; $("cp_tipo_t").classList.add("on"); $("cp_tipo_s").classList.remove("on"); $("cp_box_t").classList.remove("hide"); $("cp_box_s").classList.add("hide"); });
     $("guiaBtn").addEventListener("click", function(){ guiaPasoT3(GUIA_I_T3 + 1); });
     $("guiaSaltar").addEventListener("click", guiaCerrarT3);
     var pfG = $("pf_guia"); if (pfG) pfG.addEventListener("click", guiaVerT3);
@@ -2850,5 +3746,299 @@ if (SESION && !guiaVistaT3()) setTimeout(function(){ if (SESION && GUIA_I_T3 < 0
     ["c_adj_foto", "c_adj_cam", "c_adj_arch", "c_adj_cerrar"].forEach(function(id){
       var b = $(id); if (b) b.addEventListener("click", function(){ setTimeout(cerrarHojaT3, 30); });
     });
+  } catch(e){ /* cableado parcial degradado: el resto de la app sigue */ }
+})();
+
+/* =====================================================================
+   PRO v40 — la oleada del plan «Mi Trabajo PRO» (2026-11-20)
+   · A1 pantalla «Ahora» · A5 barra de sincronización visible (B4:
+     las 4 colas con su estado) · A3 dinero en 3 estados · C5 Cerrar
+     el día · B6 PIN de reapertura SOLO local · C6 plantillas offline.
+   Todo es presentación y visibilidad: ni una regla de dinero cambia.
+   ===================================================================== */
+
+/* ===== B6 · PIN de reapertura (capa local; el código sigue mandando) ===== */
+function pinGuardado(){ try { return localStorage.getItem("busc_pin") || ""; } catch(e){ return ""; } }
+function pinHash(txt){
+  if (window.crypto && crypto.subtle && crypto.subtle.digest) {
+    return crypto.subtle.digest("SHA-256", new TextEncoder().encode("mt-pin-" + txt)).then(function(b){
+      return Array.prototype.map.call(new Uint8Array(b), function(x){ return ("0" + x.toString(16)).slice(-2); }).join("");
+    }).catch(function(){ return pinHashSimple(txt); });
+  }
+  return Promise.resolve(pinHashSimple(txt));
+}
+function pinHashSimple(txt){ var h = 0; for (var i = 0; i < txt.length; i++) h = (h * 31 + txt.charCodeAt(i)) | 0; return "simple-" + h; }
+var PIN_PENDIENTE;   /* sin inicializar aquí: arranque() corre ANTES de este bloque y mostrarPinGate ya lo asigna; un «= ""» aquí lo borraría */
+function mostrarPinGate(code){
+  PIN_PENDIENTE = code;
+  var g = $("pinGate"); if (!g) { entrar(code); return; }
+  g.style.display = "flex";
+  var w = $("pin_gwarn"); if (w) w.style.display = "none";
+  var inp = $("pin_in"); if (inp) { inp.value = ""; setTimeout(function(){ try { inp.focus(); } catch(e){} }, 60); }
+}
+function intentarPin(){
+  var inp = $("pin_in"), w = $("pin_gwarn");
+  var v = (inp && inp.value || "").trim();
+  if (!v) { if (w) { w.style.display = "block"; w.textContent = "Escribe tu PIN."; } return; }
+  pinHash(v).then(function(h){
+    if (h === pinGuardado()) {
+      var g = $("pinGate"); if (g) g.style.display = "none";
+      var code = PIN_PENDIENTE; PIN_PENDIENTE = "";
+      if (code && !SESION) entrar(code);
+    } else if (w) { w.style.display = "block"; w.textContent = "Ese PIN no es. Prueba de nuevo o cierra la sesión y entra con tu código."; }
+  });
+}
+function pintarPinEstado(){
+  var el = $("pin_estado"); if (!el) return;
+  el.textContent = pinGuardado() ? "PIN activo en este teléfono: la app lo pide al abrir." : "Sin PIN: la app abre directo con tu sesión guardada.";
+}
+
+/* ===== A5+B4 · Barra de sincronización: las colas, a la vista ===== */
+function syncItems(){
+  var items = [];
+  outboxGet().forEach(function(rp){
+    var desc = rp.tipo === "saldo" ? ("Saldo · " + fmtN(rp.precio || 0) + " CUP × " + (rp.cantidad || 1)) : ("Transf. · " + fmtN(rp.cantidad || 0) + " CUP al " + (rp.porc || 0) + "%");
+    if (!rp.enviado) items.push({ tipo: "Reporte", desc: desc, ts: rp.creadoEn || 0, err: rp.ultimoError || "", rev: rp.estadoCola === "error" || (rp.intentos || 0) >= 3 });
+    else if (rp.estado === "pendiente") items.push({ tipo: "Reporte", desc: desc, ts: rp.creadoEn || 0, espera: true });
+  });
+  parteOutGet().forEach(function(x){
+    items.push({ tipo: "Parte de vuelta", desc: (x.tipo === "transferencia" ? "Transferencia" : "Saldo") + " · " + fmtMilesT3(Number(x.total) || 0) + " CUP", ts: x.creadoEn || 0, err: x.ultimoError || "", rev: !!x.fallida });
+  });
+  chatOutGet().forEach(function(x){
+    items.push({ tipo: "Mensaje", desc: x.adj ? "Mensaje con adjunto" : "Mensaje de texto", ts: x.creadoEn || 0, err: x.ultimoError || "", rev: !!x.fallida });
+  });
+  devPendientes().forEach(function(x){
+    items.push({ tipo: "Devolución", desc: "Devolver " + fmtN(x.monto || 0) + " CUP", ts: x.creadoEn || x.ts || 0, err: x.ultimoError || "", rev: false });
+  });
+  return items;
+}
+function pintarSyncBar(){
+  var bar = $("syncBar"); if (!bar) return;
+  if (!SESION) { bar.classList.add("hide"); return; }
+  var items = syncItems();
+  var guardados = items.filter(function(i){ return !i.espera; });
+  var rev = guardados.filter(function(i){ return i.rev; }).length;
+  bar.classList.remove("hide", "ok", "esp", "mal");
+  if (rev > 0) { bar.classList.add("mal"); bar.textContent = "⚠️ " + rev + " cosa(s) necesitan revisión — toca para ver"; }
+  else if (!guardados.length) { bar.classList.add("ok"); bar.textContent = "✓ Todo enviado"; }
+  else if (navigator.onLine === false) { bar.classList.add("esp"); bar.textContent = "📴 Sin internet: " + guardados.length + " guardado(s) en tu teléfono"; }
+  else { bar.classList.add("esp"); bar.textContent = "🕐 Enviando " + guardados.length + "… toca para ver"; }
+}
+function horaCorta(ts){
+  if (!ts) return "";
+  var d = new Date(ts);
+  function p(x){ return (x < 10 ? "0" : "") + x; }
+  return p(d.getHours()) + ":" + p(d.getMinutes());
+}
+function pintarSyncHoja(){
+  var box = $("sync_lista"); if (!box) return;
+  var items = syncItems();
+  if (!items.length) { box.innerHTML = '<div class="hint">No hay nada pendiente: todo salió y todo está confirmado o en curso.</div>'; return; }
+  box.innerHTML = items.map(function(i){
+    var estado = i.espera ? '<span class="stChip esp">Enviado · esperando confirmación de Ernesto</span>'
+      : i.rev ? '<span class="stChip mal">Necesita revisión' + (i.err ? ": " + esc(i.err) : "") + '</span>'
+      : '<span class="stChip esp">Guardado · sale solo con conexión</span>';
+    return '<div class="syncItem"><div><b>' + i.tipo + '</b> · ' + esc(i.desc) + (i.ts ? '<br><small>creado ' + horaCorta(i.ts) + '</small>' : '') + '</div>' + estado + '</div>';
+  }).join("");
+}
+function reintentarSync(){
+  try { syncReportes(); } catch(e){}
+  try { despacharParte(); } catch(e){}
+  try { despacharChat(); } catch(e){}
+  try { syncDev(); } catch(e){}
+  setTimeout(function(){ pintarSyncBar(); pintarSyncHoja(); }, 700);
+}
+
+/* ===== A1 · Pantalla «Ahora» ===== */
+function pintarAhora(){
+  var sal = $("ah_saludo"); if (!sal) return;
+  var nom = "";
+  try { nom = nombreLocal(); } catch(e){}
+  sal.textContent = nom ? ("Hola, " + nom + " — ¿qué vas a hacer ahora?") : "¿Qué vas a hacer ahora?";
+  var mano = null;
+  if (typeof DINERO !== "undefined" && DINERO) {
+    if (DINERO.capital && DINERO.capital.en_mano !== undefined && DINERO.capital.en_mano !== null) mano = Number(DINERO.capital.en_mano);
+    else if (DINERO.en_mano !== undefined) mano = Number(DINERO.en_mano) || 0;
+  }
+  $("ah_mano").textContent = mano === null ? "—" : fmtN(mano) + " CUP";
+  var espAb = 0;
+  if (typeof ESPERAS !== "undefined" && ESPERAS && Array.isArray(ESPERAS.esperas))
+    espAb = ESPERAS.esperas.filter(function(e){ return e.estado === "abierta"; }).length;
+  $("ah_esperas").textContent = String(espAb);
+  $("ah_reportes").textContent = String(outboxGet().filter(function(rp){ return rp.estado === "pendiente"; }).length);
+  var badge = $("chatBadge");
+  $("ah_msgs").textContent = (badge && !badge.classList.contains("hide")) ? String(badge.textContent || "0") : "0";
+  pintarSyncBar();
+}
+
+/* ===== A3 · Dinero en 3 estados (Por cobrar partido, sin sumar) ===== */
+function pintarTresEstados(){
+  var box = $("tresEst"); if (!box) return;
+  if (typeof DINERO === "undefined" || !DINERO || !DINERO.capital) { box.classList.add("hide"); return; }
+  box.classList.remove("hide");
+  $("te_mano").textContent = fmtN(DINERO.capital.en_mano || 0) + " CUP";
+  $("te_trab").textContent = fmtN(DINERO.capital.trabajando || 0) + " CUP";
+  var asegTxt = "—", premTxt = "—";
+  if (typeof PAGO !== "undefined" && PAGO && Array.isArray(PAGO.vueltas)) {
+    var asegPend = PAGO.vueltas.reduce(function(s, v){ return s + Math.max(0, (Number(v.fijo) || 0) - (Number(v.total) || 0)); }, 0);
+    asegTxt = fmt(asegPend);
+    if (PAGO.ganado_premio !== undefined && PAGO.ganado_premio !== null) {
+      var premPag = PAGO.vueltas.reduce(function(s, v){ return s + (Number(v.premio) || 0); }, 0);
+      premTxt = fmt(Math.max(0, (Number(PAGO.ganado_premio) || 0) - premPag));
+    } else premTxt = "Pendiente de venta";
+  }
+  $("te_aseg").textContent = asegTxt;
+  $("te_prem").textContent = premTxt;
+}
+
+/* ===== C5 · Cerrar el día (guía; no cierra nada solo) ===== */
+function pintarCerrarDia(){
+  var box = $("cd_lista"); if (!box) return;
+  var filas = [], limpio = true;
+  function fila(ok, txt){ if (!ok) limpio = false; filas.push('<div class="cdItem ' + (ok ? "ok" : "falta") + '"><span>' + (ok ? "✓" : "•") + '</span><div>' + txt + '</div></div>'); }
+  var mano = null;
+  if (typeof DINERO !== "undefined" && DINERO && DINERO.capital) mano = Number(DINERO.capital.en_mano || 0);
+  if (mano === null) fila(false, "Tu capital todavía no cargó: toca «Actualizar» arriba y vuelve aquí.");
+  else if (mano > 0) fila(false, "Te quedan <b>" + fmtN(mano) + " CUP en mano</b>: si ya terminaste, solicita devolverlos desde «Mi panel → Tu capital». El dinero sigue en tu mano hasta que Ernesto lo reciba en persona.");
+  else fila(true, "Mano en cero: no tienes capital en mano.");
+  var espAb = (typeof ESPERAS !== "undefined" && ESPERAS && Array.isArray(ESPERAS.esperas)) ? ESPERAS.esperas.filter(function(e){ return e.estado === "abierta"; }).length : 0;
+  if (espAb > 0) fila(false, "Tienes <b>" + espAb + " vuelta(s) esperando prueba</b>: se asientan solas cuando llegue su SMS. Revísalas en «Mis esperas».");
+  else fila(true, "Sin vueltas abiertas esperando prueba.");
+  var reps = outboxGet().filter(function(rp){ return rp.estado === "pendiente"; }).length;
+  if (reps > 0) fila(false, "Tienes <b>" + reps + " reporte(s) sin confirmar</b>: Ernesto los confirma desde su app; quedan en «Reportar».");
+  else fila(true, "Sin reportes pendientes de confirmación.");
+  var devs = devPendientes().length;
+  if (devs > 0) fila(false, "Tienes <b>" + devs + " solicitud(es) de devolución</b> guardadas o en curso: salen solas con conexión y Ernesto las confirma al recibir el dinero.");
+  else fila(true, "Sin devoluciones pendientes.");
+  var guard = syncItems().filter(function(i){ return !i.espera; }).length;
+  if (guard > 0) fila(false, "Hay <b>" + guard + " cosa(s) guardadas sin enviar</b> en tu teléfono: mira la barra de sincronización y toca «Reintentar» si ya tienes conexión.");
+  else fila(true, "Todo enviado: nada quedó guardado en tu teléfono.");
+  box.innerHTML = filas.join("") + '<div class="hint" style="margin-top:10px">' + (limpio
+    ? "🎉 <b>Día limpio:</b> no te falta nada. Esto fue solo una guía: nada se cerró solo."
+    : "Esto es solo una guía pa que no se te quede nada: <b>nada se cierra ni se manda solo</b> desde aquí.") + '</div>';
+}
+
+/* ===== B7+C6 · Textos: fecha de la tarifa + plantillas offline ===== */
+function pintarPlantillas(){
+  var fEl = $("tx_tarifa_fecha");
+  if (fEl) {
+    var fTxt = "";
+    if (typeof TARIFA_VIVA_EN !== "undefined" && TARIFA_VIVA_EN) fTxt = "Tarifa en vivo: publicada " + String(TARIFA_VIVA_EN).slice(0, 10) + ".";
+    else if (DATA && DATA.actualizado) fTxt = "Tarifa guardada en tu teléfono: del " + String(DATA.actualizado).slice(0, 10) + ". Si llevas días sin internet, puede estar vieja: confirma antes de publicar.";
+    fEl.textContent = fTxt;
+  }
+  var box = $("tx_plantillas"); if (!box) return;
+  var p = (typeof DATA !== "undefined" && DATA && DATA.publico) || {};
+  var s = p.saldo || {};
+  if (!p.telefono || !s.tasa) { box.innerHTML = '<div class="hint">Las plantillas aparecen cuando la tarifa guardada termine de cargar.</div>'; return; }
+  var tel = p.telefono, zona = p.zona || "", dom = p.domicilio || "";
+  var TPL = [
+    "📱 COMPRO SALDO 📱\nPago al " + s.tasa + " el saldo. Más de " + fmtMilesT3(s.desdeAlta) + ": al " + s.tasaAlta + ".\n📞 " + tel + (zona ? "\n📍 " + zona : ""),
+    "💵 Compro saldo hoy 💵\nAl " + s.tasa + " el saldo, cantidad al " + s.tasaAlta + " (más de " + fmtMilesT3(s.desdeAlta) + ").\nEscríbeme: " + tel,
+    "🔋 RECARGAS DE SALDO 🔋\nRecarga de 360 a " + fmtMilesT3(s.recarga) + " CUP.\n📞 " + tel + (dom ? "\n" + dom : ""),
+    "📱 Compro saldo — pago al momento\nTasa: al " + s.tasa + " · cantidad (más de " + fmtMilesT3(s.desdeAlta) + "): al " + s.tasaAlta + ".\n" + tel + (zona ? " · " + zona : ""),
+    "🛒 COMPRO SALDO Y RECARGO\n· Compro saldo al " + s.tasa + " (cantidad al " + s.tasaAlta + ")\n· Recargas a " + fmtMilesT3(s.recarga) + " CUP\n📞 " + tel,
+    "📲 ¿Tienes saldo pa vender?\nTe lo compro al " + s.tasa + " y si es cantidad (más de " + fmtMilesT3(s.desdeAlta) + ") al " + s.tasaAlta + ".\n" + tel + (dom ? " — " + dom : ""),
+    "⚡ Compro saldo ⚡\nPago al " + s.tasa + " · trato serio y pago al momento.\n📞 " + tel + (zona ? "\n" + zona : ""),
+    "📱 SALDO 📱\nCompro al " + s.tasa + " / cantidad al " + s.tasaAlta + " · Recargo a " + fmtMilesT3(s.recarga) + ".\n" + tel
+  ];
+  box.innerHTML = TPL.map(function(t, i){
+    return '<div class="planTx"><div class="planTxt">' + esc(t).replace(/\n/g, "<br>") + '</div>'
+      + '<div class="planBtns"><button type="button" class="miniBtn" data-plan-copiar="' + i + '">Copiar</button>'
+      + '<button type="button" class="miniBtn" data-plan-wa="' + i + '">WhatsApp</button></div></div>';
+  }).join("");
+  box.querySelectorAll("[data-plan-copiar]").forEach(function(b){
+    b.addEventListener("click", function(){
+      var t = TPL[Number(b.getAttribute("data-plan-copiar"))];
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(t).then(function(){ b.textContent = "✓ Copiado"; setTimeout(function(){ b.textContent = "Copiar"; }, 1500); });
+    });
+  });
+  box.querySelectorAll("[data-plan-wa]").forEach(function(b){
+    b.addEventListener("click", function(){
+      var t = TPL[Number(b.getAttribute("data-plan-wa"))];
+      window.open("https://wa.me/?text=" + encodeURIComponent(t), "_blank");
+    });
+  });
+}
+
+/* ===== Navegación PRO: Ahora y Cerrar son vistas como las hijas T3 ===== */
+var showViewSinPRO = showView;
+showView = function(v){
+  if (v === "Ahora" || v === "Cerrar") {
+    ["Calc", "Rep", "Panel", "Ayuda", "Textos", "Perfil"].forEach(function(x){
+      var t = $("tab" + x), vw = $("view" + x);
+      if (t) t.classList.toggle("on", v === "Cerrar" && x === "Panel");
+      if (vw) vw.classList.add("hide");
+    });
+    var ve = $("viewEsperas"), vp = $("viewPago");
+    if (ve) ve.classList.add("hide");
+    if (vp) vp.classList.add("hide");
+    var va = $("viewAhora"); if (va) va.classList.toggle("hide", v !== "Ahora");
+    var vc = $("viewCerrar"); if (vc) vc.classList.toggle("hide", v !== "Cerrar");
+    var ta = $("tabAhora"); if (ta) ta.classList.toggle("on", v === "Ahora");
+    if (v === "Ahora") pintarAhora();
+    if (v === "Cerrar") pintarCerrarDia();
+    try { window.scrollTo(0, 0); } catch(e){}
+    return;
+  }
+  var va2 = $("viewAhora"); if (va2) va2.classList.add("hide");
+  var vc2 = $("viewCerrar"); if (vc2) vc2.classList.add("hide");
+  var ta2 = $("tabAhora"); if (ta2) ta2.classList.remove("on");
+  showViewSinPRO(v);
+  if (v === "Textos") { try { pintarPlantillas(); } catch(e){} }
+};
+var entrarSinPRO = entrar;
+entrar = function(code){
+  entrarSinPRO(code);
+  try { pintarAhora(); } catch(e){}
+  try { pintarSyncBar(); } catch(e){}
+  try { pintarPinEstado(); } catch(e){}
+};
+
+/* ===== Cableado PRO ===== */
+(function cablearPRO(){
+  try {
+    var tA = $("tabAhora"); if (tA) tA.addEventListener("click", function(){ showView("Ahora"); });
+    var bRep = $("ah_rep"); if (bRep) bRep.addEventListener("click", function(){ showView("Rep"); });
+    var bParte = $("ah_parte"); if (bParte) bParte.addEventListener("click", function(){ showView("Esperas"); });
+    var bCalc = $("ah_calc"); if (bCalc) bCalc.addEventListener("click", function(){ showView("Calc"); });
+    var bCerrar = $("ah_cerrar"); if (bCerrar) bCerrar.addEventListener("click", function(){ showView("Cerrar"); });
+    var nC = $("navCerrar"); if (nC) nC.addEventListener("click", function(){ showView("Cerrar"); });
+    var cV = $("cd_volver"); if (cV) cV.addEventListener("click", function(){ showView("Panel"); });
+    var sB = $("syncBar"); if (sB) sB.addEventListener("click", function(){ pintarSyncHoja(); var h = $("syncHoja"); if (h) h.classList.add("abierta"); });
+    var sC = $("sync_cerrar"); if (sC) sC.addEventListener("click", function(){ var h = $("syncHoja"); if (h) h.classList.remove("abierta"); });
+    var sR = $("sync_reintentar"); if (sR) sR.addEventListener("click", reintentarSync);
+    var rConf = $("r_conf"); if (rConf) rConf.addEventListener("click", reportarEnviar);
+    var rCanc = $("r_prev_cancel"); if (rCanc) rCanc.addEventListener("click", function(){ RP_PENDIENTE = null; $("r_previo").style.display = "none"; });
+    var cSi = $("cap_conf_si"); if (cSi) cSi.addEventListener("click", capEnviarReal);
+    var cNo = $("cap_conf_no"); if (cNo) cNo.addEventListener("click", function(){ $("cap_conf").style.display = "none"; });
+    var tM = $("te_row_mano"); if (tM) tM.addEventListener("click", function(){ var c = $("cu_capital"); if (c) try { c.scrollIntoView({ block: "center" }); } catch(e){} });
+    var tA2 = $("te_row_aseg"); if (tA2) tA2.addEventListener("click", function(){ showView("Pago"); });
+    var tP = $("te_row_prem"); if (tP) tP.addEventListener("click", function(){ showView("Pago"); });
+    /* PIN */
+    var pBtn = $("pin_btn"); if (pBtn) pBtn.addEventListener("click", intentarPin);
+    var pIn = $("pin_in"); if (pIn) pIn.addEventListener("keydown", function(ev){ if (ev.key === "Enter") { ev.preventDefault(); intentarPin(); } });
+    var pSalir = $("pin_salir"); if (pSalir) pSalir.addEventListener("click", function(ev){ ev.preventDefault(); var g = $("pinGate"); if (g) g.style.display = "none"; PIN_PENDIENTE = ""; salir(""); });
+    var pG = $("pin_guardar"); if (pG) pG.addEventListener("click", function(){
+      var w = $("pin_warn"), okE = $("pin_ok");
+      var v = (($("pin_nuevo").value || "") + "").trim();
+      if (!/^\d{4,6}$/.test(v)) { w.style.display = "block"; w.textContent = "El PIN son de 4 a 6 números."; okE.style.display = "none"; return; }
+      pinHash(v).then(function(h){
+        try { localStorage.setItem("busc_pin", h); } catch(e){}
+        w.style.display = "none"; okE.style.display = "block"; okE.textContent = "✓ PIN activado en este teléfono.";
+        $("pin_nuevo").value = "";
+        pintarPinEstado();
+      });
+    });
+    var pQ = $("pin_quitar"); if (pQ) pQ.addEventListener("click", function(){
+      try { localStorage.removeItem("busc_pin"); } catch(e){}
+      var okE = $("pin_ok"); okE.style.display = "block"; okE.textContent = "PIN quitado: la app abre directo con tu sesión.";
+      pintarPinEstado();
+    });
+    var pB = $("pin_bloquear"); if (pB) pB.addEventListener("click", function(){ if (SESION) mostrarPinGate(SESION); });
+    pintarPinEstado();
+    window.addEventListener("online", function(){ try { reintentarSync(); } catch(e){} pintarSyncBar(); });
+    window.addEventListener("offline", function(){ pintarSyncBar(); });
+    setInterval(function(){ if (SESION) { pintarSyncBar(); var va = $("viewAhora"); if (va && !va.classList.contains("hide")) pintarAhora(); } }, 20000);
   } catch(e){ /* cableado parcial degradado: el resto de la app sigue */ }
 })();
