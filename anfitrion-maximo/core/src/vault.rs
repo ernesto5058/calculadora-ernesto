@@ -207,14 +207,17 @@ impl SideloadingStorage for VaultStorageRef {
 // ── Cifrado ───────────────────────────────────────────────────────────────────
 
 fn encrypt(dek: &[u8; 32], plain: &[u8]) -> Result<Vec<u8>, String> {
-    let cipher = Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(dek));
+    let key = Key::<Aes256Gcm>::try_from(dek.as_slice())
+        .expect("la longitud de DEK debe ser válida para AES-256");
+    let cipher = Aes256Gcm::new(&key);
     let rng = ring::rand::SystemRandom::new();
     let mut nonce_bytes = [0u8; 12];
     rng.fill(&mut nonce_bytes)
         .map_err(|_| "sin fuente de azar pa el nonce de la bóveda".to_string())?;
-    let nonce = Nonce::from_slice(&nonce_bytes);
+    let nonce = Nonce::try_from(nonce_bytes.as_slice())
+        .expect("la longitud del nonce debe ser válida para AES-GCM");
     let ct = cipher
-        .encrypt(nonce, plain)
+        .encrypt(&nonce, plain)
         .map_err(|_| "falló el cifrado de la bóveda".to_string())?;
     let mut out = Vec::with_capacity(4 + 12 + ct.len());
     out.extend_from_slice(MAGIC);
@@ -227,10 +230,13 @@ fn decrypt(dek: &[u8; 32], raw: &[u8]) -> Result<Vec<u8>, String> {
     if raw.len() < 4 + 12 + 16 || &raw[0..4] != MAGIC {
         return Err("el archivo de la bóveda no tiene el formato esperado".into());
     }
-    let cipher = Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(dek));
-    let nonce = Nonce::from_slice(&raw[4..16]);
+    let key = Key::<Aes256Gcm>::try_from(dek.as_slice())
+        .expect("la longitud de DEK debe ser válida para AES-256");
+    let cipher = Aes256Gcm::new(&key);
+    let nonce = Nonce::try_from(&raw[4..16])
+        .expect("la longitud del nonce debe ser válida para AES-GCM");
     cipher
-        .decrypt(nonce, &raw[16..])
+        .decrypt(&nonce, &raw[16..])
         .map_err(|_| "la llave no abre la bóveda (DEK equivocada o archivo dañado)".to_string())
 }
 

@@ -88,7 +88,6 @@ use isideload::{
         sign::sign,
     },
 };
-use rootcause::prelude::*;
 use rsa::pkcs8::{DecodePrivateKey, EncodePrivateKey};
 use x509_cert::{
     der::{Decode, Encode},
@@ -691,7 +690,7 @@ async fn online_sign_install(
         })?;
     stage("ETAPA login: sesión abierta (la contraseña ya se soltó de memoria)");
 
-    let mut dev_session = DeveloperSession::from_account(&mut cuenta)
+    let dev_session = DeveloperSession::from_account(&mut cuenta)
         .await
         .map_err(|e| err("login", format!("no se pudo abrir la sesión de desarrollador: {}", e)))?;
     stage("ETAPA login: sesión de desarrollador abierta");
@@ -1216,7 +1215,6 @@ async fn write_doc(
 #[cfg(test)]
 mod bench_firma {
     use super::*;
-    use rsa::pkcs8::EncodePrivateKey;
 
     /// Banco mecánico de la vía offline: firma un IPA real SOLO con material
     /// de bóveda (identidad y perfil fabricados en el banco, coherentes entre

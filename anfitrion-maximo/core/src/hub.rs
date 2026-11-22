@@ -41,6 +41,9 @@ use crate::transport::FdTransport;
 const TH_SYN: u8 = 0x02;
 const TH_ACK: u8 = 0x10;
 const TH_RST: u8 = 0x04;
+// Superficie open/stream del hub: se conserva (el transporte vivo va por
+// cadena); los #[allow(dead_code)] de este archivo marcan lo guardado, no borrado.
+#[allow(dead_code)]
 const READ_CHUNK: usize = 65536;
 
 struct HubConn {
@@ -275,6 +278,7 @@ impl MuxHub {
             .send(&mut self.io, &self.eps, &mut self.mux_tx_seq, data)
     }
 
+    #[allow(dead_code)]
     /// Saca hasta `max` bytes de la cola de la conexión, bombeando el cable
     /// hasta que haya datos, la conexión se resetee o el transporte falle.
     pub fn read(&mut self, id: u32, max: usize) -> Result<Vec<u8>, String> {
@@ -323,6 +327,7 @@ impl MuxHub {
 
 // ── Hilo dueño del hub + comandos ─────────────────────────────────────────────
 
+#[allow(dead_code)]
 enum HubCmd {
     Open {
         dport: u16,
@@ -495,6 +500,7 @@ impl HubHandle {
             .map_err(|_| "el hilo del hub cerró sin responder".to_string())
     }
 
+    #[allow(dead_code)]
     pub async fn open(&self, dport: u16) -> Result<u32, String> {
         let (tx, rx) = oneshot::channel();
         self.tx
@@ -504,6 +510,7 @@ impl HubHandle {
             .map_err(|_| "el hilo del hub cerró sin responder".to_string())?
     }
 
+    #[allow(dead_code)]
     pub fn stream(&self, id: u32) -> HubStream {
         HubStream {
             handle: self.clone(),
@@ -518,6 +525,7 @@ impl HubHandle {
 
 // ── Stream tokio sobre una conexión del hub ───────────────────────────────────
 
+#[allow(dead_code)]
 pub struct HubStream {
     handle: HubHandle,
     id: u32,
@@ -533,6 +541,7 @@ impl std::fmt::Debug for HubStream {
     }
 }
 
+#[allow(dead_code)]
 fn io_err(msg: String) -> io::Error {
     io::Error::new(io::ErrorKind::Other, msg)
 }

@@ -11,8 +11,8 @@ android {
         applicationId = "com.maximo.anfitrion"
         minSdk = 26
         targetSdk = 34
-        versionCode = 11
-        versionName = "2.8"
+        versionCode = 12
+        versionName = "2.8.1"
         ndk {
             abiFilters += listOf("arm64-v8a", "armeabi-v7a")
         }

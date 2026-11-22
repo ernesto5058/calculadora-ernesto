@@ -275,8 +275,9 @@ impl Supervisor {
         let mut repreparar_pendiente = false;
         loop {
             intento += 1;
-            if repreparar_pendiente {
-                repreparar_pendiente = false;
+            // El reset se lee y se hace en la misma operación: el valor viejo
+            // decide si se re-prepara y la bandera queda en false.
+            if std::mem::replace(&mut repreparar_pendiente, false) {
                 // **EL ORDEN QUE LA v2.7 FIJA (fallo 1 de la revisión de
                 // diff sobre la v2.6)**: ANTES de re-preparar, el
                 // proveedor viejo se RETIRA de forma síncrona — su

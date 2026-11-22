@@ -50,7 +50,6 @@ use rustls::{ClientConfig, ClientConnection, DigitallySignedStruct, SignatureSch
 
 use crate::mux::MuxPipe;
 use crate::stage;
-use crate::transport::FdTransport;
 use crate::vault::VaultHandle;
 
 pub const SERVICE_INSTALL: &str = "com.apple.mobile.installation_proxy";
