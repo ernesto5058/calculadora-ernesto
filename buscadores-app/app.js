@@ -3191,6 +3191,7 @@ reportar = function(){
 var ESPERAS = null;   /* última foto de esperas_mi_estado */
 var PAGO = null;      /* última foto de pago_mi_estado */
 var EP_TIPO = "saldo";
+var EP_OPID = null, EP_OPID_FP = null;  /* v40-parche: opId pendiente del parte — sobrevive entre toques hasta que el servidor confirme; se limpia al ok o al cambiar los datos */
 
 function fmtMilesT3(n){ return String(Math.round(Number(n) || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, ","); }
 function fmtFechaCorta(iso){
@@ -3295,11 +3296,17 @@ function enviarParte(){
   if (total === null || total <= 0) return fallo("Escribe el total que pagaste en efectivo (CUP).");
   var libre = libreActual();
   if (libre !== null && total > libre) return fallo("Te pasas de tu efectivo: tienes " + fmtMilesT3(libre) + " CUP libres para operar (lo de tu mano menos lo que ya espera) y el parte dice " + fmtMilesT3(total) + " CUP. Revisa el total: no se mandó nada.");
+  /* v40-parche: el opId se genera UNA vez por operación y sobrevive entre
+     toques hasta que el servidor confirme; si cambian tipo/tasa/total/
+     teléfono es una operación nueva y se genera otro. */
+  var epFp = EP_TIPO + "|" + tasa + "|" + Math.round(total) + "|" + (($("ep_tel").value || "").trim());
+  if (!EP_OPID || EP_OPID_FP !== epFp) { EP_OPID = nuevoOpId(); EP_OPID_FP = epFp; }
   var btn = $("ep_btn"); btn.disabled = true;
   rpcChat("espera_crear_app", { p_codigo: SESION, p_tipo: EP_TIPO, p_tasa: tasa, p_total_pagado: Math.round(total),
-    p_telefono: ($("ep_tel").value || "").trim() || null }).then(function(r){
+    p_telefono: ($("ep_tel").value || "").trim() || null, p_op_id: EP_OPID }).then(function(r){
     btn.disabled = false;
     if (r && r.ok) {
+      EP_OPID = null; EP_OPID_FP = null;
       okEl.style.display = "block";
       okEl.textContent = (r.fuera_de_ciclo === true || r.excedido === true)
         ? "Parte enviado, pero pasó el tope de tu ciclo: quedó fuera de ciclo, a revisar con Ernesto. Queda marcado para cuadrarlo con él, sin asentarse en silencio."
