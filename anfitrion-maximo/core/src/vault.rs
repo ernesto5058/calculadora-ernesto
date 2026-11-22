@@ -13,6 +13,8 @@
 //!
 //! Claves del mapa (además de las propias de isideload):
 //! - `boveda/pairing` → registro de pairing (base64)
+//! - `boveda/pairing_respaldo` → pairing vigente anterior (base64), guardado
+//!   antes de cada sustitución pa restaurar si el sellado falla (v2.8.2)
 //! - `boveda/equipo` → JSON `{team_id, nombre}`
 //! - `boveda/cert` → JSON `{machine_id, machine_name, cert_der_b64, key_der_b64}`
 //! - `boveda/perfil/<bundle_id>` → `.mobileprovision` (base64)
@@ -31,6 +33,7 @@ use rootcause::prelude::*;
 
 const MAGIC: &[u8; 4] = b"AMV1";
 pub const KEY_PAIRING: &str = "boveda/pairing";
+pub const KEY_PAIRING_BACKUP: &str = "boveda/pairing_respaldo";
 pub const KEY_EQUIPO: &str = "boveda/equipo";
 pub const KEY_CERT: &str = "boveda/cert";
 pub const PREFIX_PERFIL: &str = "boveda/perfil/";
@@ -108,8 +111,43 @@ impl VaultHandle {
             .and_then(|s| B64.decode(s.as_bytes()).ok())
     }
 
-    pub fn set_pairing(&self, bytes: &[u8]) -> Result<(), String> {
-        self.put(KEY_PAIRING, &B64.encode(bytes))
+    /// Pairing vigente anterior, guardado antes de la última sustitución.
+    pub fn pairing_backup(&self) -> Option<Vec<u8>> {
+        self.get(KEY_PAIRING_BACKUP)
+            .and_then(|s| B64.decode(s.as_bytes()).ok())
+    }
+
+    /// Guarda un registro de pairing con sustitución segura (v2.8.2):
+    /// 1. valida primero según su origen — si falla, el vigente no se toca;
+    /// 2. conserva el vigente en la clave de respaldo cifrada;
+    /// 3. guarda el nuevo y sella; si el sellado falla, restaura el
+    ///    anterior en memoria y devuelve el error.
+    pub fn set_pairing(&self, origin: crate::probe::PairingOrigin, bytes: &[u8]) -> Result<(), String> {
+        crate::probe::validate_pair_record(bytes, origin)?;
+        let anterior = self.pairing();
+        {
+            let mut v = self.inner.lock().unwrap_or_else(|p| p.into_inner());
+            if let Some(prev) = &anterior {
+                v.map
+                    .insert(KEY_PAIRING_BACKUP.to_string(), B64.encode(prev));
+            }
+            v.map.insert(KEY_PAIRING.to_string(), B64.encode(bytes));
+        }
+        match self.seal() {
+            Ok(()) => Ok(()),
+            Err(e) => {
+                let mut v = self.inner.lock().unwrap_or_else(|p| p.into_inner());
+                match anterior {
+                    Some(prev) => {
+                        v.map.insert(KEY_PAIRING.to_string(), B64.encode(&prev));
+                    }
+                    None => {
+                        v.map.remove(KEY_PAIRING);
+                    }
+                }
+                Err(e)
+            }
+        }
     }
 
     // ── Perfiles guardados (la vía sin conexión) ───────────────────────────
@@ -344,6 +382,7 @@ fn parse_iso8601_z(s: &str) -> Result<i64, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::probe::PairingOrigin;
 
     fn tmp_dir(tag: &str) -> PathBuf {
         let d = std::env::temp_dir().join(format!("anfitrion-boveda-{}-{}", tag, std::process::id()));
@@ -356,20 +395,57 @@ mod tests {
         [byte; 32]
     }
 
+    /// Registro de pairing válido pa los bancos (formato libimobiledevice,
+    /// con EscrowBag y los cuatro PEM).
+    fn registro_valido(host_id: &str) -> Vec<u8> {
+        let mut dict = plist::Dictionary::new();
+        let pem = |d: &mut plist::Dictionary, k: &str, v: &str| {
+            d.insert(k.into(), plist::Value::Data(v.as_bytes().to_vec()));
+        };
+        pem(
+            &mut dict,
+            "DeviceCertificate",
+            "-----BEGIN CERTIFICATE-----\nDEV\n-----END CERTIFICATE-----\n",
+        );
+        pem(
+            &mut dict,
+            "HostCertificate",
+            "-----BEGIN CERTIFICATE-----\nHOST\n-----END CERTIFICATE-----\n",
+        );
+        pem(
+            &mut dict,
+            "HostPrivateKey",
+            "-----BEGIN PRIVATE KEY-----\nKEY\n-----END PRIVATE KEY-----\n",
+        );
+        pem(
+            &mut dict,
+            "RootCertificate",
+            "-----BEGIN CERTIFICATE-----\nROOT\n-----END CERTIFICATE-----\n",
+        );
+        dict.insert("HostID".into(), plist::Value::String(host_id.into()));
+        dict.insert("SystemBUID".into(), plist::Value::String("BUID-456".into()));
+        dict.insert("EscrowBag".into(), plist::Value::Data(vec![1, 2, 3, 4]));
+        let value = plist::Value::Dictionary(dict);
+        let mut buf = Vec::new();
+        value.to_writer_xml(&mut buf).unwrap();
+        buf
+    }
+
     #[test]
     fn boveda_sella_y_reabre() {
         let dir = tmp_dir("roundtrip");
         let v = VaultHandle::open(&dir, dek(7)).unwrap();
         v.put("clave", "valor").unwrap();
-        v.set_pairing(b"<plist>registro</plist>").unwrap();
+        let registro = registro_valido("HOST-123");
+        v.set_pairing(PairingOrigin::Import, &registro).unwrap();
         drop(v);
         let v2 = VaultHandle::open(&dir, dek(7)).unwrap();
         assert_eq!(v2.get("clave").as_deref(), Some("valor"));
-        assert_eq!(v2.pairing().unwrap(), b"<plist>registro</plist>");
+        assert_eq!(v2.pairing().unwrap(), registro);
         // El archivo en reposo NO contiene el contenido en claro.
         let raw = std::fs::read(dir.join("boveda.vault")).unwrap();
         assert!(!raw.windows(5).any(|w| w == b"valor"));
-        assert!(!raw.windows(8).any(|w| w == b"registro"));
+        assert!(!raw.windows(8).any(|w| w == b"HOST-123"));
     }
 
     #[test]
@@ -408,13 +484,55 @@ mod tests {
 
     #[test]
     fn migracion_registro_v11_byte_a_byte() {
-        // El registro de la v1.1 (XML plist) entra a la bóveda y sale idéntico.
+        // El registro de la v1.1 (XML plist, completo: HostID, SystemBUID,
+        // EscrowBag y los cuatro PEM) entra a la bóveda y sale idéntico.
+        // Desde la v2.8.2 la migración exige EscrowBag, como la importación.
         let dir = tmp_dir("migracion");
-        let registro = b"<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<plist version=\"1.0\"><dict><key>HostID</key><string>AAAA-BBBB</string></dict></plist>".to_vec();
+        let registro = registro_valido("AAAA-BBBB");
         let v = VaultHandle::open(&dir, dek(9)).unwrap();
-        v.set_pairing(&registro).unwrap();
+        v.set_pairing(PairingOrigin::Migration, &registro).unwrap();
         drop(v);
         let v2 = VaultHandle::open(&dir, dek(9)).unwrap();
         assert_eq!(v2.pairing().unwrap(), registro);
+    }
+
+    /// (f) Fallo de persistencia al reemplazar: se restaura el anterior
+    /// en memoria y el respaldo cifrado lo conserva.
+    #[test]
+    fn banco_f_fallo_persistencia_restaura_anterior() {
+        let dir = tmp_dir("respaldo");
+        let v = VaultHandle::open(&dir, dek(3)).unwrap();
+        let primero = registro_valido("HOST-123");
+        v.set_pairing(PairingOrigin::Import, &primero).unwrap();
+        // Bloquear el sellado: el temporal que seal() escribe existe como
+        // directorio, así que la escritura falla.
+        let tmp = dir.join("boveda.vault.tmp");
+        std::fs::create_dir(&tmp).unwrap();
+        let segundo = registro_valido("OTRO-HOST");
+        let err = v
+            .set_pairing(PairingOrigin::Import, &segundo)
+            .unwrap_err();
+        assert!(
+            err.contains("no se pudo escribir"),
+            "error inesperado: {}",
+            err
+        );
+        assert_eq!(v.pairing().unwrap(), primero);
+        assert_eq!(v.pairing_backup().unwrap(), primero);
+        std::fs::remove_dir(&tmp).unwrap();
+    }
+
+    /// Un registro que no valida no toca el vigente ni deja respaldo nuevo.
+    #[test]
+    fn banco_rechazo_no_toca_vigente() {
+        let dir = tmp_dir("rechazo");
+        let v = VaultHandle::open(&dir, dek(5)).unwrap();
+        let primero = registro_valido("HOST-123");
+        v.set_pairing(PairingOrigin::Import, &primero).unwrap();
+        assert!(v
+            .set_pairing(PairingOrigin::Import, b"<plist>registro</plist>")
+            .is_err());
+        assert_eq!(v.pairing().unwrap(), primero);
+        assert_eq!(v.pairing_backup(), None);
     }
 }

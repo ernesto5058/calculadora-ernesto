@@ -79,6 +79,9 @@ object RustBridge {
 
     /** Guarda un registro de pairing dentro de la bóveda. */
     external fun nativeVaultImportPairing(bytes: ByteArray): String
+    external fun nativeVaultMigratePairing(bytes: ByteArray): String
+    external fun nativeVaultStoreFreshPairing(bytes: ByteArray): String
+    external fun nativeValidatePairing(bytes: ByteArray, origin: String): String
 
     /** ¿La bóveda ya tiene un registro de pairing? */
     external fun nativeVaultHasPairing(): Boolean
@@ -423,7 +426,7 @@ class MainActivity : Activity() {
             gravity = Gravity.BOTTOM
         }
         val versionBig = TextView(this).apply {
-            text = "2.8.1"
+            text = "2.8.2"
             setTextColor(onGold)
             textSize = 64f
             typeface = Typeface.DEFAULT_BOLD
@@ -791,13 +794,18 @@ class MainActivity : Activity() {
                 val bytes = runCatching { f.readBytes() }.getOrNull() ?: continue
                 val text = String(bytes, Charsets.UTF_8)
                 if (!text.contains("<plist") || !text.contains("HostID")) continue
-                if (RustBridge.nativeVaultImportPairing(bytes) == "OK") {
+                // v2.8.2: la migración valida como importación externa
+                // (EscrowBag obligatorio); un registro malo no pisa nada.
+                val res = RustBridge.nativeVaultMigratePairing(bytes)
+                if (res == "OK") {
                     val nombre = f.name
                     f.delete()
                     pairingFile = null
                     appendLog("Migración a la v2: el registro «$nombre» entró a la bóveda cifrada y su copia en claro se borró")
                     runOnUiThread { sharePairingButton.isEnabled = true }
                     return
+                } else {
+                    appendLog("Migración: «${f.name}» rechazado ($res) — se deja como está")
                 }
             }
         }
@@ -1222,10 +1230,15 @@ class MainActivity : Activity() {
                     val nacido = pairingFile
                     if (vaultOpen && nacido != null && nacido.exists()) {
                         val bytes = runCatching { nacido.readBytes() }.getOrNull()
-                        if (bytes != null && RustBridge.nativeVaultImportPairing(bytes) == "OK") {
+                        // v2.8.2: el recién nacido se guarda como Pair fresco
+                        // (EscrowBag opcional); si no valida, la copia en
+                        // claro se conserva pa no perder el pairing.
+                        if (bytes != null && RustBridge.nativeVaultStoreFreshPairing(bytes) == "OK") {
                             nacido.delete()
                             pairingFile = null
                             appendLog("El registro recién nacido entró a la bóveda cifrada (su copia en claro se borró)")
+                        } else if (bytes != null) {
+                            appendLog("El registro recién nacido no pasó la validación y se conserva en claro (no entró a la bóveda)")
                         }
                     }
                     setStatus(
@@ -1290,7 +1303,8 @@ class MainActivity : Activity() {
                 // v2: el registro importado entra DIRECTO a la bóveda cifrada;
                 // ya no se guarda ninguna copia en claro.
                 if (vaultOpen) {
-                    if (RustBridge.nativeVaultImportPairing(bytes) == "OK") {
+                    val res = RustBridge.nativeVaultImportPairing(bytes)
+                    if (res == "OK") {
                         runOnUiThread {
                             appendLog("Registro importado desde otra vía (${bytes.size} bytes) — guardado en la bóveda cifrada")
                             setStatus(
@@ -1301,8 +1315,19 @@ class MainActivity : Activity() {
                         }
                     } else {
                         runOnUiThread {
-                            setStatus("La bóveda rechazó el registro importado: compártelo con Máximo si se repite.", red)
+                            setStatus("La bóveda rechazó el registro importado ($res): el pairing vigente no se tocó.", red)
                         }
+                    }
+                    return@thread
+                }
+                // v2.8.2, bóveda cerrada: validar ANTES de escribir el
+                // archivo (antes se guardaba sin validar y se llamaba
+                // «válido»); el archivo vigente se respalda antes de
+                // sustituirlo.
+                val valido = RustBridge.nativeValidatePairing(bytes, "import")
+                if (valido != "OK") {
+                    runOnUiThread {
+                        setStatus("Ese registro no pasa la validación ($valido): el pairing vigente no se tocó.", red)
                     }
                     return@thread
                 }
@@ -1322,10 +1347,18 @@ class MainActivity : Activity() {
                 }
                 val dir = getExternalFilesDir(null) ?: filesDir
                 val out = File(dir, displayName)
+                // Respaldo del archivo vigente antes de sustituirlo.
+                val vigente = pairingFile
+                if (vigente != null && vigente.exists() && vigente.absolutePath != out.absolutePath) {
+                    val respaldo = File(vigente.parentFile, "${vigente.name}.respaldo")
+                    if (vigente.renameTo(respaldo)) {
+                        appendLog("Respaldo del pairing vigente: ${respaldo.name}")
+                    }
+                }
                 out.writeBytes(bytes)
                 pairingFile = out
                 runOnUiThread {
-                    appendLog("Registro importado desde otra vía: ${out.name} (${bytes.size} bytes) — guardado como pairing válido de esta app")
+                    appendLog("Registro importado desde otra vía: ${out.name} (${bytes.size} bytes) — validado y guardado en esta app")
                     setStatus(
                         "Registro importado y guardado en esta app. Compártelo e impórtalo en Tienda Máximo.",
                         teal

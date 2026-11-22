@@ -258,26 +258,94 @@ pub extern "system" fn Java_com_maximo_anfitrion_RustBridge_nativeVaultUnlock(
     jstring_out(&mut env, result.unwrap_or_else(|_| "ERROR::pánico en el núcleo".into()))
 }
 
-/// `RustBridge.nativeVaultImportPairing(bytes)` → guarda el registro en la bóveda.
+fn guardar_pairing_en_boveda(bytes: &[u8], origin: crate::probe::PairingOrigin) -> String {
+    let Some(v) = current_vault() else {
+        return "ERROR::la bóveda no está abierta".to_string();
+    };
+    match v.set_pairing(origin, bytes) {
+        Ok(()) => {
+            stage(&format!(
+                "Registro de pairing guardado en la bóveda ({} bytes)",
+                bytes.len()
+            ));
+            "OK".to_string()
+        }
+        Err(e) => format!("ERROR::{}", e),
+    }
+}
+
+fn guardar_pairing_jni(
+    env: &mut JNIEnv,
+    bytes: jni::objects::JByteArray,
+    origin: crate::probe::PairingOrigin,
+) -> String {
+    match env.convert_byte_array(&bytes) {
+        Ok(b) => guardar_pairing_en_boveda(&b, origin),
+        Err(e) => format!("ERROR::no se pudieron leer los bytes: {}", e),
+    }
+}
+
+/// `RustBridge.nativeVaultImportPairing(bytes)` → guarda el registro en la
+/// bóveda con las reglas de importación externa (EscrowBag obligatorio).
 #[no_mangle]
 pub extern "system" fn Java_com_maximo_anfitrion_RustBridge_nativeVaultImportPairing(
     mut env: JNIEnv,
     _class: JClass,
     bytes: jni::objects::JByteArray,
 ) -> jstring {
+    let result = panic::catch_unwind(panic::AssertUnwindSafe(|| {
+        guardar_pairing_jni(&mut env, bytes, crate::probe::PairingOrigin::Import)
+    }));
+    jstring_out(&mut env, result.unwrap_or_else(|_| "ERROR::pánico en el núcleo".into()))
+}
+
+/// `RustBridge.nativeVaultMigratePairing(bytes)` → migración heredada
+/// (mismas reglas que la importación externa).
+#[no_mangle]
+pub extern "system" fn Java_com_maximo_anfitrion_RustBridge_nativeVaultMigratePairing(
+    mut env: JNIEnv,
+    _class: JClass,
+    bytes: jni::objects::JByteArray,
+) -> jstring {
+    let result = panic::catch_unwind(panic::AssertUnwindSafe(|| {
+        guardar_pairing_jni(&mut env, bytes, crate::probe::PairingOrigin::Migration)
+    }));
+    jstring_out(&mut env, result.unwrap_or_else(|_| "ERROR::pánico en el núcleo".into()))
+}
+
+/// `RustBridge.nativeVaultStoreFreshPairing(bytes)` → pairing recién
+/// generado por USB (EscrowBag opcional).
+#[no_mangle]
+pub extern "system" fn Java_com_maximo_anfitrion_RustBridge_nativeVaultStoreFreshPairing(
+    mut env: JNIEnv,
+    _class: JClass,
+    bytes: jni::objects::JByteArray,
+) -> jstring {
+    let result = panic::catch_unwind(panic::AssertUnwindSafe(|| {
+        guardar_pairing_jni(&mut env, bytes, crate::probe::PairingOrigin::FreshPair)
+    }));
+    jstring_out(&mut env, result.unwrap_or_else(|_| "ERROR::pánico en el núcleo".into()))
+}
+
+/// `RustBridge.nativeValidatePairing(bytes, origin)` → valida un registro
+/// SIN tocar la bóveda (pa la ruta de bóveda cerrada de Kotlin, que
+/// guarda el archivo: valida antes de escribirlo). `origin` es
+/// "import" | "migration" | "fresh" | "repair".
+#[no_mangle]
+pub extern "system" fn Java_com_maximo_anfitrion_RustBridge_nativeValidatePairing(
+    mut env: JNIEnv,
+    _class: JClass,
+    bytes: jni::objects::JByteArray,
+    origin: JString,
+) -> jstring {
     let result = panic::catch_unwind(panic::AssertUnwindSafe(|| -> String {
-        let Some(v) = current_vault() else {
-            return "ERROR::la bóveda no está abierta".to_string();
+        let nombre: String = env.get_string(&origin).map(|s| s.into()).unwrap_or_default();
+        let Some(o) = crate::probe::PairingOrigin::from_nombre(&nombre) else {
+            return format!("ERROR::origen de pairing desconocido: {}", nombre);
         };
         match env.convert_byte_array(&bytes) {
-            Ok(b) => match v.set_pairing(&b) {
-                Ok(()) => {
-                    stage(&format!(
-                        "Registro de pairing guardado en la bóveda ({} bytes)",
-                        b.len()
-                    ));
-                    "OK".to_string()
-                }
+            Ok(b) => match crate::probe::validate_pair_record(&b, o) {
+                Ok(()) => "OK".to_string(),
                 Err(e) => format!("ERROR::{}", e),
             },
             Err(e) => format!("ERROR::no se pudieron leer los bytes: {}", e),

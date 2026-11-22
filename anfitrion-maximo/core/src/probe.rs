@@ -109,6 +109,63 @@ pub fn parse_pair_record(bytes: &[u8]) -> Result<PairRecordInfo, String> {
     })
 }
 
+/// Origen de un registro de pairing que va a guardarse: la validación
+/// cambia con el origen (acuerdo v2.8.2). El EscrowBag es obligatorio
+/// solo en importación externa y migración heredada; el Pair recién
+/// generado y el rescate de re-pair lo dejan opcional — la cadena de
+/// la sonda contempla `rec.escrow_bag.is_none()` y el servicio lo
+/// recibe como opción, así que endurecerlo ahí rompería el rescate.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PairingOrigin {
+    Import,
+    Migration,
+    FreshPair,
+    Repair,
+}
+
+impl PairingOrigin {
+    pub fn require_escrow(self) -> bool {
+        matches!(self, Self::Import | Self::Migration)
+    }
+
+    /// Nombre que Kotlin pasa por JNI ("import" | "migration" | "fresh" | "repair").
+    pub fn from_nombre(nombre: &str) -> Option<Self> {
+        match nombre.trim().to_ascii_lowercase().as_str() {
+            "import" | "importacion" => Some(Self::Import),
+            "migration" | "migracion" => Some(Self::Migration),
+            "fresh" | "freshpair" | "fresco" => Some(Self::FreshPair),
+            "repair" | "rescate" => Some(Self::Repair),
+            _ => None,
+        }
+    }
+}
+
+/// Valida un registro de pairing ANTES de guardarlo, con las reglas de
+/// su origen. NO endurece `parse_pair_record` (el EscrowBag sigue siendo
+/// `Option` en toda la cadena): solo añade la comprobación de no-vacío
+/// que `texto()`/`pem()` no hacen y el requisito de EscrowBag pa los
+/// orígenes que lo exigen.
+pub fn validate_pair_record(bytes: &[u8], origin: PairingOrigin) -> Result<(), String> {
+    let rec = parse_pair_record(bytes)?;
+    let no_vacio = |nombre: &str, valor: &str| -> Result<(), String> {
+        if valor.trim().is_empty() {
+            Err(format!("el registro trae {} vacío", nombre))
+        } else {
+            Ok(())
+        }
+    };
+    no_vacio("HostID", &rec.host_id)?;
+    no_vacio("SystemBUID", &rec.system_buid)?;
+    no_vacio("HostCertificate", &rec.host_cert_pem)?;
+    no_vacio("HostPrivateKey", &rec.host_key_pem)?;
+    no_vacio("RootCertificate", &rec.root_cert_pem)?;
+    no_vacio("DeviceCertificate", &rec.device_cert_pem)?;
+    if origin.require_escrow() && rec.escrow_bag.as_ref().map_or(true, |b| b.is_empty()) {
+        return Err("el registro no trae EscrowBag (obligatorio pa importar)".to_string());
+    }
+    Ok(())
+}
+
 // ── StartService con EscrowBag (la forma del crate, hecha a mano) ────────────
 
 /// `StartService` con la clave `EscrowBag` (CFData del registro): espejo del
@@ -721,7 +778,7 @@ fn gate_vias(
         })();
         match reparado {
             Ok(xml) => {
-                match vault.set_pairing(xml.as_bytes()) {
+                match vault.set_pairing(PairingOrigin::Repair, xml.as_bytes()) {
                     Ok(()) => stage(
                         "ETAPA sonda: registro nuevo guardado en la bóveda (reemplaza al anterior)",
                     ),
@@ -1108,5 +1165,90 @@ mod tests {
         assert!(r.contains("<string>X</string>"));
         let largo = "x".repeat(4000);
         assert!(resumen_crudo(&largo).chars().count() < 1600);
+    }
+
+    // ── Bancos v2.8.2: validación del pairing con contexto ─────────────────
+
+    /// Registro a medida pa los bancos: HostID y EscrowBag variables, y
+    /// un PEM concreto vaciable (None = todos con contenido).
+    fn registro_a_medida(host_id: &str, escrow: bool, pem_vacio: Option<&str>) -> Vec<u8> {
+        let mut dict = plist::Dictionary::new();
+        let pem = |d: &mut plist::Dictionary, k: &str, v: &str| {
+            d.insert(k.into(), plist::Value::Data(v.as_bytes().to_vec()));
+        };
+        let valor = |k: &str| -> &str {
+            if pem_vacio == Some(k) {
+                ""
+            } else {
+                "-----BEGIN CERTIFICATE-----\nX\n-----END CERTIFICATE-----\n"
+            }
+        };
+        pem(&mut dict, "DeviceCertificate", valor("DeviceCertificate"));
+        pem(&mut dict, "HostCertificate", valor("HostCertificate"));
+        pem(
+            &mut dict,
+            "HostPrivateKey",
+            if pem_vacio == Some("HostPrivateKey") {
+                ""
+            } else {
+                "-----BEGIN PRIVATE KEY-----\nKEY\n-----END PRIVATE KEY-----\n"
+            },
+        );
+        pem(&mut dict, "RootCertificate", valor("RootCertificate"));
+        dict.insert("HostID".into(), plist::Value::String(host_id.into()));
+        dict.insert("SystemBUID".into(), plist::Value::String("BUID-456".into()));
+        if escrow {
+            dict.insert("EscrowBag".into(), plist::Value::Data(vec![1, 2, 3, 4]));
+        }
+        let value = plist::Value::Dictionary(dict);
+        let mut buf = Vec::new();
+        value.to_writer_xml(&mut buf).unwrap();
+        buf
+    }
+
+    /// (a) Plist malformado que contiene literalmente `<plist` y `HostID`:
+    /// la validación lo rechaza (nada de buscar texto como criterio).
+    #[test]
+    fn banco_a_malformado_no_valida() {
+        let mal = b"basura <plist <key>HostID</key> no es un plist";
+        let err = validate_pair_record(mal, PairingOrigin::Import).unwrap_err();
+        assert!(err.contains("plist"), "error inesperado: {}", err);
+    }
+
+    /// (b) Plist válido con EscrowBag: la importación lo acepta.
+    #[test]
+    fn banco_b_valido_con_escrow_importa() {
+        validate_pair_record(&registro_de_banco(), PairingOrigin::Import).unwrap();
+        validate_pair_record(&registro_de_banco(), PairingOrigin::Migration).unwrap();
+    }
+
+    /// (c) Importación externa sin EscrowBag: rechazo.
+    #[test]
+    fn banco_c_import_sin_escrow_rechaza() {
+        let sin = registro_a_medida("HOST-123", false, None);
+        let err = validate_pair_record(&sin, PairingOrigin::Import).unwrap_err();
+        assert!(err.contains("EscrowBag"), "error inesperado: {}", err);
+        let err = validate_pair_record(&sin, PairingOrigin::Migration).unwrap_err();
+        assert!(err.contains("EscrowBag"), "error inesperado: {}", err);
+    }
+
+    /// (d) Pair recién generado sin EscrowBag, con campos y 4 PEM válidos:
+    /// se acepta (el EscrowBag es opcional en esa ruta y en el rescate).
+    #[test]
+    fn banco_d_fresco_sin_escrow_acepta() {
+        let sin = registro_a_medida("HOST-123", false, None);
+        validate_pair_record(&sin, PairingOrigin::FreshPair).unwrap();
+        validate_pair_record(&sin, PairingOrigin::Repair).unwrap();
+    }
+
+    /// (e) Pair recién generado con algún campo o PEM vacío: rechazo.
+    #[test]
+    fn banco_e_fresco_campo_vacio_rechaza() {
+        let vacio_host = registro_a_medida("", true, None);
+        let err = validate_pair_record(&vacio_host, PairingOrigin::FreshPair).unwrap_err();
+        assert!(err.contains("HostID"), "error inesperado: {}", err);
+        let vacio_pem = registro_a_medida("HOST-123", true, Some("HostPrivateKey"));
+        let err = validate_pair_record(&vacio_pem, PairingOrigin::FreshPair).unwrap_err();
+        assert!(err.contains("HostPrivateKey"), "error inesperado: {}", err);
     }
 }
