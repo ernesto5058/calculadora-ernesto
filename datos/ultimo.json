@@ -1,5 +1,5 @@
 {
- "ts": "2026-11-24T04:56:14Z",
+ "ts": "2026-11-24T05:57:19Z",
  "ETECSA": {
   "average": 289.807,
   "average_buy": 292.3528,
@@ -11,13 +11,13 @@
   "window_hours": 24
  },
  "BANK_CUP": {
-  "average": 1142.6911,
+  "average": 1142.7433,
   "average_buy": 1138.2824,
-  "average_sell": 1143.7658,
-  "median_sell": 1141.0043,
-  "count": 398,
+  "average_sell": 1143.8206,
+  "median_sell": 1141.046,
+  "count": 401,
   "count_buy": 78,
-  "count_sell": 320,
+  "count_sell": 323,
   "window_hours": 24
  }
 }
