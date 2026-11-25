@@ -31,21 +31,25 @@
     position: absolute; inset: 0; pointer-events: none; opacity: .05; mix-blend-mode: overlay;
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)'/%3E%3C/svg%3E");
   }
-  svg.lineas { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
-  svg.lineas line { stroke: rgba(255,255,255,.95); stroke-width: 1.6; }
-  svg.lineas circle { fill: #fff; }
+  /* Solo % + CUP DENTRO del pedazo, en blanco con contorno oscuro fuerte.
+     Nada de etiquetas flotantes fuera del pastel: se movían con el giro,
+     se cortaban y se solapaban con los %. La identificación vive en el
+     panel CÓMO SE LLENA y en el detalle fijo de abajo. */
   .etq {
     position: absolute; transform: translate(-50%,-50%);
     text-align: center; pointer-events: none; line-height: 1.15;
-    text-shadow: 0 1px 6px rgba(0,0,0,.55);
+    color: #fff;
+    text-shadow: 0 2px 0 rgba(0,0,0,.7), 0 0 10px rgba(0,0,0,.85), 0 1px 6px rgba(0,0,0,.6);
   }
-  .etq .pct { font-size: 26px; font-weight: 800; }
-  .etq .cup { font-size: 13px; font-weight: 700; }
-  .etq.fuera { text-align: left; transform: translate(0,-50%); }
-  .etq.fuera.izq { text-align: right; transform: translate(-100%,-50%); }
-  .etq.fuera .nom { font-size: 15px; font-weight: 800; }
-  .etq.fuera .que { font-size: 12px; font-weight: 600; opacity: .92; }
-  .etq.activa .pct, .etq.activa .nom { color: #ffd97a; }
+  .etq .pct { font-size: 26px; font-weight: 800; color: #fff; }
+  .etq .cup { font-size: 13px; font-weight: 700; color: #fff; }
+  .etq.activa .pct { color: #fff; font-size: 30px; }
+  .detalle {
+    text-align: center; font-size: 15px; font-weight: 700; min-height: 22px;
+    margin: 10px 0 0; color: #fff;
+    text-shadow: 0 1px 4px rgba(0,0,0,.5);
+  }
+  .detalle .punto { display: inline-block; width: 12px; height: 12px; border-radius: 50%; margin-right: 6px; vertical-align: -1px; }
   .ayuda { text-align: center; font-size: 13px; opacity: .85; margin: 10px 0 0; }
   .panel {
     margin-top: 14px; background: rgba(255,255,255,.97); color: #0b3b4a;
@@ -73,11 +77,11 @@
   <p class="sub">Inversión en Juego + Capital &nbsp;•&nbsp; 42,613 CUP en total</p>
 
   <div class="escena" id="escena">
-    <svg class="lineas" id="lineas" preserveAspectRatio="none"></svg>
     <div class="grano"></div>
     <div class="sinwebgl" id="sinwebgl">Tu teléfono no pudo abrir la gráfica 3D, pero tus cifras siguen aquí: Caja 22,080 CUP (51.8%) · Briku 15,333 CUP (36.0%) · Yo 5,200 CUP (12.2%) · Total 42,613 CUP.</div>
   </div>
   <p class="ayuda">👆 Toca un pedazo: sale hacia fuera y se ilumina &nbsp;•&nbsp; gira despacio, solo</p>
+  <p class="detalle" id="detalle">Toca un pedazo para ver de quién es</p>
 
   <div class="panel">
     <h2>CÓMO SE LLENA</h2>
@@ -219,23 +223,24 @@ luzDedo.position.set(0, 2.5, 3);
 scene.add(luzDedo);
 const posDedo = new THREE.Vector3(0, 2.5, 3);
 
-/* Etiquetas HTML: % + CUP dentro del pedazo, nombre fuera con línea */
-const svg = document.getElementById('lineas');
+/* Etiquetas HTML: solo % + CUP DENTRO del pedazo, en blanco con contorno
+   oscuro fuerte (igual en los tres). Nada de etiquetas fuera: el nombre de
+   cada pedazo vive en el panel CÓMO SE LLENA y en el detalle fijo. */
+const detalleEl = document.getElementById('detalle');
 const etiquetas = DATOS.map((d) => {
   const dentro = document.createElement('div');
   dentro.className = 'etq';
   dentro.innerHTML = `<div class="pct">${d.pct.toFixed(1)}%</div><div class="cup">${d.valor.toLocaleString('en-US')} CUP</div>`;
   escenaEl.appendChild(dentro);
-  const fuera = document.createElement('div');
-  fuera.className = 'etq fuera';
-  fuera.innerHTML = `<div class="nom">${d.nombre}</div><div class="que">${d.que}</div>`;
-  escenaEl.appendChild(fuera);
-  const linea = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-  const punto = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-  punto.setAttribute('r', '3');
-  svg.appendChild(linea); svg.appendChild(punto);
-  return { dentro, fuera, linea, punto };
+  return { dentro };
 });
+
+function mostrarDetalle() {
+  if (activo < 0) { detalleEl.textContent = 'Toca un pedazo para ver de quién es'; return; }
+  const d = DATOS[activo];
+  const col = '#' + d.color.toString(16).padStart(6, '0');
+  detalleEl.innerHTML = `<span class="punto" style="background:${col}"></span>${d.nombre.toUpperCase()} — ${d.pct.toFixed(1)}% · ${d.valor.toLocaleString('en-US')} CUP — ${d.que}`;
+}
 
 const rayo = new THREE.Raycaster();
 const puntero = new THREE.Vector2();
@@ -244,33 +249,15 @@ let activo = -1;
 function colocarEtiquetas() {
   const rect = escenaEl.getBoundingClientRect();
   const v = new THREE.Vector3();
-  svg.setAttribute('viewBox', `0 0 ${rect.width} ${rect.height}`);
   rebanadas.forEach((r, i) => {
-    /* punto dentro del pedazo (cara superior) */
+    /* punto dentro del pedazo (cara superior) — la etiqueta vive DENTRO
+       del pedazo y gira con él; nunca sale de la tarjeta ni se solapa */
     v.set(Math.cos(r.medio) * RADIO * 0.6, Math.sin(r.medio) * RADIO * 0.6, DEPTH / 2 + BEVEL);
     r.malla.localToWorld(v); v.project(camera);
     const x = (v.x * 0.5 + 0.5) * rect.width, y = (-v.y * 0.5 + 0.5) * rect.height;
     etiquetas[i].dentro.style.left = x + 'px';
     etiquetas[i].dentro.style.top = y + 'px';
-    /* punto del borde + etiqueta fuera */
-    v.set(Math.cos(r.medio) * RADIO, Math.sin(r.medio) * RADIO, DEPTH / 2);
-    r.malla.localToWorld(v); v.project(camera);
-    const bx = (v.x * 0.5 + 0.5) * rect.width, by = (-v.y * 0.5 + 0.5) * rect.height;
-    const lado = Math.cos(r.medio) > 0.25 ? 'der' : (Math.cos(r.medio) < -0.25 ? 'izq' : 'centro');
-    const fx = lado === 'der' ? Math.min(bx + 62, rect.width - 8)
-             : lado === 'izq' ? Math.max(bx - 62, 8)
-             : bx;
-    const fy = by;
-    const f = etiquetas[i].fuera;
-    f.classList.toggle('izq', lado === 'izq');
-    f.style.left = fx + 'px'; f.style.top = fy + 'px';
-    f.classList.toggle('activa', activo === i);
     etiquetas[i].dentro.classList.toggle('activa', activo === i);
-    const L = etiquetas[i].linea, P = etiquetas[i].punto;
-    L.setAttribute('x1', bx); L.setAttribute('y1', by);
-    L.setAttribute('x2', lado === 'der' ? fx - 6 : lado === 'izq' ? fx + 6 : fx);
-    L.setAttribute('y2', fy);
-    P.setAttribute('cx', bx); P.setAttribute('cy', by);
   });
 }
 
@@ -283,6 +270,7 @@ function tocar(clientX, clientY) {
   if (!hit) { activo = -1; }
   else activo = hit.object.userData.i;
   rebanadas.forEach((r, i) => { r.malla.userData.objetivo = (i === activo) ? 1 : 0; });
+  mostrarDetalle();
 }
 renderer.domElement.addEventListener('pointerdown', (e) => tocar(e.clientX, e.clientY));
 renderer.domElement.addEventListener('pointermove', (e) => {
