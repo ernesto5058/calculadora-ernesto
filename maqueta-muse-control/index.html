@@ -239,7 +239,7 @@
   .steps li small { display: block; color: var(--muted); font-size: 12px; margin-top: 2px; }
   .steps li.locked { opacity: .5; }
   .toast {
-    position: fixed; left: 50%; bottom: 96px; transform: translateX(-50%) translateY(20px);
+    position: fixed; left: 50%; top: 12px; transform: translateX(-50%) translateY(-12px);
     background: #2a1d4d; border: 1px solid var(--acc); color: var(--txt);
     padding: 11px 18px; border-radius: 999px; font-size: 13px; font-weight: 600;
     opacity: 0; pointer-events: none; transition: all .3s ease; z-index: 50; white-space: nowrap;
@@ -250,7 +250,7 @@
   nav.bottom {
     position: fixed; left: 50%; transform: translateX(-50%);
     bottom: 0; width: 100%; max-width: 430px;
-    background: rgba(20, 12, 40, .96);
+    background: #140c28;
     border-top: 1px solid var(--line);
     display: grid; grid-template-columns: repeat(5, 1fr);
     padding: 8px 6px calc(10px + env(safe-area-inset-bottom));
@@ -265,6 +265,45 @@
   nav.bottom button.on svg { stroke: var(--acc2); }
   nav.bottom svg { width: 22px; height: 22px; }
   .foot { text-align: center; color: var(--muted); font-size: 11px; padding: 14px 20px 4px; line-height: 1.5; }
+  /* Sugerencias de órdenes (Máximo) */
+  .sugg { display: flex; flex-wrap: wrap; gap: 8px; margin: 2px 0 12px; }
+  .sugg button {
+    background: var(--card2); border: 1px solid var(--line); color: var(--acc2);
+    border-radius: 999px; padding: 8px 13px; font-size: 13px; font-weight: 600; cursor: pointer;
+    transition: transform .25s ease, border-color .25s ease; text-align: left;
+  }
+  .sugg button:active { transform: scale(.97); border-color: var(--acc); }
+  /* Leyenda de filtros (Orquesta) */
+  .legend { font-size: 12px; color: var(--muted); line-height: 1.5; margin: 0 2px 12px; }
+  .legend b { color: var(--txt); }
+  /* Enlace de evidencia (Consejo) */
+  .ev-link { background: none; border: none; padding: 0; cursor: pointer; font-size: inherit; text-align: left; }
+  .ev-link b { color: var(--acc2); text-decoration: underline; }
+  /* Avatar del agente explore */
+  .av.explore { background: linear-gradient(135deg, #64748b, #1e293b); }
+  /* Vista de listado completo (overlay) */
+  .overlay {
+    position: fixed; top: 0; left: 50%; transform: translateX(-50%);
+    width: 100%; max-width: 430px; height: 100dvh; z-index: 60;
+    background: linear-gradient(180deg, var(--bg2) 0%, var(--bg) 30%);
+    display: none; flex-direction: column;
+  }
+  .overlay.open { display: flex; }
+  .ov-head {
+    display: flex; align-items: center; gap: 12px;
+    padding: calc(14px + env(safe-area-inset-top)) 16px 12px;
+    border-bottom: 1px solid var(--line);
+  }
+  .ov-head button {
+    background: var(--card); border: 1px solid var(--line); color: var(--txt);
+    border-radius: 999px; padding: 8px 14px; font-size: 13px; font-weight: 700; cursor: pointer; flex: none;
+  }
+  .ov-head h2 { font-size: 17px; }
+  .ov-body { overflow-y: auto; padding: 14px 16px 24px; }
+  .ov-note { font-size: 12px; color: var(--muted); margin-bottom: 10px; line-height: 1.5; }
+  .frag { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 13px 14px; margin-bottom: 10px; }
+  .frag b { font-size: 12.5px; color: var(--acc2); display: block; margin-bottom: 6px; }
+  .frag p { font-size: 13.5px; line-height: 1.6; color: #ddd6f3; }
 </style>
 </head>
 <body>
@@ -277,7 +316,7 @@
       <div class="avatar">M</div>
       <div><small>Bienvenido de nuevo</small><strong>Ernesto</strong></div>
     </div>
-    <div class="bell" onclick="toast('Sin alertas nuevas en la maqueta')">
+    <div class="bell" onclick="openList('alertas')">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#c4b5fd" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>
       <span class="dot"></span>
     </div>
@@ -290,36 +329,36 @@
 
     <div class="grid2">
       <div class="card"><h3>Estado de Muse</h3><div class="big">En línea</div><span class="pill ok"><span class="d"></span>Saludable</span></div>
-      <div class="card"><h3>Agentes disponibles</h3><div class="big">4 <small>/ 4</small></div><span class="pill ok"><span class="d"></span>Todos listos</span></div>
+      <div class="card"><h3>Agentes disponibles</h3><div class="big">4 <small>/ 5</small></div><span class="pill warn"><span class="d"></span>1 sin conexión</span></div>
       <div class="card"><h3>Tareas activas</h3><div class="big">2</div><span class="pill run"><span class="d"></span>1 ejecutándose</span></div>
-      <div class="card"><h3>Alertas</h3><div class="big">1</div><span class="pill warn"><span class="d"></span>Revisar zrok</span></div>
+      <div class="card"><h3>Alertas</h3><div class="big">2</div><span class="pill warn"><span class="d"></span>Revisar zrok</span></div>
     </div>
 
     <div class="sec-title"><h2>Servicios</h2><a onclick="go('taller')">Ver taller</a></div>
     <div class="card">
       <div class="svc">
         <div class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#c4b5fd" stroke-width="2" stroke-linecap="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg></div>
-        <div><b>OpenCode 2.3.2</b><span>Puerto 4096 · motor de ejecución</span></div>
+        <div><b>OpenCode 2.3.2</b><span>Puerto 4096 · motor de ejecución · comprobado hace 2 min</span></div>
         <div class="st"><span class="pill ok"><span class="d"></span>Arriba</span></div>
       </div>
       <div class="svc">
         <div class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#c4b5fd" stroke-width="2" stroke-linecap="round"><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/><rect x="7" y="7" width="10" height="10" rx="2"/></svg></div>
-        <div><b>Shim</b><span>Puerto 4097 · puente de proveedores</span></div>
+        <div><b>Shim</b><span>Puerto 4097 · puente de proveedores · comprobado hace 2 min</span></div>
         <div class="st"><span class="pill ok"><span class="d"></span>Arriba</span></div>
       </div>
       <div class="svc">
         <div class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 0 20 15.3 15.3 0 0 1 0-20z"/></svg></div>
-        <div><b>zrok</b><span>Túnel · opencodeernesto.share.zrok.io</span></div>
+        <div><b>zrok</b><span>Túnel · opencodeernesto.share.zrok.io · comprobado hace 5 min</span></div>
         <div class="st"><span class="pill warn"><span class="d"></span>Público</span></div>
       </div>
       <div class="svc">
         <div class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#c4b5fd" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></div>
-        <div><b>SearXNG</b><span>Puerto 8080 · búsqueda</span></div>
+        <div><b>SearXNG</b><span>Puerto 8080 · búsqueda · comprobado hace 9 min</span></div>
         <div class="st"><span class="pill ok"><span class="d"></span>Arriba</span></div>
       </div>
     </div>
 
-    <div class="sec-title"><h2>Alertas y errores</h2><a onclick="toast('Solo hay 1 alerta en la maqueta')">Ver todas</a></div>
+    <div class="sec-title"><h2>Alertas y errores</h2><a onclick="openList('alertas')">Ver todas</a></div>
     <div class="alert red">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f87171" stroke-width="2" stroke-linecap="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
       <div><b>El túnel zrok es público</b><span>La API del shim responde sin autenticación de cliente. Antes de usarlo como puerta de mando hay que cerrarlo: share privado o auth por cliente.</span></div>
@@ -329,7 +368,7 @@
       <div><b>RAM ajustada: 1,2 GB libres</b><span>La PWA y un adaptador ligero sí caben. Nada de base de datos grande ni modelos locales.</span></div>
     </div>
 
-    <div class="sec-title"><h2>Acciones rápidas</h2><a>Ver todas</a></div>
+    <div class="sec-title"><h2>Acciones rápidas</h2><a onclick="openList('acciones')">Ver todas</a></div>
     <div class="qa">
       <button onclick="go('maximo')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#c4b5fd" stroke-width="2" stroke-linecap="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>Hablar con Máximo</button>
       <button onclick="go('orquesta')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#c4b5fd" stroke-width="2" stroke-linecap="round"><circle cx="9" cy="7" r="4"/><path d="M2 21v-2a4 4 0 0 1 4-4h6a4 4 0 0 1 4 4v2"/></svg>Ver la orquesta</button>
@@ -337,13 +376,13 @@
       <button onclick="go('taller')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#c4b5fd" stroke-width="2" stroke-linecap="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>Abrir el Taller</button>
     </div>
 
-    <div class="sec-title"><h2>Actividad reciente</h2><a onclick="go('orquesta')">Ver todas</a></div>
+    <div class="sec-title"><h2>Actividad reciente</h2><a onclick="openList('actividad')">Ver todas</a></div>
     <div class="card">
       <div class="act"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg></div><div><b>Auditoría Fase 0 completada</b><span>Infra, API y Consejo revisados en vivo</span></div><time>02:27</time></div>
       <div class="act"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div><div><b>Servicios rearrancados solos</b><span>Tras el reinicio de la máquina, el timer los levantó</span></div><time>01:14</time></div>
       <div class="act"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" stroke-width="2" stroke-linecap="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/></svg></div><div><b>WhatsApp Baileys cayó 2 veces</b><span>Reinicios de máquina; levantado a mano</span></div><time>01:20</time></div>
     </div>
-    <p class="foot">Muse Control · Maqueta v1 · Los datos de esta pantalla son de ejemplo.</p>
+    <p class="foot">Muse Control · Maqueta v2 · Los datos de esta pantalla son de ejemplo.</p>
   </section>
 
   <!-- ============ 02 MÁXIMO ============ -->
@@ -352,6 +391,11 @@
     <p class="sub">Conversación principal. Escribe una orden en lenguaje natural.</p>
     <div class="chat" id="chat">
       <div class="msg bot"><b>Máximo</b><br>Hola Ernesto, soy yo. Dime qué quieres que haga la orquesta y te preparo el plan. Nada se ejecuta sin que tú lo apruebes.</div>
+    </div>
+    <div class="sugg" id="sugg">
+      <button onclick="suggestOrder('Revisa el estado de la orquesta')">Revisa el estado de la orquesta</button>
+      <button onclick="suggestOrder('Convoca a Gemini y Nemotron')">Convoca a Gemini y Nemotron</button>
+      <button onclick="suggestOrder('Resume los desacuerdos')">Resume los desacuerdos</button>
     </div>
     <div class="composer">
       <input id="chatInput" type="text" placeholder="Escribe una orden…" autocomplete="off" onkeydown="if(event.key==='Enter')sendOrder()">
@@ -371,20 +415,17 @@
       <input id="agentSearch" type="text" placeholder="Buscar agentes" oninput="filterAgents()">
     </div>
     <div class="chips" id="chips">
-      <button class="chip on" data-f="all" onclick="setFilter('all',this)">All</button>
-      <button class="chip" data-f="active" onclick="setFilter('active',this)">Active</button>
-      <button class="chip" data-f="idle" onclick="setFilter('idle',this)">Idle</button>
-      <button class="chip" data-f="offline" onclick="setFilter('offline',this)">Offline</button>
-      <button class="chip" data-f="busy" onclick="setFilter('busy',this)">Busy</button>
+      <button class="chip on" data-f="all" onclick="setFilter('all',this)">Todos</button>
+      <button class="chip" data-f="active" onclick="setFilter('active',this)">Activos</button>
+      <button class="chip" data-f="idle" onclick="setFilter('idle',this)">En espera</button>
+      <button class="chip" data-f="offline" onclick="setFilter('offline',this)">Sin conexión</button>
+      <button class="chip" data-f="busy" onclick="setFilter('busy',this)">Ocupados</button>
     </div>
+    <p class="legend"><b>Activos</b> agrupa Activo y Respondió · <b>En espera</b> es Disponible · <b>Ocupados</b> es Ejecutando · <b>Sin conexión</b> es el agente sin conexión.</p>
     <div id="agentList"></div>
 
-    <div class="sec-title"><h2>Actividad reciente</h2><a>Ver todas</a></div>
-    <div class="card">
-      <div class="act"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg></div><div><b>Gemini respondió la ronda 2</b><span>Consejo · auditoría de arquitectura</span></div><time>hace 4 min</time></div>
-      <div class="act"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div><div><b>Nemotron empezó la contraparte</b><span>Consejo · revisando a Gemini</span></div><time>hace 2 min</time></div>
-      <div class="act"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></div><div><b>Hermes trajo 15 fragmentos</b><span>Evidencia · documentación oficial</span></div><time>hace 9 min</time></div>
-    </div>
+    <div class="sec-title"><h2>Actividad reciente</h2><a onclick="openList('actividad')">Ver todas</a></div>
+    <div class="card" id="orchActivity"></div>
     <p class="foot">Estados: disponible = listo · ejecutando = trabajando ahora · respondió = entregó su respuesta real.</p>
   </section>
 
@@ -408,8 +449,8 @@
 
     <div class="sec-title"><h2>Respuestas individuales</h2></div>
     <div class="card">
-      <div class="voice gemini"><b>Gemini — auditoría</b><p>El fallo está en la inicialización del puente de red: el build 90 intenta abrir el túnel antes de que el servicio local responda, y el reintento no espera al evento de listo.</p><p class="evidence">Evidencia: <b>2 fragmentos Hermes</b> (registro de arranque, doc del puente) · cita válida</p></div>
-      <div class="voice nemotron"><b>Nemotron — contraparte</b><p>No es el túnel. El registro muestra que el servicio local sí respondió; lo que falla es la validación del certificado del build 90, que caducó con el cambio de firma.</p><p class="evidence">Evidencia: <b>1 fragmento Hermes</b> (registro de arranque) · cita válida</p></div>
+      <div class="voice gemini"><b>Gemini — auditoría</b><p>El fallo está en la inicialización del puente de red: el build 90 intenta abrir el túnel antes de que el servicio local responda, y el reintento no espera al evento de listo.</p><p class="evidence">Evidencia: <button class="ev-link" onclick="openEvidence('gemini')"><b>2 fragmentos Hermes</b></button> (registro de arranque, doc del puente) · cita válida · toca para leerlos</p></div>
+      <div class="voice nemotron"><b>Nemotron — contraparte</b><p>No es el túnel. El registro muestra que el servicio local sí respondió; lo que falla es la validación del certificado del build 90, que caducó con el cambio de firma.</p><p class="evidence">Evidencia: <button class="ev-link" onclick="openEvidence('nemotron')"><b>1 fragmento Hermes</b></button> (registro de arranque) · cita válida · toca para leerlo</p></div>
     </div>
 
     <div class="alert red">
@@ -439,7 +480,7 @@
     <h1>Taller</h1>
     <p class="sub">Programación y operaciones de OpenCode.</p>
 
-    <div class="sec-title"><h2>Sesiones de OpenCode</h2><a>Ver todas</a></div>
+    <div class="sec-title"><h2>Sesiones de OpenCode</h2><a onclick="openList('sesiones')">Ver todas</a></div>
     <div class="card">
       <div class="svc"><div class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" stroke-width="2" stroke-linecap="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg></div><div><b>maqueta-libreta · pastel 3D</b><span>Gemini 3.1 Flash Lite · hace 12 min</span></div><div class="st"><span class="pill run"><span class="d"></span>Activa</span></div></div>
       <div class="svc"><div class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg></div><div><b>juego-v9 · parte del trabajador</b><span>Gemini 3.1 Flash Lite · hace 1 h</span></div><div class="st"><span class="pill ok"><span class="d"></span>Terminada</span></div></div>
@@ -485,7 +526,7 @@
       <div class="act"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#f87171" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></div><div><b>Despliegue rechazado</b><span>Maqueta v7-u2net · en cuarentena</span></div><time>ayer</time></div>
       <div class="act"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div><div><b>Pruebas del banco: 72/72</b><span>Juego v9 · sin fallos</span></div><time>ayer</time></div>
     </div>
-    <p class="foot">Taller · Maqueta v1 · Ningún despliegue o comando destructivo se ejecuta sin tu autorización.</p>
+    <p class="foot">Taller · Maqueta v2 · Ningún despliegue o comando destructivo se ejecuta sin tu autorización.</p>
   </section>
 
   <!-- ============ BARRA INFERIOR ============ -->
@@ -511,6 +552,14 @@
       Taller
     </button>
   </nav>
+
+  <div class="overlay" id="overlay">
+    <div class="ov-head">
+      <button onclick="closeList()">‹ Volver</button>
+      <h2 id="ovTitle"></h2>
+    </div>
+    <div class="ov-body" id="ovBody"></div>
+  </div>
 
   <div class="toast" id="toast"></div>
 </div>
@@ -551,7 +600,11 @@
     { name: 'Hermes', role: 'Evidencia · búsqueda rápida', cls: 'hermes', init: 'H',
       status: 'idle', statusLabel: 'Disponible', statusCls: 'idle',
       tasks: 15, success: '100%', last: 'hace 9 min', usage: 33,
-      note: '<b>Disponible.</b> Ya trajo sus 15 fragmentos y espera la próxima pregunta. Solo da evidencia, nunca opina.' }
+      note: '<b>Disponible.</b> Ya trajo sus 15 fragmentos y espera la próxima pregunta. Solo da evidencia, nunca opina.' },
+    { name: 'explore', role: 'Agente de OpenCode · exploración de código', cls: 'explore', init: 'E',
+      status: 'offline', statusLabel: 'Sin conexión', statusCls: 'bad',
+      tasks: 0, success: '—', last: 'hace 3 h', usage: 0,
+      note: '<b>Sin conexión (ejemplo).</b> Es uno de los 7 agentes de OpenCode y en esta maqueta está offline, para que el filtro Sin conexión tenga algo que mostrar. No participa en el Consejo.' }
   ];
   var currentFilter = 'all';
 
@@ -586,16 +639,66 @@
     for (var i = 0; i < chips.length; i++) chips[i].classList.remove('on');
     el.classList.add('on');
     renderAgents();
+    renderOrchActivity();
   }
-  function filterAgents() { renderAgents(); }
+  function filterAgents() { renderAgents(); renderOrchActivity(); }
   renderAgents();
+
+  /* ---------- Orquesta: actividad reciente (sigue al buscador y a los filtros) ---------- */
+  var actIcons = {
+    check: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>',
+    clock: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>',
+    search: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>',
+    x: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#f87171" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>'
+  };
+  var activities = [
+    { agent: 'Gemini', icon: 'check', title: 'Gemini respondió la ronda 2', sub: 'Consejo · auditoría de arquitectura', time: 'hace 4 min' },
+    { agent: 'Nemotron', icon: 'clock', title: 'Nemotron empezó la contraparte', sub: 'Consejo · revisando a Gemini', time: 'hace 2 min' },
+    { agent: 'Hermes', icon: 'search', title: 'Hermes trajo 15 fragmentos', sub: 'Evidencia · documentación oficial', time: 'hace 9 min' },
+    { agent: 'Máximo', icon: 'check', title: 'Máximo abrió la ronda 2 del Consejo', sub: 'Orquesta · deliberación 183058', time: 'hace 12 min' },
+    { agent: 'Gemini', icon: 'check', title: 'Gemini terminó la ronda 1', sub: 'Consejo · 2 citas válidas de Hermes', time: 'hace 26 min' },
+    { agent: 'explore', icon: 'x', title: 'explore se desconectó', sub: 'OpenCode · agente sin conexión', time: 'hace 3 h' }
+  ];
+  function agentStatusOf(name) {
+    for (var i = 0; i < agents.length; i++) if (agents[i].name === name) return agents[i].status;
+    return '';
+  }
+  function activityMatches(a) {
+    var q = (document.getElementById('agentSearch').value || '').toLowerCase();
+    if (currentFilter !== 'all' && agentStatusOf(a.agent) !== currentFilter) return false;
+    if (q && a.agent.toLowerCase().indexOf(q) === -1 && a.title.toLowerCase().indexOf(q) === -1 && a.sub.toLowerCase().indexOf(q) === -1) return false;
+    return true;
+  }
+  function activityHtml(a) {
+    return '<div class="act"><div class="ic">' + actIcons[a.icon] + '</div><div><b>' + a.title + '</b><span>' + a.sub + '</span></div><time>' + a.time + '</time></div>';
+  }
+  function renderOrchActivity() {
+    var box = document.getElementById('orchActivity');
+    if (!box) return;
+    var html = '';
+    var shown = 0;
+    for (var i = 0; i < activities.length && shown < 3; i++) {
+      if (!activityMatches(activities[i])) continue;
+      shown++;
+      html += activityHtml(activities[i]);
+    }
+    if (!shown) html = '<div style="text-align:center; color:var(--muted); font-size:13px; padding:10px 0;">Ninguna actividad coincide con ese filtro.</div>';
+    box.innerHTML = html;
+  }
+  renderOrchActivity();
 
   /* ---------- Máximo: chat de ejemplo ---------- */
   var planShown = false;
+  function suggestOrder(text) {
+    document.getElementById('chatInput').value = text;
+    sendOrder();
+  }
   function sendOrder() {
     var input = document.getElementById('chatInput');
     var text = (input.value || '').trim();
     if (!text) { toast('Escribe primero una orden'); return; }
+    var sugg = document.getElementById('sugg');
+    if (sugg) sugg.style.display = 'none';
     var chat = document.getElementById('chat');
     var me = document.createElement('div');
     me.className = 'msg me';
@@ -627,6 +730,88 @@
       ? '<span style="color:var(--green); font-weight:700; font-size:13px;">Aprobado en la maqueta — en la versión real aquí empezaría el trabajo.</span>'
       : '<span style="color:var(--red); font-weight:700; font-size:13px;">Rechazado en la maqueta — no se ejecuta nada.</span>';
     toast(ok ? 'Plan aprobado (maqueta)' : 'Plan rechazado (maqueta)');
+  }
+
+  /* ---------- Listados completos (overlay) ---------- */
+  var alertsData = [
+    { cls: 'red', title: 'El túnel zrok es público', sub: 'La API del shim responde sin autenticación de cliente. Antes de usarlo como puerta de mando hay que cerrarlo: share privado o auth por cliente.', time: '02:27' },
+    { cls: 'amber', title: 'RAM ajustada: 1,2 GB libres', sub: 'La PWA y un adaptador ligero sí caben. Nada de base de datos grande ni modelos locales.', time: '02:27' }
+  ];
+  var sessionsData = [
+    { name: 'maqueta-libreta · pastel 3D', sub: 'Gemini 3.1 Flash Lite · hace 12 min', pill: 'run', label: 'Activa' },
+    { name: 'juego-v9 · parte del trabajador', sub: 'Gemini 3.1 Flash Lite · hace 1 h', pill: 'ok', label: 'Terminada' },
+    { name: 'consejo-fase2 · diseño', sub: 'Sin modelo · en espera', pill: 'idle', label: 'Pausada' },
+    { name: 'maqueta-muse-control', sub: 'Gemini 3.1 Flash Lite · hace 30 min', pill: 'run', label: 'Activa' },
+    { name: 'vigia-ofertas-qvapay', sub: 'Gemini 3.1 Flash Lite · hace 48 min', pill: 'run', label: 'Activa' },
+    { name: 'exporte-completo', sub: 'Gemini 3.1 Flash Lite · ayer', pill: 'ok', label: 'Terminada' }
+  ];
+  var actionsData = [
+    { label: 'Hablar con Máximo', go: 'maximo' },
+    { label: 'Ver la orquesta', go: 'orquesta' },
+    { label: 'Revisar el Consejo', go: 'consejo' },
+    { label: 'Abrir el Taller', go: 'taller' },
+    { label: 'Convocar a Gemini y Nemotron', order: 'Convoca a Gemini y Nemotron' },
+    { label: 'Pedir una auditoría', order: 'Audita la arquitectura de Muse y busca problemas de seguridad' },
+    { label: 'Revisar el túnel zrok', list: 'alertas' },
+    { label: 'Ver todas las sesiones', go: 'taller' }
+  ];
+  var evidenceData = {
+    gemini: { title: 'Evidencia de Gemini · 2 fragmentos', items: [
+      { tag: 'herm_014 · registro de arranque', text: '«…el build 90 intenta abrir el túnel antes de que el servicio local responda en 127.0.0.1:4096; el reintento no espera al evento de listo…»' },
+      { tag: 'herm_021 · doc del puente', text: '«…el puente de red debe esperar al evento ready del servicio local antes de abrir el túnel; si no, la primera conexión se rechaza…»' }
+    ]},
+    nemotron: { title: 'Evidencia de Nemotron · 1 fragmento', items: [
+      { tag: 'herm_014 · registro de arranque', text: '«…02:14:07 el servicio local respondió 200 en /api/info; 02:14:09 la validación del certificado del build 90 falló, caducado con el cambio de firma…»' }
+    ]}
+  };
+  function openOverlay(title, bodyHtml) {
+    document.getElementById('ovTitle').textContent = title;
+    document.getElementById('ovBody').innerHTML = bodyHtml;
+    document.getElementById('overlay').classList.add('open');
+    window.scrollTo({ top: 0 });
+  }
+  function closeList() {
+    document.getElementById('overlay').classList.remove('open');
+  }
+  function openList(kind) {
+    if (kind === 'alertas') {
+      var h = '<p class="ov-note">2 alertas en la maqueta. La campana de arriba abre este mismo listado.</p>';
+      for (var i = 0; i < alertsData.length; i++) {
+        h += '<div class="alert ' + alertsData[i].cls + '"><div><b>' + alertsData[i].title + '</b><span>' + alertsData[i].sub + '</span></div></div>';
+      }
+      openOverlay('Alertas y errores', h);
+    } else if (kind === 'actividad') {
+      var total = activities.length, shown = 0, h2 = '';
+      for (var j = 0; j < activities.length; j++) {
+        if (!activityMatches(activities[j])) continue;
+        shown++;
+        h2 += activityHtml(activities[j]);
+      }
+      if (!shown) h2 = '<div style="text-align:center; color:var(--muted); font-size:13px; padding:10px 0;">Ninguna actividad coincide con ese filtro.</div>';
+      openOverlay('Actividad reciente', '<p class="ov-note">Mostrando ' + shown + ' de ' + total + ' actividades. En Orquesta, el buscador y los filtros también filtran este listado.</p><div class="card">' + h2 + '</div>');
+    } else if (kind === 'sesiones') {
+      var h3 = '<p class="ov-note">6 sesiones de OpenCode (datos de ejemplo).</p><div class="card">';
+      for (var k = 0; k < sessionsData.length; k++) {
+        h3 += '<div class="svc"><div class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#c4b5fd" stroke-width="2" stroke-linecap="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg></div><div><b>' + sessionsData[k].name + '</b><span>' + sessionsData[k].sub + '</span></div><div class="st"><span class="pill ' + sessionsData[k].pill + '"><span class="d"></span>' + sessionsData[k].label + '</span></div></div>';
+      }
+      openOverlay('Sesiones de OpenCode', h3 + '</div>');
+    } else if (kind === 'acciones') {
+      var h4 = '<p class="ov-note">Todas las acciones rápidas de la maqueta.</p><div class="qa">';
+      for (var m = 0; m < actionsData.length; m++) {
+        var a = actionsData[m];
+        var fn = a.go ? "closeList(); go('" + a.go + "')" : (a.order ? "closeList(); go('maximo'); suggestOrder('" + a.order + "')" : "openList('alertas')");
+        h4 += '<button onclick="' + fn + '">' + a.label + '</button>';
+      }
+      openOverlay('Acciones rápidas', h4 + '</div>');
+    }
+  }
+  function openEvidence(who) {
+    var d = evidenceData[who];
+    var h = '<p class="ov-note">Fragmentos traídos por Hermes (datos de ejemplo, basados en la corrida 183058).</p>';
+    for (var i = 0; i < d.items.length; i++) {
+      h += '<div class="frag"><b>' + d.items[i].tag + '</b><p>' + d.items[i].text + '</p></div>';
+    }
+    openOverlay(d.title, h);
   }
 
   /* ---------- Taller ---------- */
