@@ -64,7 +64,7 @@ body{font-family:var(--fuente);background:var(--bg-0);color:var(--txt-1);overflo
 .barra{height:10px;border-radius:999px;background:var(--bg-2);overflow:hidden;margin-top:8px}
 .barra i{display:block;height:100%;border-radius:999px;background:var(--dorado-grad);transition:width 2s var(--lento)}
 .btn{display:block;width:100%;min-height:52px;border:0;border-radius:999px;background:var(--dorado-grad);color:#1A1405;font-size:16px;font-weight:700;font-family:var(--fuente);cursor:pointer;box-shadow:var(--sombra-boton);transition:transform .25s var(--lento),box-shadow .25s var(--lento)}
-.btn:active{transform:translateY(2px) scale(.98);box-shadow:var(--sombra-boton-hundido)}
+.btn:active{transform:translateY(2px) scale(.98);filter:brightness(.93);box-shadow:var(--sombra-boton-hundido)}
 .btn.sec{box-shadow:0 6px 16px rgba(0,0,0,.4),inset 0 1px 0 rgba(255,255,255,.06)}
 .btn.sec:active{transform:translateY(2px) scale(.98);box-shadow:0 2px 6px rgba(0,0,0,.4)}
 .btn.sec{background:var(--bg-2);color:var(--txt-1);border:1px solid var(--borde-fuerte);box-shadow:none}
@@ -73,17 +73,21 @@ body{font-family:var(--fuente);background:var(--bg-0);color:var(--txt-1);overflo
 .pasos .n{width:28px;height:28px;border-radius:50%;background:rgba(232,184,75,.14);border:1px solid rgba(232,184,75,.35);color:var(--dorado);display:grid;place-items:center;font-weight:800;font-size:14px}
 .pasos p{margin:2px 0 12px;font-size:14px;line-height:1.45;color:var(--txt-2)}
 .pasos p b{color:var(--txt-1)}
-.tabs{position:absolute;left:0;right:0;bottom:0;display:grid;grid-template-columns:repeat(5,1fr);background:rgba(18,22,31,.78);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border-top:1px solid var(--borde);padding:8px 4px calc(10px + env(safe-area-inset-bottom));box-shadow:var(--sombra-flotante)}
+.tabs{position:absolute;left:12px;right:12px;bottom:calc(10px + env(safe-area-inset-bottom));display:grid;grid-template-columns:repeat(5,1fr);background:rgba(18,22,31,.85);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border:1px solid var(--borde);border-radius:20px;padding:8px 4px 10px;box-shadow:var(--sombra-flotante)}
 .tabs button{background:none;border:0;color:var(--txt-3);font-family:var(--fuente);font-size:10.5px;font-weight:700;min-height:48px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px}
 .tabs button svg{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
 .tabs button.activo{color:var(--dorado)}
 .pastel-wrap{display:flex;flex-direction:column;align-items:center;gap:4px;filter:drop-shadow(0 12px 22px rgba(0,0,0,.45))}
-.pastel-wrap svg{width:240px;height:240px;overflow:visible}
-.rebanada{cursor:pointer;transition:transform 1.2s var(--lento),opacity 1.2s var(--lento);transform-origin:150px 150px}
+.pastel-wrap svg{width:280px;height:280px;overflow:visible}
+.rebanada{cursor:pointer;transition:transform .7s var(--lento),opacity .7s var(--lento);transform-origin:180px 180px}
 .rebanada.sel{filter:drop-shadow(0 6px 14px rgba(0,0,0,.45))}
 .rebanada text{font-family:var(--fuente);font-weight:800;fill:#0B1210;text-anchor:middle;pointer-events:none}
 .rebanada text.etq-fuera{fill:#F2F5F9;font-weight:800}
 .rebanada text.etq-fuera-cup{fill:rgba(242,245,249,.75);font-weight:700}
+.giro{transform-box:view-box;transform-origin:180px 180px}
+.etq text{font-family:var(--fuente);font-weight:800;fill:#F2F5F9;text-anchor:middle;pointer-events:none}
+.etq .cup{fill:rgba(242,245,249,.75);font-weight:700}
+.etq.sel text{fill:var(--dorado-claro)}
 .leyenda{display:flex;flex-direction:column;gap:8px;width:100%;margin-top:10px}
 .leyenda-fila{display:flex;align-items:center;gap:10px;width:100%;min-height:48px;padding:8px 12px;border-radius:14px;border:1px solid var(--borde);background:var(--bg-2);color:var(--txt-1);font-family:var(--fuente);font-size:14px;text-align:left;cursor:pointer}
 .leyenda-fila.sel{border-color:var(--dorado);background:rgba(232,184,75,.12);box-shadow:0 6px 16px rgba(232,184,75,.16),inset 0 1px 0 rgba(255,255,255,.06)}
@@ -121,7 +125,7 @@ label{display:block;font-size:13px;font-weight:600;color:var(--txt-2);margin:0 0
 .lista-apuntes b{color:var(--txt-1)}
 .vacio{text-align:center;color:var(--txt-3);font-size:13px;padding:12px 0}
 .pie-pagina{font-size:11px;color:var(--txt-3);text-align:center;padding-bottom:4px}
-@media (max-height:700px){.hero .cifra{font-size:30px}.pastel-wrap svg{width:210px;height:210px}}
+@media (max-height:700px){.hero .cifra{font-size:30px}.pastel-wrap svg{width:240px;height:240px}}
 </style>
 </head>
 <body>
@@ -166,7 +170,7 @@ label{display:block;font-size:13px;font-weight:600;color:var(--txt-2);margin:0 0
       <h2>El pastel del ciclo 22 <span class="etiqueta-estado est-cerrado">CERRADO</span></h2>
       <p class="sub">Tócalo: cada pedazo dice su % y su cantidad, los dos juntos.</p>
       <div class="pastel-wrap">
-        <svg id="pastel22" viewBox="0 0 300 300" role="img" aria-label="Pastel del ciclo 22: reinversión 70.7 por ciento, 1,811 CUP; Briku 19.5 por ciento, 500 CUP; yo 9.8 por ciento, 250 CUP"></svg>
+        <svg id="pastel22" viewBox="0 0 360 360" role="img" aria-label="Pastel del ciclo 22: reinversión 70.7 por ciento, 1,811 CUP; Briku 19.5 por ciento, 500 CUP; yo 9.8 por ciento, 250 CUP"></svg>
         <div class="leyenda" id="leyenda22" aria-label="Leyenda del pastel del ciclo 22"></div>
         <div class="detalle-pastel" id="detalle22">Ganancia total <b class="num">2,562.74 CUP</b> · toca un pedazo para verlo</div>
       <p class="ayuda" style="text-align:center">Los pedazos suman 2,561 CUP porque son tus números redondeados (Briku 512.55 → 500 · yo 256.27 → 250 · reinversión 1,793.92 → 1,811). La ganancia exacta es 2,562.74 CUP; la diferencia es 1.74 CUP de redondeo.</p>
@@ -228,7 +232,7 @@ label{display:block;font-size:13px;font-weight:600;color:var(--txt-2);margin:0 0
       <p class="sub">El efectivo que vuelve a ti al vender los QUSD.</p>
       <div class="ecu">% de equilibrio = libro ÷ salida − 1</div>
       <p class="sub" id="ej-transf">Más de ese % ya ganas · ahora mismo: 18.8% con libro 1,140 y salida 960.</p>
-      <div class="ecu">Margen % = (1 + %) × salida ÷ libro − 1</div>
+      <div class="ecu">Margen % = (1 + %) × salida ÷ libro −&nbsp;1</div>
       <p class="sub">Tu % de ganancia en la vuelta completa.</p>
     </div>
     <div class="card">
@@ -258,7 +262,7 @@ label{display:block;font-size:13px;font-weight:600;color:var(--txt-2);margin:0 0
       <h2>Reparto del dinero</h2>
       <p class="sub" id="sub-proy">Tu proyección: 20,000 + 20,000 + 1,250. Tócala para ver cada parte.</p>
       <div class="pastel-wrap">
-        <svg id="pastelProy" viewBox="0 0 300 300" role="img" aria-label="Pastel de proyección: ciclo 23, 20,000 CUP; ciclo 24, 20,000 CUP; resto 1,250 CUP"></svg>
+        <svg id="pastelProy" viewBox="0 0 360 360" role="img" aria-label="Pastel de proyección: ciclo 23, 20,000 CUP; ciclo 24, 20,000 CUP; resto 1,250 CUP"></svg>
         <div class="leyenda" id="leyendaProy" aria-label="Leyenda del pastel de proyección"></div>
         <div class="detalle-pastel" id="detalleProy">Total <b class="num">41,250 CUP</b> · toca un pedazo para verlo</div>
       </div>
@@ -413,41 +417,45 @@ function construirLeyenda(leyendaId, svgId, partes, total){
   });
 }
 function dibujarPastel(svgId, partes, total, detalleId, animar){
-  var svg = $(svgId), cx = 150, cy = 150, R = 102, r = 52, html = "";
+  var svg = $(svgId), cx = 180, cy = 180, R = 95, r = 46, rebanadas = "", etiquetas = "";
   var ang = 0; /* el pedazo más grande empieza en las 12 y sigue en sentido horario */
   var dec = svgId === "pastel22" ? 2 : 0;
   partes.forEach(function(p, i){
     var a0 = ang, a1 = ang + p.pct / 100 * 360; ang = a1;
     var medio = (a0 + a1) / 2;
     var txt = pctTxt(p.pct) + "%";
-    var fuera = p.pct <= 10;
-    var etiqueta, linea = "";
-    if(fuera){
-      var borde = polar(cx, cy, R + 4, medio), punta = polar(cx, cy, R + 26, medio);
-      linea = '<line x1="' + borde[0].toFixed(1) + '" y1="' + borde[1].toFixed(1) + '" x2="' + punta[0].toFixed(1) + '" y2="' + punta[1].toFixed(1) + '" stroke="rgba(242,245,249,.65)" stroke-width="1"/>';
-      etiqueta = '<text class="etq-fuera" x="' + punta[0].toFixed(1) + '" y="' + (punta[1] - 2).toFixed(1) + '" font-size="13">' + txt + '</text>'
-        + '<text class="etq-fuera-cup" x="' + punta[0].toFixed(1) + '" y="' + (punta[1] + 12).toFixed(1) + '" font-size="10">' + fmt(p.cup) + ' CUP</text>';
-    } else {
-      var centro = polar(cx, cy, (R + r) / 2, medio);
-      etiqueta = '<text x="' + centro[0].toFixed(1) + '" y="' + (centro[1] - 1).toFixed(1) + '" font-size="16">' + txt + '</text>'
-        + '<text x="' + centro[0].toFixed(1) + '" y="' + (centro[1] + 14).toFixed(1) + '" font-size="10">' + fmt(p.cup) + ' CUP</text>';
-    }
-    html += '<g class="rebanada" data-i="' + i + '" data-medio="' + medio.toFixed(1) + '">'
-      + '<path d="' + donut(cx, cy, R, r, a0, a1) + '" fill="' + p.color + '" stroke="#0E1512" stroke-width="3" stroke-linejoin="round"/>'
-      + linea + etiqueta + '</g>';
+    /* E1: TODAS las etiquetas FUERA, horizontales, con línea conectora.
+       Viven en su propia capa (.etq), nunca dentro del pedazo: al separarse
+       el pedazo la etiqueta no se mueve, no se tapa ni se recorta. */
+    var borde = polar(cx, cy, R + 3, medio), punta = polar(cx, cy, R + 20, medio);
+    var tx = polar(cx, cy, R + 36, medio);
+    etiquetas += '<g class="etq" data-i="' + i + '">'
+      + '<line x1="' + borde[0].toFixed(1) + '" y1="' + borde[1].toFixed(1) + '" x2="' + punta[0].toFixed(1) + '" y2="' + punta[1].toFixed(1) + '" stroke="rgba(242,245,249,.65)" stroke-width="1"/>'
+      + '<circle cx="' + borde[0].toFixed(1) + '" cy="' + borde[1].toFixed(1) + '" r="2" fill="rgba(242,245,249,.65)"/>'
+      + '<text x="' + tx[0].toFixed(1) + '" y="' + (tx[1] - 2).toFixed(1) + '" font-size="13">' + txt + '</text>'
+      + '<text class="cup" x="' + tx[0].toFixed(1) + '" y="' + (tx[1] + 13).toFixed(1) + '" font-size="10">' + fmt(p.cup) + ' CUP</text></g>';
+    rebanadas += '<g class="rebanada" data-i="' + i + '" data-medio="' + medio.toFixed(1) + '">'
+      + '<path d="' + donut(cx, cy, R, r, a0, a1) + '" fill="' + p.color + '" stroke="#0E1512" stroke-width="3" stroke-linejoin="round"/></g>';
   });
-  html += '<circle cx="150" cy="150" r="48" fill="#0E1512"/>'
-    + '<text class="centro-txt" x="150" y="147" fill="#F5D67B" font-size="13" font-weight="700">' + fmt(total, dec) + '</text>'
-    + '<text class="centro-txt" x="150" y="163" fill="#9aa6c4" font-size="9">CUP en total</text>';
-  svg.innerHTML = html;
+  var centro = '<circle cx="180" cy="180" r="42" fill="#0E1512"/>'
+    + '<text class="centro-txt" x="180" y="177" fill="#F5D67B" font-size="14" font-weight="700">' + fmt(total, dec) + '</text>'
+    + '<text class="centro-txt" x="180" y="193" fill="#9aa6c4" font-size="9">CUP en total</text>';
+  svg.innerHTML = '<g class="giro">' + rebanadas + '</g>' + etiquetas + centro;
   svg.querySelectorAll(".rebanada").forEach(function(g){
     g.addEventListener("click", function(){ seleccionarPastel(svgId, Number(g.dataset.i), total); });
   });
   construirLeyenda(svgId === "pastel22" ? "leyenda22" : "leyendaProy", svgId, partes, total);
   if(detalleId){ $(detalleId).innerHTML = svgId === "pastel22" ? 'Ganancia total <b class="num">2,562.74 CUP</b> · toca un pedazo para verlo' : 'Total <b class="num">' + fmt(total) + ' CUP</b> · toca un pedazo para verlo'; }
-  if(animar === false){ svg.style.transition = "none"; svg.style.transform = "rotate(0deg)"; return; }
-  svg.style.transition = "none"; svg.style.transform = "rotate(-90deg)";
-  setTimeout(function(){ svg.style.transition = "transform 2.4s cubic-bezier(.16,1,.3,1)"; svg.style.transform = "rotate(0deg)"; }, 60);
+  /* El giro lento (2.4 s) es SOLO de las rebanadas (.giro): las etiquetas y el
+     centro quedan quietos y horizontales siempre, también durante el giro. */
+  var giro = svg.querySelector(".giro");
+  var etqs = svg.querySelectorAll(".etq");
+  function mostrarEtq(){ etqs.forEach(function(e){ e.style.opacity = "1"; }); }
+  if(animar === false){ giro.style.transition = "none"; giro.style.transform = "rotate(0deg)"; mostrarEtq(); return; }
+  etqs.forEach(function(e){ e.style.opacity = "0"; e.style.transition = "opacity .6s ease"; });
+  giro.style.transition = "none"; giro.style.transform = "rotate(-90deg)";
+  setTimeout(function(){ giro.style.transition = "transform 2.4s cubic-bezier(.16,1,.3,1)"; giro.style.transform = "rotate(0deg)"; }, 60);
+  setTimeout(mostrarEtq, 1700);
 }
 function seleccionarPastel(svgId, i, total){
   var svg = $(svgId);
@@ -459,9 +467,10 @@ function seleccionarPastel(svgId, i, total){
     g.style.opacity = esSel ? "1" : "0.55";
     if(esSel){
       var a = Number(g.dataset.medio) * Math.PI / 180 - Math.PI / 2;
-      g.style.transform = "translate(" + (Math.cos(a) * 12).toFixed(1) + "px," + (Math.sin(a) * 12).toFixed(1) + "px)";
+      g.style.transform = "translate(" + (Math.cos(a) * 16).toFixed(1) + "px," + (Math.sin(a) * 16).toFixed(1) + "px)";
     } else { g.style.transform = ""; }
   });
+  svg.querySelectorAll(".etq").forEach(function(e){ e.classList.toggle("sel", Number(e.dataset.i) === i); });
   var leyendaId = svgId === "pastel22" ? "leyenda22" : "leyendaProy";
   var caja = $(leyendaId);
   if(caja){ caja.querySelectorAll(".leyenda-fila").forEach(function(b){ b.classList.toggle("sel", Number(b.dataset.i) === i); }); }

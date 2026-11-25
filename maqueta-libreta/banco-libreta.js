@@ -23,14 +23,25 @@ t("tocar Reinversión muestra exacto 1,793.92",
 t("tocar Briku muestra 19.5% y exacto 512.55",
   (function(){ const p=d.querySelectorAll('#pastel22 .rebanada'); p[1].dispatchEvent(new w.Event('click',{bubbles:true})); return txt('detalle22').includes('512.55') && txt('detalle22').includes('19.5%'); })());
 t("pedazo seleccionado visible (sel + opacidad)", (function(){ const p=d.querySelectorAll('#pastel22 .rebanada'); return p[1].classList.contains('sel') && p[0].style.opacity==="0.55"; })());
-t("donut: centro hueco r48 sin cortar el total", html.includes('r="48"') && txt('pastel22').includes('CUP en total'));
+t("donut: centro hueco r42 sin cortar el total", html.includes('r="42"') && txt('pastel22').includes('CUP en total'));
 t("leyenda Saldo: 3 filas tocables con % y CUP", (function(){ const f=d.querySelectorAll('#leyenda22 .leyenda-fila'); return f.length===3 && f[1].textContent.includes('Briku') && f[1].textContent.includes('19.5%') && f[1].textContent.includes('500 CUP'); })());
 t("leyenda Proyección: 3 filas", d.querySelectorAll('#leyendaProy .leyenda-fila').length===3);
 t("tocar leyenda Briku selecciona el pedazo y lo separa", (function(){ const f=d.querySelectorAll('#leyenda22 .leyenda-fila'); f[1].dispatchEvent(new w.Event('click',{bubbles:true})); const p=d.querySelectorAll('#pastel22 .rebanada'); return p[1].classList.contains('sel') && p[1].style.transform.includes('translate') && f[1].classList.contains('sel'); })());
 t("colores vivos distintos: verde #2CEB7E, ámbar #FFB020, azul #38B6FF", html.includes('#2CEB7E') && html.includes('#FFB020') && html.includes('#38B6FF'));
-t("pedazo chico fuera con línea conectora", txt('pastel22').includes('9.8%') && html.includes('etq-fuera'));
+// E1: TODAS las etiquetas fuera con línea, horizontales, fuera del pedazo
+t("E1: 3 etiquetas fuera en Saldo", d.querySelectorAll('#pastel22 .etq').length===3);
+t("E1: 3 etiquetas fuera en Proyección", d.querySelectorAll('#pastelProy .etq').length===3);
+t("E1: ninguna etiqueta dentro de una rebanada", d.querySelectorAll('#pastel22 .rebanada text').length===0 && d.querySelectorAll('#pastelProy .rebanada text').length===0);
+t("E1: etiquetas con línea conectora", d.querySelectorAll('#pastel22 .etq line').length===3);
+t("E1: etiquetas sin rotación (ninguna .etq rota)", [...d.querySelectorAll('#pastel22 .etq')].every(e => !e.style.transform || !e.style.transform.includes('rotate')) && ![...d.querySelectorAll('#pastel22 .etq text')].some(t => (t.getAttribute('transform')||'').includes('rotate')));
+t("E1: al separar Briku su etiqueta no se mueve", (function(){ const pp=d.querySelectorAll('#pastel22 .rebanada'); pp[1].dispatchEvent(new w.Event('click',{bubbles:true})); const e=d.querySelector('#pastel22 .etq[data-i="1"]'); return pp[1].style.transform.includes('translate') && (!e.style.transform || e.style.transform===""); })());
+t("E1: separación visible (translate 16px)", (function(){ const pp=d.querySelectorAll('#pastel22 .rebanada'); return pp[1].style.transform.includes('translate('); })());
+t("M1: separación lenta 700ms", html.includes('transition:transform .7s'));
+t("M2: botón dorado se hunde marcado (2px + 0.98 + brillo)", html.includes('filter:brightness(.93)'));
+t("M3: barra inferior flotante (12px, radio 20)", html.includes('left:12px;right:12px;bottom:calc(10px + env(safe-area-inset-bottom))'));
+t("M4: Margen % sin 1 solo (− 1 unido)", html.includes('−&nbsp;1'));
 // ERROR 2: etiquetas dentro del viewBox 260
-t("viewBox pastel 300x300 (aire para etiquetas fuera)", html.includes('viewBox="0 0 300 300"'));
+t("viewBox pastel 360x360 (aire para etiquetas fuera)", html.includes('viewBox="0 0 360 360"'));
 // ERROR 4: Clásica sin cifras ni inputs
 t("Clásica: 0 inputs", d.querySelectorAll('#h-clasica input').length===0);
 t("Clásica: sin 1,248 CUP", !seccion('h-clasica').includes('1,248 CUP'));
