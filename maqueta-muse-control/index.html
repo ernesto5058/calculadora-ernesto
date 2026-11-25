@@ -158,6 +158,7 @@
     cursor: pointer; transition: transform .25s ease, opacity .25s ease;
   }
   .btn:active { transform: scale(.97); }
+  .btn:disabled { opacity: .45; cursor: default; }
   .btn.go { background: var(--green); color: #06281c; }
   .btn.no { background: rgba(248,113,113,.18); color: var(--red); border: 1px solid rgba(248,113,113,.45); }
   .btn.ghost { background: var(--card2); color: var(--txt); border: 1px solid var(--line); }
@@ -437,7 +438,7 @@
       <div class="act" onclick="openActivity('home', 1)"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div><div><b>Servicios rearrancados solos</b><span>Tras el reinicio de la máquina, el timer los levantó.</span></div><time>01:14</time></div>
       <div class="act" onclick="openActivity('home', 2)"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" stroke-width="2" stroke-linecap="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/></svg></div><div><b>WhatsApp Baileys cayó 2 veces</b><span>Reinicios de máquina; levantado a mano.</span></div><time>01:20</time></div>
     </div>
-    <p class="foot">Muse Control · Maqueta v12 · Los datos de esta pantalla son de ejemplo.</p>
+    <p class="foot">Muse Control · Maqueta v13 · Los datos de esta pantalla son de ejemplo.</p>
     <div style="text-align:center; margin-top:10px;"><button class="btn ghost" style="flex:none; padding:9px 18px;" onclick="resetDemo()">Restablecer demo</button></div>
   </section>
 
@@ -586,7 +587,7 @@
       <div class="act" onclick="openActivity('taller', 1)"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#f87171" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></div><div><b>Despliegue rechazado</b><span>Maqueta v7-u2net · en cuarentena.</span></div><time>ayer</time></div>
       <div class="act" onclick="openActivity('taller', 2)"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div><div><b>Pruebas del banco: 72/72</b><span>Juego v9 · sin fallos.</span></div><time>ayer</time></div>
     </div>
-    <p class="foot">Taller · Maqueta v12 · Ningún despliegue o comando destructivo se ejecuta sin tu autorización.</p>
+    <p class="foot">Taller · Maqueta v13 · Ningún despliegue o comando destructivo se ejecuta sin tu autorización.</p>
   </section>
 
   <!-- ============ BARRA INFERIOR ============ -->
@@ -889,7 +890,7 @@
     var h = '<p class="ov-note">Alerta de ejemplo.</p><div class="alert ' + a.cls + (clearedA ? ' read' : '') + '"><div><b>' + a.title + (clearedA ? ' · ' + alertTag(a) : '') + '</b><span>' + a.sub + '</span></div></div>'
       + '<div class="plan-actions">'
       + '<button class="btn ghost" onclick="alertAction(\'silenciar\')">' + (a.silenced ? 'Quitar silencio' : 'Silenciar') + '</button>'
-      + '<button class="btn ghost" onclick="alertAction(\'leidas\')">Marcar leída</button>'
+      + (a.read ? '<button class="btn ghost" disabled>Leída</button>' : '<button class="btn ghost" onclick="alertAction(\'leidas\')">Marcar leída</button>')
       + '</div>'
       + '<div class="plan-actions">'
       + '<button class="btn ghost" onclick="alertAction(\'tunel\')">' + a.reviewLabel + '</button>'
@@ -983,6 +984,11 @@
        restablecida» ya no sobrevive a la navegación.) */
     hideToast();
     settledY = 0; resetAnchorY = 0; /* la pantalla nueva empieza arriba del todo */
+    /* La navegación empieza una ráfaga nueva: si no, el scroll a 0 de
+       go() y el salto inmediato a la posición de lectura forman una
+       sola ráfaga (desplazamiento neto 0) y la lectura nunca se
+       confirma — el restablecer volvía a 0 aunque se leyera a 620. */
+    resetBurstStartY = 0; resetLastScrollY = 0; resetLastScrollAt = 0; resetAnchorConfirmed = false;
     var screens = document.querySelectorAll('.screen');
     for (var i = 0; i < screens.length; i++) screens[i].classList.remove('active');
     document.getElementById('scr-' + name).classList.add('active');
@@ -1266,27 +1272,75 @@
       var cardDocBottom = anchorBottom();
       if (!cardDocBottom) return;
       var dy = (cardDocBottom - window.scrollY) - limit;
-      if (dy <= 1) return; /* el ancla ya cabe entera */
+      if (dy <= 1) break; /* el ancla ya cabe entera: salir del bucle SIN
+        retornar, que el remate anti-recorte (abajo) debe correr igual:
+        con el chat lleno el ancla cabe pero una burbuja vieja puede
+        quedar a caballo del borde superior (fallo del Ojo en la v12) */
       var max = document.documentElement.scrollHeight - window.innerHeight;
       var target = window.scrollY + dy;
       if (target > max) target = max;
       window.scrollTo({ top: target, behavior: 'instant' });
       /* Sin más recorrido no hay nada que hacer: el spacer de 200 px al
          final del chat garantiza que con un solo plan siempre lo hay. */
-      if (window.scrollY >= max) return;
+      if (window.scrollY >= max) break; /* igual que arriba: el remate debe correr */
     }
+    /* Remate: que ningún mensaje quede a caballo del borde superior
+       de la ventana con solo una franja visible (fallo del Ojo en la
+       v12: tras llegar con «Preguntar a Máximo» se veía una pastilla
+       morada recortada arriba, sin texto legible — era una burbuja del
+       chat cortada por el desplazamiento; reproducido en render real).
+       Si la franja visible es pequeña (<48 px) se esconde del todo
+       desplazando hacia abajo; si es grande se deja, que es contenido
+       legible. Bajar nunca tapa la tarjeta del plan: su borde inferior
+       queda por encima del compositor. */
+    (function snapTopEdge() {
+      var msgs = document.querySelectorAll('#scr-maximo .msg');
+      for (var m = 0; m < msgs.length; m++) {
+        var r = msgs[m].getBoundingClientRect();
+        if (r.top < 0 && r.bottom > 0 && r.bottom < 48) { window.scrollBy({ top: r.bottom, behavior: 'instant' }); return; }
+      }
+    })();
     /* Red de seguridad tardía y corta por si el navegador aún está pintando. */
     setTimeout(function(){
       var cardDocBottom = anchorBottom();
       if (!cardDocBottom) return;
       var dy = (cardDocBottom - window.scrollY) - limit;
       if (dy > 1) window.scrollTo({ top: window.scrollY + dy, behavior: 'instant' });
+      var msgs2 = document.querySelectorAll('#scr-maximo .msg');
+      for (var m2 = 0; m2 < msgs2.length; m2++) {
+        var r2 = msgs2[m2].getBoundingClientRect();
+        if (r2.top < 0 && r2.bottom > 0 && r2.bottom < 48) { window.scrollBy({ top: r2.bottom, behavior: 'instant' }); return; }
+      }
     }, 150);
   }
   /* El plan VARÍA según la orden: en la v9 los 4 planes que probó el
      Ojo eran idénticos (las mismas 5 viñetas) fuera cual fuera la
      petición. Cada orden habitual tiene su propio plan con su título;
      un mensaje libre cae en el plan genérico. */
+  /* El plan de estado es POR AGENTE (fallo del Ojo en la v12:
+     «Preguntar a Máximo» desde Gemini y desde Nemotron daba el mismo
+     plan, mismo título y mismas 5 viñetas). El título lleva el nombre
+     del agente y las viñetas usan sus datos de ejemplo (rol, estado,
+     tareas, éxito, última actividad), así que no hay dos planes
+     iguales. */
+  function agentPlan(text) {
+    var t = (text || '').toLowerCase();
+    var name = '';
+    var idx = t.indexOf('revisa el estado de');
+    if (idx !== -1) name = (text || '').slice(idx + 'revisa el estado de'.length).trim();
+    var ag = null;
+    for (var i = 0; i < agents.length; i++) {
+      if (agents[i].name.toLowerCase() === name.toLowerCase()) { ag = agents[i]; break; }
+    }
+    if (!ag) return { title: 'Revisar el estado de ' + capFirst(name), items: ['Comprobar si está arriba y respondiendo.', 'Revisar sus tareas de hoy y su éxito.', 'Ver su última actividad y su uso.', 'Decirte si necesita tu toque.', 'Proponerte qué hacer si está caído o sin responder.'] };
+    return { title: 'Revisar el estado de ' + ag.name, items: [
+      'Comprobar si ' + ag.name + ' está arriba y respondiendo: ahora mismo está «' + ag.statusLabel + '».',
+      'Revisar su rol: ' + ag.role + '.',
+      'Ver sus ' + ag.tasks + ' tareas de hoy, con ' + ag.success + ' de éxito.',
+      'Ver su última actividad: ' + ag.last + ' (uso ' + ag.usage + '%).',
+      'Decirte si ' + ag.name + ' necesita tu toque o si sigue solo.'
+    ] };
+  }
   function planFor(text) {
     var t = (text || '').toLowerCase();
     if (t.indexOf('orquesta') !== -1) return { title: 'Estado de la orquesta', items: ['Comprobar qué agentes están arriba y cuáles no.', 'Revisar la última actividad de cada uno.', 'Detectar cuellos de botella y agentes sin conexión.', 'Hermes trae el estado de los servicios.', 'Te traigo el resumen con lo que necesita tu toque.'] };
@@ -1294,7 +1348,7 @@
     if (t.indexOf('arquitectura') !== -1) return { title: 'Auditoría de la arquitectura de Muse', items: ['Revisar punto por punto la arquitectura y los cambios recientes.', 'Buscar problemas de seguridad: permisos, tokens y túnel.', 'Comparar contra el diseño aprobado (Fase 0 y Fase 2 del Consejo).', 'Proponer el arreglo o pedirte el «dale» para aplicarlo.', 'Cerrar con la lista de lo revisado y lo que sigue pendiente.'] };
     if (t.indexOf('audit') !== -1) return { title: 'Pedir una auditoría', items: ['Definir qué se audita y hasta dónde llega.', 'Gemini revisa el trabajo punto por punto.', 'Nemotron busca los agujeros de la auditoría.', 'Hermes trae la documentación oficial que falte.', 'Te entrego el informe con los hallazgos y su arreglo.'] };
     if (t.indexOf('sesión') !== -1 || t.indexOf('sesion') !== -1) return { title: 'Revisar la sesión', items: ['Abrir la sesión y leer su estado.', 'Revisar qué modelo y proyecto usa.', 'Comprobar sus tareas y su progreso.', 'Decirte si está lista o qué le falta.', 'Comparar su estado con el de las demás sesiones.'] };
-    if (t.indexOf('revisa el estado de') !== -1) return { title: 'Revisar el estado del agente', items: ['Comprobar si está arriba y respondiendo.', 'Revisar sus tareas de hoy y su éxito.', 'Ver su última actividad y su uso.', 'Decirte si necesita tu toque.', 'Proponerte qué hacer si está caído o sin responder.'] };
+    if (t.indexOf('revisa el estado de') !== -1) return agentPlan(text);
     return genericPlan(text);
   }
   /* El plan genérico DISTINGUE la orden (fallo del Ojo en la v11: las
@@ -1407,7 +1461,7 @@
     { name: 'Maqueta Libreta — pastel 3D', sub: 'Gemini 3.1 Flash Lite · hace 12 min', pill: 'run', label: 'Activa', model: 'Gemini 3.1 Flash Lite', project: 'calculadora-ernesto', desc: 'La maqueta de la libreta con el gráfico de pastel en 3D, precargada con los datos de Ernesto.', tasks: [ { label: 'Pastel 3D con perspectiva y extrusión', state: 'done' }, { label: 'Etiquetas fuera con conectora', state: 'done' }, { label: 'Pulido final y publicación', state: 'now' } ] },
     { name: 'Juego v9 — parte del trabajador', sub: 'Gemini 3.1 Flash Lite · hace 1 h', pill: 'ok', label: 'Terminada', model: 'Gemini 3.1 Flash Lite', project: 'calculadora-ernesto', desc: 'El juego de Mi Trabajo con la parte del trabajador al 20% de la ganancia y la ganancia total siempre oculta.', tasks: [ { label: 'Parte del trabajador al 20% de la ganancia', state: 'done' }, { label: 'La ganancia total nunca se muestra', state: 'done' }, { label: 'Publicación y entrega', state: 'done' } ] },
     { name: 'Consejo Fase 2 — diseño técnico', sub: 'Gemini 3.1 Flash Lite · en espera', pill: 'idle', label: 'Pausada', model: 'Gemini 3.1 Flash Lite', project: 'consejo-ia', desc: 'El diseño técnico de la Fase 2 del Consejo: consenso con Gemini Y Nemotron, planificador y verificador corregidos.', tasks: [ { label: 'Diseño técnico D1–D8', state: 'done' }, { label: 'Congelación y copia de seguridad', state: 'wait' }, { label: 'Corrección del consenso', state: 'wait' } ] },
-    { name: 'Maqueta Muse Control — panel de mando', sub: 'Gemini 3.1 Flash Lite · hace 30 min', pill: 'run', label: 'Activa', model: 'Gemini 3.1 Flash Lite', project: 'calculadora-ernesto', desc: 'Esta misma maqueta: el panel de mando de Muse para el iPhone, en versión offline.', tasks: [ { label: 'Maqueta v12 offline', state: 'done' }, { label: 'Pasada del Ojo en vivo', state: 'done' }, { label: 'Pulido de defectos bajos', state: 'now' } ] },
+    { name: 'Maqueta Muse Control — panel de mando', sub: 'Gemini 3.1 Flash Lite · hace 30 min', pill: 'run', label: 'Activa', model: 'Gemini 3.1 Flash Lite', project: 'calculadora-ernesto', desc: 'Esta misma maqueta: el panel de mando de Muse para el iPhone, en versión offline.', tasks: [ { label: 'Maqueta v13 offline', state: 'done' }, { label: 'Pasada del Ojo en vivo', state: 'done' }, { label: 'Pulido de defectos bajos', state: 'now' } ] },
     { name: 'Vigía de ofertas QvaPay — libro en vivo', sub: 'Gemini 3.1 Flash Lite · hace 48 min', pill: 'run', label: 'Activa', model: 'Gemini 3.1 Flash Lite', project: 'qvapay-saldo-trading', desc: 'El vigía que lee el libro de QvaPay en vivo y avisa cuando se aplica una oferta.', tasks: [ { label: 'Lectura del libro en vivo', state: 'done' }, { label: 'Aviso de aplicación', state: 'done' }, { label: 'Seguimiento de la oferta', state: 'now' } ] },
     { name: 'Exporte completo — paquete para otro agente', sub: 'Gemini 3.1 Flash Lite · ayer', pill: 'ok', label: 'Terminada', model: 'Gemini 3.1 Flash Lite', project: 'exporte-otro-agente', desc: 'La memoria portable y el exporte completo del trabajo, en ZIPs para otro agente.', tasks: [ { label: 'Memoria portable', state: 'done' }, { label: 'Exporte completo', state: 'done' }, { label: 'ZIPs para otro agente', state: 'done' } ] }
   ];
@@ -1485,22 +1539,84 @@
   }, { passive: true });
   /* Posición de LECTURA para restablecer (resetAnchorY): dónde estaba
      el usuario LEYENDO antes de desplazarse hasta el botón
-     «Restablecer demo». Se actualiza solo tras 3 s quieto: el
-     desplazamiento lento hasta el botón (pasos con pausas de ~2 s,
-     como hace el Ojo) no mueve el ancla, y la posición del clic — que
-     en la v11 era la de abajo — nunca se guarda. Al entrar en una
-     pantalla el ancla es 0; al cerrar una vista es la posición a la
-     que se volvió. */
+     «Restablecer demo». Se confirma al asentarse 600 ms si el
+     movimiento fue un SALTO (>250 px) o tras 3 s quieto (lectura
+     larga); los pasos cortos (~200 px) con pausas de ~2 s son tránsito
+     y no mueven el ancla. Un salto que sale de una lectura confirmada
+     hacia abajo con el botón a la vista es ir a restablecer, no leer:
+     no confirma (salvo 3 s quieto). El botón visible NO congela por
+     sí solo: a 1919 px está visible desde 582 px. Con el umbral viejo
+     de 3 s, una lectura breve (~1 s, como hace el Ojo) no movía el
+     ancla de 0 y restablecer volvía arriba en vez de a la posición de
+     lectura (fallo del Ojo en la v12, reproducido en render real antes
+     de corregir). La posición del clic — que en la v11 era la de
+     abajo — nunca se guarda. Al entrar en una pantalla el ancla es 0;
+     al cerrar una vista es la posición a la que se volvió. */
   var resetAnchorY = 0;
   var resetAnchorTimer = null;
+  function resetBtnInView() {
+    var els = document.querySelectorAll('#scr-inicio button');
+    for (var i = 0; i < els.length; i++) {
+      if (els[i].textContent.trim() === 'Restablecer demo') {
+        var r = els[i].getBoundingClientRect();
+        return r.top < window.innerHeight && r.bottom > 0;
+      }
+    }
+    return false;
+  }
+  /* Ráfaga de desplazamiento: los scrolls con menos de 300 ms entre sí
+     son un solo movimiento (el scroll suave de go(), un salto con
+     scrollIntoView). El ancla es la última posición de LECTURA y se
+     confirma al asentarse 600 ms si el movimiento fue un SALTO
+     (>250 px desde que empezó la ráfaga) o tras 3 s quieto (lectura
+     larga). Los pasos cortos (~200 px) con pausas de ~2 s son tránsito
+     hacia el botón, no lectura: no mueven el ancla. Un salto que sale
+     de una lectura confirmada hacia abajo con el botón a la vista es
+     ir a restablecer, no leer: no confirma (salvo 3 s quieto). El
+     botón visible NO congela por sí solo: a 1919 px está visible
+     desde 582 px y congelar en el listener dejaba el ancla en 0.
+     (v13-E1: la regla de 600 ms a secas fallaba a 390 px — la bajada
+     lenta en pasos marchaba el ancla hasta la última pausa antes del
+     botón, y desde arriba terminaba en 600 en vez de 0.) */
+  var resetBurstStartY = 0;
+  var resetLastScrollY = 0;
+  var resetLastScrollAt = 0;
+  var resetAnchorConfirmed = false; /* el ancla vale como lectura solo tras confirmarse */
   function armResetAnchor() {
     clearTimeout(resetAnchorTimer);
-    resetAnchorTimer = setTimeout(function () {
-      if (document.getElementById('overlay').classList.contains('open')) return;
-      resetAnchorY = Math.round(window.scrollY);
-    }, 3000);
+    resetAnchorTimer = setTimeout(commitResetAnchor, 600);
   }
-  window.addEventListener('scroll', function () { armResetAnchor(); }, { passive: true });
+  function commitResetAnchor() {
+    if (document.getElementById('overlay').classList.contains('open')) return;
+    var y = Math.round(window.scrollY);
+    if (y !== resetLastScrollY) return; /* se movió de nuevo: rearmar */
+    var jumped = Math.abs(y - resetBurstStartY) > 250;
+    /* Salir de una lectura confirmada hacia abajo con el botón a la
+       vista es ir a restablecer, no leer ahí: no confirma — salvo que
+       se quede 3 s quieto en el destino (entonces sí estaba leyendo). */
+    var leavingConfirmed = jumped && y > resetBurstStartY && resetBurstStartY === resetAnchorY && resetAnchorConfirmed && resetBtnInView();
+    if (leavingConfirmed) {
+      if (Date.now() - resetLastScrollAt >= 3000) { resetAnchorY = y; resetAnchorConfirmed = true; return; }
+      resetAnchorTimer = setTimeout(commitResetAnchor, 3000 - (Date.now() - resetLastScrollAt));
+      return;
+    }
+    if (jumped) { resetAnchorY = y; resetAnchorConfirmed = true; return; }
+    if (resetBtnInView()) return; /* pasos de tránsito junto al botón: no confirma */
+    if (Date.now() - resetLastScrollAt >= 3000) { resetAnchorY = y; resetAnchorConfirmed = true; return; }
+    /* Sin salto y sin 3 s quieto: esperar a los 3 s (si sigue quieto). */
+    resetAnchorTimer = setTimeout(commitResetAnchor, 3000 - (Date.now() - resetLastScrollAt));
+  }
+  window.addEventListener('scroll', function () {
+    /* El listener siempre arma: quien decide es commitResetAnchor (un
+       salto a una posición de lectura confirma aunque el botón ya se
+       vea — a 1919 px el botón está visible desde 582 px, y congelar
+       en el listener dejaba el ancla en 0). */
+    var now = Date.now();
+    if (now - resetLastScrollAt > 300) resetBurstStartY = resetLastScrollY;
+    resetLastScrollY = Math.round(window.scrollY);
+    resetLastScrollAt = now;
+    armResetAnchor();
+  }, { passive: true });
   armResetAnchor();
   var overlayReturnY = 0;
   var overlayStack = [];
@@ -1604,9 +1720,10 @@
       }
       var allSilA = true;
       for (var si2 = 0; si2 < alertsData.length; si2++) if (!alertsData[si2].silenced) allSilA = false;
+      var disA = cA.pending === 0 ? ' disabled' : '';
       h += '<div class="plan-actions">'
-        + '<button class="btn ghost" onclick="alertAction(\'silenciar\')">' + (allSilA ? 'Quitar silencio' : 'Silenciar todas') + '</button>'
-        + '<button class="btn ghost" onclick="alertAction(\'leidas\')">Marcar todas leídas</button>'
+        + '<button class="btn ghost" onclick="alertAction(\'silenciar\')"' + disA + '>' + (allSilA ? 'Quitar silencio' : 'Silenciar todas') + '</button>'
+        + '<button class="btn ghost" onclick="alertAction(\'leidas\')"' + disA + '>Marcar todas leídas</button>'
         + '</div>'
         + '<div class="plan-actions">'
         + '<button class="btn ghost" onclick="alertAction(\'tunel\')">Revisar el túnel</button>'
@@ -1702,7 +1819,7 @@
        el paso 4 solo se abre al aprobar. Con silent=true no se avisa:
        lo usa approveChange(), que ya avisa de la aprobación. */
     if (step === 3 && changeDecision !== 'aprobado') {
-      if (!silent) toast(changeDecision === 'rechazado' ? 'El cambio está rechazado: no se puede ejecutar (demo)' : 'Primero aprueba el cambio: el paso 4 se abre al aprobar (demo)');
+      if (!silent) toast(changeDecision === 'rechazado' ? 'El cambio está rechazado: no se puede ejecutar (demo)' : 'Primero aprueba el cambio (demo)');
       return;
     }
     var items = document.querySelectorAll('#steps li');
