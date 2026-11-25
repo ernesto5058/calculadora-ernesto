@@ -80,11 +80,24 @@ body{font-family:var(--fuente);background:var(--bg-0);color:var(--txt-1);overflo
 .tabs button.activo{color:var(--dorado)}
 .pastel-wrap{display:flex;flex-direction:column;align-items:center;gap:4px;filter:drop-shadow(0 12px 22px rgba(0,0,0,.45))}
 .pastel-wrap svg{width:280px;height:280px;overflow:visible}
+/* PASTEL VIVO (Visión general): Three.js, misma técnica que grafica-viva.html.
+   Cada pedazo su propio Shape + ExtrudeGeometry con bevel, meshPhysicalMaterial,
+   giro lento, pop-out al tocar. Solo % + CUP DENTRO del pedazo, en blanco con
+   contorno oscuro. Sin etiquetas flotantes fuera: el nombre vive en la leyenda
+   y en el detalle fijo de abajo. */
+.escena-viva{position:relative;width:100%;aspect-ratio:1/1.02;border-radius:22px;overflow:hidden;background:radial-gradient(ellipse 90% 70% at 50% 42%,rgba(47,191,113,.20),rgba(47,191,113,0) 70%)}
+.escena-viva canvas{display:block;width:100%;height:100%;touch-action:manipulation}
+.escena-viva::after{content:"";position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse 105% 100% at 50% 45%,transparent 62%,rgba(0,0,0,.38) 100%)}
+.grano-vivo{position:absolute;inset:0;pointer-events:none;opacity:.05;mix-blend-mode:overlay;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)'/%3E%3C/svg%3E")}
+.escena-viva .etq{position:absolute;transform:translate(-50%,-50%);text-align:center;pointer-events:none;line-height:1.15;color:#fff;text-shadow:0 2px 0 rgba(0,0,0,.7),0 0 10px rgba(0,0,0,.85),0 1px 6px rgba(0,0,0,.6)}
+.escena-viva .etq .pct{font-size:26px;font-weight:800;color:#fff}
+.escena-viva .etq .cup{font-size:13px;font-weight:700;color:#fff}
+.escena-viva .etq.activa .pct{font-size:30px}
+.sinwebgl-viva{display:none;text-align:center;padding:30px 16px;font-size:15px;line-height:1.5}
+@media (max-width:390px){.escena-viva .etq .pct{font-size:22px}.escena-viva .etq .cup{font-size:12px}}
 .rebanada{cursor:pointer;transition:transform .7s var(--lento),opacity .7s var(--lento);transform-origin:180px 180px}
 .rebanada.sel{filter:drop-shadow(0 8px 16px rgba(0,0,0,.5)) brightness(1.18)}
 .rebanada text{font-family:var(--fuente);font-weight:800;fill:#0B1210;text-anchor:middle;pointer-events:none}
-.rebanada text.etq-fuera{fill:#F2F5F9;font-weight:800}
-.rebanada text.etq-fuera-cup{fill:rgba(242,245,249,.75);font-weight:700}
 .giro{transform-box:view-box;transform-origin:180px 180px}
 .etq text{font-family:var(--fuente);font-weight:800;fill:#F2F5F9;text-anchor:middle;pointer-events:none}
 .etq .cup{fill:rgba(242,245,249,.75);font-weight:700}
@@ -183,7 +196,10 @@ details.card summary h2{display:inline}
       <h2>Visión general · Inversión en juego + Capital</h2>
       <p class="sub">Tu dinero, en una foto: lo que Briku ya compró en recargas, lo que tú invertiste y lo que queda en caja. Tócalo: el pedazo se separa y abajo te lo explico grande.</p>
       <div class="pastel-wrap">
-        <svg id="pastelGen" viewBox="0 0 360 360" role="img" aria-label="Pastel visión general: caja 51.8 por ciento, 22,080 CUP; Briku 36.0 por ciento, 15,333 CUP; yo 12.2 por ciento, 5,200 CUP"></svg>
+        <div class="escena-viva" id="escena-vision" role="img" aria-label="Pastel visión general: caja 51.8 por ciento, 22,080 CUP; Briku 36.0 por ciento, 15,333 CUP; yo 12.2 por ciento, 5,200 CUP; total 42,613 CUP">
+          <div class="grano-vivo"></div>
+          <div class="sinwebgl-viva" id="sinwebgl-vision">Tu teléfono no pudo abrir la gráfica 3D, pero tus cifras siguen aquí: Caja 22,080 CUP (51.8%) · Briku 15,333 CUP (36.0%) · Yo 5,200 CUP (12.2%) · Total 42,613 CUP.</div>
+        </div>
         <div class="leyenda" id="leyendaGen" aria-label="Leyenda del pastel visión general"></div>
         <div class="detalle-pastel" id="detalleGen">Total <b class="num">42,613 CUP</b> · toca un pedazo para verlo</div>
       <p class="ayuda" style="text-align:center">15,333 + 5,200 + 22,080 = 42,613 CUP · Briku 36.0% · Yo 12.2% · Caja 51.8%</p>
@@ -401,6 +417,210 @@ details.card summary h2{display:inline}
 <div class="toast" id="toast"></div>
 </div>
 
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+
+/* PASTEL VIVO — Visión general. Misma técnica que grafica-viva.html, mismos
+   datos: cada pedazo su propio Shape + ExtrudeGeometry con bevel,
+   meshPhysicalMaterial, giro lento, pop-out al tocar, % en blanco con
+   contorno oscuro DENTRO del pedazo, sin etiquetas flotantes. El detalle
+   fijo vive en #detalleGen y lo escribe seleccionarVision() del guion clásico. */
+const DATOS_VIVOS = [
+  { nombre: 'Caja',  valor: 22080, pct: 51.8, color: 0x22C55E },
+  { nombre: 'Briku', valor: 15333, pct: 36.0, color: 0xF59E0B },
+  { nombre: 'Yo',    valor: 5200,  pct: 12.2, color: 0x0EA5E9 },
+];
+const TOTAL_VIVO = 42613;
+const RADIO = 2.2, DEPTH = 0.32;
+const BEVEL = DEPTH * 0.08;
+
+const escenaEl = document.getElementById('escena-vision');
+let renderer;
+try {
+  renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+} catch (e) {
+  document.getElementById('sinwebgl-vision').style.display = 'block';
+  throw e;
+}
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.05;
+escenaEl.prepend(renderer.domElement);
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 100);
+camera.position.set(0, 5.4, 6.4);
+camera.lookAt(0, -0.15, 0);
+
+const pmrem = new THREE.PMREMGenerator(renderer);
+scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+const sol = new THREE.DirectionalLight(0xfff1d6, 2.4);
+sol.position.set(4, 7, 3);
+sol.castShadow = true;
+sol.shadow.mapSize.set(2048, 2048);
+sol.shadow.camera.left = -4; sol.shadow.camera.right = 4;
+sol.shadow.camera.top = 4; sol.shadow.camera.bottom = -4;
+sol.shadow.radius = 8;
+sol.shadow.bias = -0.0004;
+scene.add(sol);
+const relleno = new THREE.DirectionalLight(0x9fd8ff, 0.8);
+relleno.position.set(-5, 2, -3);
+scene.add(relleno);
+scene.add(new THREE.AmbientLight(0xffffff, 0.15));
+
+const suelo = new THREE.Mesh(
+  new THREE.PlaneGeometry(14, 14),
+  new THREE.ShadowMaterial({ opacity: 0.28 })
+);
+suelo.rotation.x = -Math.PI / 2;
+suelo.position.y = -0.62;
+suelo.receiveShadow = true;
+scene.add(suelo);
+const haloTex = (() => {
+  const c = document.createElement('canvas'); c.width = c.height = 256;
+  const g = c.getContext('2d');
+  const grad = g.createRadialGradient(128, 128, 10, 128, 128, 128);
+  grad.addColorStop(0, 'rgba(4,32,40,0.45)');
+  grad.addColorStop(1, 'rgba(4,32,40,0)');
+  g.fillStyle = grad; g.fillRect(0, 0, 256, 256);
+  return new THREE.CanvasTexture(c);
+})();
+const halo = new THREE.Mesh(
+  new THREE.PlaneGeometry(7.4, 2.4),
+  new THREE.MeshBasicMaterial({ map: haloTex, transparent: true, depthWrite: false })
+);
+halo.rotation.x = -Math.PI / 2;
+halo.position.y = -0.61;
+scene.add(halo);
+
+const inclinado = new THREE.Group();
+inclinado.rotation.x = -1.02;
+scene.add(inclinado);
+const giro = new THREE.Group();
+inclinado.add(giro);
+
+const rebanadas = [];
+let angulo = 90;
+DATOS_VIVOS.forEach((d, i) => {
+  const arco = (d.valor / TOTAL_VIVO) * 360;
+  const a0 = THREE.MathUtils.degToRad(angulo);
+  const a1 = THREE.MathUtils.degToRad(angulo - arco);
+  const medio = THREE.MathUtils.degToRad(angulo - arco / 2);
+  const shape = new THREE.Shape();
+  shape.moveTo(0, 0);
+  shape.absarc(0, 0, RADIO, a0, a1, true);
+  shape.lineTo(0, 0);
+  const geo = new THREE.ExtrudeGeometry(shape, {
+    depth: DEPTH, bevelEnabled: true,
+    bevelThickness: BEVEL, bevelSize: BEVEL, bevelSegments: 8,
+    curveSegments: 48,
+  });
+  geo.translate(0, 0, -DEPTH / 2);
+  const mat = new THREE.MeshPhysicalMaterial({
+    color: d.color, roughness: 0.25, metalness: 0,
+    clearcoat: 1, clearcoatRoughness: 0.25,
+    emissive: d.color, emissiveIntensity: 0,
+  });
+  const malla = new THREE.Mesh(geo, mat);
+  malla.castShadow = true;
+  malla.receiveShadow = true;
+  malla.userData = { i, medio, fuera: 0, objetivo: 0, escala: 0.001, retardo: 0.25 + i * 0.3 };
+  malla.scale.setScalar(0.001);
+  giro.add(malla);
+  rebanadas.push({ d, malla, medio, a0, a1 });
+  angulo -= arco;
+});
+
+const luzDedo = new THREE.PointLight(0xffffff, 12, 12, 1.6);
+luzDedo.position.set(0, 2.5, 3);
+scene.add(luzDedo);
+const posDedo = new THREE.Vector3(0, 2.5, 3);
+
+const etiquetas = DATOS_VIVOS.map((d) => {
+  const dentro = document.createElement('div');
+  dentro.className = 'etq';
+  dentro.innerHTML = `<div class="pct">${d.pct.toFixed(1)}%</div><div class="cup">${d.valor.toLocaleString('en-US')} CUP</div>`;
+  escenaEl.appendChild(dentro);
+  return { dentro };
+});
+
+const rayo = new THREE.Raycaster();
+const puntero = new THREE.Vector2();
+let activo = -1;
+
+function colocarEtiquetas() {
+  const rect = escenaEl.getBoundingClientRect();
+  const v = new THREE.Vector3();
+  rebanadas.forEach((r, i) => {
+    v.set(Math.cos(r.medio) * RADIO * 0.6, Math.sin(r.medio) * RADIO * 0.6, DEPTH / 2 + BEVEL);
+    r.malla.localToWorld(v); v.project(camera);
+    const x = (v.x * 0.5 + 0.5) * rect.width, y = (-v.y * 0.5 + 0.5) * rect.height;
+    etiquetas[i].dentro.style.left = x + 'px';
+    etiquetas[i].dentro.style.top = y + 'px';
+    etiquetas[i].dentro.classList.toggle('activa', activo === i);
+  });
+}
+
+function tocar(clientX, clientY) {
+  const rect = renderer.domElement.getBoundingClientRect();
+  puntero.x = ((clientX - rect.left) / rect.width) * 2 - 1;
+  puntero.y = -((clientY - rect.top) / rect.height) * 2 + 1;
+  rayo.setFromCamera(puntero, camera);
+  const hit = rayo.intersectObjects(rebanadas.map(r => r.malla))[0];
+  activo = hit ? hit.object.userData.i : -1;
+  rebanadas.forEach((r, i) => { r.malla.userData.objetivo = (i === activo) ? 1 : 0; });
+  if (window.seleccionarVision) window.seleccionarVision(activo);
+}
+renderer.domElement.addEventListener('pointerdown', (e) => tocar(e.clientX, e.clientY));
+renderer.domElement.addEventListener('pointermove', (e) => {
+  const rect = renderer.domElement.getBoundingClientRect();
+  const nx = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+  const ny = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+  posDedo.set(nx * 3.2, 2.2 + ny * 1.2, 3.2);
+});
+
+function redimensionar() {
+  const w = escenaEl.clientWidth, h = escenaEl.clientHeight;
+  if (!w || !h) return;
+  renderer.setSize(w, h, false);
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+}
+window.addEventListener('resize', redimensionar);
+redimensionar();
+
+const reloj = new THREE.Clock();
+const easeOut = t => 1 - Math.pow(1 - t, 3);
+function animar() {
+  requestAnimationFrame(animar);
+  const t = reloj.getElapsedTime();
+  giro.rotation.z += 0.0016;
+  rebanadas.forEach((r) => {
+    const u = r.malla.userData;
+    const p = THREE.MathUtils.clamp((t - u.retardo) / 0.9, 0, 1);
+    u.escala = Math.max(u.escala, easeOut(p));
+    u.fuera += (u.objetivo - u.fuera) * 0.06;
+    const dist = u.fuera * 0.38;
+    r.malla.position.set(Math.cos(u.medio) * dist, Math.sin(u.medio) * dist, 0);
+    r.malla.scale.setScalar(Math.max(u.escala, 0.001));
+    r.malla.material.emissiveIntensity += ((u.objetivo ? 0.35 : 0) - r.malla.material.emissiveIntensity) * 0.08;
+  });
+  luzDedo.position.lerp(posDedo, 0.05);
+  renderer.render(scene, camera);
+  colocarEtiquetas();
+}
+animar();
+</script>
+
 <script>
 
 /* Datos reales de la libreta de Ernesto, precargados. Nada empieza de cero. */
@@ -411,9 +631,9 @@ var SEMILLA = {
     { nombre: "Briku", pct: 19.5, cup: 500, color: "#FFB020", modelo: 20, que: "Lo que le toca a Briku por buscarte las recargas." },
     { nombre: "Yo", pct: 9.8, cup: 250, color: "#38B6FF", modelo: 10, que: "Lo que te queda a ti, limpio, de esta vuelta." } ] },
   vision: { total: 42613, partes: [
-    { nombre: "Caja", pct: 51.8, cup: 22080, color: "#2CEB7E", que: "Dinero en caja: lo que tienes guardado, listo para usar." },
-    { nombre: "Briku", pct: 36.0, cup: 15333, color: "#FFB020", que: "15,333 CUP en recargas · 15.33 recargas (5,520 saldo ÷ 360): lo que Briku ya buscó con tu dinero." },
-    { nombre: "Yo", pct: 12.2, cup: 5200, color: "#38B6FF", que: "Lo que yo invertí: 5,200 CUP · 5.55 recargas (2,000 saldo ÷ 360), descontado de la caja." } ] },
+    { nombre: "Caja", pct: 51.8, cup: 22080, color: "#22C55E", que: "Dinero en caja: lo que tienes guardado, listo para usar." },
+    { nombre: "Briku", pct: 36.0, cup: 15333, color: "#F59E0B", que: "15,333 CUP en recargas · 15.33 recargas (5,520 saldo ÷ 360): lo que Briku ya buscó con tu dinero." },
+    { nombre: "Yo", pct: 12.2, cup: 5200, color: "#0EA5E9", que: "Lo que yo invertí: 5,200 CUP · 5.55 recargas (2,000 saldo ÷ 360), descontado de la caja." } ] },
   proy: { total: 41250, partes: [
     { nombre: "Ciclo 23", pct: 48.5, cup: 20000, color: "#2CEB7E", que: "El ciclo que está trabajando ahora mismo." },
     { nombre: "Ciclo 24", pct: 48.5, cup: 20000, color: "#FFB020", que: "El que espera: se activa solo cuando tú cierres el 23." },
@@ -433,7 +653,6 @@ function irA(id){
   else if(el.scrollIntoView){ el.scrollIntoView({behavior:"smooth", block:"start"}); }
   if(id === "sec-ciclos"){ dibujarPastel("pastel22", SEMILLA.ciclo22.partes, SEMILLA.ciclo22.total, "detalle22", true); }
   if(id === "sec-proy"){ dibujarPastel("pastelProy", SEMILLA.proy.partes, SEMILLA.proy.total, "detalleProy", true); }
-  if(id === "sec-vision"){ dibujarPastel("pastelGen", SEMILLA.vision.partes, SEMILLA.vision.total, "detalleGen", true); }
 }
 
 /* ---------- Pasteles 3D: inclinados en perspectiva, con grosor, brillo y sombra ----------
@@ -572,11 +791,9 @@ function dibujarPastel(svgId, partes, total, detalleId, animar){
   svg.querySelectorAll(".rebanada").forEach(function(g){
     g.addEventListener("click", function(){ seleccionarPastel(svgId, Number(g.dataset.i), total); });
   });
-  construirLeyenda(svgId === "pastelGen" ? "leyendaGen" : svgId === "pastel22" ? "leyenda22" : "leyendaProy", svgId, partes, total);
+  construirLeyenda(svgId === "pastel22" ? "leyenda22" : "leyendaProy", svgId, partes, total);
   if(detalleId){ $(detalleId).innerHTML = svgId === "pastel22"
     ? '<div class="det-nombre">Ganancia total</div><div class="det-cifra num">2,562.74 CUP</div><div class="det-que">Toca un pedazo: te digo quién es, su % y su cantidad, grande y claro.</div>'
-    : svgId === "pastelGen"
-    ? '<div class="det-nombre">Inversión en juego + Capital</div><div class="det-cifra num">' + fmt(total) + ' CUP</div><div class="det-que">Toca un pedazo: te digo de quién es ese dinero, grande y claro.</div>'
     : '<div class="det-nombre">Total</div><div class="det-cifra num">' + fmt(total) + ' CUP</div><div class="det-que">Toca un pedazo para ver cada parte, grande y claro.</div>'; }
   /* El giro lento (2.4 s) es SOLO de las rebanadas (.giro): las etiquetas, el
      brillo, la sombra y la pastilla quedan quietos y horizontales siempre. */
@@ -591,7 +808,8 @@ function dibujarPastel(svgId, partes, total, detalleId, animar){
 }
 function seleccionarPastel(svgId, i, total){
   var svg = $(svgId);
-  var partes = svgId === "pastelGen" ? SEMILLA.vision.partes : svgId === "pastel22" ? SEMILLA.ciclo22.partes : SEMILLA.proy.partes;
+  if(!svg) return;
+  var partes = svgId === "pastel22" ? SEMILLA.ciclo22.partes : SEMILLA.proy.partes;
   var p = partes[i]; if(!p) return;
   svg.querySelectorAll(".rebanada").forEach(function(g){
     var esSel = Number(g.dataset.i) === i;
@@ -606,10 +824,10 @@ function seleccionarPastel(svgId, i, total){
     } else { g.style.transform = ""; }
   });
   svg.querySelectorAll(".etq").forEach(function(e){ e.classList.toggle("sel", Number(e.dataset.i) === i); });
-  var leyendaId = svgId === "pastelGen" ? "leyendaGen" : svgId === "pastel22" ? "leyenda22" : "leyendaProy";
+  var leyendaId = svgId === "pastel22" ? "leyenda22" : "leyendaProy";
   var caja = $(leyendaId);
   if(caja){ caja.querySelectorAll(".leyenda-fila").forEach(function(b){ b.classList.toggle("sel", Number(b.dataset.i) === i); }); }
-  var detalleId = svgId === "pastelGen" ? "detalleGen" : svgId === "pastel22" ? "detalle22" : "detalleProy";
+  var detalleId = svgId === "pastel22" ? "detalle22" : "detalleProy";
   var dec = svgId === "pastel22" ? 2 : 0;
   /* Detalle GRANDE y en sus palabras: quién es, % exacto, cantidad, y qué es eso. */
   var extra = "";
@@ -626,6 +844,39 @@ function seleccionarPastel(svgId, i, total){
 function tocarPastel(el, svgId, total, indice){
   var i = indice != null ? indice : (el ? Number(el.dataset.i) : 0);
   seleccionarPastel(svgId, i, total);
+}
+
+/* ---------- Pastel vivo (Visión general): leyenda + detalle fijo ----------
+   El pastel 3D vive en el módulo Three.js de abajo; la leyenda y el detalle
+   fijo viven aquí, en el guion clásico, para que funcionen aunque el 3D no
+   cargue. Tocar un pedazo en el 3D, o una fila de la leyenda, llama a
+   seleccionarVision(i) y el detalle fijo de abajo lo explica grande. */
+function construirLeyendaVision(){
+  var caja = $("leyendaGen"); if(!caja) return;
+  caja.innerHTML = SEMILLA.vision.partes.map(function(p, i){
+    return '<button class="leyenda-fila" data-i="' + i + '">'
+      + iconoLeyenda(p.nombre, p.color)
+      + '<span class="nom">' + p.nombre + '</span>'
+      + '<span class="val">' + pctTxt(p.pct) + '% · ' + fmt(p.cup) + ' CUP</span></button>';
+  }).join("");
+  caja.querySelectorAll(".leyenda-fila").forEach(function(b){
+    b.addEventListener("click", function(){ seleccionarVision(Number(b.dataset.i)); });
+  });
+}
+function seleccionarVision(i){
+  var partes = SEMILLA.vision.partes, det = $("detalleGen"); if(!det) return;
+  var caja = $("leyendaGen");
+  if(caja){ caja.querySelectorAll(".leyenda-fila").forEach(function(b){ b.classList.toggle("sel", Number(b.dataset.i) === i); }); }
+  if(i == null || i < 0 || !partes[i]){
+    det.innerHTML = '<div class="det-nombre">Inversión en juego + Capital</div><div class="det-cifra num">' + fmt(SEMILLA.vision.total) + ' CUP</div><div class="det-que">Toca un pedazo: te digo de quién es ese dinero, grande y claro.</div>';
+  } else {
+    var p = partes[i];
+    det.innerHTML = '<div class="det-nombre"><span class="det-punto" style="background:' + p.color + '"></span>' + p.nombre + ' · ' + pctTxt(p.pct) + '%</div>'
+      + '<div class="det-cifra num">' + fmt(p.cup) + ' CUP</div>'
+      + (p.que ? '<div class="det-que">' + p.que + '</div>' : '')
+      + '<div class="det-total">de ' + fmt(SEMILLA.vision.total) + ' CUP en total</div>';
+  }
+  det.classList.remove("pop"); void det.offsetWidth; det.classList.add("pop");
 }
 
 /* ---------- Calculadoras vivas, con las ecuaciones de Ernesto ---------- */
@@ -746,9 +997,12 @@ function mostrarToast(txt){
 }
 
 /* ---------- Arranque ---------- */
-dibujarPastel("pastelGen", SEMILLA.vision.partes, SEMILLA.vision.total, "detalleGen");
+construirLeyendaVision(); seleccionarVision(-1);
 dibujarPastel("pastel22", SEMILLA.ciclo22.partes, SEMILLA.ciclo22.total, "detalle22");
 dibujarPastel("pastelProy", SEMILLA.proy.partes, SEMILLA.proy.total, "detalleProy");
+/* Si el 3D no cargó (sin WebGL o sin red para la librería), se muestra el
+   texto con las cifras, que ya está dentro de la escena. */
+setTimeout(function(){ if(!document.querySelector("#escena-vision canvas")){ var f = $("sinwebgl-vision"); if(f) f.style.display = "block"; } }, 5000);
 recalcular(); repartir(); pintarApuntes();
 setTimeout(function(){ $("barra23").style.width = "85%"; $("barra24").style.width = "77%"; }, 300);
 verCiclo(23); zoom("dia");
