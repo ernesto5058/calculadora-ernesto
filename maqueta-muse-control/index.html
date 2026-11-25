@@ -326,6 +326,21 @@
     transition: top .3s ease;
   }
   .overlay.open { display: flex; }
+  /* Vista de detalle compacta: el contenido termina donde termina, sin
+     hueco grande debajo (fallo del Ojo en la v9: las vistas de detalle
+     eran mucho más altas que su contenido). Solo los detalles usan
+     esta variante; los listados (alertas, actividad, sesiones,
+     acciones) siguen a pantalla completa. El resto de la pantalla
+     queda tapado por el telón. */
+  .overlay.detail { height: auto; max-height: 92dvh; border-radius: 0 0 24px 24px; overflow: hidden; }
+  .overlay.detail .ov-body { flex: none; overflow-y: auto; max-height: calc(92dvh - 120px); }
+  /* Telón que tapa la pantalla bajo una vista de detalle. */
+  .ov-backdrop {
+    position: fixed; top: 0; left: 50%; transform: translateX(-50%);
+    width: 100%; max-width: 430px; height: 100dvh; z-index: 55;
+    background: rgba(5,3,10,.72); display: none;
+  }
+  .ov-backdrop.show { display: block; }
   .ov-head {
     display: flex; align-items: center; gap: 12px;
     padding: calc(14px + env(safe-area-inset-top)) 16px 12px;
@@ -398,11 +413,11 @@
     </div>
 
     <div class="sec-title"><h2>Alertas y errores</h2><a onclick="openList('alertas')">Ver todas</a></div>
-    <div class="alert red home-alert" data-alert="tunel">
+    <div class="alert red home-alert tappable" data-alert="tunel" onclick="openAlert(0)">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f87171" stroke-width="2" stroke-linecap="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
       <div><b>El túnel zrok es público</b><span>La API del shim responde sin autenticación de cliente. Antes de usarlo como puerta de mando hay que cerrarlo: share privado o auth por cliente.</span></div>
     </div>
-    <div class="alert amber home-alert" data-alert="ram">
+    <div class="alert amber home-alert tappable" data-alert="ram" onclick="openAlert(1)">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
       <div><b>RAM ajustada: 1,2 GB libres</b><span>La PWA y un adaptador ligero sí caben. Nada de base de datos grande ni modelos locales.</span></div>
     </div>
@@ -421,7 +436,7 @@
       <div class="act" onclick="openActivity('home', 1)"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div><div><b>Servicios rearrancados solos</b><span>Tras el reinicio de la máquina, el timer los levantó</span></div><time>01:14</time></div>
       <div class="act" onclick="openActivity('home', 2)"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" stroke-width="2" stroke-linecap="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/></svg></div><div><b>WhatsApp Baileys cayó 2 veces</b><span>Reinicios de máquina; levantado a mano</span></div><time>01:20</time></div>
     </div>
-    <p class="foot">Muse Control · Maqueta v9 · Los datos de esta pantalla son de ejemplo.</p>
+    <p class="foot">Muse Control · Maqueta v10 · Los datos de esta pantalla son de ejemplo.</p>
     <div style="text-align:center; margin-top:10px;"><button class="btn ghost" style="flex:none; padding:9px 18px;" onclick="resetDemo()">Restablecer demo</button></div>
   </section>
 
@@ -525,9 +540,9 @@
     <div class="sec-title"><h2>Sesiones de OpenCode</h2><a onclick="openList('sesiones')">Ver todas</a></div>
     <p class="legend" id="sessionStats">6 sesiones · 3 activas · 2 terminadas · 1 pausada</p>
     <div class="card">
-      <div class="svc" onclick="openSession(0)"><div class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" stroke-width="2" stroke-linecap="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg></div><div><b>maqueta-libreta · pastel 3D</b><span>Gemini 3.1 Flash Lite · hace 12 min</span></div><div class="st"><span class="pill run"><span class="d"></span>Activa</span></div></div>
-      <div class="svc" onclick="openSession(1)"><div class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg></div><div><b>juego-v9 · parte del trabajador</b><span>Gemini 3.1 Flash Lite · hace 1 h</span></div><div class="st"><span class="pill ok"><span class="d"></span>Terminada</span></div></div>
-      <div class="svc" onclick="openSession(2)"><div class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#a99cc9" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/></svg></div><div><b>consejo-fase2 · diseño</b><span>Sin modelo · en espera</span></div><div class="st"><span class="pill idle"><span class="d"></span>Pausada</span></div></div>
+      <div class="svc" onclick="openSession(0)"><div class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" stroke-width="2" stroke-linecap="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg></div><div><b>Maqueta Libreta — pastel 3D</b><span>Gemini 3.1 Flash Lite · hace 12 min</span></div><div class="st"><span class="pill run"><span class="d"></span>Activa</span></div></div>
+      <div class="svc" onclick="openSession(1)"><div class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg></div><div><b>Juego v9 — parte del trabajador</b><span>Gemini 3.1 Flash Lite · hace 1 h</span></div><div class="st"><span class="pill ok"><span class="d"></span>Terminada</span></div></div>
+      <div class="svc" onclick="openSession(2)"><div class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#a99cc9" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/></svg></div><div><b>Consejo Fase 2 — diseño técnico</b><span>Gemini 3.1 Flash Lite · en espera</span></div><div class="st"><span class="pill idle"><span class="d"></span>Pausada</span></div></div>
     </div>
 
     <div class="sec-title"><h2>Cambio pendiente de aprobación</h2></div>
@@ -570,7 +585,7 @@
       <div class="act" onclick="openActivity('taller', 1)"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#f87171" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></div><div><b>Despliegue rechazado</b><span>Maqueta v7-u2net · en cuarentena</span></div><time>ayer</time></div>
       <div class="act" onclick="openActivity('taller', 2)"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div><div><b>Pruebas del banco: 72/72</b><span>Juego v9 · sin fallos</span></div><time>ayer</time></div>
     </div>
-    <p class="foot">Taller · Maqueta v9 · Ningún despliegue o comando destructivo se ejecuta sin tu autorización.</p>
+    <p class="foot">Taller · Maqueta v10 · Ningún despliegue o comando destructivo se ejecuta sin tu autorización.</p>
   </section>
 
   <!-- ============ BARRA INFERIOR ============ -->
@@ -596,6 +611,8 @@
       Taller
     </button>
   </nav>
+
+  <div class="ov-backdrop" id="ovBackdrop"></div>
 
   <div class="overlay" id="overlay">
     <div class="ov-head">
@@ -645,7 +662,7 @@
     if (!show) return;
     fillToast(show, msg);
     show.classList.add('show');
-    if (show.id === 'ovToast') reserveOvSpace(); else clearOvSpace();
+    if (show.id === 'ovToast') reserveOvSpace(); else { clearOvSpace(); nudgeForToast(); }
     clearTimeout(toastTimer);
     if (!persist) toastTimer = setTimeout(function(){ hideToast(); }, 8000);
   }
@@ -658,6 +675,29 @@
     if (t) t.classList.remove('show');
     if (o) o.classList.remove('show');
     clearOvSpace();
+  }
+  /* Al aparecer el aviso fijo con la página desplazada, no debe tapar
+     el borde superior del contenido: se desplaza la vista lo justo
+     para que el contenido que tapa quede visible (fallo del Ojo en
+     la v9: al aprobar el cambio en Taller, el aviso tapaba la tarjeta
+     del diff). Solo se mueve cuando algo queda tapado y solo lo que
+     falta — igual que el ajuste de «‹ Volver» al restaurar. Dentro de
+     una vista no hace falta: el aviso reserva su espacio empujando el
+     contenido. Tras restablecer no se toca nada: la recarga restaura
+     la posición exacta y el aviso es transitorio. */
+  function nudgeForToast() {
+    if (toastMsg === 'Demo restablecida') return;
+    var t = document.getElementById('toast');
+    if (!t || !t.classList.contains('show')) return;
+    var tb = t.getBoundingClientRect().bottom;
+    if (tb <= 0) return;
+    var els = document.querySelectorAll('.screen.active .card, .screen.active .agent, .screen.active .diff, .screen.active h1, .screen.active .sec-title, .screen.active .alert, .screen.active .verdict, .screen.active .grid2');
+    var top = null;
+    for (var i = 0; i < els.length; i++) {
+      var r = els[i].getBoundingClientRect().top;
+      if (r >= 0 && (top === null || r < top)) top = r;
+    }
+    if (top !== null && top < tb) window.scrollBy({ top: top - tb, behavior: 'instant' });
   }
   /* Dentro de una vista, el aviso empuja el contenido: se reserva su
      altura real + 14 px arriba del cuerpo, y se libera al ocultarse. */
@@ -751,10 +791,39 @@
        se vea, SIN apilarlo (replace): si no, «‹ Volver» mostraría el
        listado viejo. El aviso va DESPUÉS y se traslada a la vista con
        el tiempo que le quede. */
-    if (document.getElementById('overlay').classList.contains('open')) openList('alertas', { replace: true });
+    /* Si hay una vista abierta, se vuelve a dibujar LA QUE ESTÁ
+       ABIERTA (listado de alertas o detalle de una alerta), sin
+       apilarla: si no, «‹ Volver» mostraría la vista vieja. */
+    if (document.getElementById('overlay').classList.contains('open')) {
+      var ovT = document.getElementById('ovTitle').textContent;
+      if (ovT.indexOf('Alerta: ') === 0) {
+        var at = ovT.slice(8);
+        for (var ai = 0; ai < alertsData.length; ai++) if (alertsData[ai].title === at) { openAlert(ai, { replace: true }); break; }
+      } else if (ovT === 'Alertas y errores') {
+        openList('alertas', { replace: true });
+      }
+    }
     if (msg) toast(msg);
   }
 
+  /* Detalle de una alerta de Inicio: tocar la tarjeta abre su ficha
+     con sus acciones (en la v9 las tarjetas no hacían nada y las
+     acciones solo existían en «Ver todas» de alertas). */
+  function openAlert(i, opts) {
+    var a = alertsData[i];
+    if (!a) return;
+    var clearedA = alertsCleared();
+    var h = '<p class="ov-note">Alerta de ejemplo.</p><div class="alert ' + a.cls + (clearedA ? ' read' : '') + '"><div><b>' + a.title + (clearedA ? ' · ' + alertsTag() : '') + '</b><span>' + a.sub + '</span></div></div>'
+      + '<div class="plan-actions">'
+      + '<button class="btn ghost" onclick="alertAction(\'silenciar\')">' + (alertsState.silenced ? 'Quitar silencio' : 'Silenciar') + '</button>'
+      + '<button class="btn ghost" onclick="alertAction(\'leidas\')">Marcar leídas</button>'
+      + '</div>'
+      + '<div class="plan-actions">'
+      + '<button class="btn ghost" onclick="alertAction(\'tunel\')">Revisar el túnel</button>'
+      + '<button class="btn ghost" onclick="alertAction(\'fallar\')">Ver qué puede fallar</button>'
+      + '</div>';
+    openOverlay('Alerta: ' + a.title, h, opts && opts.replace ? { replace: true, detail: true } : { detail: true });
+  }
   /* Restablecer demo: limpia cualquier resto guardado y vuelve al estado inicial recargando la página */
   function resetDemo() {
     /* La posición de desplazamiento se guarda ANTES de limpiar: en la
@@ -899,12 +968,12 @@
     x: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#f87171" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>'
   };
   var activities = [
-    { agent: 'Gemini', go: 'consejo', icon: 'check', title: 'Gemini respondió la ronda 2', sub: 'Consejo · auditoría de arquitectura', time: 'hace 4 min' },
-    { agent: 'Nemotron', go: 'consejo', icon: 'clock', title: 'Nemotron empezó la contraparte', sub: 'Consejo · revisando a Gemini', time: 'hace 2 min' },
-    { agent: 'Hermes', go: 'consejo', icon: 'search', title: 'Hermes trajo 15 fragmentos', sub: 'Evidencia · documentación oficial', time: 'hace 9 min' },
-    { agent: 'Máximo', go: 'consejo', icon: 'check', title: 'Máximo abrió la ronda 2 del Consejo', sub: 'Orquesta · deliberación 183058', time: 'hace 12 min' },
-    { agent: 'Gemini', go: 'consejo', icon: 'check', title: 'Gemini terminó la ronda 1', sub: 'Consejo · 2 citas válidas de Hermes', time: 'hace 26 min' },
-    { agent: 'explore', go: 'orquesta', icon: 'x', title: 'explore se desconectó', sub: 'OpenCode · agente sin conexión', time: 'hace 3 h' }
+    { agent: 'Gemini', go: 'consejo', icon: 'check', title: 'Gemini respondió la ronda 2', sub: 'Consejo · auditoría de arquitectura', time: 'hace 4 min', detail: 'Gemini entregó su auditoría con 2 citas válidas de Hermes. Su causa: el build 90 abre el túnel antes de que el servicio local responda.' },
+    { agent: 'Nemotron', go: 'consejo', icon: 'clock', title: 'Nemotron empezó la contraparte', sub: 'Consejo · revisando a Gemini', time: 'hace 2 min', detail: 'Todavía no ha respondido en esta ronda. Su trabajo es encontrarle agujeros a la auditoría de Gemini.' },
+    { agent: 'Hermes', go: 'consejo', icon: 'search', title: 'Hermes trajo 15 fragmentos', sub: 'Evidencia · documentación oficial', time: 'hace 9 min', detail: 'Cubren el registro de arranque y el documento del puente. Hermes solo aporta evidencia, nunca opina.' },
+    { agent: 'Máximo', go: 'consejo', icon: 'check', title: 'Máximo abrió la ronda 2 del Consejo', sub: 'Orquesta · deliberación 183058', time: 'hace 12 min', detail: 'Máximo abrió la segunda ronda y repartió las preguntas entre Gemini y Nemotron. El veredicto llega cuando los dos respondan.' },
+    { agent: 'Gemini', go: 'consejo', icon: 'check', title: 'Gemini terminó la ronda 1', sub: 'Consejo · 2 citas válidas de Hermes', time: 'hace 26 min', detail: 'Gemini cerró la primera ronda con sus conclusiones. La ronda 2 ya está en marcha.' },
+    { agent: 'explore', go: 'orquesta', icon: 'x', title: 'explore se desconectó', sub: 'OpenCode · agente sin conexión', time: 'hace 3 h', detail: 'Se desconectó hace 3 horas. En esta maqueta está offline para que el filtro Sin conexión tenga algo que mostrar.' }
   ];
   function agentStatusOf(name) {
     for (var i = 0; i < agents.length; i++) if (agents[i].name === name) return agents[i].status;
@@ -930,26 +999,33 @@
      inventario (mismos títulos, subtítulos y horas que se ven en la
      pantalla) porque no forman parte del array de Orquesta. */
   var homeActivities = [
-    { icon: 'check', title: 'Auditoría Fase 0 completada', sub: 'Infra, API y Consejo revisados en vivo', time: '02:27', go: 'consejo', detail: 'La auditoría de la Fase 0 revisó en vivo la infraestructura, la API y el Consejo: sin incidencias. Es el punto de partida del plan de Muse Control.' },
-    { icon: 'clock', title: 'Servicios rearrancados solos', sub: 'Tras el reinicio de la máquina, el timer los levantó', time: '01:14', go: 'taller', detail: 'Tras el reinicio de la máquina, el timer de recuperación levantó solos los servicios: OpenCode, el shim, zrok y SearXNG.' },
-    { icon: 'search', title: 'WhatsApp Baileys cayó 2 veces', sub: 'Reinicios de máquina; levantado a mano', time: '01:20', go: 'taller', detail: 'El servicio de WhatsApp cayó dos veces por reinicios de la máquina y se levantó a mano. El vigía automático sigue desactivado.' }
+    { icon: 'check', title: 'Auditoría Fase 0 completada', sub: 'Infra, API y Consejo revisados en vivo', time: '02:27', go: 'consejo', detail: 'La Fase 0 terminó sin incidencias. Es el punto de partida del plan de Muse Control: a partir de aquí se cierran el túnel, el consenso y la conexión de lectura.' },
+    { icon: 'clock', title: 'Servicios rearrancados solos', sub: 'Tras el reinicio de la máquina, el timer los levantó', time: '01:14', go: 'taller', detail: 'Los servicios que se levantaron solos: OpenCode, el shim, zrok y SearXNG.' },
+    { icon: 'search', title: 'WhatsApp Baileys cayó 2 veces', sub: 'Reinicios de máquina; levantado a mano', time: '01:20', go: 'taller', detail: 'Dos caídas seguidas, una a las 23:05 y otra a la 01:09. El vigía automático sigue desactivado.' }
   ];
   var tallerActivities = [
-    { icon: 'check', title: 'Publicada v9 del juego', sub: 'Aprobada por Ernesto · commit f7dd321', time: '22:00', go: 'taller', detail: 'La versión 9 del juego de Mi Trabajo se publicó y Ernesto la aprobó. Banco de pruebas: 72/72 sin fallos.' },
-    { icon: 'x', title: 'Despliegue rechazado', sub: 'Maqueta v7-u2net · en cuarentena', time: 'ayer', go: 'taller', detail: 'El despliegue de la maqueta v7-u2net se rechazó: está en cuarentena por un defecto de recorte y nunca se publica.' },
-    { icon: 'check', title: 'Pruebas del banco: 72/72', sub: 'Juego v9 · sin fallos', time: 'ayer', go: 'taller', detail: 'La última corrida del banco de pruebas del juego pasó 72 de 72 sin fallos.' }
+    { icon: 'check', title: 'Publicada v9 del juego', sub: 'Aprobada por Ernesto · commit f7dd321', time: '22:00', go: 'taller', detail: 'Se publicó la versión 9 del juego de Mi Trabajo. Banco de pruebas: 72/72 sin fallos.' },
+    { icon: 'x', title: 'Despliegue rechazado', sub: 'Maqueta v7-u2net · en cuarentena', time: 'ayer', go: 'taller', detail: 'Se rechazó por un defecto de recorte: la imagen queda mal cortada en el borde. Queda apartada y nunca se publica.' },
+    { icon: 'check', title: 'Pruebas del banco: 72/72', sub: 'Juego v9 · sin fallos', time: 'ayer', go: 'taller', detail: 'La última corrida del banco de pruebas del juego pasó 72 de 72.' }
   ];
   function openActivity(src, i) {
     var list = src === 'home' ? homeActivities : (src === 'taller' ? tallerActivities : activities);
     var a = list[i];
     if (!a) return;
     var dest = a.go === 'consejo' ? 'Consejo' : (a.go === 'taller' ? 'Taller' : 'Orquesta');
+    /* El subtítulo queda como primera línea, con su punto final (en la
+       v9 se veía cortado, sin punto); el cuerpo trae solo información
+       nueva y nunca repite el subtítulo (fallo del Ojo en la v9: el
+       cuerpo volvía a decir lo mismo, p. ej. «Tras el reinicio de la
+       máquina, el timer los levantó» dos veces seguidas). */
+    var subLine = a.sub;
+    if (!/[.!?…]$/.test(subLine)) subLine += '.';
     openOverlay('Actividad: ' + a.title, '<p class="ov-note">Datos de ejemplo de la actividad.</p><div class="card">'
       + '<div class="row"><b style="font-size:14px;">' + a.title + '</b><time style="font-size:12px; color:var(--muted);">' + a.time + '</time></div>'
-      + '<p style="font-size:13.5px; color:var(--muted); margin-top:10px; line-height:1.55;">' + a.sub + '</p>'
+      + '<p style="font-size:13.5px; color:var(--muted); margin-top:10px; line-height:1.55;">' + subLine + '</p>'
       + '<p style="font-size:13.5px; color:var(--muted); line-height:1.55;">' + (a.detail || a.sub) + '</p>'
       + '<div class="plan-actions" style="margin-top:14px;"><button class="btn go" onclick="closeOverlayAll(); go(\'' + a.go + '\')">Ver en ' + dest + '</button></div>'
-      + '</div>');
+      + '</div>', { detail: true });
   }
   /* Detalle de una tarjeta de estado de Inicio: la de Estado abre su
      detalle; Agentes y Tareas navegan; Alertas abre el listado. */
@@ -960,7 +1036,7 @@
         + '<div class="svc"><div><b>Shim</b><span>Puerto 4097 · puente de proveedores</span></div><div class="st"><span class="pill ok"><span class="d"></span>Arriba</span></div></div>'
         + '<div class="svc"><div><b>zrok</b><span>Túnel · opencodeernesto.share.zrok.io</span></div><div class="st"><span class="pill warn"><span class="d"></span>Público</span></div></div>'
         + '<div class="svc"><div><b>SearXNG</b><span>Puerto 8080 · búsqueda</span></div><div class="st"><span class="pill ok"><span class="d"></span>Arriba</span></div></div>'
-        + '</div><p class="ov-note">En la versión real, cada servicio muestra su última comprobación y su error si lo hay.</p>');
+        + '</div><p class="ov-note">En la versión real, cada servicio muestra su última comprobación y su error si lo hay.</p>', { detail: true });
     }
   }
   /* Detalle de una sesión de OpenCode: tocar la fila abre su ficha con
@@ -968,12 +1044,28 @@
   function openSession(i) {
     var s = sessionsData[i];
     if (!s) return;
+    /* Sección «Tareas»: el detalle de sesión ya no es solo una tarjeta
+       y un botón con mucho vacío debajo (fallo del Ojo en la v9). Las
+       tareas son de ejemplo y cuadran con el estado de la sesión. */
+    var tasksHtml = '';
+    if (s.tasks && s.tasks.length) {
+      tasksHtml = '<h3 style="font-size:13px; color:var(--muted); font-weight:600; margin:14px 0 6px;">Tareas</h3><ul class="steps">';
+      for (var k = 0; k < s.tasks.length; k++) {
+        var t = s.tasks[k];
+        var cls = t.state === 'done' ? 'done' : (t.state === 'now' ? 'now' : 'locked');
+        var n = t.state === 'done' ? '✓' : String(k + 1);
+        var st = t.state === 'done' ? 'Terminada' : (t.state === 'now' ? 'En curso' : 'En espera');
+        tasksHtml += '<li class="' + cls + '"><span class="n">' + n + '</span><div>' + t.label + '<small>' + st + '</small></div></li>';
+      }
+      tasksHtml += '</ul>';
+    }
     openOverlay('Sesión: ' + s.name, '<p class="ov-note">Datos de ejemplo de la sesión.</p><div class="card">'
       + '<div class="row"><b style="font-size:14px;">' + s.name + '</b><span class="pill ' + s.pill + '"><span class="d"></span>' + s.label + '</span></div>'
-      + '<p style="font-size:13.5px; color:var(--muted); margin-top:10px; line-height:1.55;">' + s.sub + '</p>'
-      + '<p style="font-size:13.5px; color:var(--muted); line-height:1.55;">Modelo: Gemini 3.1 Flash Lite · Proyecto: calculadora-ernesto.</p>'
+      + '<p style="font-size:13.5px; color:var(--muted); margin-top:10px; line-height:1.55;">' + s.desc + '</p>'
+      + '<p style="font-size:13.5px; color:var(--muted); line-height:1.55;">Modelo: ' + s.model + ' · Proyecto: ' + s.project + '.</p>'
+      + tasksHtml
       + '<div class="plan-actions" style="margin-top:14px;"><button class="btn go" onclick="closeOverlayAll(); go(\'maximo\'); suggestOrder(\'Revisa la sesión ' + s.name.replace(/'/g, '') + '\')">Preguntar a Máximo</button></div>'
-      + '</div>');
+      + '</div>', { detail: true });
   }
   /* Detalle de un agente de la Orquesta: tocar la tarjeta abre su ficha
      con sus datos y una vía para preguntarle a Máximo por él. En la v6
@@ -992,7 +1084,7 @@
       + '<div class="bar"><i style="width:' + a.usage + '%"></i></div></div>'
       + '<div class="state-note">' + a.note + '</div>'
       + '<div class="plan-actions" style="margin-top:14px;"><button class="btn go" onclick="closeOverlayAll(); go(\'maximo\'); suggestOrder(\'Revisa el estado de ' + a.name.replace(/'/g, '') + '\')">Preguntar a Máximo</button></div>'
-      + '</div>');
+      + '</div>', { detail: true });
   }
   function renderOrchActivity() {
     var box = document.getElementById('orchActivity');
@@ -1083,6 +1175,20 @@
       if (dy > 1) window.scrollTo({ top: window.scrollY + dy, behavior: 'instant' });
     }, 150);
   }
+  /* El plan VARÍA según la orden: en la v9 los 4 planes que probó el
+     Ojo eran idénticos (las mismas 5 viñetas) fuera cual fuera la
+     petición. Cada orden habitual tiene su propio plan con su título;
+     un mensaje libre cae en el plan genérico. */
+  function planFor(text) {
+    var t = (text || '').toLowerCase();
+    if (t.indexOf('orquesta') !== -1) return { title: 'Estado de la orquesta', items: ['Comprobar qué agentes están arriba y cuáles no.', 'Revisar la última actividad de cada uno.', 'Detectar cuellos de botella y agentes sin conexión.', 'Hermes trae el estado de los servicios.', 'Te traigo el resumen con lo que necesita tu toque.'] };
+    if (t.indexOf('convoca') !== -1) return { title: 'Convocar a Gemini y Nemotron', items: ['Abrir una ronda del Consejo con tu pregunta.', 'Gemini audita y propone soluciones.', 'Nemotron revisa las conclusiones de Gemini.', 'Hermes busca la documentación que falte.', 'El Consejo evalúa y yo te traigo el informe.'] };
+    if (t.indexOf('arquitectura') !== -1) return { title: 'Auditar la arquitectura', items: ['Revisar punto por punto la arquitectura y los cambios recientes.', 'Buscar problemas de seguridad: permisos, tokens y túnel.', 'Comparar contra el diseño aprobado (Fase 0 y Fase 2 del Consejo).', 'Proponer el arreglo o pedirte el «dale» para aplicarlo.'] };
+    if (t.indexOf('audit') !== -1) return { title: 'Pedir una auditoría', items: ['Definir qué se audita y hasta dónde llega.', 'Gemini revisa el trabajo punto por punto.', 'Nemotron busca los agujeros de la auditoría.', 'Hermes trae la documentación oficial que falte.', 'Te entrego el informe con los hallazgos y su arreglo.'] };
+    if (t.indexOf('sesión') !== -1 || t.indexOf('sesion') !== -1) return { title: 'Revisar la sesión', items: ['Abrir la sesión y leer su estado.', 'Revisar qué modelo y proyecto usa.', 'Comprobar sus tareas y su progreso.', 'Decirte si está lista o qué le falta.'] };
+    if (t.indexOf('revisa el estado de') !== -1) return { title: 'Revisar el estado del agente', items: ['Comprobar si está arriba y respondiendo.', 'Revisar sus tareas de hoy y su éxito.', 'Ver su última actividad y su uso.', 'Decirte si necesita tu toque.'] };
+    return { title: 'Plan general', items: ['Definir el alcance y las restricciones.', 'Identificar qué servicios toca y qué queda fuera.', 'Revisar la documentación antes de tocar nada.', 'Traer el plan con sus pasos y sus riesgos.', 'Pedir tu «dale» antes de ejecutar nada.'] };
+  }
   function sendOrder() {
     var input = document.getElementById('chatInput');
     var text = (input.value || '').trim();
@@ -1110,12 +1216,9 @@
        seguridad de 150 ms queda solo por si el navegador aún pinta. */
     var bot = document.createElement('div');
     bot.className = 'msg bot';
-    bot.innerHTML = '<b>Máximo</b><br>Entendido. Mi plan para «' + escapeHtml(text) + '» sería:'
-      + '<ul><li>Definir el alcance y las restricciones.</li>'
-      + '<li>Gemini audita y propone soluciones.</li>'
-      + '<li>Nemotron revisa las conclusiones de Gemini.</li>'
-      + '<li>Hermes busca la documentación que falte.</li>'
-      + '<li>El Consejo evalúa y yo te traigo el informe.</li></ul>'
+    var plan = planFor(text);
+    bot.innerHTML = '<b>Máximo</b><br>Entendido. Mi plan para «' + escapeHtml(text) + '» sería: <b>' + plan.title + '</b>'
+      + '<ul>' + plan.items.map(function (it) { return '<li>' + it + '</li>'; }).join('') + '</ul>'
       + '¿Lo ejecuto así?'
       + '<div class="plan-actions"><button class="btn go" onclick="decide(this,true)">Aprobar</button>'
       + '<button class="btn no" onclick="decide(this,false)">Rechazar</button></div>';
@@ -1165,12 +1268,12 @@
     { cls: 'amber', title: 'RAM ajustada: 1,2 GB libres', sub: 'La PWA y un adaptador ligero sí caben. Nada de base de datos grande ni modelos locales.', time: '02:27' }
   ];
   var sessionsData = [
-    { name: 'maqueta-libreta · pastel 3D', sub: 'Gemini 3.1 Flash Lite · hace 12 min', pill: 'run', label: 'Activa' },
-    { name: 'juego-v9 · parte del trabajador', sub: 'Gemini 3.1 Flash Lite · hace 1 h', pill: 'ok', label: 'Terminada' },
-    { name: 'consejo-fase2 · diseño', sub: 'Sin modelo · en espera', pill: 'idle', label: 'Pausada' },
-    { name: 'maqueta-muse-control', sub: 'Gemini 3.1 Flash Lite · hace 30 min', pill: 'run', label: 'Activa' },
-    { name: 'vigia-ofertas-qvapay', sub: 'Gemini 3.1 Flash Lite · hace 48 min', pill: 'run', label: 'Activa' },
-    { name: 'exporte-completo', sub: 'Gemini 3.1 Flash Lite · ayer', pill: 'ok', label: 'Terminada' }
+    { name: 'Maqueta Libreta — pastel 3D', sub: 'Gemini 3.1 Flash Lite · hace 12 min', pill: 'run', label: 'Activa', model: 'Gemini 3.1 Flash Lite', project: 'calculadora-ernesto', desc: 'La maqueta de la libreta con el gráfico de pastel en 3D, precargada con los datos de Ernesto.', tasks: [ { label: 'Pastel 3D con perspectiva y extrusión', state: 'done' }, { label: 'Etiquetas fuera con conectora', state: 'done' }, { label: 'Pulido final y publicación', state: 'now' } ] },
+    { name: 'Juego v9 — parte del trabajador', sub: 'Gemini 3.1 Flash Lite · hace 1 h', pill: 'ok', label: 'Terminada', model: 'Gemini 3.1 Flash Lite', project: 'calculadora-ernesto', desc: 'El juego de Mi Trabajo con la parte del trabajador al 20% de la ganancia y la ganancia total siempre oculta.', tasks: [ { label: 'Parte del trabajador al 20% de la ganancia', state: 'done' }, { label: 'La ganancia total nunca se muestra', state: 'done' }, { label: 'Publicación y entrega', state: 'done' } ] },
+    { name: 'Consejo Fase 2 — diseño técnico', sub: 'Gemini 3.1 Flash Lite · en espera', pill: 'idle', label: 'Pausada', model: 'Gemini 3.1 Flash Lite', project: 'consejo-ia', desc: 'El diseño técnico de la Fase 2 del Consejo: consenso con Gemini Y Nemotron, planificador y verificador corregidos.', tasks: [ { label: 'Diseño técnico D1–D8', state: 'done' }, { label: 'Congelación y copia de seguridad', state: 'wait' }, { label: 'Corrección del consenso', state: 'wait' } ] },
+    { name: 'Maqueta Muse Control — panel de mando', sub: 'Gemini 3.1 Flash Lite · hace 30 min', pill: 'run', label: 'Activa', model: 'Gemini 3.1 Flash Lite', project: 'calculadora-ernesto', desc: 'Esta misma maqueta: el panel de mando de Muse para el iPhone, en versión offline.', tasks: [ { label: 'Maqueta v10 offline', state: 'done' }, { label: 'Pasada del Ojo en vivo', state: 'done' }, { label: 'Pulido de defectos bajos', state: 'now' } ] },
+    { name: 'Vigía de ofertas QvaPay — libro en vivo', sub: 'Gemini 3.1 Flash Lite · hace 48 min', pill: 'run', label: 'Activa', model: 'Gemini 3.1 Flash Lite', project: 'qvapay-saldo-trading', desc: 'El vigía que lee el libro de QvaPay en vivo y avisa cuando se aplica una oferta.', tasks: [ { label: 'Lectura del libro en vivo', state: 'done' }, { label: 'Aviso de aplicación', state: 'done' }, { label: 'Seguimiento de la oferta', state: 'now' } ] },
+    { name: 'Exporte completo — paquete para otro agente', sub: 'Gemini 3.1 Flash Lite · ayer', pill: 'ok', label: 'Terminada', model: 'Gemini 3.1 Flash Lite', project: 'exporte-otro-agente', desc: 'La memoria portable y el exporte completo del trabajo, en ZIPs para otro agente.', tasks: [ { label: 'Memoria portable', state: 'done' }, { label: 'Exporte completo', state: 'done' }, { label: 'ZIPs para otro agente', state: 'done' } ] }
   ];
   var actionsData = [
     { label: 'Hablar con Máximo', go: 'maximo' },
@@ -1254,7 +1357,8 @@
       overlayStack.push({
         title: document.getElementById('ovTitle').textContent,
         body: document.getElementById('ovBody').innerHTML,
-        bodyY: document.getElementById('ovBody').scrollTop
+        bodyY: document.getElementById('ovBody').scrollTop,
+        detail: ov.classList.contains('detail')
       });
     }
     if (!alreadyOpen) {
@@ -1271,6 +1375,15 @@
     body.innerHTML = bodyHtml;
     body.scrollTop = 0;
     ov.classList.add('open');
+    /* Vista de detalle compacta (ver CSS): altura según contenido y
+       telón sobre el resto de la pantalla. Solo se cambia al abrir
+       una vista nueva, no al re-dibujar la actual (replace). */
+    if (!opts.replace) {
+      var isDetail = !!opts.detail;
+      ov.classList.toggle('detail', isDetail);
+      var bd = document.getElementById('ovBackdrop');
+      if (bd) bd.classList.toggle('show', isDetail);
+    }
     carryToastToOverlay(); /* el aviso activo se ve dentro de la vista */
     window.scrollTo({ top: 0, behavior: 'instant' });
   }
@@ -1285,6 +1398,10 @@
       var body = document.getElementById('ovBody');
       body.innerHTML = prev.body;
       body.scrollTop = prev.bodyY || 0;
+      var ov2 = document.getElementById('overlay');
+      ov2.classList.toggle('detail', !!prev.detail);
+      var bd2 = document.getElementById('ovBackdrop');
+      if (bd2) bd2.classList.toggle('show', !!prev.detail);
       return;
     }
     closeOverlayAll();
@@ -1306,6 +1423,9 @@
   function closeOverlayAll() {
     overlayStack.length = 0;
     document.getElementById('overlay').classList.remove('open');
+    document.getElementById('overlay').classList.remove('detail');
+    var bd = document.getElementById('ovBackdrop');
+    if (bd) bd.classList.remove('show');
     carryToastToScreen();
     window.scrollTo({ top: overlayReturnY, behavior: 'instant' });
     var t = document.getElementById('toast');
@@ -1364,7 +1484,7 @@
     for (var i = 0; i < d.items.length; i++) {
       h += '<div class="frag"><b>' + d.items[i].tag + '</b><p>' + d.items[i].text + '</p></div>';
     }
-    openOverlay(d.title, h);
+    openOverlay(d.title, h, { detail: true });
   }
 
   /* ---------- Taller ---------- */
