@@ -189,8 +189,13 @@
   }
   .chip.on { background: var(--acc); border-color: var(--acc); color: #fff; }
   .agent { background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 16px; margin-bottom: 12px; }
-  .agent .head { display: flex; align-items: center; gap: 12px; }
-  .agent .av {
+  /* La cabecera de agente (.head + .av) se usa en la tarjeta de la
+     Orquesta Y en la ficha del agente dentro de la vista: las reglas van
+     sin el prefijo .agent, que en la v7 dejaba la ficha sin tamaño de
+     avatar (franja de color a lo ancho) y con nombre y rol pegados
+     («MáximoCoordinador»). */
+  .head { display: flex; align-items: center; gap: 12px; }
+  .head .av {
     width: 44px; height: 44px; border-radius: 50%; flex: none;
     display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 16px; color: #fff;
   }
@@ -198,9 +203,9 @@
   .av.gemini { background: linear-gradient(135deg, #3b82f6, #1e3a8a); }
   .av.nemotron { background: linear-gradient(135deg, #10b981, #064e3b); }
   .av.hermes { background: linear-gradient(135deg, #f59e0b, #92400e); }
-  .agent .head b { font-size: 15px; display: block; }
-  .agent .head span { font-size: 12px; color: var(--muted); }
-  .agent .head .pill { margin-left: auto; }
+  .head b { font-size: 15px; display: block; }
+  .head span { font-size: 12px; color: var(--muted); }
+  .head .pill { margin-left: auto; }
   .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 14px; }
   .stats div { background: var(--card2); border-radius: 12px; padding: 10px 8px; text-align: center; }
   .stats b { font-size: 16px; display: block; }
@@ -416,7 +421,7 @@
       <div class="act" onclick="activityGo('taller', 'Los servicios se levantaron solos tras el reinicio (maqueta)')"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div><div><b>Servicios rearrancados solos</b><span>Tras el reinicio de la máquina, el timer los levantó</span></div><time>01:14</time></div>
       <div class="act" onclick="activityGo('taller', 'WhatsApp Baileys cayó 2 veces por reinicios de máquina y se levantó a mano (maqueta)')"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" stroke-width="2" stroke-linecap="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/></svg></div><div><b>WhatsApp Baileys cayó 2 veces</b><span>Reinicios de máquina; levantado a mano</span></div><time>01:20</time></div>
     </div>
-    <p class="foot">Muse Control · Maqueta v7 · Los datos de esta pantalla son de ejemplo.</p>
+    <p class="foot">Muse Control · Maqueta v8 · Los datos de esta pantalla son de ejemplo.</p>
     <div style="text-align:center; margin-top:10px;"><button class="btn ghost" style="flex:none; padding:9px 18px;" onclick="resetDemo()">Restablecer demo</button></div>
   </section>
 
@@ -427,6 +432,7 @@
     <div class="chat" id="chat">
       <div class="msg bot"><b>Máximo</b><br>Hola Ernesto, soy yo. Dime qué quieres que haga la orquesta y te preparo el plan. Nada se ejecuta sin que tú lo apruebes.</div>
     </div>
+    <div class="sec-title" style="margin-top:4px;"><h2>Acciones</h2></div>
     <div class="sugg" id="sugg">
       <button onclick="suggestOrder('Revisa el estado de la orquesta')">Revisa el estado de la orquesta</button>
       <button onclick="suggestOrder('Convoca a Gemini y Nemotron')">Convoca a Gemini y Nemotron</button>
@@ -564,7 +570,7 @@
       <div class="act" onclick="toast('Despliegue rechazado: maqueta v7-u2net en cuarentena, nunca se publica (maqueta)')"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#f87171" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></div><div><b>Despliegue rechazado</b><span>Maqueta v7-u2net · en cuarentena</span></div><time>ayer</time></div>
       <div class="act" onclick="toast('Banco del juego v9: 72/72 sin fallos (maqueta)')"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div><div><b>Pruebas del banco: 72/72</b><span>Juego v9 · sin fallos</span></div><time>ayer</time></div>
     </div>
-    <p class="foot">Taller · Maqueta v7 · Ningún despliegue o comando destructivo se ejecuta sin tu autorización.</p>
+    <p class="foot">Taller · Maqueta v8 · Ningún despliegue o comando destructivo se ejecuta sin tu autorización.</p>
   </section>
 
   <!-- ============ BARRA INFERIOR ============ -->
@@ -768,6 +774,7 @@
        pertenece a la acción que lo provocó. (Por eso «Demo
        restablecida» ya no sobrevive a la navegación.) */
     hideToast();
+    settledY = 0; /* la pantalla nueva empieza arriba del todo */
     var screens = document.querySelectorAll('.screen');
     for (var i = 0; i < screens.length; i++) screens[i].classList.remove('active');
     document.getElementById('scr-' + name).classList.add('active');
@@ -787,7 +794,7 @@
   var agents = [
     { name: 'Máximo', role: 'Coordinador · árbitro del Consejo', cls: 'maximo', init: 'M',
       status: 'active', statusLabel: 'Activo', statusCls: 'run',
-      tasks: 6, success: '100%', last: 'ahora mismo', usage: 42,
+      tasks: 6, success: '100%', last: 'ahora', usage: 42,
       note: '<b>Disponible y coordinando.</b> Está dirigiendo la deliberación de ejemplo y esperando tu orden.' },
     { name: 'Gemini', role: 'Auditoría · gemini-3.1-flash-lite', cls: 'gemini', init: 'G',
       status: 'active', statusLabel: 'Respondió', statusCls: 'ok',
@@ -832,14 +839,19 @@
     }
     if (!shown) html = '<div class="card" style="text-align:center; color:var(--muted); font-size:13px;">Ningún agente coincide con ese filtro.</div>';
     list.innerHTML = html;
+    return shown;
   }
   function setFilter(f, el) {
     currentFilter = f;
     var chips = document.querySelectorAll('#chips .chip');
     for (var i = 0; i < chips.length; i++) chips[i].classList.remove('on');
     el.classList.add('on');
-    renderAgents();
+    var shown = renderAgents();
     renderOrchActivity();
+    /* El filtro también avisa: es el control de Orquesta que dispara el
+       aviso fijo de la pantalla (en la v7 ningún control de Orquesta lo
+       hacía y el Ojo no pudo verificar el aviso fijo ahí). */
+    toast('Filtro ' + el.textContent.trim() + ': ' + shown + (shown === 1 ? ' agente visible' : ' agentes visibles') + ' (maqueta)');
   }
   function filterAgents() { renderAgents(); renderOrchActivity(); }
   renderAgents();
@@ -1033,23 +1045,25 @@
     me.className = 'msg me';
     me.textContent = text;
     chat.appendChild(me);
-    scrollChatToBottom();
     input.value = '';
-    setTimeout(function() {
-      var bot = document.createElement('div');
-      bot.className = 'msg bot';
-      bot.innerHTML = '<b>Máximo</b><br>Entendido. Mi plan para «' + escapeHtml(text) + '» sería:'
-        + '<ul><li>Definir el alcance y las restricciones.</li>'
-        + '<li>Gemini audita y propone soluciones.</li>'
-        + '<li>Nemotron revisa las conclusiones de Gemini.</li>'
-        + '<li>Hermes busca la documentación que falte.</li>'
-        + '<li>El Consejo evalúa y yo te traigo el informe.</li></ul>'
-        + '¿Lo ejecuto así?'
-        + '<div class="plan-actions"><button class="btn go" onclick="decide(this,true)">Aprobar</button>'
-        + '<button class="btn no" onclick="decide(this,false)">Rechazar</button></div>';
-      chat.appendChild(bot);
-      scrollChatToBottom();
-    }, 600);
+    /* La respuesta se dibuja EN LA MISMA TAREA, sin retraso artificial:
+       en la v7 había un setTimeout de 600 ms y el Ojo veía la burbuja
+       del usuario pero aún no la tarjeta del plan (~1 s hasta que se
+       asentaba). El desplazamiento sigue siendo síncrono y la red de
+       seguridad de 150 ms queda solo por si el navegador aún pinta. */
+    var bot = document.createElement('div');
+    bot.className = 'msg bot';
+    bot.innerHTML = '<b>Máximo</b><br>Entendido. Mi plan para «' + escapeHtml(text) + '» sería:'
+      + '<ul><li>Definir el alcance y las restricciones.</li>'
+      + '<li>Gemini audita y propone soluciones.</li>'
+      + '<li>Nemotron revisa las conclusiones de Gemini.</li>'
+      + '<li>Hermes busca la documentación que falte.</li>'
+      + '<li>El Consejo evalúa y yo te traigo el informe.</li></ul>'
+      + '¿Lo ejecuto así?'
+      + '<div class="plan-actions"><button class="btn go" onclick="decide(this,true)">Aprobar</button>'
+      + '<button class="btn no" onclick="decide(this,false)">Rechazar</button></div>';
+    chat.appendChild(bot);
+    scrollChatToBottom();
   }
   function escapeHtml(s) {
     return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -1070,6 +1084,12 @@
     if (dy) window.scrollBy(0, dy);
     /* El aviso es fijo a la ventana: se ve sin mover la vista. */
     toast(ok ? 'Plan aprobado (maqueta)' : 'Plan rechazado (maqueta)');
+    /* La confirmación cambia la altura de la tarjeta y empuja los
+       atajos (#sugg) hacia abajo: sin re-anclar, la segunda fila de
+       chips quedaba cortada por el compositor tras decidir (fallo del
+       Ojo en la v7). El re-anclaje deja los 3 chips completos y
+       tocables por encima del compositor. */
+    scrollChatToBottom();
   }
   function undoDecide(btn) {
     var wrap = btn.parentElement;
@@ -1079,6 +1099,7 @@
     var dy = wrap.getBoundingClientRect().top - before;
     if (dy) window.scrollBy(0, dy);
     toast('Decisión deshecha: el plan vuelve a esperar tu toque (maqueta)');
+    scrollChatToBottom();
   }
 
   /* ---------- Listados completos (overlay) ---------- */
@@ -1126,6 +1147,27 @@
      arriba (fallo del Ojo en el detalle de sesión de Taller).
      Con {replace:true} se vuelve a dibujar la vista actual sin apilar
      (lo usa alertAction al re-dibujar el listado de alertas). */
+  /* Posición «asentada» de la ventana: dónde estaba el usuario cuando
+     dejó de desplazarse (800 ms quieto). Es LA posición que se guarda
+     al abrir una vista, y no la del instante del toque: el auto-scroll
+     que centra el enlace «Ver todas» antes de pulsarlo — lo hace el
+     harness del Ojo y lo haría cualquier desplazamiento automático —
+     mueve la página justo antes del toque y NO es la posición de
+     lectura. Con la asentada, el segundo «‹ Volver» vuelve exacto a
+     donde se estaba leyendo (fallo del Ojo en la v7: volvía arriba del
+     todo). Límite conocido: si se toca un enlace antes de 800 ms de
+     haber terminado un desplazamiento rápido, se restaura la posición
+     de lectura anterior, no la del desplazamiento (sigue siendo una
+     posición donde se estaba leyendo, nunca arriba del todo).
+     Mientras la vista está abierta la ventana está en 0 y no se
+     registra nada. */
+  var settledY = 0;
+  var settledTimer = null;
+  window.addEventListener('scroll', function () {
+    if (document.getElementById('overlay').classList.contains('open')) return;
+    clearTimeout(settledTimer);
+    settledTimer = setTimeout(function () { settledY = window.scrollY; }, 800);
+  }, { passive: true });
   var overlayReturnY = 0;
   var overlayStack = [];
   function openOverlay(title, bodyHtml, opts) {
@@ -1139,7 +1181,7 @@
         bodyY: document.getElementById('ovBody').scrollTop
       });
     }
-    if (!alreadyOpen) overlayReturnY = window.scrollY;
+    if (!alreadyOpen) overlayReturnY = settledY;
     document.getElementById('ovTitle').textContent = title;
     var body = document.getElementById('ovBody');
     body.innerHTML = bodyHtml;
@@ -1170,6 +1212,7 @@
     document.getElementById('overlay').classList.remove('open');
     carryToastToScreen();
     window.scrollTo({ top: overlayReturnY, behavior: 'instant' });
+    settledY = overlayReturnY;
   }
   function openList(kind, opts) {
     if (kind === 'alertas') {
