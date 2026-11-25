@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#14092b">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Muse Control">
+<title>Muse Control</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0d0a16;
+    --bg2: #14092b;
+    --card: #1d1436;
+    --card2: #241a44;
+    --line: #33255c;
+    --txt: #f2eefc;
+    --muted: #a99cc9;
+    --acc: #8b5cf6;
+    --acc2: #c4b5fd;
+    --green: #34d399;
+    --amber: #fbbf24;
+    --red: #f87171;
+    --blue: #60a5fa;
+  }
+  html, body { height: 100%; }
+  body {
+    background: #05030a;
+    color: var(--txt);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .phone {
+    max-width: 430px;
+    margin: 0 auto;
+    min-height: 100dvh;
+    background: linear-gradient(180deg, var(--bg2) 0%, var(--bg) 30%);
+    position: relative;
+    padding-bottom: 92px;
+  }
+  /* Banner de maqueta */
+  .banner {
+    background: var(--amber);
+    color: #231303;
+    font-size: 12px;
+    font-weight: 700;
+    text-align: center;
+    padding: 8px 12px;
+    letter-spacing: .2px;
+  }
+  header.top {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 18px 20px 6px;
+  }
+  header.top .who { display: flex; align-items: center; gap: 12px; }
+  .avatar {
+    width: 44px; height: 44px; border-radius: 50%;
+    background: linear-gradient(135deg, var(--acc), #4c1d95);
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 800; font-size: 18px; color: #fff;
+    border: 2px solid #6d28d9;
+  }
+  .who small { color: var(--muted); font-size: 12px; display: block; }
+  .who strong { font-size: 17px; }
+  .bell {
+    width: 40px; height: 40px; border-radius: 50%;
+    background: var(--card); border: 1px solid var(--line);
+    display: flex; align-items: center; justify-content: center;
+    position: relative; cursor: pointer;
+  }
+  .bell .dot {
+    position: absolute; top: 8px; right: 9px;
+    width: 8px; height: 8px; border-radius: 50%; background: var(--red);
+  }
+  .screen { display: none; padding: 12px 16px 8px; animation: fade .35s ease; }
+  .screen.active { display: block; }
+  @keyframes fade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+  h1 { font-size: 22px; margin: 6px 0 2px; }
+  .sub { color: var(--muted); font-size: 13px; margin-bottom: 14px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    padding: 16px;
+    margin-bottom: 12px;
+  }
+  .card h3 { font-size: 13px; color: var(--muted); font-weight: 600; margin-bottom: 6px; }
+  .big { font-size: 30px; font-weight: 800; line-height: 1.1; }
+  .big small { font-size: 14px; color: var(--muted); font-weight: 600; }
+  .pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 12px; font-weight: 700;
+    padding: 4px 10px; border-radius: 999px;
+  }
+  .pill .d { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+  .ok { background: rgba(52,211,153,.15); color: var(--green); }
+  .warn { background: rgba(251,191,36,.15); color: var(--amber); }
+  .bad { background: rgba(248,113,113,.15); color: var(--red); }
+  .run { background: rgba(96,165,250,.15); color: var(--blue); }
+  .idle { background: rgba(169,156,201,.15); color: var(--muted); }
+  .row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .row + .row { margin-top: 10px; }
+  .svc { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+  .svc:last-child { border-bottom: none; }
+  .svc .ic {
+    width: 38px; height: 38px; border-radius: 12px; flex: none;
+    background: var(--card2); border: 1px solid var(--line);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .svc b { font-size: 14px; display: block; }
+  .svc span { font-size: 12px; color: var(--muted); }
+  .svc .st { margin-left: auto; text-align: right; }
+  .sec-title { display: flex; justify-content: space-between; align-items: baseline; margin: 18px 2px 10px; }
+  .sec-title h2 { font-size: 16px; }
+  .sec-title a { color: var(--acc2); font-size: 12px; text-decoration: none; cursor: pointer; }
+  .qa { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .qa button {
+    background: var(--card2); border: 1px solid var(--line); color: var(--txt);
+    border-radius: 14px; padding: 14px 10px; font-size: 13px; font-weight: 600;
+    display: flex; align-items: center; gap: 8px; cursor: pointer; text-align: left;
+    transition: transform .25s ease, border-color .25s ease;
+  }
+  .qa button:active { transform: scale(.97); border-color: var(--acc); }
+  .act { display: flex; gap: 12px; padding: 11px 0; border-bottom: 1px solid var(--line); }
+  .act:last-child { border-bottom: none; }
+  .act .ic {
+    width: 36px; height: 36px; border-radius: 50%; flex: none;
+    background: var(--card2); border: 1px solid var(--line);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .act b { font-size: 13.5px; display: block; }
+  .act span { font-size: 12px; color: var(--muted); }
+  .act time { margin-left: auto; font-size: 11px; color: var(--muted); white-space: nowrap; }
+  .alert {
+    border-radius: 14px; padding: 12px 14px; font-size: 13px;
+    display: flex; gap: 10px; align-items: flex-start; margin-bottom: 10px;
+  }
+  .alert.red { background: rgba(248,113,113,.12); border: 1px solid rgba(248,113,113,.4); }
+  .alert.amber { background: rgba(251,191,36,.10); border: 1px solid rgba(251,191,36,.35); }
+  .alert b { display: block; margin-bottom: 2px; }
+  .alert span { color: var(--muted); font-size: 12.5px; }
+  /* Chat */
+  .chat { display: flex; flex-direction: column; gap: 10px; margin-bottom: 12px; }
+  .msg { max-width: 88%; padding: 12px 14px; border-radius: 16px; font-size: 14px; line-height: 1.5; }
+  .msg.me { align-self: flex-end; background: var(--acc); color: #fff; border-bottom-right-radius: 6px; }
+  .msg.bot { align-self: flex-start; background: var(--card); border: 1px solid var(--line); border-bottom-left-radius: 6px; }
+  .msg.bot b { color: var(--acc2); }
+  .msg.bot ul { margin: 8px 0 8px 18px; }
+  .msg.bot li { margin-bottom: 4px; }
+  .plan-actions { display: flex; gap: 10px; margin-top: 10px; }
+  .btn {
+    flex: 1; border: none; border-radius: 12px; padding: 11px; font-size: 14px; font-weight: 700;
+    cursor: pointer; transition: transform .25s ease, opacity .25s ease;
+  }
+  .btn:active { transform: scale(.97); }
+  .btn.go { background: var(--green); color: #06281c; }
+  .btn.no { background: rgba(248,113,113,.18); color: var(--red); border: 1px solid rgba(248,113,113,.45); }
+  .btn.ghost { background: var(--card2); color: var(--txt); border: 1px solid var(--line); }
+  .composer {
+    display: flex; gap: 8px; position: sticky; bottom: 84px;
+    background: var(--bg); padding: 8px 0 4px;
+  }
+  .composer input {
+    flex: 1; background: var(--card); border: 1px solid var(--line); color: var(--txt);
+    border-radius: 999px; padding: 12px 16px; font-size: 14px; outline: none;
+  }
+  .composer input:focus { border-color: var(--acc); }
+  .composer button {
+    width: 46px; height: 46px; border-radius: 50%; border: none;
+    background: var(--acc); color: #fff; cursor: pointer; flex: none;
+    display: flex; align-items: center; justify-content: center;
+  }
+  /* Orquesta */
+  .search {
+    display: flex; align-items: center; gap: 8px;
+    background: var(--card); border: 1px solid var(--line);
+    border-radius: 999px; padding: 10px 14px; margin-bottom: 12px;
+  }
+  .search input { flex: 1; background: none; border: none; outline: none; color: var(--txt); font-size: 14px; }
+  .chips { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; margin-bottom: 12px; scrollbar-width: none; }
+  .chips::-webkit-scrollbar { display: none; }
+  .chip {
+    flex: none; border: 1px solid var(--line); background: var(--card);
+    color: var(--muted); border-radius: 999px; padding: 7px 14px; font-size: 13px; font-weight: 600; cursor: pointer;
+  }
+  .chip.on { background: var(--acc); border-color: var(--acc); color: #fff; }
+  .agent { background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 16px; margin-bottom: 12px; }
+  .agent .head { display: flex; align-items: center; gap: 12px; }
+  .agent .av {
+    width: 44px; height: 44px; border-radius: 50%; flex: none;
+    display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 16px; color: #fff;
+  }
+  .av.maximo { background: linear-gradient(135deg, #8b5cf6, #4c1d95); }
+  .av.gemini { background: linear-gradient(135deg, #3b82f6, #1e3a8a); }
+  .av.nemotron { background: linear-gradient(135deg, #10b981, #064e3b); }
+  .av.hermes { background: linear-gradient(135deg, #f59e0b, #92400e); }
+  .agent .head b { font-size: 15px; display: block; }
+  .agent .head span { font-size: 12px; color: var(--muted); }
+  .agent .head .pill { margin-left: auto; }
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 14px; }
+  .stats div { background: var(--card2); border-radius: 12px; padding: 10px 8px; text-align: center; }
+  .stats b { font-size: 16px; display: block; }
+  .stats span { font-size: 11px; color: var(--muted); }
+  .usage { margin-top: 12px; }
+  .usage .lbl { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+  .bar { height: 8px; border-radius: 999px; background: #2a1d4d; overflow: hidden; }
+  .bar i { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--acc), var(--acc2)); transition: width .6s ease; }
+  .state-note { margin-top: 12px; font-size: 12.5px; color: var(--muted); background: var(--card2); border-radius: 10px; padding: 9px 11px; line-height: 1.45; }
+  .state-note b { color: var(--txt); }
+  /* Consejo */
+  .verdict { text-align: center; padding: 18px 14px; }
+  .verdict .big { font-size: 34px; }
+  .voice { border-left: 3px solid var(--acc); padding-left: 12px; margin: 12px 0; }
+  .voice.gemini { border-color: #3b82f6; }
+  .voice.nemotron { border-color: #10b981; }
+  .voice b { font-size: 14px; }
+  .voice p { font-size: 13.5px; color: #ddd6f3; line-height: 1.55; margin-top: 4px; }
+  .evidence { font-size: 12.5px; color: var(--muted); margin-top: 6px; }
+  .evidence b { color: var(--acc2); }
+  /* Taller */
+  .diff { background: #120a24; border: 1px solid var(--line); border-radius: 14px; overflow: hidden; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; line-height: 1.6; margin: 10px 0; }
+  .diff div { padding: 2px 12px; white-space: pre-wrap; word-break: break-word; }
+  .diff .add { background: rgba(52,211,153,.13); color: #a7f3d0; }
+  .diff .del { background: rgba(248,113,113,.13); color: #fecaca; }
+  .diff .ctx { color: #a99cc9; }
+  .steps { list-style: none; margin: 6px 0 2px; }
+  .steps li { display: flex; gap: 12px; padding: 9px 0; border-bottom: 1px solid var(--line); font-size: 13.5px; }
+  .steps li:last-child { border-bottom: none; }
+  .steps .n {
+    width: 26px; height: 26px; border-radius: 50%; flex: none;
+    background: var(--card2); border: 1px solid var(--line);
+    display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 800;
+  }
+  .steps li.done .n { background: var(--green); color: #06281c; border-color: var(--green); }
+  .steps li.now .n { background: var(--amber); color: #231303; border-color: var(--amber); }
+  .steps li small { display: block; color: var(--muted); font-size: 12px; margin-top: 2px; }
+  .steps li.locked { opacity: .5; }
+  .toast {
+    position: fixed; left: 50%; bottom: 96px; transform: translateX(-50%) translateY(20px);
+    background: #2a1d4d; border: 1px solid var(--acc); color: var(--txt);
+    padding: 11px 18px; border-radius: 999px; font-size: 13px; font-weight: 600;
+    opacity: 0; pointer-events: none; transition: all .3s ease; z-index: 50; white-space: nowrap;
+    max-width: 92vw; overflow: hidden; text-overflow: ellipsis;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  /* Barra inferior */
+  nav.bottom {
+    position: fixed; left: 50%; transform: translateX(-50%);
+    bottom: 0; width: 100%; max-width: 430px;
+    background: rgba(20, 12, 40, .96);
+    border-top: 1px solid var(--line);
+    display: grid; grid-template-columns: repeat(5, 1fr);
+    padding: 8px 6px calc(10px + env(safe-area-inset-bottom));
+    z-index: 40;
+  }
+  nav.bottom button {
+    background: none; border: none; color: var(--muted); cursor: pointer;
+    display: flex; flex-direction: column; align-items: center; gap: 3px;
+    font-size: 10.5px; font-weight: 600; padding: 4px 0;
+  }
+  nav.bottom button.on { color: var(--acc2); }
+  nav.bottom button.on svg { stroke: var(--acc2); }
+  nav.bottom svg { width: 22px; height: 22px; }
+  .foot { text-align: center; color: var(--muted); font-size: 11px; padding: 14px 20px 4px; line-height: 1.5; }
+</style>
+</head>
+<body>
+<div class="phone">
+
+  <div class="banner">MAQUETA — datos de ejemplo, sin conexión al servidor</div>
+
+  <header class="top">
+    <div class="who">
+      <div class="avatar">M</div>
+      <div><small>Bienvenido de nuevo</small><strong>Ernesto</strong></div>
+    </div>
+    <div class="bell" onclick="toast('Sin alertas nuevas en la maqueta')">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#c4b5fd" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>
+      <span class="dot"></span>
+    </div>
+  </header>
+
+  <!-- ============ 01 INICIO ============ -->
+  <section class="screen active" id="scr-inicio">
+    <h1>Centro de mando</h1>
+    <p class="sub">Estado general de Muse, hoy miércoles 25 de noviembre.</p>
+
+    <div class="grid2">
+      <div class="card"><h3>Estado de Muse</h3><div class="big">En línea</div><span class="pill ok"><span class="d"></span>Saludable</span></div>
+      <div class="card"><h3>Agentes disponibles</h3><div class="big">4 <small>/ 4</small></div><span class="pill ok"><span class="d"></span>Todos listos</span></div>
+      <div class="card"><h3>Tareas activas</h3><div class="big">2</div><span class="pill run"><span class="d"></span>1 ejecutándose</span></div>
+      <div class="card"><h3>Alertas</h3><div class="big">1</div><span class="pill warn"><span class="d"></span>Revisar zrok</span></div>
+    </div>
+
+    <div class="sec-title"><h2>Servicios</h2><a onclick="go('taller')">Ver taller</a></div>
+    <div class="card">
+      <div class="svc">
+        <div class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#c4b5fd" stroke-width="2" stroke-linecap="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg></div>
+        <div><b>OpenCode 2.3.2</b><span>Puerto 4096 · motor de ejecución</span></div>
+        <div class="st"><span class="pill ok"><span class="d"></span>Arriba</span></div>
+      </div>
+      <div class="svc">
+        <div class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#c4b5fd" stroke-width="2" stroke-linecap="round"><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/><rect x="7" y="7" width="10" height="10" rx="2"/></svg></div>
+        <div><b>Shim</b><span>Puerto 4097 · puente de proveedores</span></div>
+        <div class="st"><span class="pill ok"><span class="d"></span>Arriba</span></div>
+      </div>
+      <div class="svc">
+        <div class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 0 20 15.3 15.3 0 0 1 0-20z"/></svg></div>
+        <div><b>zrok</b><span>Túnel · opencodeernesto.share.zrok.io</span></div>
+        <div class="st"><span class="pill warn"><span class="d"></span>Público</span></div>
+      </div>
+      <div class="svc">
+        <div class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#c4b5fd" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></div>
+        <div><b>SearXNG</b><span>Puerto 8080 · búsqueda</span></div>
+        <div class="st"><span class="pill ok"><span class="d"></span>Arriba</span></div>
+      </div>
+    </div>
+
+    <div class="sec-title"><h2>Alertas y errores</h2><a onclick="toast('Solo hay 1 alerta en la maqueta')">Ver todas</a></div>
+    <div class="alert red">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f87171" stroke-width="2" stroke-linecap="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+      <div><b>El túnel zrok es público</b><span>La API del shim responde sin autenticación de cliente. Antes de usarlo como puerta de mando hay que cerrarlo: share privado o auth por cliente.</span></div>
+    </div>
+    <div class="alert amber">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      <div><b>RAM ajustada: 1,2 GB libres</b><span>La PWA y un adaptador ligero sí caben. Nada de base de datos grande ni modelos locales.</span></div>
+    </div>
+
+    <div class="sec-title"><h2>Acciones rápidas</h2><a>Ver todas</a></div>
+    <div class="qa">
+      <button onclick="go('maximo')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#c4b5fd" stroke-width="2" stroke-linecap="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>Hablar con Máximo</button>
+      <button onclick="go('orquesta')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#c4b5fd" stroke-width="2" stroke-linecap="round"><circle cx="9" cy="7" r="4"/><path d="M2 21v-2a4 4 0 0 1 4-4h6a4 4 0 0 1 4 4v2"/></svg>Ver la orquesta</button>
+      <button onclick="go('consejo')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#c4b5fd" stroke-width="2" stroke-linecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>Revisar el Consejo</button>
+      <button onclick="go('taller')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#c4b5fd" stroke-width="2" stroke-linecap="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>Abrir el Taller</button>
+    </div>
+
+    <div class="sec-title"><h2>Actividad reciente</h2><a onclick="go('orquesta')">Ver todas</a></div>
+    <div class="card">
+      <div class="act"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg></div><div><b>Auditoría Fase 0 completada</b><span>Infra, API y Consejo revisados en vivo</span></div><time>02:27</time></div>
+      <div class="act"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div><div><b>Servicios rearrancados solos</b><span>Tras el reinicio de la máquina, el timer los levantó</span></div><time>01:14</time></div>
+      <div class="act"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" stroke-width="2" stroke-linecap="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/></svg></div><div><b>WhatsApp Baileys cayó 2 veces</b><span>Reinicios de máquina; levantado a mano</span></div><time>01:20</time></div>
+    </div>
+    <p class="foot">Muse Control · Maqueta v1 · Los datos de esta pantalla son de ejemplo.</p>
+  </section>
+
+  <!-- ============ 02 MÁXIMO ============ -->
+  <section class="screen" id="scr-maximo">
+    <h1>Máximo</h1>
+    <p class="sub">Conversación principal. Escribe una orden en lenguaje natural.</p>
+    <div class="chat" id="chat">
+      <div class="msg bot"><b>Máximo</b><br>Hola Ernesto, soy yo. Dime qué quieres que haga la orquesta y te preparo el plan. Nada se ejecuta sin que tú lo apruebes.</div>
+    </div>
+    <div class="composer">
+      <input id="chatInput" type="text" placeholder="Escribe una orden…" autocomplete="off" onkeydown="if(event.key==='Enter')sendOrder()">
+      <button onclick="sendOrder()" aria-label="Enviar">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+      </button>
+    </div>
+    <p class="foot">Ejemplo: «Audita la arquitectura de Muse y busca problemas de seguridad».</p>
+  </section>
+
+  <!-- ============ 03 ORQUESTA ============ -->
+  <section class="screen" id="scr-orquesta">
+    <h1>Orquesta</h1>
+    <p class="sub">Quién está trabajando, quién respondió y quién espera.</p>
+    <div class="search">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#a99cc9" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input id="agentSearch" type="text" placeholder="Buscar agentes" oninput="filterAgents()">
+    </div>
+    <div class="chips" id="chips">
+      <button class="chip on" data-f="all" onclick="setFilter('all',this)">All</button>
+      <button class="chip" data-f="active" onclick="setFilter('active',this)">Active</button>
+      <button class="chip" data-f="idle" onclick="setFilter('idle',this)">Idle</button>
+      <button class="chip" data-f="offline" onclick="setFilter('offline',this)">Offline</button>
+      <button class="chip" data-f="busy" onclick="setFilter('busy',this)">Busy</button>
+    </div>
+    <div id="agentList"></div>
+
+    <div class="sec-title"><h2>Actividad reciente</h2><a>Ver todas</a></div>
+    <div class="card">
+      <div class="act"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg></div><div><b>Gemini respondió la ronda 2</b><span>Consejo · auditoría de arquitectura</span></div><time>hace 4 min</time></div>
+      <div class="act"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div><div><b>Nemotron empezó la contraparte</b><span>Consejo · revisando a Gemini</span></div><time>hace 2 min</time></div>
+      <div class="act"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></div><div><b>Hermes trajo 15 fragmentos</b><span>Evidencia · documentación oficial</span></div><time>hace 9 min</time></div>
+    </div>
+    <p class="foot">Estados: disponible = listo · ejecutando = trabajando ahora · respondió = entregó su respuesta real.</p>
+  </section>
+
+  <!-- ============ 04 CONSEJO ============ -->
+  <section class="screen" id="scr-consejo">
+    <h1>Consejo</h1>
+    <p class="sub">Consenso y auditoría · corrida de ejemplo 183058.</p>
+
+    <div class="card verdict">
+      <h3>Veredicto del Consejo</h3>
+      <div class="big" style="color:var(--amber)">Consenso: NO</div>
+      <p style="color:var(--muted); font-size:13px; margin-top:6px;">Confianza media-baja · 2 afirmaciones corroboradas · 0 contradichas<br>Gemini y Nemotron presentes, pero sus conclusiones difieren.</p>
+      <div style="margin-top:12px;"><span class="pill warn"><span class="d"></span>Desacuerdo abierto</span></div>
+    </div>
+
+    <div class="card">
+      <h3>Pregunta deliberada</h3>
+      <p style="font-size:14px; line-height:1.55;">«¿Por qué la app OpenCode Mobile Build 90 falla al arrancar en el iPhone?»</p>
+      <p class="evidence">3 rondas · 7 llamadas a modelos · 29 fragmentos de evidencia · 2 min 15 s</p>
+    </div>
+
+    <div class="sec-title"><h2>Respuestas individuales</h2></div>
+    <div class="card">
+      <div class="voice gemini"><b>Gemini — auditoría</b><p>El fallo está en la inicialización del puente de red: el build 90 intenta abrir el túnel antes de que el servicio local responda, y el reintento no espera al evento de listo.</p><p class="evidence">Evidencia: <b>2 fragmentos Hermes</b> (registro de arranque, doc del puente) · cita válida</p></div>
+      <div class="voice nemotron"><b>Nemotron — contraparte</b><p>No es el túnel. El registro muestra que el servicio local sí respondió; lo que falla es la validación del certificado del build 90, que caducó con el cambio de firma.</p><p class="evidence">Evidencia: <b>1 fragmento Hermes</b> (registro de arranque) · cita válida</p></div>
+    </div>
+
+    <div class="alert red">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f87171" stroke-width="2" stroke-linecap="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+      <div><b>Contradicción abierta</b><span>Gemini culpa al orden de arranque del túnel; Nemotron culpa al certificado del build. Las dos citas son válidas, así que ninguna afirmación queda corroborada por consenso.</span></div>
+    </div>
+
+    <div class="card">
+      <h3>Motivos del desacuerdo</h3>
+      <p style="font-size:13.5px; line-height:1.6; color:#ddd6f3;">1. Leen el mismo registro de arranque y sacan causas distintas.<br>2. La evidencia de Hermes cubre el síntoma, no la causa raíz.<br>3. Falta una prueba que distinga túnel de certificado: arrancar el build con el túnel ya levantado.</p>
+      <p class="evidence">Regla del Consejo: para corroborar hacen falta <b>Gemini Y Nemotron</b> de acuerdo. Aquí no lo están, así que <b>no hay consenso</b>. Nunca se muestra un consenso inventado.</p>
+    </div>
+
+    <div class="card">
+      <h3>Decisión de Máximo</h3>
+      <p style="font-size:13.5px; line-height:1.6; color:#ddd6f3;">No se aprueba ninguna de las dos causas. Se pide una tercera prueba: arrancar el build 90 con el túnel ya levantado y registrar si el certificado se valida. Si falla igual, gana Nemotron; si arranca, gana Gemini.</p>
+      <div class="plan-actions">
+        <button class="btn go" onclick="toast('Prueba pedida (maqueta: no se ejecuta nada)')">Pedir la prueba</button>
+        <button class="btn ghost" onclick="toast('Se pedirá otra ronda (maqueta)')">Otra ronda</button>
+      </div>
+    </div>
+    <p class="foot">Deliberación de ejemplo basada en la corrida real 183058 (consenso NO). Datos ilustrativos, no una corrida nueva.</p>
+  </section>
+
+  <!-- ============ 05 TALLER ============ -->
+  <section class="screen" id="scr-taller">
+    <h1>Taller</h1>
+    <p class="sub">Programación y operaciones de OpenCode.</p>
+
+    <div class="sec-title"><h2>Sesiones de OpenCode</h2><a>Ver todas</a></div>
+    <div class="card">
+      <div class="svc"><div class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" stroke-width="2" stroke-linecap="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg></div><div><b>maqueta-libreta · pastel 3D</b><span>Gemini 3.1 Flash Lite · hace 12 min</span></div><div class="st"><span class="pill run"><span class="d"></span>Activa</span></div></div>
+      <div class="svc"><div class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg></div><div><b>juego-v9 · parte del trabajador</b><span>Gemini 3.1 Flash Lite · hace 1 h</span></div><div class="st"><span class="pill ok"><span class="d"></span>Terminada</span></div></div>
+      <div class="svc"><div class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#a99cc9" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/></svg></div><div><b>consejo-fase2 · diseño</b><span>Sin modelo · en espera</span></div><div class="st"><span class="pill idle"><span class="d"></span>Pausada</span></div></div>
+    </div>
+
+    <div class="sec-title"><h2>Cambio pendiente de aprobación</h2></div>
+    <div class="card">
+      <div class="row"><b style="font-size:14px;">maqueta-libreta/index.html</b><span class="pill warn"><span class="d"></span>Esperando tu toque</span></div>
+      <div class="diff">
+        <div class="ctx"> .pastel-3d { transform: perspective(600px) rotateX(18deg);</div>
+        <div class="del">-  filter: drop-shadow(0 4px 6px rgba(0,0,0,.4));</div>
+        <div class="add">+  filter: drop-shadow(0 10px 18px rgba(0,0,0,.45));</div>
+        <div class="add">+  transition: transform .7s ease, filter .7s ease;</div>
+        <div class="ctx"> }</div>
+        <div class="ctx"> .pastel-3d:active { transform: perspective(600px) rotateX(0deg); }</div>
+      </div>
+      <p style="font-size:12.5px; color:var(--muted); margin-bottom:10px;">2 líneas añadidas · 1 eliminada · nada se aplica sin tu aprobación.</p>
+      <div class="plan-actions">
+        <button class="btn go" onclick="approveChange(this)">Aprobar cambio</button>
+        <button class="btn no" onclick="rejectChange(this)">Rechazar</button>
+      </div>
+    </div>
+
+    <div class="sec-title"><h2>Ciclo de una tarea</h2></div>
+    <div class="card">
+      <ul class="steps" id="steps">
+        <li class="done"><span class="n">✓</span><div>Recibida<small>Tu orden llegó a Máximo</small></div></li>
+        <li class="done"><span class="n">✓</span><div>Planificada<small>Alcance y pruebas definidos</small></div></li>
+        <li class="now"><span class="n">3</span><div>Esperando autorización<small>El cambio de arriba está aquí parado</small></div></li>
+        <li class="locked"><span class="n">4</span><div>Ejecutándose<small>Se abre cuando apruebas</small></div></li>
+        <li class="locked"><span class="n">5</span><div>Revisando resultados<small>Máximo verifica antes de darlo por hecho</small></div></li>
+        <li class="locked"><span class="n">6</span><div>Finalizada / fallida / cancelada<small>Nunca se marca terminada solo por aceptar la petición</small></div></li>
+      </ul>
+      <div class="plan-actions" style="margin-top:12px;">
+        <button class="btn ghost" onclick="advanceStep()">Avanzar un paso (demo)</button>
+      </div>
+    </div>
+
+    <div class="sec-title"><h2>Historial de operaciones</h2></div>
+    <div class="card">
+      <div class="act"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg></div><div><b>Publicada v9 del juego</b><span>Aprobada por Ernesto · commit f7dd321</span></div><time>22:00</time></div>
+      <div class="act"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#f87171" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></div><div><b>Despliegue rechazado</b><span>Maqueta v7-u2net · en cuarentena</span></div><time>ayer</time></div>
+      <div class="act"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div><div><b>Pruebas del banco: 72/72</b><span>Juego v9 · sin fallos</span></div><time>ayer</time></div>
+    </div>
+    <p class="foot">Taller · Maqueta v1 · Ningún despliegue o comando destructivo se ejecuta sin tu autorización.</p>
+  </section>
+
+  <!-- ============ BARRA INFERIOR ============ -->
+  <nav class="bottom">
+    <button class="on" data-scr="inicio" onclick="go('inicio')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#a99cc9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      Inicio
+    </button>
+    <button data-scr="maximo" onclick="go('maximo')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#a99cc9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      Máximo
+    </button>
+    <button data-scr="orquesta" onclick="go('orquesta')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#a99cc9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="7" r="4"/><path d="M2 21v-2a4 4 0 0 1 4-4h6a4 4 0 0 1 4 4v2"/><path d="M17 8h5M19.5 5.5v5"/></svg>
+      Orquesta
+    </button>
+    <button data-scr="consejo" onclick="go('consejo')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#a99cc9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+      Consejo
+    </button>
+    <button data-scr="taller" onclick="go('taller')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#a99cc9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+      Taller
+    </button>
+  </nav>
+
+  <div class="toast" id="toast"></div>
+</div>
+
+<script>
+  var toastTimer = null;
+  function toast(msg) {
+    var t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function(){ t.classList.remove('show'); }, 2600);
+  }
+
+  function go(name) {
+    var screens = document.querySelectorAll('.screen');
+    for (var i = 0; i < screens.length; i++) screens[i].classList.remove('active');
+    document.getElementById('scr-' + name).classList.add('active');
+    var btns = document.querySelectorAll('nav.bottom button');
+    for (var j = 0; j < btns.length; j++) btns[j].classList.toggle('on', btns[j].getAttribute('data-scr') === name);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  /* ---------- Orquesta: datos de ejemplo ---------- */
+  var agents = [
+    { name: 'Máximo', role: 'Coordinador · árbitro del Consejo', cls: 'maximo', init: 'M',
+      status: 'active', statusLabel: 'Activo', statusCls: 'run',
+      tasks: 6, success: '100%', last: 'ahora mismo', usage: 42,
+      note: '<b>Disponible y coordinando.</b> Está dirigiendo la deliberación de ejemplo y esperando tu orden.' },
+    { name: 'Gemini', role: 'Auditoría · gemini-3.1-flash-lite', cls: 'gemini', init: 'G',
+      status: 'active', statusLabel: 'Respondió', statusCls: 'ok',
+      tasks: 9, success: '98%', last: 'hace 4 min', usage: 71,
+      note: '<b>Respondió de verdad.</b> Entregó su auditoría de la ronda 2 con 2 citas válidas de Hermes.' },
+    { name: 'Nemotron', role: 'Contraparte · nemotron-3-ultra', cls: 'nemotron', init: 'N',
+      status: 'busy', statusLabel: 'Ejecutando', statusCls: 'run',
+      tasks: 7, success: '96%', last: 'hace 2 min', usage: 85,
+      note: '<b>Ejecutando ahora.</b> Está revisando la auditoría de Gemini; aún no ha respondido esta ronda.' },
+    { name: 'Hermes', role: 'Evidencia · búsqueda rápida', cls: 'hermes', init: 'H',
+      status: 'idle', statusLabel: 'Disponible', statusCls: 'idle',
+      tasks: 15, success: '100%', last: 'hace 9 min', usage: 33,
+      note: '<b>Disponible.</b> Ya trajo sus 15 fragmentos y espera la próxima pregunta. Solo da evidencia, nunca opina.' }
+  ];
+  var currentFilter = 'all';
+
+  function renderAgents() {
+    var q = (document.getElementById('agentSearch').value || '').toLowerCase();
+    var list = document.getElementById('agentList');
+    var html = '';
+    var shown = 0;
+    for (var i = 0; i < agents.length; i++) {
+      var a = agents[i];
+      if (currentFilter !== 'all' && a.status !== currentFilter) continue;
+      if (q && a.name.toLowerCase().indexOf(q) === -1 && a.role.toLowerCase().indexOf(q) === -1) continue;
+      shown++;
+      html += '<div class="agent">'
+        + '<div class="head"><div class="av ' + a.cls + '">' + a.init + '</div>'
+        + '<div><b>' + a.name + '</b><span>' + a.role + '</span></div>'
+        + '<span class="pill ' + a.statusCls + '"><span class="d"></span>' + a.statusLabel + '</span></div>'
+        + '<div class="stats"><div><b>' + a.tasks + '</b><span>Tareas hoy</span></div>'
+        + '<div><b>' + a.success + '</b><span>Éxito</span></div>'
+        + '<div><b>' + a.last + '</b><span>Última actividad</span></div></div>'
+        + '<div class="usage"><div class="lbl"><span>Uso</span><span>' + a.usage + '%</span></div>'
+        + '<div class="bar"><i style="width:' + a.usage + '%"></i></div></div>'
+        + '<div class="state-note">' + a.note + '</div>'
+        + '</div>';
+    }
+    if (!shown) html = '<div class="card" style="text-align:center; color:var(--muted); font-size:13px;">Ningún agente coincide con ese filtro.</div>';
+    list.innerHTML = html;
+  }
+  function setFilter(f, el) {
+    currentFilter = f;
+    var chips = document.querySelectorAll('#chips .chip');
+    for (var i = 0; i < chips.length; i++) chips[i].classList.remove('on');
+    el.classList.add('on');
+    renderAgents();
+  }
+  function filterAgents() { renderAgents(); }
+  renderAgents();
+
+  /* ---------- Máximo: chat de ejemplo ---------- */
+  var planShown = false;
+  function sendOrder() {
+    var input = document.getElementById('chatInput');
+    var text = (input.value || '').trim();
+    if (!text) { toast('Escribe primero una orden'); return; }
+    var chat = document.getElementById('chat');
+    var me = document.createElement('div');
+    me.className = 'msg me';
+    me.textContent = text;
+    chat.appendChild(me);
+    input.value = '';
+    setTimeout(function() {
+      var bot = document.createElement('div');
+      bot.className = 'msg bot';
+      bot.innerHTML = '<b>Máximo</b><br>Entendido. Mi plan para «' + escapeHtml(text) + '» sería:'
+        + '<ul><li>Definir el alcance y las restricciones.</li>'
+        + '<li>Gemini audita y propone soluciones.</li>'
+        + '<li>Nemotron revisa las conclusiones de Gemini.</li>'
+        + '<li>Hermes busca la documentación que falte.</li>'
+        + '<li>El Consejo evalúa y yo te traigo el informe.</li></ul>'
+        + '¿Lo ejecuto así?'
+        + '<div class="plan-actions"><button class="btn go" onclick="decide(this,true)">Aprobar</button>'
+        + '<button class="btn no" onclick="decide(this,false)">Rechazar</button></div>';
+      chat.appendChild(bot);
+      bot.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    }, 600);
+  }
+  function escapeHtml(s) {
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+  function decide(btn, ok) {
+    var wrap = btn.parentElement;
+    wrap.innerHTML = ok
+      ? '<span style="color:var(--green); font-weight:700; font-size:13px;">Aprobado en la maqueta — en la versión real aquí empezaría el trabajo.</span>'
+      : '<span style="color:var(--red); font-weight:700; font-size:13px;">Rechazado en la maqueta — no se ejecuta nada.</span>';
+    toast(ok ? 'Plan aprobado (maqueta)' : 'Plan rechazado (maqueta)');
+  }
+
+  /* ---------- Taller ---------- */
+  function approveChange(btn) {
+    btn.closest('.card').querySelector('.pill').outerHTML = '<span class="pill ok"><span class="d"></span>Aprobado</span>';
+    btn.textContent = 'Aprobado ✓';
+    btn.disabled = true;
+    toast('Cambio aprobado (maqueta: no se aplica nada)');
+  }
+  function rejectChange(btn) {
+    btn.closest('.card').querySelector('.pill').outerHTML = '<span class="pill bad"><span class="d"></span>Rechazado</span>';
+    btn.textContent = 'Rechazado';
+    btn.disabled = true;
+    toast('Cambio rechazado (maqueta)');
+  }
+  var step = 3;
+  function advanceStep() {
+    var items = document.querySelectorAll('#steps li');
+    if (step > 6) { toast('La tarea ya llegó al final (demo)'); return; }
+    for (var i = 0; i < items.length; i++) {
+      items[i].classList.remove('now');
+      if (i < step) { items[i].classList.add('done'); items[i].classList.remove('locked'); items[i].querySelector('.n').textContent = '✓'; }
+    }
+    if (step < 6) {
+      items[step].classList.add('now');
+      items[step].classList.remove('locked');
+      items[step].querySelector('.n').textContent = String(step + 1);
+      toast('Paso ' + (step + 1) + ' de 6 (demo)');
+    } else {
+      toast('Tarea finalizada (demo)');
+    }
+    step++;
+  }
+</script>
+</body>
+</html>
