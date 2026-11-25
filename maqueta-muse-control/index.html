@@ -239,16 +239,18 @@
   .steps li.now .n { background: var(--amber); color: #231303; border-color: var(--amber); }
   .steps li small { display: block; color: var(--muted); font-size: 12px; margin-top: 2px; }
   .steps li.locked { opacity: .5; }
-  /* El aviso es EN FLUJO: va justo debajo de la banda amarilla, empuja el
-     contenido hacia abajo y nunca se solapa con nada: ni la banda, ni el
-     diff, ni botones, ni el pie. Cuando se dispara estando fuera de la
-     vista, la página se desplaza suavemente hasta él y vuelve a su sitio
-     al descartarlo (ver toast() en el script). Dura 8 s o hasta que se
-     cierra con la ×; la confirmación de «Demo restablecida» no se
-     auto-oculta. Hay un aviso igual dentro de cada vista a pantalla
-     completa (#ovToast), también en flujo en su parte superior. */
+  /* El aviso es FIJO a la ventana (dentro de la columna): se ve esté el
+     usuario donde esté, en las 5 pantallas y en cada vista a pantalla
+     completa, sin desplazar la página jamás y sin que nada tenga que
+     devolverla a su sitio. Es transitorio (8 s o hasta cerrar con la ×)
+     y no bloquea toques fuera de él; tapa solo la franja superior
+     mientras dura. Hay dos: #toast para las pantallas y #ovToast para
+     las vistas a pantalla completa (fijo bajo la cabecera de la vista).
+     La confirmación de «Demo restablecida» no se auto-oculta. */
   .toast {
     display: none;
+    position: fixed; top: 0; left: 50%; transform: translateX(-50%);
+    width: 100%; max-width: 430px; z-index: 70;
     background: #2a1d4d; border-bottom: 1px solid var(--acc); color: var(--txt);
     padding: 12px 16px; font-size: 13px; font-weight: 600;
     line-height: 1.45;
@@ -259,9 +261,18 @@
     flex: none; background: none; border: none; color: var(--acc2);
     font-size: 20px; line-height: 1; cursor: pointer; padding: 2px 8px;
   }
-  /* Aviso dentro de la vista a pantalla completa: en flujo en su parte
-     superior, empuja el listado hacia abajo sin tapar nada. */
-  .overlay .toast { border: 1px solid var(--acc); border-radius: 12px; margin-bottom: 12px; }
+  /* Aviso dentro de la vista a pantalla completa: fijo bajo su cabecera
+     (la vista es fixed y tiene transform, así que este fijo se ancla a
+     ella, que cubre toda la ventana). */
+  .overlay .toast {
+    top: calc(58px + env(safe-area-inset-top));
+    width: calc(100% - 32px); max-width: 398px;
+    border: 1px solid var(--acc); border-radius: 12px; z-index: 80;
+  }
+  /* Filas y tarjetas táctiles: todo lo que parece un botón, lo es. */
+  .tappable { cursor: pointer; }
+  .tappable:active { opacity: .75; }
+  .svc[onclick], .act[onclick] { cursor: pointer; }
   /* Espacio al final del chat: sin él la página no tiene recorrido para
      dejar la última tarjeta por encima del compositor (ver
      scrollChatToBottom). Son 200 px vacíos al final de Máximo. */
@@ -351,10 +362,10 @@
     <p class="sub">Estado general de Muse, hoy miércoles 25 de noviembre.</p>
 
     <div class="grid2">
-      <div class="card"><h3>Estado de Muse</h3><div class="big">En línea</div><span class="pill ok"><span class="d"></span>Saludable</span></div>
-      <div class="card"><h3>Agentes disponibles</h3><div class="big">4 <small>/ 5</small></div><span class="pill warn"><span class="d"></span>1 sin conexión</span></div>
-      <div class="card"><h3>Tareas activas</h3><div class="big">2</div><span class="pill run"><span class="d"></span>1 ejecutándose</span></div>
-      <div class="card"><h3>Alertas</h3><div class="big" id="alertCount">2</div><span class="pill warn" id="alertPill"><span class="d"></span>Revisar zrok</span></div>
+      <div class="card tappable" onclick="openStatusDetail('estado')"><h3>Estado de Muse</h3><div class="big">En línea</div><span class="pill ok"><span class="d"></span>Saludable</span></div>
+      <div class="card tappable" onclick="go('orquesta')"><h3>Agentes disponibles</h3><div class="big">4 <small>/ 5</small></div><span class="pill warn"><span class="d"></span>1 sin conexión</span></div>
+      <div class="card tappable" onclick="go('taller')"><h3>Tareas activas</h3><div class="big">2</div><span class="pill run"><span class="d"></span>1 ejecutándose</span></div>
+      <div class="card tappable" onclick="openList('alertas')"><h3>Alertas</h3><div class="big" id="alertCount">2</div><span class="pill warn" id="alertPill"><span class="d"></span>Revisar zrok</span></div>
     </div>
 
     <div class="sec-title"><h2>Servicios</h2><a onclick="go('taller')">Ver taller</a></div>
@@ -401,11 +412,11 @@
 
     <div class="sec-title"><h2>Actividad reciente</h2><a onclick="openList('actividad')">Ver todas</a></div>
     <div class="card">
-      <div class="act"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg></div><div><b>Auditoría Fase 0 completada</b><span>Infra, API y Consejo revisados en vivo</span></div><time>02:27</time></div>
-      <div class="act"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div><div><b>Servicios rearrancados solos</b><span>Tras el reinicio de la máquina, el timer los levantó</span></div><time>01:14</time></div>
-      <div class="act"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" stroke-width="2" stroke-linecap="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/></svg></div><div><b>WhatsApp Baileys cayó 2 veces</b><span>Reinicios de máquina; levantado a mano</span></div><time>01:20</time></div>
+      <div class="act" onclick="activityGo('consejo', 'Auditoría Fase 0: infra, API y Consejo revisados en vivo (maqueta)')"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg></div><div><b>Auditoría Fase 0 completada</b><span>Infra, API y Consejo revisados en vivo</span></div><time>02:27</time></div>
+      <div class="act" onclick="activityGo('taller', 'Los servicios se levantaron solos tras el reinicio (maqueta)')"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div><div><b>Servicios rearrancados solos</b><span>Tras el reinicio de la máquina, el timer los levantó</span></div><time>01:14</time></div>
+      <div class="act" onclick="activityGo('taller', 'WhatsApp Baileys cayó 2 veces por reinicios de máquina y se levantó a mano (maqueta)')"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" stroke-width="2" stroke-linecap="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/></svg></div><div><b>WhatsApp Baileys cayó 2 veces</b><span>Reinicios de máquina; levantado a mano</span></div><time>01:20</time></div>
     </div>
-    <p class="foot">Muse Control · Maqueta v5 · Los datos de esta pantalla son de ejemplo.</p>
+    <p class="foot">Muse Control · Maqueta v6 · Los datos de esta pantalla son de ejemplo.</p>
     <div style="text-align:center; margin-top:10px;"><button class="btn ghost" style="flex:none; padding:9px 18px;" onclick="resetDemo()">Restablecer demo</button></div>
   </section>
 
@@ -419,7 +430,7 @@
     <div class="sugg" id="sugg">
       <button onclick="suggestOrder('Revisa el estado de la orquesta')">Revisa el estado de la orquesta</button>
       <button onclick="suggestOrder('Convoca a Gemini y Nemotron')">Convoca a Gemini y Nemotron</button>
-      <button onclick="suggestOrder('Resume los desacuerdos')">Resume los desacuerdos</button>
+      <button onclick="suggestOrder('Pedir una auditoría')">Pedir una auditoría</button>
     </div>
     <div class="composer">
       <input id="chatInput" type="text" placeholder="Escribe una orden…" autocomplete="off" onkeydown="if(event.key==='Enter')sendOrder()">
@@ -508,9 +519,9 @@
     <div class="sec-title"><h2>Sesiones de OpenCode</h2><a onclick="openList('sesiones')">Ver todas</a></div>
     <p class="legend" id="sessionStats">6 sesiones · 3 activas · 2 terminadas · 1 pausada</p>
     <div class="card">
-      <div class="svc"><div class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" stroke-width="2" stroke-linecap="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg></div><div><b>maqueta-libreta · pastel 3D</b><span>Gemini 3.1 Flash Lite · hace 12 min</span></div><div class="st"><span class="pill run"><span class="d"></span>Activa</span></div></div>
-      <div class="svc"><div class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg></div><div><b>juego-v9 · parte del trabajador</b><span>Gemini 3.1 Flash Lite · hace 1 h</span></div><div class="st"><span class="pill ok"><span class="d"></span>Terminada</span></div></div>
-      <div class="svc"><div class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#a99cc9" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/></svg></div><div><b>consejo-fase2 · diseño</b><span>Sin modelo · en espera</span></div><div class="st"><span class="pill idle"><span class="d"></span>Pausada</span></div></div>
+      <div class="svc" onclick="openSession(0)"><div class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" stroke-width="2" stroke-linecap="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg></div><div><b>maqueta-libreta · pastel 3D</b><span>Gemini 3.1 Flash Lite · hace 12 min</span></div><div class="st"><span class="pill run"><span class="d"></span>Activa</span></div></div>
+      <div class="svc" onclick="openSession(1)"><div class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg></div><div><b>juego-v9 · parte del trabajador</b><span>Gemini 3.1 Flash Lite · hace 1 h</span></div><div class="st"><span class="pill ok"><span class="d"></span>Terminada</span></div></div>
+      <div class="svc" onclick="openSession(2)"><div class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#a99cc9" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/></svg></div><div><b>consejo-fase2 · diseño</b><span>Sin modelo · en espera</span></div><div class="st"><span class="pill idle"><span class="d"></span>Pausada</span></div></div>
     </div>
 
     <div class="sec-title"><h2>Cambio pendiente de aprobación</h2></div>
@@ -537,7 +548,7 @@
         <li class="done"><span class="n">✓</span><div>Recibida<small>Tu orden llegó a Máximo</small></div></li>
         <li class="done"><span class="n">✓</span><div>Planificada<small>Alcance y pruebas definidos</small></div></li>
         <li class="now"><span class="n">3</span><div>Esperando autorización<small>El cambio de arriba está aquí parado</small></div></li>
-        <li class="locked"><span class="n">4</span><div>Ejecutándose<small>Se abre cuando apruebas</small></div></li>
+        <li class="locked"><span class="n">4</span><div>Ejecutándose<small id="step4sub">Se abre cuando apruebas</small></div></li>
         <li class="locked"><span class="n">5</span><div>Revisando resultados<small>Máximo verifica antes de darlo por hecho</small></div></li>
         <li class="locked"><span class="n">6</span><div>Finalizada / fallida / cancelada<small>Nunca se marca terminada solo por aceptar la petición</small></div></li>
       </ul>
@@ -549,11 +560,11 @@
 
     <div class="sec-title"><h2>Historial de operaciones</h2></div>
     <div class="card">
-      <div class="act"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg></div><div><b>Publicada v9 del juego</b><span>Aprobada por Ernesto · commit f7dd321</span></div><time>22:00</time></div>
-      <div class="act"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#f87171" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></div><div><b>Despliegue rechazado</b><span>Maqueta v7-u2net · en cuarentena</span></div><time>ayer</time></div>
-      <div class="act"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div><div><b>Pruebas del banco: 72/72</b><span>Juego v9 · sin fallos</span></div><time>ayer</time></div>
+      <div class="act" onclick="toast('v9 del juego publicada y aprobada por Ernesto, commit f7dd321 (maqueta)')"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg></div><div><b>Publicada v9 del juego</b><span>Aprobada por Ernesto · commit f7dd321</span></div><time>22:00</time></div>
+      <div class="act" onclick="toast('Despliegue rechazado: maqueta v7-u2net en cuarentena, nunca se publica (maqueta)')"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#f87171" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></div><div><b>Despliegue rechazado</b><span>Maqueta v7-u2net · en cuarentena</span></div><time>ayer</time></div>
+      <div class="act" onclick="toast('Banco del juego v9: 72/72 sin fallos (maqueta)')"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div><div><b>Pruebas del banco: 72/72</b><span>Juego v9 · sin fallos</span></div><time>ayer</time></div>
     </div>
-    <p class="foot">Taller · Maqueta v5 · Ningún despliegue o comando destructivo se ejecuta sin tu autorización.</p>
+    <p class="foot">Taller · Maqueta v6 · Ningún despliegue o comando destructivo se ejecuta sin tu autorización.</p>
   </section>
 
   <!-- ============ BARRA INFERIOR ============ -->
@@ -593,40 +604,26 @@
 
 <script>
   /* ---------- Avisos ---------- */
-  /* El aviso es EN FLUJO (nunca tapa contenido) y se muestra en DOS
-     sitios a la vez: #toast bajo la banda amarilla y #ovToast en la parte
-     superior de cada vista a pantalla completa (hermano del cuerpo del
-     listado, nunca dentro de su innerHTML, para que no se borre al
-     redibujar el listado). El que se ve es el del contexto activo.
-     Si se dispara estando fuera de la vista, la página se desplaza
-     suavemente hasta él y vuelve a su sitio al descartarlo; si el usuario
-     se movió por su cuenta mientras tanto, no se le arrastra de vuelta.
-     Dura 8 s o hasta cerrar con la ×. Con {persist:true} no se
-     auto-oculta. Con {stay:true} no mueve la vista: la confirmación
-     visible es la que está junto a la acción (chat). */
+  /* El aviso es FIJO a la ventana (dentro de la columna): se ve esté el
+     usuario donde esté, sin desplazar la página jamás. Solo se muestra
+     el del contexto activo: #toast en las pantallas, #ovToast dentro de
+     una vista a pantalla completa. Dura 8 s o hasta cerrar con la ×.
+     Con {persist:true} no se auto-oculta. La opción {stay:true} de la
+     v5 ya no hace falta: el aviso fijo nunca mueve la vista. */
   var toastTimer = null;
-  var toastSavedY = null; /* posición de la página para restaurar al ocultar el aviso */
   function toast(msg, opts) {
     opts = opts || {};
     var persist = !!opts.persist;
-    var stay = !!opts.stay;
     var html = '<span class="toast-msg"></span><button class="toast-x" aria-label="Cerrar aviso" onclick="hideToast()">×</button>';
-    var slots = [document.getElementById('toast'), document.getElementById('ovToast')];
-    for (var i = 0; i < slots.length; i++) {
-      if (!slots[i]) continue;
-      slots[i].innerHTML = html;
-      slots[i].querySelector('.toast-msg').textContent = msg;
-      slots[i].classList.add('show');
-    }
-    clearTimeout(toastTimer);
     var overlayOpen = document.getElementById('overlay').classList.contains('open');
-    if (!overlayOpen && !stay) {
-      var r = document.getElementById('toast').getBoundingClientRect();
-      if (r.top < 0 || r.bottom > window.innerHeight) {
-        if (toastSavedY === null) toastSavedY = window.scrollY;
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-      }
-    }
+    var show = overlayOpen ? document.getElementById('ovToast') : document.getElementById('toast');
+    var hide = overlayOpen ? document.getElementById('toast') : document.getElementById('ovToast');
+    if (hide) hide.classList.remove('show');
+    if (!show) return;
+    show.innerHTML = html;
+    show.querySelector('.toast-msg').textContent = msg;
+    show.classList.add('show');
+    clearTimeout(toastTimer);
     if (!persist) toastTimer = setTimeout(function(){ hideToast(); }, 8000);
   }
   function hideToast() {
@@ -635,13 +632,6 @@
     var o = document.getElementById('ovToast');
     if (t) t.classList.remove('show');
     if (o) o.classList.remove('show');
-    if (toastSavedY !== null) {
-      var y = toastSavedY;
-      toastSavedY = null;
-      /* Solo se restaura si el usuario sigue arriba del todo (no se movió
-         por su cuenta mientras el aviso estaba visible). */
-      if (window.scrollY < 80) window.scrollTo({ top: y, behavior: 'smooth' });
-    }
   }
 
   /* La maqueta no guarda estado de la demo en el navegador. La única
@@ -675,21 +665,26 @@
     for (var i = 0; i < home.length; i++) home[i].classList.toggle('read', cleared);
   }
   function alertAction(kind) {
+    var msg = null;
     if (kind === 'silenciar') {
-      alertsState.silenced = true;
+      /* Silenciar es un interruptor: si ya está silenciado, lo quita. */
+      alertsState.silenced = !alertsState.silenced;
       updateAlertsUI();
-      toast('Alertas silenciadas (maqueta)');
+      msg = alertsState.silenced ? 'Alertas silenciadas (maqueta)' : 'Silencio quitado: las alertas vuelven a avisar (maqueta)';
     } else if (kind === 'leidas') {
       alertsState.read = true;
       updateAlertsUI();
-      toast('Alertas marcadas como leídas (maqueta)');
+      msg = 'Alertas marcadas como leídas (maqueta)';
     } else if (kind === 'tunel') {
-      toast('El túnel zrok es público: hay que cerrarlo antes de conectar (maqueta)');
+      msg = 'El túnel zrok es público: hay que cerrarlo antes de conectar (maqueta)';
     } else if (kind === 'fallar') {
-      toast('Con el túnel abierto, cualquiera con la URL llega a la API (maqueta)');
+      msg = 'Con el túnel abierto, cualquiera con la URL llega a la API (maqueta)';
     }
-    /* Si el listado está abierto, se vuelve a dibujar para que el cambio se vea */
+    /* Si el listado está abierto, se vuelve a dibujar para que el cambio
+       se vea; el aviso va DESPUÉS, porque abrir la vista apaga el aviso
+       del contexto anterior. */
     if (document.getElementById('overlay').classList.contains('open')) openList('alertas');
+    if (msg) toast(msg);
   }
 
   /* Restablecer demo: limpia cualquier resto guardado y vuelve al estado inicial recargando la página */
@@ -719,7 +714,10 @@
     document.getElementById('scr-' + name).classList.add('active');
     var btns = document.querySelectorAll('nav.bottom button');
     for (var j = 0; j < btns.length; j++) btns[j].classList.toggle('on', btns[j].getAttribute('data-scr') === name);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    /* Desplazamiento instantáneo al cambiar de pantalla: el suave
+       peleaba con el autoscroll del chat (si aún animaba cuando llegaba
+       la respuesta, le ganaba y la tarjeta quedaba bajo el pliegue). */
+    window.scrollTo({ top: 0, behavior: 'instant' });
   }
 
   /* ---------- Orquesta: datos de ejemplo ---------- */
@@ -791,12 +789,12 @@
     x: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#f87171" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>'
   };
   var activities = [
-    { agent: 'Gemini', icon: 'check', title: 'Gemini respondió la ronda 2', sub: 'Consejo · auditoría de arquitectura', time: 'hace 4 min' },
-    { agent: 'Nemotron', icon: 'clock', title: 'Nemotron empezó la contraparte', sub: 'Consejo · revisando a Gemini', time: 'hace 2 min' },
-    { agent: 'Hermes', icon: 'search', title: 'Hermes trajo 15 fragmentos', sub: 'Evidencia · documentación oficial', time: 'hace 9 min' },
-    { agent: 'Máximo', icon: 'check', title: 'Máximo abrió la ronda 2 del Consejo', sub: 'Orquesta · deliberación 183058', time: 'hace 12 min' },
-    { agent: 'Gemini', icon: 'check', title: 'Gemini terminó la ronda 1', sub: 'Consejo · 2 citas válidas de Hermes', time: 'hace 26 min' },
-    { agent: 'explore', icon: 'x', title: 'explore se desconectó', sub: 'OpenCode · agente sin conexión', time: 'hace 3 h' }
+    { agent: 'Gemini', go: 'consejo', icon: 'check', title: 'Gemini respondió la ronda 2', sub: 'Consejo · auditoría de arquitectura', time: 'hace 4 min' },
+    { agent: 'Nemotron', go: 'consejo', icon: 'clock', title: 'Nemotron empezó la contraparte', sub: 'Consejo · revisando a Gemini', time: 'hace 2 min' },
+    { agent: 'Hermes', go: 'consejo', icon: 'search', title: 'Hermes trajo 15 fragmentos', sub: 'Evidencia · documentación oficial', time: 'hace 9 min' },
+    { agent: 'Máximo', go: 'consejo', icon: 'check', title: 'Máximo abrió la ronda 2 del Consejo', sub: 'Orquesta · deliberación 183058', time: 'hace 12 min' },
+    { agent: 'Gemini', go: 'consejo', icon: 'check', title: 'Gemini terminó la ronda 1', sub: 'Consejo · 2 citas válidas de Hermes', time: 'hace 26 min' },
+    { agent: 'explore', go: 'orquesta', icon: 'x', title: 'explore se desconectó', sub: 'OpenCode · agente sin conexión', time: 'hace 3 h' }
   ];
   function agentStatusOf(name) {
     for (var i = 0; i < agents.length; i++) if (agents[i].name === name) return agents[i].status;
@@ -810,7 +808,40 @@
     return true;
   }
   function activityHtml(a) {
-    return '<div class="act"><div class="ic">' + actIcons[a.icon] + '</div><div><b>' + a.title + '</b><span>' + a.sub + '</span></div><time>' + a.time + '</time></div>';
+    return '<div class="act" onclick="activityGo(\'' + a.go + '\', \'' + a.title.replace(/'/g, '') + ' (maqueta)\')"><div class="ic">' + actIcons[a.icon] + '</div><div><b>' + a.title + '</b><span>' + a.sub + '</span></div><time>' + a.time + '</time></div>';
+  }
+  /* Tocar un elemento de actividad abre su pantalla y explica el
+     detalle; si ya estás en esa pantalla, solo explica el detalle. */
+  function activityGo(target, detail) {
+    if (target && document.getElementById('scr-' + target) && !document.getElementById('scr-' + target).classList.contains('active')) {
+      closeList();
+      go(target);
+    }
+    toast(detail || 'Actividad de ejemplo (maqueta)');
+  }
+  /* Detalle de una tarjeta de estado de Inicio: la de Estado abre su
+     detalle; Agentes y Tareas navegan; Alertas abre el listado. */
+  function openStatusDetail(kind) {
+    if (kind === 'estado') {
+      openOverlay('Estado de Muse', '<p class="ov-note">Salud en vivo de ejemplo, comprobado hace 2 min.</p><div class="card">'
+        + '<div class="svc"><div><b>OpenCode 2.3.2</b><span>Puerto 4096 · motor de ejecución</span></div><div class="st"><span class="pill ok"><span class="d"></span>Arriba</span></div></div>'
+        + '<div class="svc"><div><b>Shim</b><span>Puerto 4097 · puente de proveedores</span></div><div class="st"><span class="pill ok"><span class="d"></span>Arriba</span></div></div>'
+        + '<div class="svc"><div><b>zrok</b><span>Túnel · opencodeernesto.share.zrok.io</span></div><div class="st"><span class="pill warn"><span class="d"></span>Público</span></div></div>'
+        + '<div class="svc"><div><b>SearXNG</b><span>Puerto 8080 · búsqueda</span></div><div class="st"><span class="pill ok"><span class="d"></span>Arriba</span></div></div>'
+        + '</div><p class="ov-note">En la versión real, cada servicio muestra su última comprobación y su error si lo hay.</p>');
+    }
+  }
+  /* Detalle de una sesión de OpenCode: tocar la fila abre su ficha con
+     sus datos y una vía para preguntarle a Máximo por ella. */
+  function openSession(i) {
+    var s = sessionsData[i];
+    if (!s) return;
+    openOverlay('Sesión: ' + s.name, '<p class="ov-note">Datos de ejemplo de la sesión.</p><div class="card">'
+      + '<div class="row"><b style="font-size:14px;">' + s.name + '</b><span class="pill ' + s.pill + '"><span class="d"></span>' + s.label + '</span></div>'
+      + '<p style="font-size:13.5px; color:var(--muted); margin-top:10px; line-height:1.55;">' + s.sub + '</p>'
+      + '<p style="font-size:13.5px; color:var(--muted); line-height:1.55;">Modelo: Gemini 3.1 Flash Lite · Proyecto: calculadora-ernesto.</p>'
+      + '<div class="plan-actions" style="margin-top:14px;"><button class="btn go" onclick="closeList(); go(\'maximo\'); suggestOrder(\'Revisa la sesión ' + s.name.replace(/'/g, '') + '\')">Preguntar a Máximo</button></div>'
+      + '</div>');
   }
   function renderOrchActivity() {
     var box = document.getElementById('orchActivity');
@@ -835,31 +866,46 @@
   }
   /* El chat baja SOLO hasta el final con cada respuesta, y lo comprueba
      midiendo de verdad: la tarjeta del plan debe quedar COMPLETAMENTE
-     visible por encima del compositor. La v4 calculaba una posición con
-     getBoundingClientRect y hacía un único scrollTo suave: fallaba porque
-     la página no tenía recorrido suficiente para llegar a esa posición
-     (el documento termina justo después del chat) y el compositor fijo
-     tapaba el final del mensaje. Aquí hay espacio de sobra al final
-     (.chat-spacer) y el desplazamiento se corrige en bucle hasta que la
-     medida dice que la tarjeta cabe. */
+     visible por encima del compositor.
+     CAUSA RAÍZ del fallo en vivo de la v5: la v5 lo hacía con
+     requestAnimationFrame + un temporizador de 450 ms. En una pestaña en
+     segundo plano (como la que maneja el Ojo por fuera) esos se pausan o
+     se limitan a 1 Hz, así que el desplazamiento nunca llegaba aunque en
+     el render de frente pasara 29/29. La v6 corrige en la MISMA tarea,
+     de forma síncrona: mide con getBoundingClientRect (el layout es
+     síncrono) y desplaza con scrollTo instantáneo en bucle hasta que la
+     medida dice que la tarjeta cabe. No depende de rAF ni de
+     temporizadores para corregir; el temporizador que queda es solo una
+     red de seguridad tardía por si el navegador aún está pintando. */
   function scrollChatToBottom() {
     var chat = document.getElementById('chat');
-    var tries = 0;
-    function place() {
+    var composer = document.querySelector('#scr-maximo .composer');
+    if (!chat || !composer) return;
+    /* Cancelar cualquier scroll suave en vuelo (p. ej. el de go()) para
+       que no le gane a este desplazamiento. */
+    try { window.scrollTo({ top: window.scrollY, behavior: 'instant' }); } catch (e) {}
+    for (var i = 0; i < 10; i++) {
       var last = chat.lastElementChild;
       if (!last) return;
-      var composer = document.querySelector('#scr-maximo .composer');
-      var limit = composer ? composer.getBoundingClientRect().top - 12 : window.innerHeight - 160;
+      var limit = composer.getBoundingClientRect().top - 12;
       var dy = last.getBoundingClientRect().bottom - limit;
-      if (dy > 1) {
-        window.scrollBy(0, dy);
-        tries++;
-        if (tries < 8) requestAnimationFrame(place);
-      }
+      if (dy <= 1) return; /* la tarjeta ya cabe entera */
+      var max = document.documentElement.scrollHeight - window.innerHeight;
+      var target = window.scrollY + dy;
+      if (target > max) target = max;
+      window.scrollTo({ top: target, behavior: 'instant' });
+      /* Sin más recorrido no hay nada que hacer: el spacer de 200 px al
+         final del chat garantiza que con un solo plan siempre lo hay. */
+      if (window.scrollY >= max) return;
     }
-    requestAnimationFrame(place);
-    /* Re-comprobación tardía por si el navegador aún está pintando */
-    setTimeout(function(){ tries = 0; place(); }, 450);
+    /* Red de seguridad tardía por si el navegador aún está pintando. */
+    setTimeout(function(){
+      var last = chat.lastElementChild;
+      if (!last) return;
+      var limit = composer.getBoundingClientRect().top - 12;
+      var dy = last.getBoundingClientRect().bottom - limit;
+      if (dy > 1) window.scrollTo({ top: window.scrollY + dy, behavior: 'instant' });
+    }, 450);
   }
   function sendOrder() {
     var input = document.getElementById('chatInput');
@@ -867,7 +913,7 @@
     if (!text) {
       input.style.borderColor = '#f87171';
       setTimeout(function(){ input.style.borderColor = ''; }, 1200);
-      toast('Escribe primero una orden', { stay: true });
+      toast('Escribe primero una orden');
       return;
     }
     var sugg = document.getElementById('sugg');
@@ -903,16 +949,26 @@
     /* La confirmación en línea sustituye a los botones sin mover la
        vista: si el cambio de altura mueve la fila, se compensa para que
        quede exactamente donde estaba. Aprobar o rechazar no salta la
-       página arriba ni pierde la posición en el chat. */
+       página arriba ni pierde la posición en el chat. Como en el Taller,
+       queda un «Deshacer» para volver atrás. */
     var before = wrap.getBoundingClientRect().top;
-    wrap.innerHTML = ok
+    wrap.innerHTML = (ok
       ? '<span style="color:var(--green); font-weight:700; font-size:13px;">Aprobado en la maqueta — en la versión real aquí empezaría el trabajo.</span>'
-      : '<span style="color:var(--red); font-weight:700; font-size:13px;">Rechazado en la maqueta — no se ejecuta nada.</span>';
+      : '<span style="color:var(--red); font-weight:700; font-size:13px;">Rechazado en la maqueta — no se ejecuta nada.</span>')
+      + '<button class="btn ghost" style="flex:none; padding:8px 14px;" onclick="undoDecide(this)">Deshacer</button>';
     var dy = wrap.getBoundingClientRect().top - before;
     if (dy) window.scrollBy(0, dy);
-    /* El aviso superior se muestra sin mover la vista: la confirmación
-       visible aquí es la de la línea, junto a la acción. */
-    toast(ok ? 'Plan aprobado (maqueta)' : 'Plan rechazado (maqueta)', { stay: true });
+    /* El aviso es fijo a la ventana: se ve sin mover la vista. */
+    toast(ok ? 'Plan aprobado (maqueta)' : 'Plan rechazado (maqueta)');
+  }
+  function undoDecide(btn) {
+    var wrap = btn.parentElement;
+    var before = wrap.getBoundingClientRect().top;
+    wrap.innerHTML = '<button class="btn go" onclick="decide(this,true)">Aprobar</button>'
+      + '<button class="btn no" onclick="decide(this,false)">Rechazar</button>';
+    var dy = wrap.getBoundingClientRect().top - before;
+    if (dy) window.scrollBy(0, dy);
+    toast('Decisión deshecha: el plan vuelve a esperar tu toque (maqueta)');
   }
 
   /* ---------- Listados completos (overlay) ---------- */
@@ -947,14 +1003,24 @@
       { tag: 'herm_014 · registro de arranque', text: '«…02:14:07 el servicio local respondió 200 en /api/info; 02:14:09 la validación del certificado del build 90 falló, caducado con el cambio de firma…»' }
     ]}
   };
+  /* La vista a pantalla completa guarda la posición de la pantalla de
+     origen y la restaura exacta al volver con «‹ Volver»: antes se
+     volvía arriba del todo. */
+  var overlayReturnY = 0;
   function openOverlay(title, bodyHtml) {
+    overlayReturnY = window.scrollY;
     document.getElementById('ovTitle').textContent = title;
-    document.getElementById('ovBody').innerHTML = bodyHtml;
+    var body = document.getElementById('ovBody');
+    body.innerHTML = bodyHtml;
+    body.scrollTop = 0;
     document.getElementById('overlay').classList.add('open');
-    window.scrollTo({ top: 0 });
+    hideToast(); /* el aviso de la pantalla no flota sobre la vista */
+    window.scrollTo({ top: 0, behavior: 'instant' });
   }
   function closeList() {
     document.getElementById('overlay').classList.remove('open');
+    hideToast();
+    window.scrollTo({ top: overlayReturnY, behavior: 'instant' });
   }
   function openList(kind) {
     if (kind === 'alertas') {
@@ -964,7 +1030,7 @@
         h += '<div class="alert ' + alertsData[i].cls + (clearedA ? ' read' : '') + '"><div><b>' + alertsData[i].title + (clearedA ? ' · ' + alertsTag() : '') + '</b><span>' + alertsData[i].sub + '</span></div></div>';
       }
       h += '<div class="plan-actions">'
-        + '<button class="btn ghost" onclick="alertAction(\'silenciar\')">Silenciar</button>'
+        + '<button class="btn ghost" onclick="alertAction(\'silenciar\')">' + (alertsState.silenced ? 'Quitar silencio' : 'Silenciar') + '</button>'
         + '<button class="btn ghost" onclick="alertAction(\'leidas\')">Marcar leídas</button>'
         + '</div>'
         + '<div class="plan-actions">'
@@ -985,7 +1051,7 @@
     } else if (kind === 'sesiones') {
       var h3 = '<p class="ov-note">6 sesiones de OpenCode (datos de ejemplo).</p><div class="card">';
       for (var k = 0; k < sessionsData.length; k++) {
-        h3 += '<div class="svc"><div class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#c4b5fd" stroke-width="2" stroke-linecap="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg></div><div><b>' + sessionsData[k].name + '</b><span>' + sessionsData[k].sub + '</span></div><div class="st"><span class="pill ' + sessionsData[k].pill + '"><span class="d"></span>' + sessionsData[k].label + '</span></div></div>';
+        h3 += '<div class="svc" onclick="openSession(' + k + ')"><div class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#c4b5fd" stroke-width="2" stroke-linecap="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg></div><div><b>' + sessionsData[k].name + '</b><span>' + sessionsData[k].sub + '</span></div><div class="st"><span class="pill ' + sessionsData[k].pill + '"><span class="d"></span>' + sessionsData[k].label + '</span></div></div>';
       }
       openOverlay('Sesiones de OpenCode', h3 + '</div>');
     } else if (kind === 'acciones') {
@@ -1061,12 +1127,18 @@
     if (step > 6) { toast('La tarea ya llegó al final (demo)'); return; }
     for (var i = 0; i < items.length; i++) {
       items[i].classList.remove('now');
-      if (i < step) { items[i].classList.add('done'); items[i].classList.remove('locked'); items[i].querySelector('.n').textContent = '✓'; }
+      if (i < step) {
+        items[i].classList.add('done'); items[i].classList.remove('locked'); items[i].querySelector('.n').textContent = '✓';
+        /* La descripción del paso 4 cambia con su estado: ya no dice
+           «Se abre cuando apruebas» una vez abierto o ejecutado. */
+        if (i === 3) { var s4d = document.getElementById('step4sub'); if (s4d) s4d.textContent = 'Ejecutado tras tu aprobación'; }
+      }
     }
     if (step < 6) {
       items[step].classList.add('now');
       items[step].classList.remove('locked');
       items[step].querySelector('.n').textContent = String(step + 1);
+      if (step === 3) { var s4n = document.getElementById('step4sub'); if (s4n) s4n.textContent = 'En curso — aprobado por ti'; }
       toast('Paso ' + (step + 1) + ' de 6 (demo)');
     } else {
       toast('Tarea finalizada (demo)');
