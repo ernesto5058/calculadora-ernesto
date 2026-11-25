@@ -417,11 +417,11 @@
 
     <div class="sec-title"><h2>Actividad reciente</h2><a onclick="openList('actividad')">Ver todas</a></div>
     <div class="card">
-      <div class="act" onclick="activityGo('consejo', 'Auditoría Fase 0: infra, API y Consejo revisados en vivo (maqueta)')"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg></div><div><b>Auditoría Fase 0 completada</b><span>Infra, API y Consejo revisados en vivo</span></div><time>02:27</time></div>
-      <div class="act" onclick="activityGo('taller', 'Los servicios se levantaron solos tras el reinicio (maqueta)')"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div><div><b>Servicios rearrancados solos</b><span>Tras el reinicio de la máquina, el timer los levantó</span></div><time>01:14</time></div>
-      <div class="act" onclick="activityGo('taller', 'WhatsApp Baileys cayó 2 veces por reinicios de máquina y se levantó a mano (maqueta)')"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" stroke-width="2" stroke-linecap="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/></svg></div><div><b>WhatsApp Baileys cayó 2 veces</b><span>Reinicios de máquina; levantado a mano</span></div><time>01:20</time></div>
+      <div class="act" onclick="openActivity('home', 0)"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg></div><div><b>Auditoría Fase 0 completada</b><span>Infra, API y Consejo revisados en vivo</span></div><time>02:27</time></div>
+      <div class="act" onclick="openActivity('home', 1)"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div><div><b>Servicios rearrancados solos</b><span>Tras el reinicio de la máquina, el timer los levantó</span></div><time>01:14</time></div>
+      <div class="act" onclick="openActivity('home', 2)"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" stroke-width="2" stroke-linecap="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/></svg></div><div><b>WhatsApp Baileys cayó 2 veces</b><span>Reinicios de máquina; levantado a mano</span></div><time>01:20</time></div>
     </div>
-    <p class="foot">Muse Control · Maqueta v8 · Los datos de esta pantalla son de ejemplo.</p>
+    <p class="foot">Muse Control · Maqueta v9 · Los datos de esta pantalla son de ejemplo.</p>
     <div style="text-align:center; margin-top:10px;"><button class="btn ghost" style="flex:none; padding:9px 18px;" onclick="resetDemo()">Restablecer demo</button></div>
   </section>
 
@@ -566,11 +566,11 @@
 
     <div class="sec-title"><h2>Historial de operaciones</h2></div>
     <div class="card">
-      <div class="act" onclick="toast('v9 del juego publicada y aprobada por Ernesto, commit f7dd321 (maqueta)')"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg></div><div><b>Publicada v9 del juego</b><span>Aprobada por Ernesto · commit f7dd321</span></div><time>22:00</time></div>
-      <div class="act" onclick="toast('Despliegue rechazado: maqueta v7-u2net en cuarentena, nunca se publica (maqueta)')"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#f87171" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></div><div><b>Despliegue rechazado</b><span>Maqueta v7-u2net · en cuarentena</span></div><time>ayer</time></div>
-      <div class="act" onclick="toast('Banco del juego v9: 72/72 sin fallos (maqueta)')"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div><div><b>Pruebas del banco: 72/72</b><span>Juego v9 · sin fallos</span></div><time>ayer</time></div>
+      <div class="act" onclick="openActivity('taller', 0)"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg></div><div><b>Publicada v9 del juego</b><span>Aprobada por Ernesto · commit f7dd321</span></div><time>22:00</time></div>
+      <div class="act" onclick="openActivity('taller', 1)"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#f87171" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></div><div><b>Despliegue rechazado</b><span>Maqueta v7-u2net · en cuarentena</span></div><time>ayer</time></div>
+      <div class="act" onclick="openActivity('taller', 2)"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div><div><b>Pruebas del banco: 72/72</b><span>Juego v9 · sin fallos</span></div><time>ayer</time></div>
     </div>
-    <p class="foot">Taller · Maqueta v8 · Ningún despliegue o comando destructivo se ejecuta sin tu autorización.</p>
+    <p class="foot">Taller · Maqueta v9 · Ningún despliegue o comando destructivo se ejecuta sin tu autorización.</p>
   </section>
 
   <!-- ============ BARRA INFERIOR ============ -->
@@ -629,9 +629,15 @@
     el.innerHTML = '<span class="toast-msg"></span><button class="toast-x" aria-label="Cerrar aviso" onclick="hideToast()">×</button>';
     el.querySelector('.toast-msg').textContent = msg;
   }
-  function toast(msg) {
+  /* Aviso fijo: no desplaza la página, vive 8 s y la × lo descarta.
+     opts.persist: el aviso NO caduca (lo usa solo el filtro de
+     Orquesta, que sigue activo aunque pasen los 8 s: en la v8 el aviso
+     desaparecía y el filtro aplicado solo se distinguía por el chip
+     resaltado). */
+  function toast(msg, opts) {
     toastMsg = msg;
-    toastUntil = Date.now() + 8000;
+    var persist = !!(opts && opts.persist);
+    toastUntil = persist ? Infinity : Date.now() + 8000;
     var overlayOpen = document.getElementById('overlay').classList.contains('open');
     var show = overlayOpen ? document.getElementById('ovToast') : document.getElementById('toast');
     var hide = overlayOpen ? document.getElementById('toast') : document.getElementById('ovToast');
@@ -641,7 +647,7 @@
     show.classList.add('show');
     if (show.id === 'ovToast') reserveOvSpace(); else clearOvSpace();
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(function(){ hideToast(); }, 8000);
+    if (!persist) toastTimer = setTimeout(function(){ hideToast(); }, 8000);
   }
   function hideToast() {
     clearTimeout(toastTimer);
@@ -665,7 +671,9 @@
     if (body) body.style.paddingTop = '';
   }
   /* Trasladar el aviso activo entre la pantalla y la vista, con el
-     tiempo que le quede de sus 8 s (si ya caducó, se apaga). */
+     tiempo que le quede de sus 8 s (si ya caducó, se apaga). Un aviso
+     persistente (filtro de Orquesta) no pone temporizador en ningún
+     traslado: toastUntil = Infinity. */
   function carryToastToOverlay() {
     var t = document.getElementById('toast');
     if (!toastMsg || !t || !t.classList.contains('show')) return;
@@ -676,7 +684,7 @@
     fillToast(o, toastMsg);
     o.classList.add('show');
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(function(){ hideToast(); }, remain);
+    if (remain !== Infinity) toastTimer = setTimeout(function(){ hideToast(); }, remain);
     reserveOvSpace();
   }
   function carryToastToScreen() {
@@ -690,7 +698,7 @@
     fillToast(t, toastMsg);
     t.classList.add('show');
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(function(){ hideToast(); }, remain);
+    if (remain !== Infinity) toastTimer = setTimeout(function(){ hideToast(); }, remain);
   }
 
   /* La maqueta no guarda estado de la demo en el navegador. La única
@@ -749,10 +757,16 @@
 
   /* Restablecer demo: limpia cualquier resto guardado y vuelve al estado inicial recargando la página */
   function resetDemo() {
+    /* La posición de desplazamiento se guarda ANTES de limpiar: en la
+       v8 la página quedaba desplazada a la altura de Servicios aunque
+       antes del toque estaba arriba (la restauración del navegador tras
+       la recarga no coincidía con la posición real). */
+    var y = 0;
+    try { y = Math.round(window.scrollY); } catch (e) {}
     try { localStorage.clear(); } catch (e) {}
     try { sessionStorage.clear(); } catch (e) {}
     /* Bandera de un solo uso: al cargar, la página avisa «Demo restablecida» */
-    try { sessionStorage.setItem('mc-demo-reset', '1'); } catch (e) {}
+    try { sessionStorage.setItem('mc-demo-reset', '1'); sessionStorage.setItem('mc-reset-y', String(y)); } catch (e) {}
     location.reload();
   }
   /* Confirmación del restablecimiento: se dibuja en el primer pintado
@@ -761,13 +775,30 @@
      eso el Ojo la encontró visible tras 10 s y tras navegar. La v4
      fallaba al revés: la mostraba 300 ms después y la auto-ocultaba a
      los 2,6 s, así que nunca llegaba a verse. */
+  /* La posición guardada antes de restablecer se restaura tras la
+     recarga: si estaba arriba queda arriba; si estaba desplazada vuelve
+     a esa posición exacta. scrollRestoration='manual' evita que el
+     navegador restaure una posición vieja; load y pageshow la fijan de
+     nuevo por si la restauración del navegador llega después. */
+  var resetRestoreY = null;
+  if ('scrollRestoration' in history) { try { history.scrollRestoration = 'manual'; } catch (e) {} }
   try {
     if (sessionStorage.getItem('mc-demo-reset') === '1') {
       sessionStorage.removeItem('mc-demo-reset');
       resetJustShown = true;
+      var ry = sessionStorage.getItem('mc-reset-y');
+      sessionStorage.removeItem('mc-reset-y');
+      resetRestoreY = ry === null ? 0 : (parseInt(ry, 10) || 0);
+      window.scrollTo({ top: resetRestoreY, behavior: 'instant' });
       toast('Demo restablecida');
     }
   } catch (e) {}
+  window.addEventListener('load', function () {
+    if (resetRestoreY !== null) window.scrollTo({ top: resetRestoreY, behavior: 'instant' });
+  });
+  window.addEventListener('pageshow', function () {
+    if (resetRestoreY !== null) window.scrollTo({ top: resetRestoreY, behavior: 'instant' });
+  });
 
   function go(name) {
     /* Cambiar de pantalla descarta el aviso activo: es transitorio y
@@ -851,7 +882,11 @@
     /* El filtro también avisa: es el control de Orquesta que dispara el
        aviso fijo de la pantalla (en la v7 ningún control de Orquesta lo
        hacía y el Ojo no pudo verificar el aviso fijo ahí). */
-    toast('Filtro ' + el.textContent.trim() + ': ' + shown + (shown === 1 ? ' agente visible' : ' agentes visibles') + ' (maqueta)');
+    /* El aviso del filtro NO caduca mientras el filtro siga activo
+       (persistente): en la v8 desaparecía a los 8 s y el filtro aplicado
+       solo se distinguía por el chip resaltado. Cambia al cambiar el
+       filtro; la × lo descarta; cambiar de pantalla también. */
+    toast('Filtro ' + el.textContent.trim() + ': ' + shown + (shown === 1 ? ' agente visible' : ' agentes visibles') + ' (maqueta)', { persist: true });
   }
   function filterAgents() { renderAgents(); renderOrchActivity(); }
   renderAgents();
@@ -882,17 +917,39 @@
     if (q && a.agent.toLowerCase().indexOf(q) === -1) return false;
     return true;
   }
-  function activityHtml(a) {
-    return '<div class="act" onclick="activityGo(\'' + a.go + '\', \'' + a.title.replace(/'/g, '') + ' (maqueta)\')"><div class="ic">' + actIcons[a.icon] + '</div><div><b>' + a.title + '</b><span>' + a.sub + '</span></div><time>' + a.time + '</time></div>';
+  function activityHtml(a, idx, src) {
+    return '<div class="act" onclick="openActivity(\'' + src + '\', ' + idx + ')"><div class="ic">' + actIcons[a.icon] + '</div><div><b>' + a.title + '</b><span>' + a.sub + '</span></div><time>' + a.time + '</time></div>';
   }
-  /* Tocar un elemento de actividad abre su pantalla y explica el
-     detalle; si ya estás en esa pantalla, solo explica el detalle. */
-  function activityGo(target, detail) {
-    if (target && document.getElementById('scr-' + target) && !document.getElementById('scr-' + target).classList.contains('active')) {
-      closeOverlayAll();
-      go(target);
-    }
-    toast(detail || 'Actividad de ejemplo (maqueta)');
+  /* Detalle de actividad a pantalla completa con «‹ Volver»: en la v8
+     tocar una actividad saltaba directo a Consejo con un aviso fijo
+     cuya × solo cerraba el aviso y dejaba en Consejo arriba, sin volver
+     al listado ni a la posición desplazada. Ahora el detalle muestra la
+     información de esa actividad y la navegación a Consejo es un botón
+     dentro del detalle («Ver en Consejo»), no el salto automático.
+     Las filas estáticas de Inicio y de Taller tienen su propio
+     inventario (mismos títulos, subtítulos y horas que se ven en la
+     pantalla) porque no forman parte del array de Orquesta. */
+  var homeActivities = [
+    { icon: 'check', title: 'Auditoría Fase 0 completada', sub: 'Infra, API y Consejo revisados en vivo', time: '02:27', go: 'consejo', detail: 'La auditoría de la Fase 0 revisó en vivo la infraestructura, la API y el Consejo: sin incidencias. Es el punto de partida del plan de Muse Control.' },
+    { icon: 'clock', title: 'Servicios rearrancados solos', sub: 'Tras el reinicio de la máquina, el timer los levantó', time: '01:14', go: 'taller', detail: 'Tras el reinicio de la máquina, el timer de recuperación levantó solos los servicios: OpenCode, el shim, zrok y SearXNG.' },
+    { icon: 'search', title: 'WhatsApp Baileys cayó 2 veces', sub: 'Reinicios de máquina; levantado a mano', time: '01:20', go: 'taller', detail: 'El servicio de WhatsApp cayó dos veces por reinicios de la máquina y se levantó a mano. El vigía automático sigue desactivado.' }
+  ];
+  var tallerActivities = [
+    { icon: 'check', title: 'Publicada v9 del juego', sub: 'Aprobada por Ernesto · commit f7dd321', time: '22:00', go: 'taller', detail: 'La versión 9 del juego de Mi Trabajo se publicó y Ernesto la aprobó. Banco de pruebas: 72/72 sin fallos.' },
+    { icon: 'x', title: 'Despliegue rechazado', sub: 'Maqueta v7-u2net · en cuarentena', time: 'ayer', go: 'taller', detail: 'El despliegue de la maqueta v7-u2net se rechazó: está en cuarentena por un defecto de recorte y nunca se publica.' },
+    { icon: 'check', title: 'Pruebas del banco: 72/72', sub: 'Juego v9 · sin fallos', time: 'ayer', go: 'taller', detail: 'La última corrida del banco de pruebas del juego pasó 72 de 72 sin fallos.' }
+  ];
+  function openActivity(src, i) {
+    var list = src === 'home' ? homeActivities : (src === 'taller' ? tallerActivities : activities);
+    var a = list[i];
+    if (!a) return;
+    var dest = a.go === 'consejo' ? 'Consejo' : (a.go === 'taller' ? 'Taller' : 'Orquesta');
+    openOverlay('Actividad: ' + a.title, '<p class="ov-note">Datos de ejemplo de la actividad.</p><div class="card">'
+      + '<div class="row"><b style="font-size:14px;">' + a.title + '</b><time style="font-size:12px; color:var(--muted);">' + a.time + '</time></div>'
+      + '<p style="font-size:13.5px; color:var(--muted); margin-top:10px; line-height:1.55;">' + a.sub + '</p>'
+      + '<p style="font-size:13.5px; color:var(--muted); line-height:1.55;">' + (a.detail || a.sub) + '</p>'
+      + '<div class="plan-actions" style="margin-top:14px;"><button class="btn go" onclick="closeOverlayAll(); go(\'' + a.go + '\')">Ver en ' + dest + '</button></div>'
+      + '</div>');
   }
   /* Detalle de una tarjeta de estado de Inicio: la de Estado abre su
      detalle; Agentes y Tareas navegan; Alertas abre el listado. */
@@ -945,7 +1002,7 @@
     for (var i = 0; i < activities.length && shown < 3; i++) {
       if (!activityMatches(activities[i])) continue;
       shown++;
-      html += activityHtml(activities[i]);
+      html += activityHtml(activities[i], i, 'orch');
     }
     if (!shown) html = '<div style="text-align:center; color:var(--muted); font-size:13px; padding:10px 0;">Ninguna actividad coincide con ese filtro.</div>';
     box.innerHTML = html;
@@ -1155,16 +1212,35 @@
      mueve la página justo antes del toque y NO es la posición de
      lectura. Con la asentada, el segundo «‹ Volver» vuelve exacto a
      donde se estaba leyendo (fallo del Ojo en la v7: volvía arriba del
-     todo). Límite conocido: si se toca un enlace antes de 800 ms de
-     haber terminado un desplazamiento rápido, se restaura la posición
-     de lectura anterior, no la del desplazamiento (sigue siendo una
-     posición donde se estaba leyendo, nunca arriba del todo).
+     todo). Si el toque llega después de una ráfaga corta y reciente
+     (el auto-scroll que centra el enlace tocado), openOverlay usa
+     preBurstY, la posición anterior a la ráfaga (fallo del Ojo en la
+     v8: desfase ~120 px en la 1.ª repetición). Límite conocido: una
+     ráfaga larga (>300 px) o vieja (>1500 ms) restaura la posición
+     asentada, no la anterior a la ráfaga; y un desplazamiento
+     deliberado corto (≤300 px) seguido de una espera larga antes de
+     tocar restaura la posición anterior al desplazamiento (sigue
+     siendo una posición donde se estaba leyendo, nunca arriba).
      Mientras la vista está abierta la ventana está en 0 y no se
      registra nada. */
   var settledY = 0;
   var settledTimer = null;
+  /* Ráfaga de desplazamiento: dónde se estaba leyendo antes de que
+     empezara la última ráfaga (preBurstY) y cuándo terminó (burstEndAt).
+     El auto-scroll que centra el enlace «Ver todas» antes de tocarlo
+     mueve la página justo antes del toque; si el toque llega después de
+     que settledY ya se actualizó a esa posición desplazada, «Volver»
+     devolvería a la posición del auto-scroll (desfase ~120 px en la
+     1.ª repetición del Ojo en la v8) en vez de a donde se estaba
+     leyendo. Con una ráfaga corta (≤300 px) y reciente (<1500 ms), se
+     restaura la posición anterior a la ráfaga. */
+  var preBurstY = 0;
+  var burstEndAt = 0;
   window.addEventListener('scroll', function () {
     if (document.getElementById('overlay').classList.contains('open')) return;
+    var now = Date.now();
+    if (now - burstEndAt > 800) preBurstY = settledY;
+    burstEndAt = now;
     clearTimeout(settledTimer);
     settledTimer = setTimeout(function () { settledY = window.scrollY; }, 800);
   }, { passive: true });
@@ -1181,7 +1257,15 @@
         bodyY: document.getElementById('ovBody').scrollTop
       });
     }
-    if (!alreadyOpen) overlayReturnY = settledY;
+    if (!alreadyOpen) {
+      /* Posición a la que volver: la asentada, salvo que el último
+         desplazamiento fuera una ráfaga corta y reciente (auto-scroll
+         para centrar el enlace tocado): entonces se vuelve a donde se
+         leía antes de la ráfaga. */
+      var dt = Date.now() - burstEndAt;
+      var moved = Math.abs(window.scrollY - preBurstY);
+      overlayReturnY = (dt < 1500 && moved > 0 && moved <= 300) ? preBurstY : settledY;
+    }
     document.getElementById('ovTitle').textContent = title;
     var body = document.getElementById('ovBody');
     body.innerHTML = bodyHtml;
@@ -1207,12 +1291,30 @@
   }
   /* Cerrar la vista del todo, venga de donde venga (botones que navegan
      a otra pantalla, como «Preguntar a Máximo»). */
+  /* Borde superior de la primera tarjeta bajo el aviso fijo: al
+     restaurar, si la primera tarjeta de la pantalla activa queda
+     parcialmente bajo el aviso visible, se sube la página lo justo
+     para que su borde superior quede por debajo del aviso (fallo del
+     Ojo en Orquesta, v8). Solo se desplaza cuando hace falta y solo
+     lo que falta: si la tarjeta ya está visible o ya pasó, la posición
+     restaurada queda exacta. */
+  function firstCardTop() {
+    var el = document.querySelector('.screen.active .agent, .screen.active .card');
+    if (!el) return null;
+    return el.getBoundingClientRect().top;
+  }
   function closeOverlayAll() {
     overlayStack.length = 0;
     document.getElementById('overlay').classList.remove('open');
     carryToastToScreen();
     window.scrollTo({ top: overlayReturnY, behavior: 'instant' });
-    settledY = overlayReturnY;
+    var t = document.getElementById('toast');
+    if (t && t.classList.contains('show')) {
+      var tb = t.getBoundingClientRect().bottom;
+      var ct = firstCardTop();
+      if (ct !== null && ct >= 0 && ct < tb) window.scrollBy({ top: ct - tb, behavior: 'instant' });
+    }
+    settledY = window.scrollY;
   }
   function openList(kind, opts) {
     if (kind === 'alertas') {
@@ -1236,7 +1338,7 @@
       for (var j = 0; j < activities.length; j++) {
         if (!activityMatches(activities[j])) continue;
         shown++;
-        h2 += activityHtml(activities[j]);
+        h2 += activityHtml(activities[j], j, 'orch');
       }
       if (!shown) h2 = '<div style="text-align:center; color:var(--muted); font-size:13px; padding:10px 0;">Ninguna actividad coincide con ese filtro.</div>';
       openOverlay('Actividad reciente', '<p class="ov-note">Mostrando ' + shown + ' de ' + total + ' actividades. En Orquesta, el buscador y los filtros también filtran este listado.</p><div class="card">' + h2 + '</div>', opts);
