@@ -242,11 +242,11 @@
   /* El aviso es FIJO a la ventana (dentro de la columna): se ve esté el
      usuario donde esté, en las 5 pantallas y en cada vista a pantalla
      completa, sin desplazar la página jamás y sin que nada tenga que
-     devolverla a su sitio. Es transitorio (8 s o hasta cerrar con la ×)
-     y no bloquea toques fuera de él; tapa solo la franja superior
-     mientras dura. Hay dos: #toast para las pantallas y #ovToast para
-     las vistas a pantalla completa (fijo bajo la cabecera de la vista).
-     La confirmación de «Demo restablecida» no se auto-oculta. */
+     devolverla a su sitio. Es transitorio: dura 8 s o hasta cerrar con
+     la ×, TODOS por igual — también «Demo restablecida», que en la v6
+     era persistente y tapaba contenido sin cerrarse nunca. Cambiar de
+     pantalla lo descarta. Dentro de una vista, el aviso reserva su
+     espacio empujando el contenido en vez de tapar la primera tarjeta. */
   .toast {
     display: none;
     position: fixed; top: 0; left: 50%; transform: translateX(-50%);
@@ -416,7 +416,7 @@
       <div class="act" onclick="activityGo('taller', 'Los servicios se levantaron solos tras el reinicio (maqueta)')"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div><div><b>Servicios rearrancados solos</b><span>Tras el reinicio de la máquina, el timer los levantó</span></div><time>01:14</time></div>
       <div class="act" onclick="activityGo('taller', 'WhatsApp Baileys cayó 2 veces por reinicios de máquina y se levantó a mano (maqueta)')"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" stroke-width="2" stroke-linecap="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/></svg></div><div><b>WhatsApp Baileys cayó 2 veces</b><span>Reinicios de máquina; levantado a mano</span></div><time>01:20</time></div>
     </div>
-    <p class="foot">Muse Control · Maqueta v6 · Los datos de esta pantalla son de ejemplo.</p>
+    <p class="foot">Muse Control · Maqueta v7 · Los datos de esta pantalla son de ejemplo.</p>
     <div style="text-align:center; margin-top:10px;"><button class="btn ghost" style="flex:none; padding:9px 18px;" onclick="resetDemo()">Restablecer demo</button></div>
   </section>
 
@@ -564,7 +564,7 @@
       <div class="act" onclick="toast('Despliegue rechazado: maqueta v7-u2net en cuarentena, nunca se publica (maqueta)')"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#f87171" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></div><div><b>Despliegue rechazado</b><span>Maqueta v7-u2net · en cuarentena</span></div><time>ayer</time></div>
       <div class="act" onclick="toast('Banco del juego v9: 72/72 sin fallos (maqueta)')"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div><div><b>Pruebas del banco: 72/72</b><span>Juego v9 · sin fallos</span></div><time>ayer</time></div>
     </div>
-    <p class="foot">Taller · Maqueta v6 · Ningún despliegue o comando destructivo se ejecuta sin tu autorización.</p>
+    <p class="foot">Taller · Maqueta v7 · Ningún despliegue o comando destructivo se ejecuta sin tu autorización.</p>
   </section>
 
   <!-- ============ BARRA INFERIOR ============ -->
@@ -607,31 +607,84 @@
   /* El aviso es FIJO a la ventana (dentro de la columna): se ve esté el
      usuario donde esté, sin desplazar la página jamás. Solo se muestra
      el del contexto activo: #toast en las pantallas, #ovToast dentro de
-     una vista a pantalla completa. Dura 8 s o hasta cerrar con la ×.
-     Con {persist:true} no se auto-oculta. La opción {stay:true} de la
-     v5 ya no hace falta: el aviso fijo nunca mueve la vista. */
+     una vista a pantalla completa. Dura 8 s o hasta cerrar con la ×,
+     TODOS por igual — ya no hay avisos persistentes: en la v6 «Demo
+     restablecida» se quedaba para siempre y tapaba contenido. Cambiar
+     de pantalla (go()) lo descarta; abrir o cerrar una vista lo
+     TRASLADA al otro slot con el tiempo que le quede, así un aviso
+     provocado justo antes de abrir una vista se ve dentro de ella.
+     Dentro de una vista, el aviso reserva su espacio empujando el
+     contenido (padding-top del cuerpo) en vez de tapar la primera
+     tarjeta; en las pantallas sigue fijo y transitorio como está. */
   var toastTimer = null;
-  function toast(msg, opts) {
-    opts = opts || {};
-    var persist = !!opts.persist;
-    var html = '<span class="toast-msg"></span><button class="toast-x" aria-label="Cerrar aviso" onclick="hideToast()">×</button>';
+  var toastMsg = '';
+  var toastUntil = 0;
+  function fillToast(el, msg) {
+    el.innerHTML = '<span class="toast-msg"></span><button class="toast-x" aria-label="Cerrar aviso" onclick="hideToast()">×</button>';
+    el.querySelector('.toast-msg').textContent = msg;
+  }
+  function toast(msg) {
+    toastMsg = msg;
+    toastUntil = Date.now() + 8000;
     var overlayOpen = document.getElementById('overlay').classList.contains('open');
     var show = overlayOpen ? document.getElementById('ovToast') : document.getElementById('toast');
     var hide = overlayOpen ? document.getElementById('toast') : document.getElementById('ovToast');
     if (hide) hide.classList.remove('show');
     if (!show) return;
-    show.innerHTML = html;
-    show.querySelector('.toast-msg').textContent = msg;
+    fillToast(show, msg);
     show.classList.add('show');
+    if (show.id === 'ovToast') reserveOvSpace(); else clearOvSpace();
     clearTimeout(toastTimer);
-    if (!persist) toastTimer = setTimeout(function(){ hideToast(); }, 8000);
+    toastTimer = setTimeout(function(){ hideToast(); }, 8000);
   }
   function hideToast() {
     clearTimeout(toastTimer);
+    toastMsg = '';
+    toastUntil = 0;
     var t = document.getElementById('toast');
     var o = document.getElementById('ovToast');
     if (t) t.classList.remove('show');
     if (o) o.classList.remove('show');
+    clearOvSpace();
+  }
+  /* Dentro de una vista, el aviso empuja el contenido: se reserva su
+     altura real + 14 px arriba del cuerpo, y se libera al ocultarse. */
+  function reserveOvSpace() {
+    var o = document.getElementById('ovToast');
+    var body = document.getElementById('ovBody');
+    if (o && body) body.style.paddingTop = (o.offsetHeight + 14) + 'px';
+  }
+  function clearOvSpace() {
+    var body = document.getElementById('ovBody');
+    if (body) body.style.paddingTop = '';
+  }
+  /* Trasladar el aviso activo entre la pantalla y la vista, con el
+     tiempo que le quede de sus 8 s (si ya caducó, se apaga). */
+  function carryToastToOverlay() {
+    var t = document.getElementById('toast');
+    if (!toastMsg || !t || !t.classList.contains('show')) return;
+    var remain = toastUntil - Date.now();
+    if (remain <= 0) { hideToast(); return; }
+    t.classList.remove('show');
+    var o = document.getElementById('ovToast');
+    fillToast(o, toastMsg);
+    o.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function(){ hideToast(); }, remain);
+    reserveOvSpace();
+  }
+  function carryToastToScreen() {
+    var o = document.getElementById('ovToast');
+    if (!toastMsg || !o || !o.classList.contains('show')) return;
+    var remain = toastUntil - Date.now();
+    if (remain <= 0) { hideToast(); return; }
+    o.classList.remove('show');
+    clearOvSpace();
+    var t = document.getElementById('toast');
+    fillToast(t, toastMsg);
+    t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function(){ hideToast(); }, remain);
   }
 
   /* La maqueta no guarda estado de la demo en el navegador. La única
@@ -681,9 +734,10 @@
       msg = 'Con el túnel abierto, cualquiera con la URL llega a la API (maqueta)';
     }
     /* Si el listado está abierto, se vuelve a dibujar para que el cambio
-       se vea; el aviso va DESPUÉS, porque abrir la vista apaga el aviso
-       del contexto anterior. */
-    if (document.getElementById('overlay').classList.contains('open')) openList('alertas');
+       se vea, SIN apilarlo (replace): si no, «‹ Volver» mostraría el
+       listado viejo. El aviso va DESPUÉS y se traslada a la vista con
+       el tiempo que le quede. */
+    if (document.getElementById('overlay').classList.contains('open')) openList('alertas', { replace: true });
     if (msg) toast(msg);
   }
 
@@ -695,20 +749,25 @@
     try { sessionStorage.setItem('mc-demo-reset', '1'); } catch (e) {}
     location.reload();
   }
-  /* Confirmación del restablecimiento: se dibuja en el primer pintado,
-     sin temporizador y sin auto-ocultado — queda visible hasta que se
-     descarta con la ×. La v4 fallaba aquí: la mostraba 300 ms después
-     de cargar y la auto-ocultaba a los 2,6 s, así que en el navegador
-     real nunca llegaba a verse. */
+  /* Confirmación del restablecimiento: se dibuja en el primer pintado
+     y se auto-cierra a los 8 s como todos los avisos, con la × para
+     descartarla antes. En la v6 era persistente ({persist:true}) y por
+     eso el Ojo la encontró visible tras 10 s y tras navegar. La v4
+     fallaba al revés: la mostraba 300 ms después y la auto-ocultaba a
+     los 2,6 s, así que nunca llegaba a verse. */
   try {
     if (sessionStorage.getItem('mc-demo-reset') === '1') {
       sessionStorage.removeItem('mc-demo-reset');
       resetJustShown = true;
-      toast('Demo restablecida', { persist: true });
+      toast('Demo restablecida');
     }
   } catch (e) {}
 
   function go(name) {
+    /* Cambiar de pantalla descarta el aviso activo: es transitorio y
+       pertenece a la acción que lo provocó. (Por eso «Demo
+       restablecida» ya no sobrevive a la navegación.) */
+    hideToast();
     var screens = document.querySelectorAll('.screen');
     for (var i = 0; i < screens.length; i++) screens[i].classList.remove('active');
     document.getElementById('scr-' + name).classList.add('active');
@@ -718,6 +777,10 @@
        peleaba con el autoscroll del chat (si aún animaba cuando llegaba
        la respuesta, le ganaba y la tarjeta quedaba bajo el pliegue). */
     window.scrollTo({ top: 0, behavior: 'instant' });
+    /* Al re-entrar en Máximo, la última tarjeta del plan no debe quedar
+       tapada por el compositor: el ajuste de scroll también corre aquí,
+       no solo al recibir la respuesta. */
+    if (name === 'maximo') scrollChatToBottom();
   }
 
   /* ---------- Orquesta: datos de ejemplo ---------- */
@@ -755,7 +818,7 @@
       if (currentFilter !== 'all' && a.status !== currentFilter) continue;
       if (q && a.name.toLowerCase().indexOf(q) === -1 && a.role.toLowerCase().indexOf(q) === -1) continue;
       shown++;
-      html += '<div class="agent">'
+      html += '<div class="agent tappable" onclick="openAgent(' + i + ')">'
         + '<div class="head"><div class="av ' + a.cls + '">' + a.init + '</div>'
         + '<div><b>' + a.name + '</b><span>' + a.role + '</span></div>'
         + '<span class="pill ' + a.statusCls + '"><span class="d"></span>' + a.statusLabel + '</span></div>'
@@ -814,7 +877,7 @@
      detalle; si ya estás en esa pantalla, solo explica el detalle. */
   function activityGo(target, detail) {
     if (target && document.getElementById('scr-' + target) && !document.getElementById('scr-' + target).classList.contains('active')) {
-      closeList();
+      closeOverlayAll();
       go(target);
     }
     toast(detail || 'Actividad de ejemplo (maqueta)');
@@ -840,7 +903,26 @@
       + '<div class="row"><b style="font-size:14px;">' + s.name + '</b><span class="pill ' + s.pill + '"><span class="d"></span>' + s.label + '</span></div>'
       + '<p style="font-size:13.5px; color:var(--muted); margin-top:10px; line-height:1.55;">' + s.sub + '</p>'
       + '<p style="font-size:13.5px; color:var(--muted); line-height:1.55;">Modelo: Gemini 3.1 Flash Lite · Proyecto: calculadora-ernesto.</p>'
-      + '<div class="plan-actions" style="margin-top:14px;"><button class="btn go" onclick="closeList(); go(\'maximo\'); suggestOrder(\'Revisa la sesión ' + s.name.replace(/'/g, '') + '\')">Preguntar a Máximo</button></div>'
+      + '<div class="plan-actions" style="margin-top:14px;"><button class="btn go" onclick="closeOverlayAll(); go(\'maximo\'); suggestOrder(\'Revisa la sesión ' + s.name.replace(/'/g, '') + '\')">Preguntar a Máximo</button></div>'
+      + '</div>');
+  }
+  /* Detalle de un agente de la Orquesta: tocar la tarjeta abre su ficha
+     con sus datos y una vía para preguntarle a Máximo por él. En la v6
+     las tarjetas no respondían al toque. */
+  function openAgent(i) {
+    var a = agents[i];
+    if (!a) return;
+    openOverlay('Agente: ' + a.name, '<p class="ov-note">Datos de ejemplo del agente.</p><div class="card">'
+      + '<div class="head"><div class="av ' + a.cls + '">' + a.init + '</div>'
+      + '<div><b>' + a.name + '</b><span>' + a.role + '</span></div>'
+      + '<span class="pill ' + a.statusCls + '"><span class="d"></span>' + a.statusLabel + '</span></div>'
+      + '<div class="stats"><div><b>' + a.tasks + '</b><span>Tareas hoy</span></div>'
+      + '<div><b>' + a.success + '</b><span>Éxito</span></div>'
+      + '<div><b>' + a.last + '</b><span>Última actividad</span></div></div>'
+      + '<div class="usage"><div class="lbl"><span>Uso</span><span>' + a.usage + '%</span></div>'
+      + '<div class="bar"><i style="width:' + a.usage + '%"></i></div></div>'
+      + '<div class="state-note">' + a.note + '</div>'
+      + '<div class="plan-actions" style="margin-top:14px;"><button class="btn go" onclick="closeOverlayAll(); go(\'maximo\'); suggestOrder(\'Revisa el estado de ' + a.name.replace(/'/g, '') + '\')">Preguntar a Máximo</button></div>'
       + '</div>');
   }
   function renderOrchActivity() {
@@ -876,7 +958,24 @@
      síncrono) y desplaza con scrollTo instantáneo en bucle hasta que la
      medida dice que la tarjeta cabe. No depende de rAF ni de
      temporizadores para corregir; el temporizador que queda es solo una
-     red de seguridad tardía por si el navegador aún está pintando. */
+     red de seguridad tardía por si el navegador aún está pintando.
+     AJUSTE v7: la v6 medía el borde superior del compositor con su
+     rectángulo vivo, que SE MUEVE mientras el compositor aún no está
+     fijo (sticky) — el bucle no siempre convergía y la tarjeta se
+     asentaba ~1 s después, cuando saltaba la red de seguridad de
+     450 ms. Ahora se mide contra la posición ESTABLE del compositor
+     fijo (a 84 px del borde inferior de la ventana): el desplazamiento
+     converge en un solo paso, en la misma tarea. La red de seguridad
+     baja a 150 ms y solo actúa si algo quedó fuera.
+     ANCLA v7 (segunda parte): el ancla es el borde inferior de los
+     atajos (#sugg), no el de la última tarjeta. Los atajos ya no se
+     ocultan nunca al enviar (punto 2 del Ojo v6) y van en flujo justo
+     después del chat: si el scroll se anclara solo a la última tarjeta,
+     los atajos quedarían bajo el compositor fijo y la barra inferior,
+     sin poderse tocar. Anclando a su borde inferior, la vista asentada
+     muestra la última tarjeta Y los 3 atajos completos por encima del
+     compositor. El spacer de 200 px al final de la pantalla da el
+     recorrido extra que ese ancla necesita. */
   function scrollChatToBottom() {
     var chat = document.getElementById('chat');
     var composer = document.querySelector('#scr-maximo .composer');
@@ -884,12 +983,21 @@
     /* Cancelar cualquier scroll suave en vuelo (p. ej. el de go()) para
        que no le gane a este desplazamiento. */
     try { window.scrollTo({ top: window.scrollY, behavior: 'instant' }); } catch (e) {}
-    for (var i = 0; i < 10; i++) {
+    var compH = composer.offsetHeight || 58;
+    var limit = window.innerHeight - 84 - compH - 12;
+    /* Borde inferior del ancla: los atajos si están visibles (siempre en
+       la v7), si no la última tarjeta del chat. */
+    function anchorBottom() {
+      var sugg = document.getElementById('sugg');
+      if (sugg && sugg.offsetHeight) return sugg.getBoundingClientRect().bottom + window.scrollY;
       var last = chat.lastElementChild;
-      if (!last) return;
-      var limit = composer.getBoundingClientRect().top - 12;
-      var dy = last.getBoundingClientRect().bottom - limit;
-      if (dy <= 1) return; /* la tarjeta ya cabe entera */
+      return last ? last.getBoundingClientRect().bottom + window.scrollY : 0;
+    }
+    for (var i = 0; i < 4; i++) {
+      var cardDocBottom = anchorBottom();
+      if (!cardDocBottom) return;
+      var dy = (cardDocBottom - window.scrollY) - limit;
+      if (dy <= 1) return; /* el ancla ya cabe entera */
       var max = document.documentElement.scrollHeight - window.innerHeight;
       var target = window.scrollY + dy;
       if (target > max) target = max;
@@ -898,14 +1006,13 @@
          final del chat garantiza que con un solo plan siempre lo hay. */
       if (window.scrollY >= max) return;
     }
-    /* Red de seguridad tardía por si el navegador aún está pintando. */
+    /* Red de seguridad tardía y corta por si el navegador aún está pintando. */
     setTimeout(function(){
-      var last = chat.lastElementChild;
-      if (!last) return;
-      var limit = composer.getBoundingClientRect().top - 12;
-      var dy = last.getBoundingClientRect().bottom - limit;
+      var cardDocBottom = anchorBottom();
+      if (!cardDocBottom) return;
+      var dy = (cardDocBottom - window.scrollY) - limit;
       if (dy > 1) window.scrollTo({ top: window.scrollY + dy, behavior: 'instant' });
-    }, 450);
+    }, 150);
   }
   function sendOrder() {
     var input = document.getElementById('chatInput');
@@ -916,8 +1023,11 @@
       toast('Escribe primero una orden');
       return;
     }
-    var sugg = document.getElementById('sugg');
-    if (sugg) sugg.style.display = 'none';
+    /* Los chips de sugerencia NO se ocultan al enviar: son la sección
+       «Acciones» de Máximo y deben estar siempre, para que los atajos
+       «Pedir una auditoría» y «Convoca a Gemini y Nemotron» nunca
+       desaparezcan. En la v6 sendOrder() los escondía (display:none) y
+       el Ojo los dio por perdidos tras el primer restablecimiento. */
     var chat = document.getElementById('chat');
     var me = document.createElement('div');
     me.className = 'msg me';
@@ -1005,24 +1115,63 @@
   };
   /* La vista a pantalla completa guarda la posición de la pantalla de
      origen y la restaura exacta al volver con «‹ Volver»: antes se
-     volvía arriba del todo. */
+     volvía arriba del todo.
+     PILA DE NAVEGACIÓN (v7): las vistas se apilan — abrir una ficha
+     desde un listado (una sesión desde «Sesiones», las alertas desde
+     «Acciones rápidas») guarda la vista anterior, y «‹ Volver» vuelve
+     A ELLA, no directo a la pantalla. Solo la PRIMERA apertura de la
+     cadena guarda la posición de la ventana: en la v6 cada openOverlay
+     la sobrescribía, y como la vista ya había desplazado la ventana a
+     0, el detalle anidado guardaba 0 y «Volver» dejaba la página
+     arriba (fallo del Ojo en el detalle de sesión de Taller).
+     Con {replace:true} se vuelve a dibujar la vista actual sin apilar
+     (lo usa alertAction al re-dibujar el listado de alertas). */
   var overlayReturnY = 0;
-  function openOverlay(title, bodyHtml) {
-    overlayReturnY = window.scrollY;
+  var overlayStack = [];
+  function openOverlay(title, bodyHtml, opts) {
+    opts = opts || {};
+    var ov = document.getElementById('overlay');
+    var alreadyOpen = ov.classList.contains('open');
+    if (alreadyOpen && !opts.replace) {
+      overlayStack.push({
+        title: document.getElementById('ovTitle').textContent,
+        body: document.getElementById('ovBody').innerHTML,
+        bodyY: document.getElementById('ovBody').scrollTop
+      });
+    }
+    if (!alreadyOpen) overlayReturnY = window.scrollY;
     document.getElementById('ovTitle').textContent = title;
     var body = document.getElementById('ovBody');
     body.innerHTML = bodyHtml;
     body.scrollTop = 0;
-    document.getElementById('overlay').classList.add('open');
-    hideToast(); /* el aviso de la pantalla no flota sobre la vista */
+    ov.classList.add('open');
+    carryToastToOverlay(); /* el aviso activo se ve dentro de la vista */
     window.scrollTo({ top: 0, behavior: 'instant' });
   }
+  /* «‹ Volver»: un nivel atrás en la pila; si no queda nada, cierra la
+     vista y restaura la posición exacta de la pantalla de origen. */
   function closeList() {
+    var ov = document.getElementById('overlay');
+    if (!ov.classList.contains('open') && !overlayStack.length) return;
+    if (overlayStack.length) {
+      var prev = overlayStack.pop();
+      document.getElementById('ovTitle').textContent = prev.title;
+      var body = document.getElementById('ovBody');
+      body.innerHTML = prev.body;
+      body.scrollTop = prev.bodyY || 0;
+      return;
+    }
+    closeOverlayAll();
+  }
+  /* Cerrar la vista del todo, venga de donde venga (botones que navegan
+     a otra pantalla, como «Preguntar a Máximo»). */
+  function closeOverlayAll() {
+    overlayStack.length = 0;
     document.getElementById('overlay').classList.remove('open');
-    hideToast();
+    carryToastToScreen();
     window.scrollTo({ top: overlayReturnY, behavior: 'instant' });
   }
-  function openList(kind) {
+  function openList(kind, opts) {
     if (kind === 'alertas') {
       var clearedA = alertsCleared();
       var h = '<p class="ov-note">' + (clearedA ? '0 alertas pendientes — ' + alertsTag().toLowerCase() + 's. La campana de arriba abre este mismo listado.' : '2 alertas en la maqueta. La campana de arriba abre este mismo listado.') + '</p>';
@@ -1038,7 +1187,7 @@
         + '<button class="btn ghost" onclick="alertAction(\'fallar\')">Ver qué puede fallar</button>'
         + '</div>'
         + '<div style="margin-top:16px; text-align:center;"><button class="btn ghost" style="flex:none; padding:9px 18px;" onclick="resetDemo()">Restablecer demo</button></div>';
-      openOverlay('Alertas y errores', h);
+      openOverlay('Alertas y errores', h, opts);
     } else if (kind === 'actividad') {
       var total = activities.length, shown = 0, h2 = '';
       for (var j = 0; j < activities.length; j++) {
@@ -1047,21 +1196,21 @@
         h2 += activityHtml(activities[j]);
       }
       if (!shown) h2 = '<div style="text-align:center; color:var(--muted); font-size:13px; padding:10px 0;">Ninguna actividad coincide con ese filtro.</div>';
-      openOverlay('Actividad reciente', '<p class="ov-note">Mostrando ' + shown + ' de ' + total + ' actividades. En Orquesta, el buscador y los filtros también filtran este listado.</p><div class="card">' + h2 + '</div>');
+      openOverlay('Actividad reciente', '<p class="ov-note">Mostrando ' + shown + ' de ' + total + ' actividades. En Orquesta, el buscador y los filtros también filtran este listado.</p><div class="card">' + h2 + '</div>', opts);
     } else if (kind === 'sesiones') {
       var h3 = '<p class="ov-note">6 sesiones de OpenCode (datos de ejemplo).</p><div class="card">';
       for (var k = 0; k < sessionsData.length; k++) {
         h3 += '<div class="svc" onclick="openSession(' + k + ')"><div class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#c4b5fd" stroke-width="2" stroke-linecap="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg></div><div><b>' + sessionsData[k].name + '</b><span>' + sessionsData[k].sub + '</span></div><div class="st"><span class="pill ' + sessionsData[k].pill + '"><span class="d"></span>' + sessionsData[k].label + '</span></div></div>';
       }
-      openOverlay('Sesiones de OpenCode', h3 + '</div>');
+      openOverlay('Sesiones de OpenCode', h3 + '</div>', opts);
     } else if (kind === 'acciones') {
       var h4 = '<p class="ov-note">Todas las acciones rápidas de la maqueta.</p><div class="qa">';
       for (var m = 0; m < actionsData.length; m++) {
         var a = actionsData[m];
-        var fn = a.go ? "closeList(); go('" + a.go + "')" : (a.order ? "closeList(); go('maximo'); suggestOrder('" + a.order + "')" : "openList('alertas')");
+        var fn = a.go ? "closeOverlayAll(); go('" + a.go + "')" : (a.order ? "closeOverlayAll(); go('maximo'); suggestOrder('" + a.order + "')" : "openList('alertas')");
         h4 += '<button onclick="' + fn + '">' + a.label + '</button>';
       }
-      openOverlay('Acciones rápidas', h4 + '</div>');
+      openOverlay('Acciones rápidas', h4 + '</div>', opts);
     }
   }
   function openEvidence(who) {
@@ -1099,6 +1248,12 @@
   function approveChange() {
     changeDecision = 'aprobado';
     renderChangeActions();
+    /* Aprobar ABRE el paso 4 en el acto: el ciclo avanza a
+       «Ejecutándose» sin esperar a «Avanzar un paso». En la v6 aprobar
+       solo cambiaba la píldora y el ciclo se quedaba en el paso 3, así
+       que el texto de la puerta («El paso 4 solo se abre al aprobar»)
+       no era verdad. */
+    if (step === 3) advanceStep(true);
     toast('Cambio aprobado (maqueta: no se aplica nada)');
   }
   function rejectChange() {
@@ -1115,16 +1270,17 @@
     toast('Decisión deshecha (maqueta)');
   }
   var step = 3;
-  function advanceStep() {
+  function advanceStep(silent) {
     /* El avance demo NO llega a «Ejecutándose» ni a «finalizada» sin
        aprobación: se detiene en el paso 3 hasta que se apruebe el cambio;
-       el paso 4 solo se abre al aprobar. */
+       el paso 4 solo se abre al aprobar. Con silent=true no se avisa:
+       lo usa approveChange(), que ya avisa de la aprobación. */
     if (step === 3 && changeDecision !== 'aprobado') {
-      toast(changeDecision === 'rechazado' ? 'El cambio está rechazado: no se puede ejecutar (demo)' : 'Primero aprueba el cambio: el paso 4 se abre al aprobar (demo)');
+      if (!silent) toast(changeDecision === 'rechazado' ? 'El cambio está rechazado: no se puede ejecutar (demo)' : 'Primero aprueba el cambio: el paso 4 se abre al aprobar (demo)');
       return;
     }
     var items = document.querySelectorAll('#steps li');
-    if (step > 6) { toast('La tarea ya llegó al final (demo)'); return; }
+    if (step > 6) { if (!silent) toast('La tarea ya llegó al final (demo)'); return; }
     for (var i = 0; i < items.length; i++) {
       items[i].classList.remove('now');
       if (i < step) {
@@ -1139,9 +1295,9 @@
       items[step].classList.remove('locked');
       items[step].querySelector('.n').textContent = String(step + 1);
       if (step === 3) { var s4n = document.getElementById('step4sub'); if (s4n) s4n.textContent = 'En curso — aprobado por ti'; }
-      toast('Paso ' + (step + 1) + ' de 6 (demo)');
+      if (!silent) toast('Paso ' + (step + 1) + ' de 6 (demo)');
     } else {
-      toast('Tarea finalizada (demo)');
+      if (!silent) toast('Tarea finalizada (demo)');
     }
     step++;
   }
