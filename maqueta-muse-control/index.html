@@ -39,6 +39,7 @@
     background: linear-gradient(180deg, var(--bg2) 0%, var(--bg) 30%);
     position: relative;
     padding-bottom: 92px;
+    transition: padding-top .3s ease;
   }
   /* Banner de maqueta */
   .banner {
@@ -150,7 +151,7 @@
   .msg.bot b { color: var(--acc2); }
   .msg.bot ul { margin: 8px 0 8px 18px; }
   .msg.bot li { margin-bottom: 4px; }
-  .plan-actions { display: flex; gap: 10px; margin-top: 10px; }
+  .plan-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; }
   .btn {
     flex: 1; border: none; border-radius: 12px; padding: 11px; font-size: 14px; font-weight: 700;
     cursor: pointer; transition: transform .25s ease, opacity .25s ease;
@@ -180,8 +181,7 @@
     border-radius: 999px; padding: 10px 14px; margin-bottom: 12px;
   }
   .search input { flex: 1; background: none; border: none; outline: none; color: var(--txt); font-size: 14px; }
-  .chips { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; margin-bottom: 12px; scrollbar-width: none; }
-  .chips::-webkit-scrollbar { display: none; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; padding-bottom: 4px; margin-bottom: 12px; }
   .chip {
     flex: none; border: 1px solid var(--line); background: var(--card);
     color: var(--muted); border-radius: 999px; padding: 7px 14px; font-size: 13px; font-weight: 600; cursor: pointer;
@@ -239,13 +239,18 @@
   .steps li small { display: block; color: var(--muted); font-size: 12px; margin-top: 2px; }
   .steps li.locked { opacity: .5; }
   .toast {
-    position: fixed; left: 50%; top: 12px; transform: translateX(-50%) translateY(-12px);
-    background: #2a1d4d; border: 1px solid var(--acc); color: var(--txt);
-    padding: 11px 18px; border-radius: 999px; font-size: 13px; font-weight: 600;
-    opacity: 0; pointer-events: none; transition: all .3s ease; z-index: 50; white-space: nowrap;
-    max-width: 92vw; overflow: hidden; text-overflow: ellipsis;
+    position: fixed; left: 50%; top: 0; transform: translateX(-50%);
+    width: 100%; max-width: 430px; height: 48px;
+    display: flex; align-items: center; justify-content: center;
+    background: #2a1d4d; border-bottom: 1px solid var(--acc); color: var(--txt);
+    padding: 0 16px; font-size: 13px; font-weight: 600;
+    opacity: 0; pointer-events: none; transition: opacity .3s ease; z-index: 70;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
-  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .toast.show { opacity: 1; }
+  /* El aviso reserva su espacio: empuja el contenido hacia abajo y nunca se solapa con la banda ni con el código */
+  body.toast-on .phone { padding-top: 48px; }
+  body.toast-on .overlay { top: 48px; height: calc(100dvh - 48px); }
   /* Barra inferior */
   nav.bottom {
     position: fixed; left: 50%; transform: translateX(-50%);
@@ -287,6 +292,7 @@
     width: 100%; max-width: 430px; height: 100dvh; z-index: 60;
     background: linear-gradient(180deg, var(--bg2) 0%, var(--bg) 30%);
     display: none; flex-direction: column;
+    transition: top .3s ease;
   }
   .overlay.open { display: flex; }
   .ov-head {
@@ -382,7 +388,8 @@
       <div class="act"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div><div><b>Servicios rearrancados solos</b><span>Tras el reinicio de la máquina, el timer los levantó</span></div><time>01:14</time></div>
       <div class="act"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" stroke-width="2" stroke-linecap="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/></svg></div><div><b>WhatsApp Baileys cayó 2 veces</b><span>Reinicios de máquina; levantado a mano</span></div><time>01:20</time></div>
     </div>
-    <p class="foot">Muse Control · Maqueta v2 · Los datos de esta pantalla son de ejemplo.</p>
+    <p class="foot">Muse Control · Maqueta v3 · Los datos de esta pantalla son de ejemplo.</p>
+    <div style="text-align:center; margin-top:10px;"><button class="btn ghost" style="flex:none; padding:9px 18px;" onclick="resetDemo()">Restablecer demo</button></div>
   </section>
 
   <!-- ============ 02 MÁXIMO ============ -->
@@ -526,7 +533,7 @@
       <div class="act"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#f87171" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></div><div><b>Despliegue rechazado</b><span>Maqueta v7-u2net · en cuarentena</span></div><time>ayer</time></div>
       <div class="act"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div><div><b>Pruebas del banco: 72/72</b><span>Juego v9 · sin fallos</span></div><time>ayer</time></div>
     </div>
-    <p class="foot">Taller · Maqueta v2 · Ningún despliegue o comando destructivo se ejecuta sin tu autorización.</p>
+    <p class="foot">Taller · Maqueta v3 · Ningún despliegue o comando destructivo se ejecuta sin tu autorización.</p>
   </section>
 
   <!-- ============ BARRA INFERIOR ============ -->
@@ -570,8 +577,35 @@
     var t = document.getElementById('toast');
     t.textContent = msg;
     t.classList.add('show');
+    document.body.classList.add('toast-on');
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(function(){ t.classList.remove('show'); }, 2600);
+    toastTimer = setTimeout(function(){ t.classList.remove('show'); document.body.classList.remove('toast-on'); }, 2600);
+  }
+
+  /* La maqueta no guarda estado en el navegador: nada se escribe en localStorage ni sessionStorage.
+     Si el navegador restaura la página desde su caché de atrás/adelante, se recarga para no mostrar un estado viejo de la demo. */
+  window.addEventListener('pageshow', function (e) { if (e.persisted) location.reload(); });
+
+  /* Acciones del listado de alertas: se dibujan de nuevo en cada apertura, así que siempre están presentes */
+  function alertAction(kind) {
+    if (kind === 'silenciar') {
+      toast('Alertas silenciadas (maqueta)');
+      var d1 = document.querySelector('.bell .dot'); if (d1) d1.style.display = 'none';
+    } else if (kind === 'leidas') {
+      toast('Alertas marcadas como leídas (maqueta)');
+      var d2 = document.querySelector('.bell .dot'); if (d2) d2.style.display = 'none';
+    } else if (kind === 'tunel') {
+      toast('El túnel zrok es público: hay que cerrarlo antes de conectar (maqueta)');
+    } else if (kind === 'fallar') {
+      toast('Con el túnel abierto, cualquiera con la URL llega a la API (maqueta)');
+    }
+  }
+
+  /* Restablecer demo: limpia cualquier resto guardado y vuelve al estado inicial recargando la página */
+  function resetDemo() {
+    try { localStorage.clear(); } catch (e) {}
+    try { sessionStorage.clear(); } catch (e) {}
+    location.reload();
   }
 
   function go(name) {
@@ -666,7 +700,8 @@
   function activityMatches(a) {
     var q = (document.getElementById('agentSearch').value || '').toLowerCase();
     if (currentFilter !== 'all' && agentStatusOf(a.agent) !== currentFilter) return false;
-    if (q && a.agent.toLowerCase().indexOf(q) === -1 && a.title.toLowerCase().indexOf(q) === -1 && a.sub.toLowerCase().indexOf(q) === -1) return false;
+    /* La actividad se filtra por el agente DUEÑO de la fila, nunca por subcadena en la descripción */
+    if (q && a.agent.toLowerCase().indexOf(q) === -1) return false;
     return true;
   }
   function activityHtml(a) {
@@ -779,6 +814,15 @@
       for (var i = 0; i < alertsData.length; i++) {
         h += '<div class="alert ' + alertsData[i].cls + '"><div><b>' + alertsData[i].title + '</b><span>' + alertsData[i].sub + '</span></div></div>';
       }
+      h += '<div class="plan-actions">'
+        + '<button class="btn ghost" onclick="alertAction(\'silenciar\')">Silenciar</button>'
+        + '<button class="btn ghost" onclick="alertAction(\'leidas\')">Marcar leídas</button>'
+        + '</div>'
+        + '<div class="plan-actions">'
+        + '<button class="btn ghost" onclick="alertAction(\'tunel\')">Revisar el túnel</button>'
+        + '<button class="btn ghost" onclick="alertAction(\'fallar\')">Ver qué puede fallar</button>'
+        + '</div>'
+        + '<div style="margin-top:16px; text-align:center;"><button class="btn ghost" style="flex:none; padding:9px 18px;" onclick="resetDemo()">Restablecer demo</button></div>';
       openOverlay('Alertas y errores', h);
     } else if (kind === 'actividad') {
       var total = activities.length, shown = 0, h2 = '';
