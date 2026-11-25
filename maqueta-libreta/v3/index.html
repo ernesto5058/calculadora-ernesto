@@ -1,0 +1,796 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Libreta</title>
+<style>
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{background:#0a1628;color:#eef2f7;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;font-size:18px;line-height:1.45;overflow-x:hidden;padding:8px 14px calc(118px + env(safe-area-inset-bottom))}
+h1{font-size:28px;margin:10px 0 4px;color:#f5d76e}
+h2{font-size:22px;margin:6px 0;color:#f5d76e}
+h3{font-size:19px;margin:10px 0 4px;color:#f5d76e}
+p{margin:6px 0}
+small,.nota{color:#b9c6d8;font-size:15px}
+.tarjeta{background:#12263f;border:1px solid #d4af37;border-radius:14px;padding:14px;margin:12px 0}
+.tarjeta.saldo{border-color:#d4af37}
+.tarjeta.transf{border-color:#d4af37}
+.grande{font-size:34px;font-weight:800;color:#fff}
+.dorado{color:#f5d76e;font-weight:700}
+button{font-size:18px;min-height:52px;border-radius:12px;border:1px solid #d4af37;background:#1a3355;color:#fff;padding:10px 16px;cursor:pointer}
+button.dorado-fondo{background:#d4af37;color:#0a1628;font-weight:800}
+button.fantasma{background:transparent}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}
+.chips button{min-height:46px;font-size:17px}
+.chips button.sel{background:#d4af37;color:#0a1628;font-weight:800}
+input,select,textarea{font-size:18px;width:100%;min-height:52px;border-radius:12px;border:1px solid #d4af37;background:#0a1628;color:#fff;padding:10px 12px;margin:6px 0}
+label{display:block;margin-top:10px;color:#f5d76e;font-weight:700}
+.vista{display:none}
+.vista.activa{display:block}
+.paso{display:none}
+.paso.activo{display:block}
+.puntos{display:flex;gap:8px;justify-content:center;margin:10px 0}
+.puntos button{width:44px;height:44px;min-height:44px;border-radius:50%;padding:0}
+.puntos button.sel{background:#d4af37;color:#0a1628;font-weight:800}
+.barra{height:10px;background:#1a3355;border-radius:6px;overflow:hidden;margin:8px 0}
+.barra>div{height:100%;background:#d4af37}
+.nav{display:flex;gap:10px;margin:12px 0}
+.nav button{flex:1}
+.barra-fija{position:fixed;left:0;right:0;bottom:0;background:#0a1628;border-top:1px solid #d4af37;padding:10px 14px calc(10px + env(safe-area-inset-bottom));display:flex;gap:10px;z-index:50}
+.barra-fija button{flex:1}
+.panel{position:fixed;left:0;right:0;bottom:0;background:#12263f;border-top:2px solid #d4af37;border-radius:18px 18px 0 0;padding:16px 16px calc(16px + env(safe-area-inset-bottom));max-height:86vh;overflow-y:auto;display:none;z-index:60}
+.panel.abierto{display:block}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.7);display:none;align-items:center;justify-content:center;z-index:70;padding:20px}
+.modal.abierto{display:flex}
+.modal .caja{background:#12263f;border:1px solid #d4af37;border-radius:16px;padding:20px;max-width:380px;width:100%}
+#toast{position:fixed;left:50%;transform:translateX(-50%);bottom:110px;background:#d4af37;color:#0a1628;font-weight:800;border-radius:12px;padding:12px 18px;display:none;z-index:80}
+#toast.ver{display:block}
+#vista-previa{background:#0a1628;border:1px solid #d4af37;border-radius:12px;padding:12px;margin:10px 0;white-space:pre-line}
+.rebanada{cursor:pointer}
+.cal-rejilla{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin:10px 0}
+.cal-rejilla .dia{background:#1a3355;border:1px solid #d4af37;border-radius:10px;min-height:48px;display:flex;align-items:center;justify-content:center;font-size:17px;cursor:pointer}
+.cal-rejilla .dia.hoy{background:#d4af37;color:#0a1628;font-weight:800}
+.cal-rejilla .dia.sel{outline:3px solid #f5d76e}
+.cal-rejilla .cab{background:transparent;border:none;color:#f5d76e;font-weight:800;min-height:30px;font-size:15px}
+.apunte{background:#0a1628;border:1px solid #d4af37;border-radius:12px;padding:12px;margin:10px 0}
+.apunte .acciones{display:flex;gap:8px;margin-top:8px}
+.apunte .acciones button{min-height:44px;font-size:16px;flex:1}
+.oculta{display:none}
+.pastel{border-radius:12px;padding:12px;background:#0a1628;border:1px solid #d4af37}
+.leyenda-fila{cursor:pointer}
+.etiqueta{display:inline-block;background:#d4af37;color:#0a1628;border-radius:8px;padding:2px 10px;font-weight:800;font-size:15px}
+</style>
+</head>
+<body>
+
+<!-- ============ MESA ============ -->
+<div id="mesa" class="vista activa">
+  <h1>Libreta</h1>
+  <p class="nota">Tu dinero, claro y en un solo lugar.</p>
+  <div class="tarjeta">
+    <div>Capital actual</div>
+    <div class="grande"><span id="hero-capital">41,250</span> CUP</div>
+    <div class="nota">42,000 − 500 a Briku − 250 para ti = 41,250</div>
+  </div>
+  <div class="tarjeta">
+    <div>Capital <span class="dorado" id="trio-capital">41,250</span> CUP · Total en juego <span class="dorado" id="trio-total">42,613</span> CUP · Diferencia <span class="dorado" id="trio-diferencia">1,363</span> CUP</div>
+    <div class="nota">La diferencia es 1,363 CUP más que el capital. No es ganancia. Todavía no se sabe de dónde sale.</div>
+    <div class="nota">Total en juego: caja <span id="trio-caja">22,080</span> + Briku <span id="trio-briku">15,333</span> + Yo <span id="trio-yo">5,200</span> = <span id="trio-total2">42,613</span></div>
+  </div>
+  <div class="tarjeta saldo">
+    <h2>Saldo</h2>
+    <div>Toque <b>975</b> · Salida Miguel <b>980 CUP por 1 QUSD</b> · Tasa <b>300</b></div>
+    <div>Equilibrio: <b id="mesa-equilibrio">352.8</b> · Ganancia por cada 360: <b id="mesa-gan360">176</b> CUP</div>
+    <div>Saldo total: <b id="mesa-saldo-total">7,520</b> (Briku 5,520 + Yo 2,000)</div>
+    <div>Caja: <b id="caja-mesa">22,080</b> CUP</div>
+    <div class="nota">Costo: 1,000 CUP por recarga de 360.</div>
+  </div>
+  <div class="tarjeta transf">
+    <h2>Transferencia</h2>
+    <div>Saldo pendiente de confirmar</div>
+    <div>Libro de equilibrio: <b id="mesa-libro">1,274</b> CUP por 1 QUSD</div>
+    <div>Margen: <b id="mesa-margen">11.8%</b> · Por ciento de equilibrio: <b id="mesa-pcteq">16.3%</b></div>
+    <div class="nota">Los 5,200 CUP son tu inversión personal, no el saldo de Transferencia.</div>
+    <div class="nota">Registro aparte de Transferencia: <b id="mesa-transf">0</b> CUP</div>
+  </div>
+  <div class="tarjeta">
+    <div>Ciclos: 22 <span class="dorado">CERRADO</span> · 23 <span class="dorado">TERMINADO</span> · 24 <span class="dorado" id="est-24-mesa">TRABAJANDO · CON BRIKU</span> · 25 <span class="dorado">EN ESPERA</span></div>
+  </div>
+  <div class="nav">
+    <button class="dorado-fondo" onclick="irALibreta()">Abrir la libreta</button>
+  </div>
+  <div class="nav">
+    <button id="btn-calendario" onclick="verCalendario('mes')">Calendario</button>
+    <button id="btn-historial" onclick="irAHistorial()">Historial</button>
+  </div>
+  <div class="tarjeta" id="sec-dudas">
+    <h2>Pendiente de confirmar</h2>
+    <p>¿Qué es el 11,250?</p>
+    <p>¿Por qué 42,613 es 1,363 más que el capital 41,250?</p>
+    <p>¿Qué es el 17,000 del ciclo 23?</p>
+    <p>¿La Transferencia tiene saldo propio o solo precio y margen?</p>
+    <p class="nota">Estas dudas están pendientes. Nada aquí se inventa: cuando se sepa, se anota.</p>
+  </div>
+</div>
+
+<!-- ============ LIBRETA: 6 PASOS ============ -->
+<div id="libreta" class="vista">
+  <h1>Libreta</h1>
+  <div id="paso-ahora">Paso 1 de 6</div>
+  <div id="paso-nombre">Capital</div>
+  <div class="barra"><div id="barra-progreso" style="width:16.7%"></div></div>
+  <div class="puntos" id="puntos">
+    <button data-paso="1" class="sel">1</button><button data-paso="2">2</button><button data-paso="3">3</button><button data-paso="4">4</button><button data-paso="5">5</button><button data-paso="6">6</button>
+  </div>
+
+  <!-- PASO 1: CAPITAL -->
+  <section class="paso activo" data-paso="1">
+    <div class="paso-intro"><div class="kicker">Paso 1 de 6 · Capital</div></div>
+    <div class="tarjeta">
+      <h2>Capital</h2>
+      <div class="grande"><span id="cap-capital">41,250</span> CUP</div>
+      <p>42,000 − 500 CUP a Briku − 250 CUP para ti = 41,250 CUP</p>
+      <p>Total en juego: 22,080 + 15,333 + 5,200 = 42,613 CUP</p>
+      <p>Diferencia: 42,613 − 41,250 = 1,363 CUP. No es ganancia.</p>
+    </div>
+    <div class="tarjeta">
+      <h2>Precios de hoy</h2>
+      <label>Toque</label><input id="in-toque" type="number" value="975">
+      <label>Salida (CUP por 1 QUSD)</label><input id="in-salida-s" type="number" value="980">
+      <label>Por ciento de Transferencia</label><input id="in-pct" type="number" value="30">
+      <p>34.25 QUSD al Toque: <b id="out-toque">33,393.75</b> CUP</p>
+      <p>34.25 QUSD a la salida: <b id="out-salida">33,565.00</b> CUP</p>
+      <p>Equilibrio de Saldo: <b id="out-equilibrio">352.8</b></p>
+      <p>Ganancia por cada 360: <b id="out-gan360">176</b> CUP</p>
+      <p id="ej-saldo">Ejemplo: con salida 980, el equilibrio es 360.0</p>
+      <p>Libro de equilibrio de Transferencia: <b id="out-libro-eq">1,274</b></p>
+      <p>Margen: <b id="hero-margen">11.8%</b> · Libro: <b id="hero-libro-eq">1,274</b></p>
+      <p>Por ciento de equilibrio: <b id="out-pct-eq">16.3%</b></p>
+      <p class="nota">Si cambias un precio, las operaciones viejas guardan el precio de su momento. Nada viejo se reescribe.</p>
+    </div>
+  </section>
+
+  <!-- PASO 2: REPARTO -->
+  <section class="paso" data-paso="2">
+    <div class="paso-intro"><div class="kicker">Paso 2 de 6 · Reparto</div></div>
+    <div class="tarjeta">
+      <h2>Reparto del ciclo 22</h2>
+      <p>Ganancia del ciclo 22: <b>2,562.74 CUP</b></p>
+      <div id="bloque-modelo" class="tarjeta">
+        <h3>Modelo exacto 70 / 20 / 10</h3>
+        <p>Reinversión 70%: <b>1,793.92 CUP</b></p>
+        <p>Briku 20%: <b>512.55 CUP</b></p>
+        <p>Yo 10%: <b>256.27 CUP</b></p>
+        <p>Total: 2,562.74 CUP</p>
+      </div>
+      <div id="bloque-anotado" class="tarjeta">
+        <h3>Lo anotado en la libreta</h3>
+        <p>Reinversión: <b>1,811 CUP</b></p>
+        <p>Briku: <b>500 CUP</b></p>
+        <p>Yo: <b>250 CUP</b></p>
+        <p>Total anotado: 2,561 CUP</p>
+      </div>
+      <p class="nota">El modelo es 70/20/10 sobre la ganancia 2,562.74; al redondear a cero quedan 1,811 + 500 + 250 = 2,561 (diferencia 1.74 CUP por redondeo)</p>
+      <div id="pastel22" class="pastel">
+        <p class="nota">Gráfica 2D provisional — el dibujo en tres dimensiones llega en la fase tres.</p>
+        <div class="rebanada" data-i="0">Reinversión · 70.7%</div>
+        <div class="rebanada" data-i="1">Briku · 19.5%</div>
+        <div class="rebanada" data-i="2">Yo · 9.8%</div>
+      </div>
+      <p id="detalle22">Toca una parte para ver su cifra exacta.</p>
+    </div>
+  </section>
+
+  <!-- PASO 3: PROYECCIÓN -->
+  <section class="paso" data-paso="3">
+    <div class="paso-intro"><div class="kicker">Paso 3 de 6 · Proyección</div></div>
+    <div class="tarjeta" id="sec-proy">
+      <h2>Proyección</h2>
+      <p><b>Esto es un plan, no es dinero que ya tienes.</b></p>
+      <label>Primer ciclo (CUP)</label><input id="in-ciclo-a" type="number" value="20000">
+      <label>Segundo ciclo (CUP)</label><input id="in-ciclo-b" type="number" value="20000">
+      <p>Lo que queda: <b id="out-resto">1,250 CUP</b></p>
+      <p id="sub-proy">20,000 + 20,000 + 1,250 = 41,250</p>
+      <div id="pastelProy" class="pastel">
+        <p class="nota">Gráfica 2D provisional — el dibujo en tres dimensiones llega en la fase tres.</p>
+        <div>Primer ciclo: <span id="pct-a">48.5%</span></div>
+        <div>Segundo ciclo: <span id="pct-b">48.5%</span></div>
+        <div>Lo que queda: <span id="pct-resto">3.0%</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PASO 4: CICLOS -->
+  <section class="paso" data-paso="4">
+    <div class="paso-intro"><div class="kicker">Paso 4 de 6 · Ciclo que trabaja</div></div>
+    <div class="tarjeta">
+      <h2>Ciclos</h2>
+      <p>22 · <span id="est-22">CERRADO</span> · 23 · <span id="est-23">TERMINADO</span> · 24 · <span id="est-24">TRABAJANDO · CON BRIKU</span> · 25 · <span id="est-25">EN ESPERA</span></p>
+      <div class="chips">
+        <button onclick="verCiclo(22)">Ver 22</button>
+        <button onclick="verCiclo(23)">Ver 23</button>
+        <button onclick="verCiclo(24)">Ver 24</button>
+        <button onclick="verCiclo(25)">Ver 25</button>
+      </div>
+      <div id="det-22" class="tarjeta">
+        <h3>Ciclo 22 · CERRADO</h3>
+        <p>Entregado: 20,000 CUP · Recuperado: 22,562.74 CUP · Trabajando: 0 CUP · Esperando: 0 CUP · Disponible: 0 CUP</p>
+        <p>Ganancia: <b>2,562.74 CUP</b></p>
+        <p>Reparto del modelo: 1,793.92 / 512.55 / 256.27 CUP. Anotado: 1,811 / 500 / 250 CUP.</p>
+      </div>
+      <div id="det-23" class="tarjeta oculta">
+        <h3>Ciclo 23 · TERMINADO</h3>
+        <p>Entregado: 20,000 CUP · Recuperado: 22,465 CUP · Trabajando: 0 CUP · Esperando: 0 CUP · Disponible: 0 CUP</p>
+        <p>Ganancia: <b>2,465 CUP</b></p>
+        <p>Cuenta de la ganancia: 4,666 − 650 − 1,000 − 320 + 9 − 240 = 2,465 CUP</p>
+        <p>(a) Entregó 20,000 CUP: 20 recargas × 1,000 CUP cada una.</p>
+        <p>(b) Esas recargas traen 7,200 saldo: 20 × 360.</p>
+        <p>(c) Venta aparte: 34.25 QUSD → 10,275 saldo, a la tasa 300.</p>
+        <p>17,000 / 20,000 — pendiente de identificar qué es 17,000. Son el 85% de 20,000, pero eso NO está verificado.</p>
+      </div>
+      <div id="det-24" class="tarjeta oculta"></div>
+      <div id="det-25" class="tarjeta oculta">
+        <h3>Ciclo 25 · EN ESPERA</h3>
+        <p>Entregado: 0 CUP · Recuperado: 0 CUP · Trabajando: 0 CUP · Esperando: 20,000 CUP · Disponible: 0 CUP</p>
+        <p>Este ciclo todavía no trabaja. Empieza cuando se cierre el ciclo 24.</p>
+      </div>
+      <button id="btn-cerrar" class="oculta" onclick="abrirCerrar()">Cerrar el ciclo 24</button>
+    </div>
+  </section>
+
+  <!-- PASO 5: GRÁFICA DE BRIKU -->
+  <section class="paso" data-paso="5">
+    <div class="paso-intro"><div class="kicker">Paso 5 de 6 · Gráfica de Briku</div></div>
+    <div class="tarjeta">
+      <h2>Briku · ciclo 24</h2>
+      <p class="nota">Gráfica 2D provisional — el dibujo en tres dimensiones llega en la fase tres.</p>
+      <p>Comprado: <b>15,333 CUP</b> · Le quedan: <b>4,667 CUP</b> · Fondo: <b>20,000 CUP</b></p>
+      <p>15.33 recargas (anotado; exacto 15.333…) · 5,520 saldo</p>
+      <p>Ya compró el <b>77%</b> del fondo.</p>
+      <div class="barra"><div id="barra-briku-lleno" style="width:76.7%;background:#d4af37"></div></div>
+      <div class="barra"><div id="barra-briku-falta" style="width:23.3%;background:#1a3355"></div></div>
+      <div id="pastelBriku" class="pastel">
+        <div class="rebanada" data-i="0">Comprado · 76.7% · 15,333 CUP</div>
+        <div class="rebanada" data-i="1">Le quedan · 23.3% · 4,667 CUP</div>
+      </div>
+      <p id="detalleBriku">Toca una parte para ver su cifra.</p>
+    </div>
+  </section>
+
+  <!-- PASO 6: VISIÓN GENERAL -->
+  <section class="paso" data-paso="6">
+    <div class="paso-intro"><div class="kicker">Paso 6 de 6 · Visión general</div></div>
+    <div class="tarjeta">
+      <h2>Visión general</h2>
+      <p class="nota">Gráfica 2D provisional — el dibujo en tres dimensiones llega en la fase tres.</p>
+      <p id="sinwebgl-vision">Caja 22,080 CUP (51.8%) · Briku 15,333 CUP (36.0%) · Yo 5,200 CUP (12.2%)</p>
+      <div id="leyendaGen">
+        <div class="leyenda-fila tarjeta" data-quien="Caja">Caja · 22,080 CUP</div>
+        <div class="leyenda-fila tarjeta" data-quien="Briku">Briku · 15,333 CUP</div>
+        <div class="leyenda-fila tarjeta" data-quien="Yo">Yo · 5,200 CUP</div>
+      </div>
+      <p id="detalleGen">Toca una fila para ver sus movimientos.</p>
+      <p>Total en juego 42,613 CUP · Capital 41,250 CUP · Diferencia 1,363 CUP</p>
+    </div>
+    <div class="tarjeta" id="sec-clasica">
+      <h2>Clásica</h2>
+      <p>BLOQUEADA por ahora, sin cifras inventadas.</p>
+      <p>Cuando Ernesto diga cómo funciona, se abre.</p>
+    </div>
+  </section>
+
+  <div class="nav">
+    <button id="btn-atras" class="fantasma" onclick="pasoAtras()">Atrás</button>
+    <button id="btn-siguiente" class="dorado-fondo" onclick="pasoSiguiente()">Siguiente</button>
+  </div>
+  <div class="nav"><button class="fantasma" onclick="irAMesa()">Volver a la mesa</button></div>
+</div>
+
+<!-- ============ CALENDARIO ============ -->
+<div id="vista-calendario" class="vista">
+  <h1>Calendario</h1>
+  <div class="chips">
+    <button id="cal-dia" onclick="verCalendario('dia')">Día</button>
+    <button id="cal-mes" class="sel" onclick="verCalendario('mes')">Mes</button>
+    <button id="cal-ano" onclick="verCalendario('ano')">Año</button>
+  </div>
+  <p id="cal-resumen">Noviembre de 2026 · 30 días · Hoy es 25 de noviembre de 2026</p>
+  <div id="cal-rejilla" class="cal-rejilla"></div>
+  <div class="nav"><button class="fantasma" onclick="irAMesa()">Volver a la mesa</button></div>
+</div>
+
+<!-- ============ HISTORIAL ============ -->
+<div id="vista-historial" class="vista">
+  <h1>Historial</h1>
+  <p class="nota">Cada apunte guarda la fecha y el precio de su momento.</p>
+  <div id="lista-apuntes"></div>
+  <div class="nav"><button class="fantasma" onclick="irAMesa()">Volver a la mesa</button></div>
+</div>
+
+<!-- ============ PANEL ANOTAR ============ -->
+<div id="panel-anotar" class="panel">
+  <h2 id="titulo-anotar">Anotar</h2>
+  <label>¿Qué es?</label>
+  <div class="chips" id="chips-tipo">
+    <button data-tipo="Recarga">Recarga</button>
+    <button data-tipo="Compra">Compra</button>
+    <button data-tipo="Venta">Venta</button>
+    <button data-tipo="Ganancia">Ganancia</button>
+    <button data-tipo="Otro">Otro</button>
+  </div>
+  <label>¿De qué mercado?</label>
+  <div class="chips" id="chips-mercado">
+    <button data-mercado="Saldo" class="sel">Saldo</button>
+    <button data-mercado="Transferencia">Transferencia</button>
+  </div>
+  <label>Cantidad</label>
+  <input id="in-monto" type="number" placeholder="Ejemplo: 777">
+  <label>Unidad</label>
+  <select id="in-unidad"><option>CUP</option><option>saldo</option><option>QUSD</option></select>
+  <div id="campo-saldo-trae">
+    <label>¿Cuánto saldo trae? (360 por cada recarga de 1,000 CUP)</label>
+    <input id="in-saldo-trae" type="number" placeholder="Ejemplo: 360">
+  </div>
+  <div id="campo-otro" class="oculta">
+    <label>Con tus palabras</label>
+    <textarea id="in-otro-texto" rows="2" placeholder="Ejemplo: le presté 500 a mi primo"></textarea>
+    <label>¿Qué hace este apunte?</label>
+    <select id="in-otro-modo">
+      <option value="nota">Solo una nota, sin mover dinero</option>
+      <option value="movimiento">Mueve dinero</option>
+      <option value="pendiente">Pendiente de clasificar</option>
+    </select>
+    <div id="campo-otro-mov">
+      <label>¿Qué se mueve?</label>
+      <select id="in-objetivo"><option value="">Elige…</option><option>Caja</option><option>Saldo de Briku</option><option>Mi saldo</option><option>Transferencia</option></select>
+      <label>¿Entra o sale?</label>
+      <select id="in-direccion"><option value="entra">Entra</option><option value="sale">Sale</option></select>
+    </div>
+  </div>
+  <label>Añadir una categoría nueva</label>
+  <input id="in-nueva-categoria" type="text" placeholder="Ejemplo: Préstamo">
+  <button onclick="agregarCategoria()">Añadir categoría</button>
+  <label>Vista previa</label>
+  <div id="vista-previa">Elige qué es, el mercado y la cantidad para ver el cambio.</div>
+  <div class="nav">
+    <button class="dorado-fondo" onclick="guardarApunte()">Guardar</button>
+    <button class="fantasma" onclick="cerrarAnotar()">Cerrar</button>
+  </div>
+</div>
+
+<!-- ============ CARTEL CERRAR CICLO ============ -->
+<div id="modal-cerrar" class="modal">
+  <div class="caja">
+    <h2 id="titulo-cerrar">¿Seguro que quieres cerrar el ciclo 24?</h2>
+    <p>Al cerrar, el ciclo 25 empieza a trabajar. Nada se cierra solo: esto solo pasa si tocas Sí.</p>
+    <div class="nav">
+      <button id="btn-cerrar-si" class="dorado-fondo" onclick="cerrarCicloSi()">Sí, cerrar</button>
+      <button class="fantasma" onclick="cerrarModalCerrar()">No, volver</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast">Apunte guardado</div>
+<div class="barra-fija"><button class="dorado-fondo" onclick="abrirAnotar()">ANOTAR</button></div>
+<script>
+/* ===== ÚNICA FUENTE DE VERDAD: un estado + un motor de cálculo ===== */
+var BASE={capitalBase:42000,descBriku:500,descYo:250,caja:22080,brikuSaldo:5520,brikuComprado:15333,brikuQueda:4667,brikuFondo:20000,yoSaldo:2000,yoInversion:5200,cajaOrigen:27280};
+var PRECIOS={toque:975,salida:980,tasa:300,costo:1000,porRecarga:360,pct:30,nivelVivo:1140};
+var CICLOS={22:{estado:"CERRADO",ganancia:2562.74},23:{estado:"TERMINADO",ganancia:2465},24:{estado:"TRABAJANDO",ganancia:null},25:{estado:"EN ESPERA",ganancia:null}};
+var apuntes=[];
+var tipoSel="",mercadoSel="Saldo",editando=null,cicloViendo=24,pasoActual=1,diaSel=25,_borrarArmado=-1;
+
+function fmt(n){var s=Math.round(n).toString();return s.replace(/\B(?=(\d{3})+(?!\d))/g,",");}
+function fmt2(n){var p=n.toFixed(2);var a=p.split(".");return a[0].replace(/\B(?=(\d{3})+(?!\d))/g,",")+"."+a[1];}
+function fmt1(n){var p=n.toFixed(1);var a=p.split(".");return a[0].replace(/\B(?=(\d{3})+(?!\d))/g,",")+"."+a[1];}
+function $(id){return document.getElementById(id);}
+function texto(id,v){var e=$(id);if(e)e.textContent=v;}
+
+/* ----- motor puro: el efecto de UN apunte ----- */
+function efectoDe(a){
+  var e={caja:0,brikuSaldo:0,miSaldo:0,transf:0};
+  var m=+a.monto||0;
+  if(a.tipo==="Otro"){
+    if(a.otroModo!=="movimiento"||!a.objetivo||!m)return e;
+    var d=a.direccion==="sale"?-m:m;
+    if(a.objetivo==="Caja")e.caja=d;
+    else if(a.objetivo==="Saldo de Briku")e.brikuSaldo=d;
+    else if(a.objetivo==="Mi saldo")e.miSaldo=d;
+    else if(a.objetivo==="Transferencia")e.transf=d;
+    return e;
+  }
+  if(a.mercado==="Transferencia"){
+    if(a.tipo==="Venta"||a.tipo==="Ganancia")e.transf=m; else e.transf=-m;
+    return e;
+  }
+  if(a.unidad==="saldo"){
+    if(a.tipo==="Recarga"||a.tipo==="Compra")e.miSaldo=m;
+    else if(a.tipo==="Venta"||a.tipo==="Ganancia")e.miSaldo=-m;
+    return e;
+  }
+  if(a.unidad==="QUSD"){
+    var p=+a.precioSalida||PRECIOS.salida;
+    if(a.tipo==="Venta"||a.tipo==="Ganancia")e.caja=m*p;
+    else if(a.tipo==="Compra")e.caja=-m*p;
+    return e;
+  }
+  if(a.tipo==="Recarga"||a.tipo==="Compra"){e.caja=-m;e.miSaldo=+(a.saldoTrae||0);}
+  else if(a.tipo==="Venta"||a.tipo==="Ganancia"){e.caja=m;}
+  return e;
+}
+/* ----- motor puro: todos los totales desde el estado ----- */
+function computeTotals(list){
+  var t={capital:BASE.capitalBase-BASE.descBriku-BASE.descYo,caja:BASE.caja,brikuSaldo:BASE.brikuSaldo,miSaldo:BASE.yoSaldo,transf:0};
+  (list||apuntes).forEach(function(a){var e=efectoDe(a);t.caja+=e.caja;t.brikuSaldo+=e.brikuSaldo;t.miSaldo+=e.miSaldo;t.transf+=e.transf;});
+  t.saldoTotal=t.brikuSaldo+t.miSaldo;
+  t.totalEnJuego=t.caja+BASE.brikuComprado+BASE.yoInversion;
+  t.diferencia=t.totalEnJuego-t.capital;
+  return t;
+}
+function derivados(){
+  var eq=360*PRECIOS.salida/1000;
+  var gan=360/PRECIOS.tasa*PRECIOS.salida-1000;
+  var libro=PRECIOS.salida*(1+PRECIOS.pct/100);
+  var margen=(libro-PRECIOS.nivelVivo)/PRECIOS.nivelVivo*100;
+  var pctEq=(PRECIOS.nivelVivo/PRECIOS.salida-1)*100;
+  return {eq:eq,gan:gan,libro:libro,margen:margen,pctEq:pctEq};
+}
+
+/* ----- persistencia ----- */
+function guardarLocal(){
+  try{
+    localStorage.setItem("libreta-v3-apuntes",JSON.stringify(apuntes));
+    localStorage.setItem("libreta-v3-ciclos",JSON.stringify(CICLOS));
+    localStorage.setItem("libreta-v3-precios",JSON.stringify(PRECIOS));
+  }catch(e){}
+}
+function cargarLocal(){
+  try{var a=JSON.parse(localStorage.getItem("libreta-v3-apuntes")||"[]");if(Array.isArray(a))apuntes=a;}catch(e){apuntes=[];}
+  try{var c=JSON.parse(localStorage.getItem("libreta-v3-ciclos")||"null");if(c)CICLOS=c;}catch(e){}
+  try{var p=JSON.parse(localStorage.getItem("libreta-v3-precios")||"null");if(p)PRECIOS=p;}catch(e){}
+}
+
+/* ----- render: TODO sale de computeTotals ----- */
+function renderAll(){
+  var t=computeTotals(),d=derivados();
+  texto("hero-capital",fmt(t.capital));
+  texto("cap-capital",fmt(t.capital));
+  texto("trio-capital",fmt(t.capital));
+  texto("trio-total",fmt(t.totalEnJuego));
+  texto("trio-total2",fmt(t.totalEnJuego));
+  texto("trio-diferencia",fmt(t.diferencia));
+  texto("trio-caja",fmt(t.caja));
+  texto("caja-mesa",fmt(t.caja));
+  texto("mesa-saldo-total",fmt(t.saldoTotal));
+  texto("mesa-equilibrio",fmt1(d.eq));
+  texto("mesa-gan360",fmt(d.gan));
+  texto("mesa-libro",fmt(d.libro));
+  texto("mesa-margen",fmt1(d.margen)+"%");
+  texto("mesa-pcteq",fmt1(d.pctEq)+"%");
+  texto("mesa-transf",fmt(t.transf));
+  texto("out-toque",fmt2(34.25*PRECIOS.toque));
+  texto("out-salida",fmt2(34.25*PRECIOS.salida));
+  texto("out-equilibrio",fmt1(d.eq));
+  texto("out-gan360",fmt(d.gan));
+  texto("ej-saldo","Ejemplo: con salida "+fmt(PRECIOS.salida)+", el equilibrio es "+fmt1(d.eq));
+  texto("out-libro-eq",fmt(d.libro));
+  texto("hero-margen",fmt1(d.margen)+"%");
+  texto("hero-libro-eq",fmt(d.libro));
+  texto("out-pct-eq",fmt1(d.pctEq)+"%");
+  texto("est-22",CICLOS[22].estado);
+  texto("est-23",CICLOS[23].estado);
+  texto("est-24",CICLOS[24].estado==="TRABAJANDO"?"TRABAJANDO · CON BRIKU":CICLOS[24].estado);
+  texto("est-25",CICLOS[25].estado);
+  texto("est-24-mesa",CICLOS[24].estado==="TRABAJANDO"?"TRABAJANDO · CON BRIKU":CICLOS[24].estado);
+  renderCiclo24(t);
+  renderVision(t);
+  renderHistorial();
+  renderProyeccion();
+  actualizarBotonCerrar();
+}
+function renderCiclo24(t){
+  var el=$("det-24");if(!el)return;
+  el.innerHTML="<h3>Ciclo 24 · "+(CICLOS[24].estado==="TRABAJANDO"?"TRABAJANDO · CON BRIKU":CICLOS[24].estado)+"</h3>"
+  +"<p>Entregado: 20,000 CUP · Recuperado: 0 CUP · Trabajando: "+fmt(t.caja+BASE.brikuComprado+BASE.yoInversion)+" CUP · Esperando: 0 CUP · Disponible: "+fmt(t.caja)+" CUP</p>"
+  +"<p><b>Con Briku:</b> 5,520 saldo = 15.33 recargas (anotado; exacto 15.333…) · 15,333 CUP comprado · le quedan 4,667 CUP de 20,000.</p>"
+  +"<p><b>Yo:</b> 2,000 saldo = 5.55 recargas (anotado; exacto 5.555…) · 5,200 CUP de inversión personal.</p>"
+  +"<p>Caja: "+fmt(t.caja)+" CUP (27,280 − 5,200) · Saldo total: "+fmt(t.saldoTotal)+" (2,000 + 5,520).</p>"
+  +"<p class=\"nota\">El valor anotado es el que escribió Ernesto en su libreta; el exacto es la división completa. Truncar no es lo mismo que redondear.</p>";
+}
+function renderVision(t){
+  var tot=t.totalEnJuego||1;
+  texto("sinwebgl-vision","Caja "+fmt(t.caja)+" CUP ("+fmt1(t.caja/tot*100)+"%) · Briku "+fmt(BASE.brikuComprado)+" CUP ("+fmt1(BASE.brikuComprado/tot*100)+"%) · Yo "+fmt(BASE.yoInversion)+" CUP ("+fmt1(BASE.yoInversion/tot*100)+"%)");
+  var filas=document.querySelectorAll("#leyendaGen .leyenda-fila");
+  if(filas[0])filas[0].textContent="Caja · "+fmt(t.caja)+" CUP";
+  if(filas[1])filas[1].textContent="Briku · "+fmt(BASE.brikuComprado)+" CUP";
+  if(filas[2])filas[2].textContent="Yo · "+fmt(BASE.yoInversion)+" CUP";
+}
+function renderProyeccion(){
+  var cap=computeTotals().capital;
+  var a=+$("in-ciclo-a").value||0,b=+$("in-ciclo-b").value||0;
+  var resto=cap-a-b;
+  texto("out-resto",fmt(resto)+" CUP");
+  texto("sub-proy",fmt(a)+" + "+fmt(b)+" + "+fmt(resto)+" = "+fmt(cap));
+  texto("pct-a",fmt1(a/cap*100)+"%");
+  texto("pct-b",fmt1(b/cap*100)+"%");
+  texto("pct-resto",fmt1(resto/cap*100)+"%");
+}
+function renderHistorial(){
+  var el=$("lista-apuntes");if(!el)return;
+  if(!apuntes.length){el.innerHTML="<p class=\"nota\">Todavía no hay apuntes. Toca ANOTAR para escribir el primero.</p>";return;}
+  el.innerHTML=apuntes.map(function(a,i){
+    var linea="<b>"+a.tipo+"</b> · "+a.mercado+" · "+fmt(a.monto)+" "+(a.unidad||"CUP");
+    if(a.saldoTrae)linea+=" · trae "+fmt(a.saldoTrae)+" saldo";
+    if(a.otroTexto)linea+="<br>Con tus palabras: "+a.otroTexto;
+    if(a.otroModo==="pendiente")linea+="<br>Pendiente de clasificar";
+    linea+="<br>"+(a.fecha||"")+"<br>Precio de ese momento: Toque "+fmt(a.precioToque)+" · Salida "+fmt(a.precioSalida)+" · Tasa "+fmt(a.precioTasa||300);
+    linea+="<div class=\"acciones\"><button onclick=\"editarApunte("+i+")\">Editar</button><button onclick=\"borrarApunte("+i+",this)\">Borrar</button></div>";
+    return "<div class=\"apunte\">"+linea+"</div>";
+  }).join("");
+}
+
+/* ----- navegación ----- */
+function mostrarVista(id){
+  ["mesa","libreta","vista-calendario","vista-historial"].forEach(function(v){var e=$(v);if(e)e.classList.toggle("activa",v===id);});
+}
+function irAMesa(){mostrarVista("mesa");}
+function irALibreta(){mostrarVista("libreta");mostrarPaso(pasoActual);}
+function irAHistorial(){mostrarVista("vista-historial");renderHistorial();}
+function mostrarPaso(n){
+  pasoActual=n;
+  document.querySelectorAll(".paso").forEach(function(p){p.classList.toggle("activo",+p.dataset.paso===n);});
+  document.querySelectorAll("#puntos button").forEach(function(b){b.classList.toggle("sel",+b.dataset.paso===n);});
+  var nombres={1:"Capital",2:"Reparto",3:"Proyección",4:"Ciclo que trabaja",5:"Gráfica de Briku",6:"Visión general"};
+  texto("paso-ahora","Paso "+n+" de 6");
+  texto("paso-nombre",nombres[n]);
+  $("barra-progreso").style.width=(n/6*100).toFixed(1)+"%";
+  texto("btn-siguiente",n===6?"Volver a la mesa":"Siguiente");
+}
+function pasoSiguiente(){if(pasoActual===6){irAMesa();}else mostrarPaso(pasoActual+1);}
+function pasoAtras(){if(pasoActual>1)mostrarPaso(pasoActual-1);}
+document.querySelectorAll("#puntos button").forEach(function(b){b.addEventListener("click",function(){mostrarPaso(+b.dataset.paso);});});
+
+/* ----- ciclos ----- */
+function verCiclo(n){
+  cicloViendo=n;
+  [22,23,24,25].forEach(function(k){var e=$("det-"+k);if(e)e.classList.toggle("ver",k===n);if(e)e.classList.toggle("oculta",k!==n);});
+  actualizarBotonCerrar();
+}
+function actualizarBotonCerrar(){
+  var b=$("btn-cerrar");if(!b)return;
+  if(cicloViendo===24&&CICLOS[24].estado==="TRABAJANDO"){
+    b.classList.remove("oculta");b.textContent="Cerrar el ciclo 24";
+  }else{b.classList.add("oculta");}
+}
+function abrirCerrar(){
+  texto("titulo-cerrar","¿Seguro que quieres cerrar el ciclo "+cicloViendo+"?");
+  $("modal-cerrar").classList.add("abierto");
+}
+function cerrarModalCerrar(){$("modal-cerrar").classList.remove("abierto");}
+function cerrarCicloSi(){
+  var n=cicloViendo;
+  if(n===24&&CICLOS[24].estado==="TRABAJANDO"){
+    CICLOS[24].estado="CERRADO";
+    CICLOS[25].estado="TRABAJANDO";
+  }
+  guardarLocal();
+  $("modal-cerrar").classList.remove("abierto");
+  renderAll();
+}
+
+/* ----- calendario: rejilla real de noviembre de 2026 ----- */
+function construirCalendario(){
+  var g=$("cal-rejilla");if(!g)return;
+  var dias=["Dom","Lun","Mar","Mié","Jue","Vie","Sáb"];
+  var h=dias.map(function(d){return "<div class=\"cab\">"+d+"</div>";}).join("");
+  for(var i=1;i<=30;i++){
+    h+="<div class=\"dia"+(i===25?" hoy":"")+(i===diaSel?" sel":"")+"\" data-dia=\""+i+"\" onclick=\"elegirDia("+i+")\">"+i+"</div>";
+  }
+  g.innerHTML=h;
+}
+function elegirDia(i){
+  diaSel=i;
+  document.querySelectorAll("#cal-rejilla .dia").forEach(function(e){e.classList.toggle("sel",+e.dataset.dia===i);});
+  var n=apuntes.filter(function(a){return (a.fecha||"").indexOf(" de noviembre de 2026")>-1;}).length;
+  texto("cal-resumen","Día "+i+" de noviembre de 2026 · Apuntes guardados en la libreta: "+apuntes.length);
+}
+function verCalendario(modo){
+  mostrarVista("vista-calendario");
+  ["dia","mes","ano"].forEach(function(m){var e=$("cal-"+m);if(e)e.classList.toggle("sel",m===modo);});
+  if(modo==="dia")texto("cal-resumen","Día "+diaSel+" de noviembre de 2026 · Toca un día de la rejilla para verlo.");
+  else if(modo==="mes")texto("cal-resumen","Noviembre de 2026 · 30 días · Hoy es 25 de noviembre de 2026");
+  else texto("cal-resumen","Año 2026 · Noviembre es el mes que se está viendo.");
+}
+
+/* ----- visión: tocar fila ----- */
+document.querySelectorAll("#leyendaGen .leyenda-fila").forEach(function(f){
+  f.addEventListener("click",function(){
+    var q=f.dataset.quien;
+    if(q==="Briku")texto("detalleGen","Briku · 15,333 CUP en recargas · 15.33 recargas (5,520 saldo ÷ 360) · Ver sus movimientos");
+    else if(q==="Yo")texto("detalleGen","Yo · 5,200 CUP de inversión personal · 5.55 recargas (2,000 saldo ÷ 360) · Ver sus movimientos");
+    else texto("detalleGen","Caja · "+fmt(computeTotals().caja)+" CUP · Ver sus movimientos");
+  });
+});
+function verMovimientos(quien){
+  irALibreta();mostrarPaso(4);
+  if(quien==="Briku")verCiclo(24);
+}
+/* pasteles 2D */
+document.querySelectorAll("#pastel22 .rebanada").forEach(function(p){
+  p.addEventListener("click",function(){
+    var i=+p.dataset.i;
+    if(i===0)texto("detalle22","Reinversión · modelo exacto 1,793.92 CUP · anotado 1,811 CUP · 70.7%");
+    else if(i===1)texto("detalle22","Briku · modelo exacto 512.55 CUP · anotado 500 CUP · 19.5%");
+    else texto("detalle22","Yo · modelo exacto 256.27 CUP · anotado 250 CUP · 9.8%");
+  });
+});
+document.querySelectorAll("#pastelBriku .rebanada").forEach(function(p){
+  p.addEventListener("click",function(){
+    var i=+p.dataset.i;
+    if(i===0)texto("detalleBriku","Comprado · 15,333 CUP · 76.7%");
+    else texto("detalleBriku","Le quedan · 4,667 CUP · 23.3%");
+  });
+});
+
+/* ----- precios y proyección en vivo ----- */
+function leerPrecios(){
+  PRECIOS.toque=+$("in-toque").value||975;
+  PRECIOS.salida=+$("in-salida-s").value||980;
+  PRECIOS.pct=+$("in-pct").value||0;
+  guardarLocal();renderAll();actualizarVistaPrevia();
+}
+["in-toque","in-salida-s","in-pct"].forEach(function(id){
+  var e=$(id);if(e)e.addEventListener("input",leerPrecios);
+});
+["in-ciclo-a","in-ciclo-b"].forEach(function(id){
+  var e=$(id);if(e)e.addEventListener("change",renderProyeccion);
+});
+
+/* ----- ANOTAR ----- */
+function abrirAnotar(){
+  editando=null;tipoSel="";
+  texto("titulo-anotar","Anotar");
+  document.querySelectorAll("#chips-tipo button").forEach(function(b){b.classList.remove("sel");});
+  document.querySelectorAll("#chips-mercado button").forEach(function(b){b.classList.toggle("sel",b.dataset.mercado==="Saldo");});
+  mercadoSel="Saldo";
+  $("in-monto").value="";$("in-saldo-trae").value="";$("in-otro-texto").value="";
+  $("in-unidad").value="CUP";$("in-otro-modo").value="nota";$("in-objetivo").value="";$("in-direccion").value="entra";
+  $("campo-otro").classList.add("oculta");
+  $("panel-anotar").classList.add("abierto");
+  actualizarVistaPrevia();
+}
+function cerrarAnotar(){$("panel-anotar").classList.remove("abierto");}
+document.querySelectorAll("#chips-tipo button").forEach(function(b){
+  b.addEventListener("click",function(){
+    tipoSel=b.dataset.tipo;
+    document.querySelectorAll("#chips-tipo button").forEach(function(x){x.classList.toggle("sel",x===b);});
+    $("campo-otro").classList.toggle("oculta",tipoSel!=="Otro");
+    actualizarVistaPrevia();
+  });
+});
+document.querySelectorAll("#chips-mercado button").forEach(function(b){
+  b.addEventListener("click",function(){
+    mercadoSel=b.dataset.mercado;
+    document.querySelectorAll("#chips-mercado button").forEach(function(x){x.classList.toggle("sel",x===b);});
+    actualizarVistaPrevia();
+  });
+});
+["in-monto","in-saldo-trae","in-otro-texto","in-unidad","in-otro-modo","in-objetivo","in-direccion"].forEach(function(id){
+  var e=$(id);if(e)e.addEventListener("input",actualizarVistaPrevia);
+  if(e)e.addEventListener("change",actualizarVistaPrevia);
+});
+function leerBorrador(){
+  return {
+    tipo:tipoSel,mercado:mercadoSel,
+    monto:+$("in-monto").value||0,
+    unidad:$("in-unidad").value,
+    saldoTrae:+$("in-saldo-trae").value||0,
+    otroTexto:$("in-otro-texto").value.trim(),
+    otroModo:$("in-otro-modo").value,
+    objetivo:$("in-objetivo").value,
+    direccion:$("in-direccion").value,
+    precioToque:PRECIOS.toque,precioSalida:PRECIOS.salida,precioTasa:PRECIOS.tasa
+  };
+}
+function actualizarVistaPrevia(){
+  var pv=$("vista-previa");if(!pv)return;
+  var d=leerBorrador();
+  if(!d.tipo){pv.textContent="Elige qué es, el mercado y la cantidad para ver el cambio.";return;}
+  if(d.tipo==="Otro"&&d.otroModo!=="movimiento"&&!d.monto&&!d.otroTexto){pv.textContent="Elige qué es, el mercado y la cantidad para ver el cambio.";return;}
+  if(d.tipo!=="Otro"&&!d.monto){pv.textContent="Elige qué es, el mercado y la cantidad para ver el cambio.";return;}
+  if(d.tipo==="Otro"&&d.otroModo==="movimiento"&&(!d.objetivo||!d.monto)){
+    pv.textContent="Falta elegir qué se mueve y cuánto: no se toca ningún total.";
+    return;
+  }
+  var base=apuntes.slice();
+  if(editando!==null)base.splice(editando,1);
+  var t0=computeTotals(base),t1=computeTotals(base.concat([d]));
+  var lineas=[];
+  lineas.push(d.tipo+" · "+d.mercado+" · "+fmt(d.monto)+" "+d.unidad);
+  if(d.otroTexto)lineas.push("Con tus palabras: "+d.otroTexto);
+  if(d.tipo==="Otro"&&d.otroModo==="nota")lineas.push("Solo una nota: no cambia ningún total.");
+  else if(d.tipo==="Otro"&&d.otroModo==="pendiente")lineas.push("Pendiente de clasificar: no cambia ningún total.");
+  else{
+    if(t1.caja!==t0.caja)lineas.push("caja pasará de "+fmt(t0.caja)+" a "+fmt(t1.caja)+" CUP");
+    if(t1.brikuSaldo!==t0.brikuSaldo)lineas.push("saldo de Briku pasará de "+fmt(t0.brikuSaldo)+" a "+fmt(t1.brikuSaldo));
+    if(t1.miSaldo!==t0.miSaldo)lineas.push("mi saldo pasará de "+fmt(t0.miSaldo)+" a "+fmt(t1.miSaldo));
+    if(t1.saldoTotal!==t0.saldoTotal)lineas.push("saldo total pasará de "+fmt(t0.saldoTotal)+" a "+fmt(t1.saldoTotal));
+    if(t1.transf!==t0.transf){
+      lineas.push("Transferencia (aparte) pasará de "+fmt(t0.transf)+" a "+fmt(t1.transf)+" CUP");
+      lineas.push("La caja NO cambia (sigue en "+fmt(t0.caja)+" CUP) y el saldo de Saldo NO cambia (sigue en "+fmt(t0.saldoTotal)+").");
+    }
+    if(t1.caja===t0.caja&&t1.saldoTotal===t0.saldoTotal&&t1.transf===t0.transf)lineas.push("no cambia ningún total.");
+    if(d.mercado==="Transferencia")lineas.push("Un apunte de Transferencia NUNCA toca la caja ni el saldo de Saldo.");
+  }
+  lineas.push("Precio que se guardará: Toque "+fmt(PRECIOS.toque)+" · Salida "+fmt(PRECIOS.salida)+" · Tasa "+fmt(PRECIOS.tasa));
+  pv.textContent=lineas.join("\n");
+}
+function guardarApunte(){
+  var d=leerBorrador();
+  if(!d.tipo)return;
+  if(d.tipo!=="Otro"&&!d.monto)return;
+  if(d.tipo==="Otro"&&d.otroModo==="movimiento"&&(!d.objetivo||!d.monto))return;
+  if(editando!==null){
+    var viejo=apuntes[editando];
+    d.id=viejo.id;d.fecha=viejo.fecha;
+    d.precioToque=viejo.precioToque;d.precioSalida=viejo.precioSalida;d.precioTasa=viejo.precioTasa;
+    apuntes[editando]=d;
+  }else{
+    d.id=Date.now();d.fecha="25 de noviembre de 2026";
+    apuntes.push(d);
+  }
+  editando=null;
+  guardarLocal();renderAll();actualizarVistaPrevia();
+  cerrarAnotar();
+  var t=$("toast");t.textContent="Apunte guardado";t.classList.add("ver");
+  setTimeout(function(){t.classList.remove("ver");},2500);
+}
+function editarApunte(i){
+  var a=apuntes[i];if(!a)return;
+  editando=i;tipoSel=a.tipo;mercadoSel=a.mercado;
+  texto("titulo-anotar","Editar apunte");
+  document.querySelectorAll("#chips-tipo button").forEach(function(b){b.classList.toggle("sel",b.dataset.tipo===a.tipo);});
+  document.querySelectorAll("#chips-mercado button").forEach(function(b){b.classList.toggle("sel",b.dataset.mercado===a.mercado);});
+  $("in-monto").value=a.monto||"";
+  $("in-unidad").value=a.unidad||"CUP";
+  $("in-saldo-trae").value=a.saldoTrae||"";
+  $("in-otro-texto").value=a.otroTexto||"";
+  $("in-otro-modo").value=a.otroModo||"nota";
+  $("in-objetivo").value=a.objetivo||"";
+  $("in-direccion").value=a.direccion||"entra";
+  $("campo-otro").classList.toggle("oculta",a.tipo!=="Otro");
+  $("panel-anotar").classList.add("abierto");
+  actualizarVistaPrevia();
+}
+function borrarApunte(i,btn){
+  if(_borrarArmado!==i){_borrarArmado=i;if(btn)btn.textContent="Toca otra vez para borrar";return;}
+  _borrarArmado=-1;
+  apuntes.splice(i,1);
+  guardarLocal();renderAll();
+}
+function agregarCategoria(){
+  var v=$("in-nueva-categoria").value.trim();if(!v)return;
+  if(document.querySelector('#chips-tipo button[data-tipo="'+v+'"]'))return;
+  var b=document.createElement("button");
+  b.dataset.tipo=v;b.textContent=v;
+  b.addEventListener("click",function(){
+    tipoSel=v;
+    document.querySelectorAll("#chips-tipo button").forEach(function(x){x.classList.toggle("sel",x===b);});
+    $("campo-otro").classList.toggle("oculta",tipoSel!=="Otro");
+    actualizarVistaPrevia();
+  });
+  $("chips-tipo").appendChild(b);
+  $("in-nueva-categoria").value="";
+}
+
+/* ----- inicio ----- */
+cargarLocal();
+if(PRECIOS){$("in-toque").value=PRECIOS.toque;$("in-salida-s").value=PRECIOS.salida;$("in-pct").value=PRECIOS.pct;}
+construirCalendario();
+verCiclo(24);
+renderAll();
+mostrarPaso(1);
+</script>
+</body>
+</html>
