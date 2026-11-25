@@ -21,6 +21,11 @@
   --fuente-num:ui-monospace,"SF Mono","Roboto Mono",Menlo,monospace;
   --r-lg:20px; --r-md:14px;
   --lento:cubic-bezier(.16,1,.3,1);
+  --sombra-tarjeta:0 12px 30px rgba(0,0,0,.45),0 2px 8px rgba(0,0,0,.30),inset 0 1px 0 rgba(255,255,255,.05);
+  --sombra-tarjeta-chica:0 6px 16px rgba(0,0,0,.38),0 1px 4px rgba(0,0,0,.28),inset 0 1px 0 rgba(255,255,255,.05);
+  --sombra-boton:0 8px 20px rgba(232,184,75,.28),0 3px 8px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.45);
+  --sombra-boton-hundido:0 2px 6px rgba(232,184,75,.18),0 1px 3px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.25);
+  --sombra-flotante:0 -10px 28px rgba(0,0,0,.55),inset 0 1px 0 rgba(255,255,255,.06);
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;height:100%}
@@ -33,16 +38,16 @@ body{font-family:var(--fuente);background:var(--bg-0);color:var(--txt-1);overflo
 .top{display:flex;align-items:center;gap:12px;padding:16px 16px 8px}
 .brand{font-weight:900;font-size:17px;letter-spacing:-.4px}
 .brand span{color:var(--dorado)}
-.chip{font-size:11px;font-weight:800;background:var(--bg-2);border:1px solid var(--borde);padding:6px 10px;border-radius:999px;color:var(--txt-2)}
+.chip{font-size:11px;font-weight:800;background:var(--bg-2);border:1px solid var(--borde);padding:6px 10px;border-radius:999px;color:var(--txt-2);box-shadow:0 4px 10px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.05)}
 .chip.gold{background:rgba(232,184,75,.14);border-color:rgba(232,184,75,.35);color:var(--dorado)}
 .cuerpo{flex:1;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;scrollbar-width:none;padding:8px 16px calc(120px + env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:12px}
 .cuerpo::-webkit-scrollbar{display:none;width:0}
 .cuerpo>*{flex-shrink:0}
-.card{background:var(--bg-1);border:1px solid var(--borde);border-radius:var(--r-lg);padding:16px}
+.card{background:linear-gradient(180deg,#18241D,#141F18);border:1px solid var(--borde);border-radius:var(--r-lg);padding:16px;box-shadow:var(--sombra-tarjeta)}
 .card h2{margin:0 0 4px;font-size:17px;font-weight:700}
 .card h3{margin:0 0 8px;font-size:15px;font-weight:700}
 .sub{font-size:13px;color:var(--txt-2);line-height:1.45;margin:0}
-.hero{background:linear-gradient(160deg,#22382C,#16211B);border:1px solid rgba(232,184,75,.35);border-radius:28px;padding:20px 16px;text-align:center}
+.hero{background:linear-gradient(160deg,#243D30,#16211B);border:1px solid rgba(232,184,75,.35);border-radius:28px;padding:20px 16px;text-align:center;box-shadow:0 16px 36px rgba(0,0,0,.5),0 4px 12px rgba(232,184,75,.10),inset 0 1px 0 rgba(255,255,255,.07)}
 .hero .etiqueta{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--txt-3)}
 .hero .cifra{font-family:var(--fuente-num);font-size:36px;font-weight:700;color:var(--dorado-claro);margin:6px 0 2px;font-variant-numeric:tabular-nums}
 .hero .detalle{font-size:13px;color:var(--txt-2)}
@@ -52,31 +57,40 @@ body{font-family:var(--fuente);background:var(--bg-0);color:var(--txt-1);overflo
 .fila .v{font-family:var(--fuente-num);font-size:16px;font-weight:700;font-variant-numeric:tabular-nums;text-align:right}
 .fila .v small{display:block;font-family:var(--fuente);font-size:11px;color:var(--txt-3);font-weight:400}
 .duo{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.mini{background:var(--bg-2);border:1px solid var(--borde);border-radius:16px;padding:12px 14px}
+.mini{background:linear-gradient(180deg,#202F26,#1A271F);border:1px solid var(--borde);border-radius:16px;padding:12px 14px;box-shadow:var(--sombra-tarjeta-chica)}
 .mini .etiqueta{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--txt-3)}
 .mini .cifra{font-family:var(--fuente-num);font-size:22px;font-weight:700;margin-top:4px;font-variant-numeric:tabular-nums}
 .mini .nota{font-size:12px;color:var(--txt-2);margin-top:2px}
 .barra{height:10px;border-radius:999px;background:var(--bg-2);overflow:hidden;margin-top:8px}
 .barra i{display:block;height:100%;border-radius:999px;background:var(--dorado-grad);transition:width 2s var(--lento)}
-.btn{display:block;width:100%;min-height:52px;border:0;border-radius:999px;background:var(--dorado-grad);color:#1A1405;font-size:16px;font-weight:700;font-family:var(--fuente);cursor:pointer;box-shadow:0 6px 18px rgba(232,184,75,.22)}
-.btn:active{transform:scale(.97)}
+.btn{display:block;width:100%;min-height:52px;border:0;border-radius:999px;background:var(--dorado-grad);color:#1A1405;font-size:16px;font-weight:700;font-family:var(--fuente);cursor:pointer;box-shadow:var(--sombra-boton);transition:transform .25s var(--lento),box-shadow .25s var(--lento)}
+.btn:active{transform:translateY(2px) scale(.98);box-shadow:var(--sombra-boton-hundido)}
+.btn.sec{box-shadow:0 6px 16px rgba(0,0,0,.4),inset 0 1px 0 rgba(255,255,255,.06)}
+.btn.sec:active{transform:translateY(2px) scale(.98);box-shadow:0 2px 6px rgba(0,0,0,.4)}
 .btn.sec{background:var(--bg-2);color:var(--txt-1);border:1px solid var(--borde-fuerte);box-shadow:none}
 .btn.fantasma{background:none;color:var(--dorado);box-shadow:none;min-height:44px;font-size:14px}
 .pasos{display:grid;grid-template-columns:32px 1fr;gap:4px 12px;align-items:start}
 .pasos .n{width:28px;height:28px;border-radius:50%;background:rgba(232,184,75,.14);border:1px solid rgba(232,184,75,.35);color:var(--dorado);display:grid;place-items:center;font-weight:800;font-size:14px}
 .pasos p{margin:2px 0 12px;font-size:14px;line-height:1.45;color:var(--txt-2)}
 .pasos p b{color:var(--txt-1)}
-.tabs{position:absolute;left:0;right:0;bottom:0;display:grid;grid-template-columns:repeat(5,1fr);background:rgba(18,22,31,.72);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border-top:1px solid var(--borde);padding:8px 4px calc(10px + env(safe-area-inset-bottom))}
+.tabs{position:absolute;left:0;right:0;bottom:0;display:grid;grid-template-columns:repeat(5,1fr);background:rgba(18,22,31,.78);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border-top:1px solid var(--borde);padding:8px 4px calc(10px + env(safe-area-inset-bottom));box-shadow:var(--sombra-flotante)}
 .tabs button{background:none;border:0;color:var(--txt-3);font-family:var(--fuente);font-size:10.5px;font-weight:700;min-height:48px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px}
 .tabs button svg{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
 .tabs button.activo{color:var(--dorado)}
-.pastel-wrap{display:flex;flex-direction:column;align-items:center;gap:4px}
+.pastel-wrap{display:flex;flex-direction:column;align-items:center;gap:4px;filter:drop-shadow(0 12px 22px rgba(0,0,0,.45))}
 .pastel-wrap svg{width:240px;height:240px;overflow:visible}
-.rebanada{cursor:pointer;transition:transform 1.2s var(--lento),opacity 1.2s var(--lento);transform-origin:130px 130px}
-.rebanada.sel{transform:scale(1.14)}
-.rebanada text{font-family:var(--fuente);font-weight:800;fill:#10160F;text-anchor:middle;pointer-events:none}
-.rebanada text .pct{font-size:15px}
-.rebanada text .cup{font-size:10px;font-weight:700}
+.rebanada{cursor:pointer;transition:transform 1.2s var(--lento),opacity 1.2s var(--lento);transform-origin:150px 150px}
+.rebanada.sel{filter:drop-shadow(0 6px 14px rgba(0,0,0,.45))}
+.rebanada text{font-family:var(--fuente);font-weight:800;fill:#0B1210;text-anchor:middle;pointer-events:none}
+.rebanada text.etq-fuera{fill:#F2F5F9;font-weight:800}
+.rebanada text.etq-fuera-cup{fill:rgba(242,245,249,.75);font-weight:700}
+.leyenda{display:flex;flex-direction:column;gap:8px;width:100%;margin-top:10px}
+.leyenda-fila{display:flex;align-items:center;gap:10px;width:100%;min-height:48px;padding:8px 12px;border-radius:14px;border:1px solid var(--borde);background:var(--bg-2);color:var(--txt-1);font-family:var(--fuente);font-size:14px;text-align:left;cursor:pointer}
+.leyenda-fila.sel{border-color:var(--dorado);background:rgba(232,184,75,.12);box-shadow:0 6px 16px rgba(232,184,75,.16),inset 0 1px 0 rgba(255,255,255,.06)}
+.leyenda-fila .ico{width:28px;height:28px;flex-shrink:0;border-radius:50%;display:grid;place-items:center}
+.leyenda-fila .ico svg{width:16px;height:16px;stroke:#0B1210;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.leyenda-fila .nom{font-weight:700}
+.leyenda-fila .val{margin-left:auto;flex-shrink:0;font-family:var(--fuente-num);font-weight:700;font-variant-numeric:tabular-nums;text-align:right}
 .centro-txt{font-family:var(--fuente-num);text-anchor:middle}
 .detalle-pastel{min-height:56px;text-align:center;font-size:14px;line-height:1.5;color:var(--txt-2)}
 .detalle-pastel b{color:var(--txt-1);font-size:16px}
@@ -86,19 +100,20 @@ body{font-family:var(--fuente);background:var(--bg-0);color:var(--txt-1);overflo
 .est-cerrado{background:rgba(255,255,255,.08);color:var(--txt-2)}
 .est-bloqueado{background:rgba(246,70,93,.12);color:var(--rojo)}
 input[type=number],input[type=text]{width:100%;height:52px;background:var(--bg-2);border:1px solid var(--borde-fuerte);border-radius:var(--r-md);color:var(--txt-1);font-family:var(--fuente-num);font-size:18px;padding:0 14px;outline:none}
-input:focus{border-color:var(--dorado)}
+input[type=number],input[type=text]{box-shadow:inset 0 2px 6px rgba(0,0,0,.35)}
+input:focus{border-color:var(--dorado);box-shadow:inset 0 2px 6px rgba(0,0,0,.35),0 0 0 3px rgba(232,184,75,.18)}
 label{display:block;font-size:13px;font-weight:600;color:var(--txt-2);margin:0 0 6px}
 .ayuda{font-size:12px;color:var(--txt-3);margin:6px 0 0;line-height:1.4}
 .ecu{font-family:var(--fuente-num);font-size:15px;font-weight:700;color:var(--dorado-claro);background:var(--bg-2);border:1px solid var(--borde);border-radius:12px;padding:10px 12px;margin:8px 0 2px;line-height:1.5}
 .chips{display:flex;flex-wrap:wrap;gap:8px}
 .chips button{flex:1 1 30%;min-height:48px;border-radius:999px;border:1px solid var(--borde-fuerte);background:var(--bg-2);color:var(--txt-1);font-family:var(--fuente);font-size:14px;font-weight:700;cursor:pointer}
-.chips button.sel{background:rgba(232,184,75,.16);border-color:var(--dorado);color:var(--dorado)}
+.chips button.sel{background:rgba(232,184,75,.16);border-color:var(--dorado);color:var(--dorado);box-shadow:0 4px 12px rgba(232,184,75,.20),inset 0 1px 0 rgba(255,255,255,.08)}
 .modal{position:absolute;inset:0;background:rgba(0,0,0,.6);display:none;align-items:flex-end;z-index:5}
 .modal.abierto{display:flex}
-.modal .hoja{background:var(--bg-1);border:1px solid var(--borde-fuerte);border-radius:28px 28px 0 0;width:100%;padding:20px 16px calc(20px + env(safe-area-inset-bottom));animation:sube 1s var(--lento)}
+.modal .hoja{background:linear-gradient(180deg,#1B2820,#141F18);border:1px solid var(--borde-fuerte);border-radius:28px 28px 0 0;width:100%;padding:20px 16px calc(20px + env(safe-area-inset-bottom));animation:sube 1s var(--lento);box-shadow:0 -18px 48px rgba(0,0,0,.6),inset 0 1px 0 rgba(255,255,255,.06)}
 @keyframes sube{from{transform:translateY(60px);opacity:0}to{transform:none;opacity:1}}
 .modal .hoja h2{margin:0 0 12px;font-size:19px}
-.toast{position:absolute;left:16px;right:16px;top:12px;background:var(--bg-3);border:1px solid var(--borde-fuerte);border-radius:14px;padding:12px 16px;text-align:center;font-size:14px;font-weight:600;display:none;z-index:6}
+.toast{position:absolute;left:16px;right:16px;top:12px;background:var(--bg-3);border:1px solid var(--borde-fuerte);border-radius:14px;padding:12px 16px;text-align:center;font-size:14px;font-weight:600;display:none;z-index:6;box-shadow:0 10px 26px rgba(0,0,0,.55),inset 0 1px 0 rgba(255,255,255,.06)}
 .toast.ver{display:block;animation:entra 1s var(--lento)}
 .lista-apuntes{font-size:14px;line-height:1.5;color:var(--txt-2)}
 .lista-apuntes div{padding:8px 0;border-bottom:1px solid rgba(255,255,255,.06)}
@@ -151,7 +166,8 @@ label{display:block;font-size:13px;font-weight:600;color:var(--txt-2);margin:0 0
       <h2>El pastel del ciclo 22 <span class="etiqueta-estado est-cerrado">CERRADO</span></h2>
       <p class="sub">Tócalo: cada pedazo dice su % y su cantidad, los dos juntos.</p>
       <div class="pastel-wrap">
-        <svg id="pastel22" viewBox="0 0 260 260" role="img" aria-label="Pastel del ciclo 22: reinversión 70.7 por ciento, 1,811 CUP; Briku 19.5 por ciento, 500 CUP; yo 9.8 por ciento, 250 CUP"></svg>
+        <svg id="pastel22" viewBox="0 0 300 300" role="img" aria-label="Pastel del ciclo 22: reinversión 70.7 por ciento, 1,811 CUP; Briku 19.5 por ciento, 500 CUP; yo 9.8 por ciento, 250 CUP"></svg>
+        <div class="leyenda" id="leyenda22" aria-label="Leyenda del pastel del ciclo 22"></div>
         <div class="detalle-pastel" id="detalle22">Ganancia total <b class="num">2,562.74 CUP</b> · toca un pedazo para verlo</div>
       <p class="ayuda" style="text-align:center">Los pedazos suman 2,561 CUP porque son tus números redondeados (Briku 512.55 → 500 · yo 256.27 → 250 · reinversión 1,793.92 → 1,811). La ganancia exacta es 2,562.74 CUP; la diferencia es 1.74 CUP de redondeo.</p>
       </div>
@@ -242,7 +258,8 @@ label{display:block;font-size:13px;font-weight:600;color:var(--txt-2);margin:0 0
       <h2>Reparto del dinero</h2>
       <p class="sub" id="sub-proy">Tu proyección: 20,000 + 20,000 + 1,250. Tócala para ver cada parte.</p>
       <div class="pastel-wrap">
-        <svg id="pastelProy" viewBox="0 0 260 260" role="img" aria-label="Pastel de proyección: ciclo 23, 20,000 CUP; ciclo 24, 20,000 CUP; resto 1,250 CUP"></svg>
+        <svg id="pastelProy" viewBox="0 0 300 300" role="img" aria-label="Pastel de proyección: ciclo 23, 20,000 CUP; ciclo 24, 20,000 CUP; resto 1,250 CUP"></svg>
+        <div class="leyenda" id="leyendaProy" aria-label="Leyenda del pastel de proyección"></div>
         <div class="detalle-pastel" id="detalleProy">Total <b class="num">41,250 CUP</b> · toca un pedazo para verlo</div>
       </div>
     </div>
@@ -332,13 +349,13 @@ label{display:block;font-size:13px;font-weight:600;color:var(--txt-2);margin:0 0
 var SEMILLA = {
   capital: 41250,
   ciclo22: { total: 2562.74, partes: [
-    { nombre: "Reinversión", pct: 70.7, cup: 1811, color: "#2FBF71", modelo: 70 },
-    { nombre: "Briku", pct: 19.5, cup: 500, color: "#E8B84B", modelo: 20 },
-    { nombre: "Yo", pct: 9.8, cup: 250, color: "#4CC3FF", modelo: 10 } ] },
+    { nombre: "Reinversión", pct: 70.7, cup: 1811, color: "#2CEB7E", modelo: 70 },
+    { nombre: "Briku", pct: 19.5, cup: 500, color: "#FFB020", modelo: 20 },
+    { nombre: "Yo", pct: 9.8, cup: 250, color: "#38B6FF", modelo: 10 } ] },
   proy: { total: 41250, partes: [
-    { nombre: "Ciclo 23", pct: 48.5, cup: 20000, color: "#2FBF71" },
-    { nombre: "Ciclo 24", pct: 48.5, cup: 20000, color: "#E8B84B" },
-    { nombre: "Resto", pct: 3, cup: 1250, color: "#4CC3FF" } ] }
+    { nombre: "Ciclo 23", pct: 48.5, cup: 20000, color: "#2CEB7E" },
+    { nombre: "Ciclo 24", pct: 48.5, cup: 20000, color: "#FFB020" },
+    { nombre: "Resto", pct: 3, cup: 1250, color: "#38B6FF" } ] }
 };
 var tipoElegido = "Recarga";
 var CLAVE = "libreta-maqueta-apuntes";
@@ -365,45 +382,98 @@ function rebanada(cx, cy, r, a0, a1){
     " A " + r + " " + r + " 0 " + grande + " 1 " + p1[0].toFixed(1) + " " + p1[1].toFixed(1) + " Z";
 }
 function pctTxt(pct){ var v = Math.round(pct * 10) / 10; return v % 1 === 0 ? String(v) : v.toFixed(1); }
+function donut(cx, cy, R, r, a0, a1){
+  var o0 = polar(cx, cy, R, a0), o1 = polar(cx, cy, R, a1);
+  var i1 = polar(cx, cy, r, a1), i0 = polar(cx, cy, r, a0);
+  var grande = (a1 - a0) > 180 ? 1 : 0;
+  return "M " + o0[0].toFixed(1) + " " + o0[1].toFixed(1) +
+    " A " + R + " " + R + " 0 " + grande + " 1 " + o1[0].toFixed(1) + " " + o1[1].toFixed(1) +
+    " L " + i1[0].toFixed(1) + " " + i1[1].toFixed(1) +
+    " A " + r + " " + r + " 0 " + grande + " 0 " + i0[0].toFixed(1) + " " + i0[1].toFixed(1) + " Z";
+}
+function iconoLeyenda(nombre, color){
+  var interior = "";
+  if(nombre === "Reinversión"){ interior = '<path d="M8 3a5 5 0 1 1-4.6 3"/><path d="M2 3v4h4"/>'; }
+  else if(nombre === "Briku" || nombre === "Yo"){ interior = '<circle cx="8" cy="5.5" r="2.5"/><path d="M3 14c.5-2.5 2.5-4 5-4s4.5 1.5 5 4"/>'; }
+  else if(nombre === "Resto"){ interior = '<circle cx="8" cy="8" r="5.5"/><path d="M8 5.5v5M6 7h4"/>'; }
+  else { interior = '<circle cx="8" cy="8" r="5.5"/><path d="M8 4.5V8l2.5 2"/>'; }
+  return '<span class="ico" style="background:' + color + '">' +
+    '<svg viewBox="0 0 16 16">' + interior + '</svg></span>';
+}
+function construirLeyenda(leyendaId, svgId, partes, total){
+  var caja = $(leyendaId); if(!caja) return;
+  caja.innerHTML = partes.map(function(p, i){
+    return '<button class="leyenda-fila" data-i="' + i + '">'
+      + iconoLeyenda(p.nombre, p.color)
+      + '<span class="nom">' + p.nombre + '</span>'
+      + '<span class="val">' + pctTxt(p.pct) + '% · ' + fmt(p.cup) + ' CUP</span></button>';
+  }).join("");
+  caja.querySelectorAll(".leyenda-fila").forEach(function(b){
+    b.addEventListener("click", function(){ seleccionarPastel(svgId, Number(b.dataset.i), total); });
+  });
+}
 function dibujarPastel(svgId, partes, total, detalleId, animar){
-  var svg = $(svgId), cx = 130, cy = 130, r = 104, html = "";
-  var ang = 0;
+  var svg = $(svgId), cx = 150, cy = 150, R = 102, r = 52, html = "";
+  var ang = 0; /* el pedazo más grande empieza en las 12 y sigue en sentido horario */
   var dec = svgId === "pastel22" ? 2 : 0;
   partes.forEach(function(p, i){
     var a0 = ang, a1 = ang + p.pct / 100 * 360; ang = a1;
     var medio = (a0 + a1) / 2;
-    var etiqueta = polar(cx, cy, 62, medio);
-    var fuera = p.pct <= 10;
-    var etiquetaFuera = polar(cx, cy, 122, medio);
     var txt = pctTxt(p.pct) + "%";
-    html += '<g class="rebanada" data-i="' + i + '" onclick="tocarPastel(this,\'' + svgId + '\',' + total + ')">'
-      + '<path d="' + rebanada(cx, cy, r, a0, a1) + '" fill="' + p.color + '" stroke="#0E1512" stroke-width="2"/>'
-      + (fuera
-        ? '<line x1="' + polar(cx, cy, r + 2, medio)[0].toFixed(1) + '" y1="' + polar(cx, cy, r + 2, medio)[1].toFixed(1) + '" x2="' + etiquetaFuera[0].toFixed(1) + '" y2="' + etiquetaFuera[1].toFixed(1) + '" stroke="#F2F5F9" stroke-width="1"/>'
-          + '<text x="' + etiquetaFuera[0].toFixed(1) + '" y="' + (etiquetaFuera[1] - 4).toFixed(1) + '" style="fill:#F2F5F9" font-size="13">' + txt + '</text>'
-          + '<text x="' + etiquetaFuera[0].toFixed(1) + '" y="' + (etiquetaFuera[1] + 11).toFixed(1) + '" style="fill:#F2F5F9" font-size="10">' + fmt(p.cup) + ' CUP</text>'
-        : '<text x="' + etiqueta[0].toFixed(1) + '" y="' + (etiqueta[1] - 2).toFixed(1) + '" font-size="15">' + txt + '</text>'
-          + '<text x="' + etiqueta[0].toFixed(1) + '" y="' + (etiqueta[1] + 13).toFixed(1) + '" font-size="10">' + fmt(p.cup) + ' CUP</text>')
-      + '</g>';
+    var fuera = p.pct <= 10;
+    var etiqueta, linea = "";
+    if(fuera){
+      var borde = polar(cx, cy, R + 4, medio), punta = polar(cx, cy, R + 26, medio);
+      linea = '<line x1="' + borde[0].toFixed(1) + '" y1="' + borde[1].toFixed(1) + '" x2="' + punta[0].toFixed(1) + '" y2="' + punta[1].toFixed(1) + '" stroke="rgba(242,245,249,.65)" stroke-width="1"/>';
+      etiqueta = '<text class="etq-fuera" x="' + punta[0].toFixed(1) + '" y="' + (punta[1] - 2).toFixed(1) + '" font-size="13">' + txt + '</text>'
+        + '<text class="etq-fuera-cup" x="' + punta[0].toFixed(1) + '" y="' + (punta[1] + 12).toFixed(1) + '" font-size="10">' + fmt(p.cup) + ' CUP</text>';
+    } else {
+      var centro = polar(cx, cy, (R + r) / 2, medio);
+      etiqueta = '<text x="' + centro[0].toFixed(1) + '" y="' + (centro[1] - 1).toFixed(1) + '" font-size="16">' + txt + '</text>'
+        + '<text x="' + centro[0].toFixed(1) + '" y="' + (centro[1] + 14).toFixed(1) + '" font-size="10">' + fmt(p.cup) + ' CUP</text>';
+    }
+    html += '<g class="rebanada" data-i="' + i + '" data-medio="' + medio.toFixed(1) + '">'
+      + '<path d="' + donut(cx, cy, R, r, a0, a1) + '" fill="' + p.color + '" stroke="#0E1512" stroke-width="3" stroke-linejoin="round"/>'
+      + linea + etiqueta + '</g>';
   });
-  html += '<circle cx="130" cy="130" r="34" fill="#0E1512"/><text class="centro-txt" x="130" y="126" fill="#F5D67B" font-size="12" font-weight="700">' + fmt(total, dec) + '</text><text class="centro-txt" x="130" y="142" fill="#9aa6c4" font-size="8">CUP en total</text>';
+  html += '<circle cx="150" cy="150" r="48" fill="#0E1512"/>'
+    + '<text class="centro-txt" x="150" y="147" fill="#F5D67B" font-size="13" font-weight="700">' + fmt(total, dec) + '</text>'
+    + '<text class="centro-txt" x="150" y="163" fill="#9aa6c4" font-size="9">CUP en total</text>';
   svg.innerHTML = html;
+  svg.querySelectorAll(".rebanada").forEach(function(g){
+    g.addEventListener("click", function(){ seleccionarPastel(svgId, Number(g.dataset.i), total); });
+  });
+  construirLeyenda(svgId === "pastel22" ? "leyenda22" : "leyendaProy", svgId, partes, total);
   if(detalleId){ $(detalleId).innerHTML = svgId === "pastel22" ? 'Ganancia total <b class="num">2,562.74 CUP</b> · toca un pedazo para verlo' : 'Total <b class="num">' + fmt(total) + ' CUP</b> · toca un pedazo para verlo'; }
   if(animar === false){ svg.style.transition = "none"; svg.style.transform = "rotate(0deg)"; return; }
   svg.style.transition = "none"; svg.style.transform = "rotate(-90deg)";
   setTimeout(function(){ svg.style.transition = "transform 2.4s cubic-bezier(.16,1,.3,1)"; svg.style.transform = "rotate(0deg)"; }, 60);
 }
-function tocarPastel(el, svgId, total){
+function seleccionarPastel(svgId, i, total){
   var svg = $(svgId);
-  svg.querySelectorAll(".rebanada").forEach(function(g){ g.classList.remove("sel"); g.style.opacity = "0.55"; });
-  el.classList.add("sel"); el.style.opacity = "1";
   var partes = svgId === "pastel22" ? SEMILLA.ciclo22.partes : SEMILLA.proy.partes;
-  var p = partes[Number(el.dataset.i)];
+  var p = partes[i]; if(!p) return;
+  svg.querySelectorAll(".rebanada").forEach(function(g){
+    var esSel = Number(g.dataset.i) === i;
+    g.classList.toggle("sel", esSel);
+    g.style.opacity = esSel ? "1" : "0.55";
+    if(esSel){
+      var a = Number(g.dataset.medio) * Math.PI / 180 - Math.PI / 2;
+      g.style.transform = "translate(" + (Math.cos(a) * 12).toFixed(1) + "px," + (Math.sin(a) * 12).toFixed(1) + "px)";
+    } else { g.style.transform = ""; }
+  });
+  var leyendaId = svgId === "pastel22" ? "leyenda22" : "leyendaProy";
+  var caja = $(leyendaId);
+  if(caja){ caja.querySelectorAll(".leyenda-fila").forEach(function(b){ b.classList.toggle("sel", Number(b.dataset.i) === i); }); }
   var detalleId = svgId === "pastel22" ? "detalle22" : "detalleProy";
   var dec = svgId === "pastel22" ? 2 : 0;
   var extra = "";
   if(svgId === "pastel22" && p.modelo != null){ extra = "<br><span style='font-size:12px'>el " + p.modelo + "% exacto serían " + fmt(total * p.modelo / 100, 2) + " CUP</span>"; }
   $(detalleId).innerHTML = "<b>" + p.nombre + ": " + pctTxt(p.pct) + "% · " + fmt(p.cup) + " CUP</b><br>de " + fmt(total, dec) + " CUP en total" + extra;
+}
+function tocarPastel(el, svgId, total, indice){
+  var i = indice != null ? indice : (el ? Number(el.dataset.i) : 0);
+  seleccionarPastel(svgId, i, total);
 }
 
 /* ---------- Calculadoras vivas, con las ecuaciones de Ernesto ---------- */
@@ -453,9 +523,9 @@ function repartir(animar){
   $("sub-proy").textContent = "Tu proyección: " + fmt(a) + " + " + fmt(b) + " + " + fmt(resto) + ". Tócala para ver cada parte.";
   if(resto < 0){ return; }
   SEMILLA.proy.partes = [
-    { nombre: "Ciclo 23", cup: a, color: "#2FBF71" },
-    { nombre: "Ciclo 24", cup: b, color: "#E8B84B" },
-    { nombre: "Resto", cup: resto, color: "#4CC3FF" } ];
+    { nombre: "Ciclo 23", cup: a, color: "#2CEB7E" },
+    { nombre: "Ciclo 24", cup: b, color: "#FFB020" },
+    { nombre: "Resto", cup: resto, color: "#38B6FF" } ];
   SEMILLA.proy.partes.forEach(function(p){ p.pct = Math.round(p.cup / SEMILLA.capital * 1000) / 10; });
   dibujarPastel("pastelProy", SEMILLA.proy.partes, SEMILLA.proy.total, "detalleProy", animar);
 }

@@ -23,8 +23,14 @@ t("tocar Reinversión muestra exacto 1,793.92",
 t("tocar Briku muestra 19.5% y exacto 512.55",
   (function(){ const p=d.querySelectorAll('#pastel22 .rebanada'); p[1].dispatchEvent(new w.Event('click',{bubbles:true})); return txt('detalle22').includes('512.55') && txt('detalle22').includes('19.5%'); })());
 t("pedazo seleccionado visible (sel + opacidad)", (function(){ const p=d.querySelectorAll('#pastel22 .rebanada'); return p[1].classList.contains('sel') && p[0].style.opacity==="0.55"; })());
+t("donut: centro hueco r48 sin cortar el total", html.includes('r="48"') && txt('pastel22').includes('CUP en total'));
+t("leyenda Saldo: 3 filas tocables con % y CUP", (function(){ const f=d.querySelectorAll('#leyenda22 .leyenda-fila'); return f.length===3 && f[1].textContent.includes('Briku') && f[1].textContent.includes('19.5%') && f[1].textContent.includes('500 CUP'); })());
+t("leyenda Proyección: 3 filas", d.querySelectorAll('#leyendaProy .leyenda-fila').length===3);
+t("tocar leyenda Briku selecciona el pedazo y lo separa", (function(){ const f=d.querySelectorAll('#leyenda22 .leyenda-fila'); f[1].dispatchEvent(new w.Event('click',{bubbles:true})); const p=d.querySelectorAll('#pastel22 .rebanada'); return p[1].classList.contains('sel') && p[1].style.transform.includes('translate') && f[1].classList.contains('sel'); })());
+t("colores vivos distintos: verde #2CEB7E, ámbar #FFB020, azul #38B6FF", html.includes('#2CEB7E') && html.includes('#FFB020') && html.includes('#38B6FF'));
+t("pedazo chico fuera con línea conectora", txt('pastel22').includes('9.8%') && html.includes('etq-fuera'));
 // ERROR 2: etiquetas dentro del viewBox 260
-t("viewBox pastel 260x260 (etiquetas sin solapar)", html.includes('viewBox="0 0 260 260"'));
+t("viewBox pastel 300x300 (aire para etiquetas fuera)", html.includes('viewBox="0 0 300 300"'));
 // ERROR 4: Clásica sin cifras ni inputs
 t("Clásica: 0 inputs", d.querySelectorAll('#h-clasica input').length===0);
 t("Clásica: sin 1,248 CUP", !seccion('h-clasica').includes('1,248 CUP'));
@@ -88,5 +94,12 @@ t("toast visible", d.getElementById('toast').classList.contains('ver'));
 w.irA('h-clasica');
 t("hoja Clásica activa", d.getElementById('h-clasica').classList.contains('active'));
 t("columna 4,666 visible", d.body.textContent.includes('4,666'));
+// PROFUNDIDAD (toda la app, no solo el pastel)
+t("profundidad: tokens de sombra", html.includes('--sombra-tarjeta') && html.includes('--sombra-boton'));
+t("profundidad: tarjeta con sombra + borde", html.includes('box-shadow:var(--sombra-tarjeta)'));
+t("profundidad: botón dorado flota y se hunde al tocar", html.includes('box-shadow:var(--sombra-boton)') && html.includes('.btn:active{transform:translateY(2px) scale(.98)'));
+t("profundidad: barra inferior con sombra flotante", html.includes('box-shadow:var(--sombra-flotante)'));
+t("profundidad: pastel con drop-shadow", html.includes('.pastel-wrap{') && html.includes('drop-shadow(0 12px 22px'));
+t("profundidad: modal y toast con sombra", html.includes('0 -18px 48px') && html.includes('0 10px 26px'));
 console.log(`\nDOM: ${pass} PASS / ${fail} FAIL`);
 process.exit(fail?1:0);
