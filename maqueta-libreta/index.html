@@ -35,7 +35,9 @@ body{font-family:var(--fuente);background:var(--bg-0);color:var(--txt-1);overflo
 .brand span{color:var(--dorado)}
 .chip{font-size:11px;font-weight:800;background:var(--bg-2);border:1px solid var(--borde);padding:6px 10px;border-radius:999px;color:var(--txt-2)}
 .chip.gold{background:rgba(232,184,75,.14);border-color:rgba(232,184,75,.35);color:var(--dorado)}
-.cuerpo{flex:1;overflow:hidden;padding:8px 16px 12px;display:flex;flex-direction:column;gap:12px}
+.cuerpo{flex:1;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;scrollbar-width:none;padding:8px 16px calc(120px + env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:12px}
+.cuerpo::-webkit-scrollbar{display:none;width:0}
+.cuerpo>*{flex-shrink:0}
 .card{background:var(--bg-1);border:1px solid var(--borde);border-radius:var(--r-lg);padding:16px}
 .card h2{margin:0 0 4px;font-size:17px;font-weight:700}
 .card h3{margin:0 0 8px;font-size:15px;font-weight:700}
