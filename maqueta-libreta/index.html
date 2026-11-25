@@ -453,15 +453,28 @@ function dibujarPastel(svgId, partes, total, detalleId, animar){
        el pedazo la etiqueta no se mueve, no se tapa ni se recorta.
        La posición usa la elipse (KY): la línea nace justo en el borde inclinado
        y la etiqueta queda fuera del volumen, con aire hasta al separarse. */
-    var radioEtq = sd < -0.8 ? 156 : 146; /* las de arriba, más lejos: el pedazo sube al separarse */
+    /* Tamaño de etiqueta: Proyección igual o mayor que Saldo (15/12 frente a
+       13/10) para que se lea igual de grande a 390 px. En el código las dos
+       ya eran 13/10; Proyección sube a 15/12 para que no se vea chica. */
+    var fsPct = svgId === "pastelProy" ? 15 : 13;
+    var fsCup = svgId === "pastelProy" ? 12 : 10;
+    /* Las de arriba, más lejos (172, antes 156): al separarse el pedazo sube
+       y hay que dejarle aire hasta su etiqueta. La línea conectora es más
+       larga (R+34, antes R+17) para que no quede cortita. */
+    var radioEtq = sd < -0.8 ? 172 : 146;
     var ex = cx + (R + 3) * cd, ey = cy + (R + 3) * sd * KY;
-    var px = cx + (R + 17) * cd, py = cy + (R + 17) * sd * KY;
+    var px = cx + (R + 34) * cd, py = cy + (R + 34) * sd * KY;
     var lx = cx + radioEtq * cd, ly = cy + radioEtq * sd * KY;
+    /* Que la etiqueta no se salga del lienzo 360: se acerca su centro según
+       su ancho estimado (las de Proyección, más grandes, se acercan un poco). */
+    var mitad = Math.max(txt.length * fsPct, (fmt(p.cup) + " CUP").length * fsCup) * 0.62 / 2;
+    lx = Math.min(Math.max(lx, mitad + 4), 360 - mitad - 4);
+    ly = Math.min(Math.max(ly, fsPct + 4), 340);
     etiquetas += '<g class="etq" data-i="' + i + '">'
       + '<line x1="' + ex.toFixed(1) + '" y1="' + ey.toFixed(1) + '" x2="' + px.toFixed(1) + '" y2="' + py.toFixed(1) + '" stroke="rgba(242,245,249,.65)" stroke-width="1"/>'
       + '<circle cx="' + ex.toFixed(1) + '" cy="' + ey.toFixed(1) + '" r="2" fill="rgba(242,245,249,.65)"/>'
-      + '<text x="' + lx.toFixed(1) + '" y="' + (ly - 2).toFixed(1) + '" font-size="13">' + txt + '</text>'
-      + '<text class="cup" x="' + lx.toFixed(1) + '" y="' + (ly + 13).toFixed(1) + '" font-size="10">' + fmt(p.cup) + ' CUP</text></g>';
+      + '<text x="' + lx.toFixed(1) + '" y="' + (ly - 2).toFixed(1) + '" font-size="' + fsPct + '">' + txt + '</text>'
+      + '<text class="cup" x="' + lx.toFixed(1) + '" y="' + (ly + 13).toFixed(1) + '" font-size="' + fsCup + '">' + fmt(p.cup) + ' CUP</text></g>';
     /* Degradado vivo de la cara superior: claro arriba, color, oscuro abajo. */
     defs += '<linearGradient id="' + svgId + '-g' + i + '" x1="0" y1="0" x2="0" y2="1">'
       + '<stop offset="0" stop-color="' + tono(p.color, 1.30) + '"/>'
@@ -491,12 +504,16 @@ function dibujarPastel(svgId, partes, total, detalleId, animar){
   var inclinado = '<g class="inclinado" transform="translate(180 180) scale(1 ' + KY + ') translate(-180 -180)">'
     + '<circle cx="180" cy="180" r="46" fill="#0B1210"/>'
     + '<g class="giro">' + rebanadas + '</g>' + brillo + '</g>';
-  /* El total va en pastilla sobre el centro: se lee siempre, inclinado o no. */
+  /* El total va en pastilla sobre el centro: se lee siempre, inclinado o no.
+     Proyección: el centro dice "41,250 CUP" grande y "en total" debajo,
+     con CUP, como en Saldo. */
+  var centroGrande = svgId === "pastelProy" ? fmt(total, dec) + " CUP" : fmt(total, dec);
+  var centroChico = svgId === "pastelProy" ? "en total" : "CUP en total";
   var pastilla = '<g class="pastilla" pointer-events="none">'
     + '<rect x="122" y="158" width="116" height="50" rx="14" fill="#000000" opacity=".35"/>'
     + '<rect x="122" y="155" width="116" height="50" rx="14" fill="#0E1512" stroke="rgba(232,184,75,.45)" stroke-width="1"/>'
-    + '<text class="centro-txt" x="180" y="176" fill="#F5D67B" font-size="15" font-weight="700">' + fmt(total, dec) + '</text>'
-    + '<text class="centro-txt" x="180" y="192" fill="#9aa6c4" font-size="9">CUP en total</text></g>';
+    + '<text class="centro-txt" x="180" y="176" fill="#F5D67B" font-size="15" font-weight="700">' + centroGrande + '</text>'
+    + '<text class="centro-txt" x="180" y="192" fill="#9aa6c4" font-size="9">' + centroChico + '</text></g>';
   svg.innerHTML = '<defs>' + defs + '</defs>' + sombra + inclinado + etiquetas + pastilla;
   svg.querySelectorAll(".rebanada").forEach(function(g){
     g.addEventListener("click", function(){ seleccionarPastel(svgId, Number(g.dataset.i), total); });
@@ -526,7 +543,10 @@ function seleccionarPastel(svgId, i, total){
     g.style.opacity = esSel ? "1" : "0.55";
     if(esSel){
       var a = Number(g.dataset.medio) * Math.PI / 180 - Math.PI / 2;
-      g.style.transform = "translate(" + (Math.cos(a) * 16).toFixed(1) + "px," + (Math.sin(a) * 16).toFixed(1) + "px)";
+      /* Los 3 pedazos se separan lo mismo (16 px en pantalla): la Y se divide
+         por KY porque la inclinación 3D la comprime; sin compensar, el pedazo
+         que sube (Reinversión, Yo) se notaba menos que el de lado (Briku). */
+      g.style.transform = "translate(" + (Math.cos(a) * 16).toFixed(1) + "px," + (Math.sin(a) * 16 / KY).toFixed(1) + "px)";
     } else { g.style.transform = ""; }
   });
   svg.querySelectorAll(".etq").forEach(function(e){ e.classList.toggle("sel", Number(e.dataset.i) === i); });
