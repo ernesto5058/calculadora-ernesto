@@ -455,7 +455,7 @@
       <div class="act" onclick="openActivity('home', 1)"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div><div><b>Servicios rearrancados solos</b><span>Tras el reinicio de la máquina, el timer los levantó.</span></div><time>01:14</time></div>
       <div class="act" onclick="openActivity('home', 2)"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" stroke-width="2" stroke-linecap="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/></svg></div><div><b>WhatsApp Baileys cayó 2 veces</b><span>Reinicios de máquina; levantado a mano.</span></div><time>01:20</time></div>
     </div>
-    <p class="foot">Muse Control · Maqueta v15 · Los datos de esta pantalla son de ejemplo.</p>
+    <p class="foot">Muse Control · Maqueta v16 · Los datos de esta pantalla son de ejemplo.</p>
     <div style="text-align:center; margin-top:10px;"><button class="btn ghost" style="flex:none; padding:9px 18px;" onclick="resetDemo()">Restablecer demo</button></div>
   </section>
 
@@ -603,7 +603,7 @@
       <div class="act" onclick="openActivity('taller', 1)"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#f87171" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></div><div><b>Despliegue rechazado</b><span>Maqueta v7-u2net · en cuarentena.</span></div><time>ayer</time></div>
       <div class="act" onclick="openActivity('taller', 2)"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div><div><b>Pruebas del banco: 72/72</b><span>Juego v9 · sin fallos.</span></div><time>ayer</time></div>
     </div>
-    <p class="foot">Taller · Maqueta v15 · Ningún despliegue o comando destructivo se ejecuta sin tu autorización.</p>
+    <p class="foot">Taller · Maqueta v16 · Ningún despliegue o comando destructivo se ejecuta sin tu autorización.</p>
   </section>
 
   <!-- ============ BARRA INFERIOR ============ -->
@@ -676,6 +676,28 @@
      Orquesta, que sigue activo aunque pasen los 8 s: en la v8 el aviso
      desaparecía y el filtro aplicado solo se distinguía por el chip
      resaltado). */
+  /* El aviso fijo NO debe tapar el contenido: mientras está visible en
+     una pantalla, la pantalla se empuja hacia abajo lo que mide el aviso
+     (v16 — el Ojo veía «Demo restablecida» y otros avisos tapando la
+     parte superior del contenido; el nudge solo desplazaba la ventana
+     una vez al aparecer y no cubría el aviso de restablecer, exento del
+     nudge). Dentro de una vista ya empuja con reserveOvSpace; esto es su
+     equivalente en pantalla. Al ocultarse, el padding se limpia y la
+     pantalla vuelve sola. */
+  function reserveScreenSpace() {
+    var t = document.getElementById('toast');
+    var sc = document.querySelector('.screen.active');
+    if (!sc) return;
+    /* +20 px, no +8: el padding inline SUSTITUYE el padding-top de 12 px
+       del CSS (.screen { padding: 12px 16px 8px }), así que el
+       desplazamiento neto es paddingTop − 12; para empujar el contenido
+       (altura del aviso + 8 px de aire) hacen falta altura + 20. Con +8
+       el contenido quedaba 12 px corto y la primera tarjeta seguía 6–10
+       px bajo el aviso (fallo del banco v16 en Orquesta y tras
+       restablecer). */
+    if (t && t.classList.contains('show')) sc.style.paddingTop = (t.offsetHeight + 20) + 'px';
+    else sc.style.paddingTop = '';
+  }
   function toast(msg, opts) {
     toastMsg = msg;
     toastKind = (opts && opts.kind) || '';
@@ -692,7 +714,7 @@
     if (!show) return;
     fillToast(show, msg, toastKind);
     show.classList.add('show');
-    if (show.id === 'ovToast') reserveOvSpace(); else { clearOvSpace(); nudgeForToast(); }
+    if (show.id === 'ovToast') { reserveOvSpace(); reserveScreenSpace(); } else { clearOvSpace(); reserveScreenSpace(); nudgeForToast(); }
     clearTimeout(toastTimer);
     if (!persist) toastTimer = setTimeout(function(){ hideToast(); }, 8000);
   }
@@ -711,6 +733,7 @@
     if (t) t.classList.remove('show');
     if (o) o.classList.remove('show');
     clearOvSpace();
+    reserveScreenSpace();
     if (wasFilter) {
       clearFilter();
       toast('Filtro quitado (maqueta)');
@@ -773,6 +796,7 @@
     clearTimeout(toastTimer);
     if (remain !== Infinity) toastTimer = setTimeout(function(){ hideToast(); }, remain);
     reserveOvSpace();
+    reserveScreenSpace();
   }
   function carryToastToScreen() {
     var o = document.getElementById('ovToast');
@@ -786,6 +810,7 @@
     t.classList.add('show');
     clearTimeout(toastTimer);
     if (remain !== Infinity) toastTimer = setTimeout(function(){ hideToast(); }, remain);
+    reserveScreenSpace();
   }
 
   /* La maqueta no guarda estado de la demo en el navegador. La única
@@ -943,9 +968,10 @@
     var y = 0;
     try {
       y = document.getElementById('overlay').classList.contains('open') ? overlayReturnY : resetAnchorY;
-      /* Respaldo de paradas (v15): si el ancla es 0, la lectura pudo ser
-         en pasos con pausa corta (hueco de la regla de 3 s). Se toma la
-         última parada con pausa larga; si no hay ninguna, queda 0. */
+      /* Respaldo de paradas (v16): si el ancla es 0, la lectura pudo ser
+         en pasos con pausa corta (hueco de la regla de 3 s). Se toma el
+         origen del descenso (la primera parada de la bajada hacia el
+         pie); si no hay ninguna, queda 0. */
       if (!document.getElementById('overlay').classList.contains('open') && y === 0) y = fallbackResetY();
     } catch (e) {}
     try { localStorage.clear(); } catch (e) {}
@@ -993,6 +1019,8 @@
       applyResetRestore();
     }
   } catch (e) {}
+  /* El chat de Máximo sobrevive a la recarga (v16). */
+  restoreChat();
   window.addEventListener('load', function () {
     if (resetRestoreY !== null) {
       applyResetRestore();
@@ -1000,15 +1028,34 @@
          mover la página. Se vuelve a fijar a los 500 ms y a los 1200 ms,
          solo si la página se movió sola de la posición aplicada y el
          aviso de restablecimiento sigue visible: si el usuario ya
-         desplazó o cerró el aviso, no se toca nada. */
+         desplazó o cerró el aviso, no se toca nada. Además se re-fija si
+         la primera tarjeta quedó bajo el aviso: al cargar, el encabezado
+         tarda ~0,5 s en asentarse (su altura baila 6 px mientras se
+         asienta la fuente) y la tarjeta deriva 6 px hacia arriba, bajo
+         el aviso (fallo del banco v16: 43 px frente a 49 px del aviso).
+         La deriva termina antes de los 1200 ms, así que el segundo
+         re-fijado la deja exacta. */
       setTimeout(function () {
-        if (resetRestoreY !== null && toastMsg === 'Demo restablecida' && document.getElementById('toast').classList.contains('show') && resetAppliedY !== null && Math.abs(window.scrollY - resetAppliedY) > 2) applyResetRestore();
+        if (resetNeedsRefix()) applyResetRestore();
       }, 500);
       setTimeout(function () {
-        if (resetRestoreY !== null && toastMsg === 'Demo restablecida' && document.getElementById('toast').classList.contains('show') && resetAppliedY !== null && Math.abs(window.scrollY - resetAppliedY) > 2) applyResetRestore();
+        if (resetNeedsRefix()) applyResetRestore();
       }, 1200);
     }
   });
+  /* ¿Hay que re-fijar el restablecimiento? (v16) La página se movió sola
+     de la posición aplicada (v15), O la primera tarjeta quedó bajo el
+     aviso por la deriva del encabezado al asentarse. Solo mientras el
+     aviso de restablecimiento siga visible. */
+  function resetNeedsRefix() {
+    if (resetRestoreY === null || toastMsg !== 'Demo restablecida') return false;
+    var t = document.getElementById('toast');
+    if (!t || !t.classList.contains('show')) return false;
+    if (resetAppliedY === null) return false;
+    if (Math.abs(window.scrollY - resetAppliedY) > 2) return true; /* se movió sola */
+    var ct = firstCardTop();
+    return ct !== null && ct >= 0 && ct < t.getBoundingClientRect().bottom;
+  }
   window.addEventListener('pageshow', function () {
     if (resetRestoreY !== null) applyResetRestore();
   });
@@ -1446,6 +1493,21 @@
     }
     return { title: title, items: ['Entender qué pides: «' + order + '».', 'Definir qué servicios toca «' + order + '» y qué queda fuera.', 'Revisar la documentación antes de tocar nada.', 'Traer el plan con sus pasos y sus riesgos.', 'Pedir tu «dale» antes de ejecutar nada.'] };
   }
+  /* El chat de Máximo sobrevive a la recarga (v16): se guarda en
+     sessionStorage en cada cambio y se restaura al cargar. El
+     restablecer lo limpia (resetDemo vacía sessionStorage) y tras
+     restablecer + recargar sigue limpio. sessionStorage, no localStorage:
+     el estado no debe sobrevivir a otra pestaña/sesión (lección de la
+     v2). */
+  function saveChat() {
+    try { var c = document.getElementById('chat'); if (c) sessionStorage.setItem('mc-chat', c.innerHTML); } catch (e) {}
+  }
+  function restoreChat() {
+    try {
+      var saved = sessionStorage.getItem('mc-chat');
+      if (saved) { var c = document.getElementById('chat'); if (c) { c.innerHTML = saved; scrollChatToBottom(); } }
+    } catch (e) {}
+  }
   function sendOrder() {
     var input = document.getElementById('chatInput');
     var text = (input.value || '').trim();
@@ -1481,6 +1543,7 @@
       + '<button class="btn no" onclick="decide(this,false)">Rechazar</button></div>';
     chat.appendChild(bot);
     scrollChatToBottom();
+    saveChat();
   }
   function escapeHtml(s) {
     return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -1509,6 +1572,7 @@
        Ojo en la v7). El re-anclaje deja los 3 chips completos y
        tocables por encima del compositor. */
     scrollChatToBottom();
+    saveChat();
   }
   function undoDecide(btn) {
     var wrap = btn.parentElement;
@@ -1521,6 +1585,7 @@
     if (dy) { var chU = document.getElementById('chat'); if (chU) chU.scrollTop += dy; }
     toast('Decisión deshecha: el plan vuelve a esperar tu toque (maqueta)');
     scrollChatToBottom();
+    saveChat();
   }
 
   /* ---------- Listados completos (overlay) ---------- */
@@ -1534,7 +1599,7 @@
     { name: 'Maqueta Libreta — pastel 3D', sub: 'Gemini 3.1 Flash Lite · hace 12 min', pill: 'run', label: 'Activa', model: 'Gemini 3.1 Flash Lite', project: 'calculadora-ernesto', desc: 'La maqueta de la libreta con el gráfico de pastel en 3D, precargada con los datos de Ernesto.', tasks: [ { label: 'Pastel 3D con perspectiva y extrusión', state: 'done' }, { label: 'Etiquetas fuera con conectora', state: 'done' }, { label: 'Pulido final y publicación', state: 'now' } ] },
     { name: 'Juego v9 — parte del trabajador', sub: 'Gemini 3.1 Flash Lite · hace 1 h', pill: 'ok', label: 'Terminada', model: 'Gemini 3.1 Flash Lite', project: 'calculadora-ernesto', desc: 'El juego de Mi Trabajo con la parte del trabajador al 20% de la ganancia y la ganancia total siempre oculta.', tasks: [ { label: 'Parte del trabajador al 20% de la ganancia', state: 'done' }, { label: 'La ganancia total nunca se muestra', state: 'done' }, { label: 'Publicación y entrega', state: 'done' } ] },
     { name: 'Consejo Fase 2 — diseño técnico', sub: 'Gemini 3.1 Flash Lite · en espera', pill: 'idle', label: 'Pausada', model: 'Gemini 3.1 Flash Lite', project: 'consejo-ia', desc: 'El diseño técnico de la Fase 2 del Consejo: consenso con Gemini Y Nemotron, planificador y verificador corregidos.', tasks: [ { label: 'Diseño técnico D1–D8', state: 'done' }, { label: 'Congelación y copia de seguridad', state: 'wait' }, { label: 'Corrección del consenso', state: 'wait' } ] },
-    { name: 'Maqueta Muse Control — panel de mando', sub: 'Gemini 3.1 Flash Lite · hace 30 min', pill: 'run', label: 'Activa', model: 'Gemini 3.1 Flash Lite', project: 'calculadora-ernesto', desc: 'Esta misma maqueta: el panel de mando de Muse para el iPhone, en versión offline.', tasks: [ { label: 'Maqueta v15 offline', state: 'done' }, { label: 'Pasada del Ojo en vivo', state: 'done' }, { label: 'Pulido de defectos bajos', state: 'now' } ] },
+    { name: 'Maqueta Muse Control — panel de mando', sub: 'Gemini 3.1 Flash Lite · hace 30 min', pill: 'run', label: 'Activa', model: 'Gemini 3.1 Flash Lite', project: 'calculadora-ernesto', desc: 'Esta misma maqueta: el panel de mando de Muse para el iPhone, en versión offline.', tasks: [ { label: 'Maqueta v16 offline', state: 'done' }, { label: 'Pasada del Ojo en vivo', state: 'done' }, { label: 'Pulido de defectos bajos', state: 'now' } ] },
     { name: 'Vigía de ofertas QvaPay — libro en vivo', sub: 'Gemini 3.1 Flash Lite · hace 48 min', pill: 'run', label: 'Activa', model: 'Gemini 3.1 Flash Lite', project: 'qvapay-saldo-trading', desc: 'El vigía que lee el libro de QvaPay en vivo y avisa cuando se aplica una oferta.', tasks: [ { label: 'Lectura del libro en vivo', state: 'done' }, { label: 'Aviso de aplicación', state: 'done' }, { label: 'Seguimiento de la oferta', state: 'now' } ] },
     { name: 'Exporte completo — paquete para otro agente', sub: 'Gemini 3.1 Flash Lite · ayer', pill: 'ok', label: 'Terminada', model: 'Gemini 3.1 Flash Lite', project: 'exporte-otro-agente', desc: 'La memoria portable y el exporte completo del trabajo, en ZIPs para otro agente.', tasks: [ { label: 'Memoria portable', state: 'done' }, { label: 'Exporte completo', state: 'done' }, { label: 'ZIPs para otro agente', state: 'done' } ] }
   ];
@@ -1675,21 +1740,50 @@
     resetSettles.push({ y: y, since: resetLastScrollAt });
     if (resetSettles.length > 12) resetSettles.shift();
   }
-  /* Última parada con pausa larga antes de ir al botón (v15). La pausa
-     de una parada es el tiempo hasta la siguiente parada (o hasta ahora
-     para la última). Solo se miran paradas posteriores a la última vez
-     que se fijó el ancla: si el usuario volvió arriba a posta y el ancla
-     es 0, el respaldo no debe resucitar una lectura vieja. */
+  /* Origen del descenso final (v16): la lectura es la primera parada de
+     la bajada hacia el pie — determinista por POSICIÓN, sin umbrales de
+     tiempo. La sonda de la v16 lo probó con datos: con llegada en salto
+     a 207 px y bajada en pasos, el ancla nunca confirma (207 < 250 px,
+     pausas de 1,5 s < 3 s de quietud) y el respaldo viejo no encontraba
+     nada (ninguna parada con pausa ≥1800 ms; la única con pausa larga
+     era el pie, excluido por su zona). La regla vieja (la parada MÁS
+     RECIENTE con pausa larga) devolvía además un paso de tránsito (578
+     px en el Ojo de la v15) en vez de la lectura. La caminata: desde la
+     posición actual se retrocede por las paradas mientras los pasos sean
+     cortos (≤250 px); un salto grande (>250 px) marca el inicio del
+     descenso (la parada anterior al salto es la lectura); si se llega al
+     pie sin paradas, no hubo lectura (desde arriba → 0). La parada de
+     carga (y=0) queda fuera por el filtro de since. La posición del clic
+     (el pie) NUNCA es una lectura: ahí se viene a restablecer, no a leer
+     — sin excluirla, desde arriba con una pausa larga en el pie el
+     restablecer devolvería el pie en vez de 0 (la parada del pie se
+     registra a los 600 ms aunque el ancla no confirme). LÍMITE CONOCIDO Y
+     HONESTO: si la llegada a la lectura fue TAMBIÉN en pasos (sin salto),
+     la primera parada de la caminata es un paso de tránsito y no la
+     lectura — llegada y bajada en pasos son indistinguibles por
+     desplazamiento y tiempo (misma historia de scroll, dos lecturas
+     distintas); en ese caso el restablecer vuelve a ese primer paso,
+     nunca arriba del todo. */
+  function resetDescentOrigin(stops, curY) {
+    var origin = null, head = curY;
+    for (var i = stops.length - 1; i >= 0; i--) {
+      var s = stops[i];
+      if (Math.abs(s - curY) <= 5) continue; /* el pie no es lectura */
+      if (s > head + 5) break; /* subir rompe el descenso: la lectura era head */
+      if (head - s > 250) { origin = s; break; } /* salto grande: la lectura es s */
+      origin = s; head = s;
+    }
+    return origin;
+  }
   function fallbackResetY() {
-    var max = document.documentElement.scrollHeight - window.innerHeight;
-    for (var i = resetSettles.length - 1; i >= 0; i--) {
+    var stops = [];
+    for (var i = 0; i < resetSettles.length; i++) {
       var st = resetSettles[i];
       if (st.since < resetAnchorSetAt) continue;
-      var nx = resetSettles[i + 1];
-      var dwell = (nx ? nx.since : Date.now()) - st.since;
-      if (dwell >= 1800 && st.y >= 100 && st.y <= max - 150) return st.y;
+      stops.push(st.y);
     }
-    return 0;
+    var o = resetDescentOrigin(stops, Math.round(window.scrollY));
+    return o === null ? 0 : o;
   }
   function armResetAnchor() {
     clearTimeout(resetAnchorTimer);
@@ -1710,7 +1804,14 @@
       resetAnchorTimer = setTimeout(commitResetAnchor, 3000 - (Date.now() - resetLastScrollAt));
       return;
     }
-    if (jumped) { setResetAnchor(y); return; }
+    /* SALTO (en esa ventana de 600 ms): es que el usuario fue a leer a
+       otra zona. PERO si el salto ATERRIZA con el botón del pie a la
+       vista, es que el usuario va a restablecer, no a leer ahí: NO se
+       confirma el pie como lectura (v16 — antes el ancla se fijaba en el
+       pie por una carrera de 600 ms y el restablecer devolvía el pie en
+       vez de la lectura; la sonda de la v16 lo reprodujo). La lectura en
+       ese caso la devuelve el respaldo. */
+    if (jumped) { if (!resetBtnInView()) setResetAnchor(y); return; }
     if (resetBtnInView()) return; /* pasos de tránsito junto al botón: no confirma */
     if (Date.now() - resetLastScrollAt >= 3000) { setResetAnchor(y); return; }
     /* Sin salto y sin 3 s quieto: esperar a los 3 s (si sigue quieto). */
@@ -1720,7 +1821,9 @@
     /* El listener siempre arma: quien decide es commitResetAnchor (un
        salto a una posición de lectura confirma aunque el botón ya se
        vea — a 1919 px el botón está visible desde 582 px, y congelar
-       en el listener dejaba el ancla en 0). */
+       en el listener dejaba el ancla en 0; la única excepción es el
+       salto que ATERRIZA en la zona del pie, que no confirma: es ir a
+       restablecer, y la lectura la devuelve el respaldo — v16). */
     var now = Date.now();
     if (now - resetLastScrollAt > 300) resetBurstStartY = resetLastScrollY;
     resetLastScrollY = Math.round(window.scrollY);
@@ -1784,6 +1887,12 @@
       var body = document.getElementById('ovBody');
       body.innerHTML = prev.body;
       body.scrollTop = prev.bodyY || 0;
+      /* Si se vuelve al listado de alertas, se re-dibuja con los conteos
+         de AHORA: una alerta marcada como leída dentro de su detalle no
+         debe seguir contando como pendiente en el listado (v16). El
+         re-dibujo resetea el scroll del cuerpo, así que se vuelve a
+         fijar a la posición guardada. */
+      if (prev.title === 'Alertas y errores') { body.innerHTML = alertListHtml(); body.scrollTop = prev.bodyY || 0; }
       var ov2 = document.getElementById('overlay');
       ov2.classList.toggle('detail', !!prev.detail);
       var bd2 = document.getElementById('ovBackdrop');
@@ -1827,29 +1936,39 @@
     settledY = window.scrollY;
     resetAnchorY = window.scrollY;
   }
+  /* Constructor del listado de alertas (v16): la nota del encabezado y
+     las filas se dibujan desde alertCounts() cada vez, no una sola vez al
+     abrir. closeList() lo vuelve a dibujar al volver de un detalle: si
+     se marcó una como leída dentro del detalle, el listado que se
+     restaura ya no muestra el conteo viejo (el Ojo de la v15 lo vio 2
+     veces: «2 alertas pendientes» en el listado cuando la tarjeta de
+     Inicio ya decía 1). */
+  function alertListHtml() {
+    var cA = alertCounts();
+    var noteA = !cA.pending ? '0 alertas pendientes — leídas. La campana de arriba abre este mismo listado.' : (cA.pending + (cA.pending === 1 ? ' alerta pendiente' : ' alertas pendientes') + (cA.silenced ? ' — ' + cA.silenced + (cA.silenced === 1 ? ' silenciada' : ' silenciadas') : '') + '. La campana de arriba abre este mismo listado.');
+    var h = '<p class="ov-note">' + noteA + '</p>';
+    for (var i = 0; i < alertsData.length; i++) {
+      var ai = alertsData[i];
+      var clearedAi = ai.read || ai.silenced;
+      h += '<div class="alert ' + ai.cls + (clearedAi ? ' read' : '') + ' tappable" onclick="openAlert(' + i + ')"><div><b>' + ai.title + (clearedAi ? ' · ' + alertTag(ai) : '') + '</b><span>' + ai.sub + '</span></div></div>';
+    }
+    var allSilA = true;
+    for (var si2 = 0; si2 < alertsData.length; si2++) if (!alertsData[si2].silenced) allSilA = false;
+    var disA = cA.pending === 0 ? ' disabled' : '';
+    h += '<div class="plan-actions">'
+      + '<button class="btn ghost" onclick="alertAction(\'silenciar\')"' + disA + '>' + (allSilA ? 'Quitar silencio' : 'Silenciar todas') + '</button>'
+      + '<button class="btn ghost" onclick="alertAction(\'leidas\')"' + disA + '>Marcar todas leídas</button>'
+      + '</div>'
+      + '<div class="plan-actions">'
+      + '<button class="btn ghost" onclick="alertAction(\'tunel\')">Revisar el túnel</button>'
+      + '<button class="btn ghost" onclick="alertAction(\'fallar\')">Ver qué puede fallar</button>'
+      + '</div>'
+      + '<div style="margin-top:16px; text-align:center;"><button class="btn ghost" style="flex:none; padding:9px 18px;" onclick="resetDemo()">Restablecer demo</button></div>';
+    return h;
+  }
   function openList(kind, opts) {
     if (kind === 'alertas') {
-      var cA = alertCounts();
-      var noteA = !cA.pending ? '0 alertas pendientes — leídas. La campana de arriba abre este mismo listado.' : (cA.pending + (cA.pending === 1 ? ' alerta pendiente' : ' alertas pendientes') + (cA.silenced ? ' — ' + cA.silenced + (cA.silenced === 1 ? ' silenciada' : ' silenciadas') : '') + '. La campana de arriba abre este mismo listado.');
-      var h = '<p class="ov-note">' + noteA + '</p>';
-      for (var i = 0; i < alertsData.length; i++) {
-        var ai = alertsData[i];
-        var clearedAi = ai.read || ai.silenced;
-        h += '<div class="alert ' + ai.cls + (clearedAi ? ' read' : '') + ' tappable" onclick="openAlert(' + i + ')"><div><b>' + ai.title + (clearedAi ? ' · ' + alertTag(ai) : '') + '</b><span>' + ai.sub + '</span></div></div>';
-      }
-      var allSilA = true;
-      for (var si2 = 0; si2 < alertsData.length; si2++) if (!alertsData[si2].silenced) allSilA = false;
-      var disA = cA.pending === 0 ? ' disabled' : '';
-      h += '<div class="plan-actions">'
-        + '<button class="btn ghost" onclick="alertAction(\'silenciar\')"' + disA + '>' + (allSilA ? 'Quitar silencio' : 'Silenciar todas') + '</button>'
-        + '<button class="btn ghost" onclick="alertAction(\'leidas\')"' + disA + '>Marcar todas leídas</button>'
-        + '</div>'
-        + '<div class="plan-actions">'
-        + '<button class="btn ghost" onclick="alertAction(\'tunel\')">Revisar el túnel</button>'
-        + '<button class="btn ghost" onclick="alertAction(\'fallar\')">Ver qué puede fallar</button>'
-        + '</div>'
-        + '<div style="margin-top:16px; text-align:center;"><button class="btn ghost" style="flex:none; padding:9px 18px;" onclick="resetDemo()">Restablecer demo</button></div>';
-      openOverlay('Alertas y errores', h, { replace: !!(opts && opts.replace), detail: true });
+      openOverlay('Alertas y errores', alertListHtml(), { replace: !!(opts && opts.replace), detail: true });
     } else if (kind === 'actividad') {
       var total = activities.length, shown = 0, h2 = '';
       for (var j = 0; j < activities.length; j++) {
