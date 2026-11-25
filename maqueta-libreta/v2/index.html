@@ -1,0 +1,913 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Libreta — El Juego</title>
+<style>
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;overflow-x:hidden}
+body{background:#04120c;color:#f2f7f3;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;padding:8px 14px calc(118px + env(safe-area-inset-bottom));line-height:1.45}
+h1{font-size:26px;margin:6px 0 2px;color:#f6e7c1}
+h2{font-size:21px;margin:14px 0 6px;color:#f6e7c1}
+h3{font-size:17px;margin:10px 0 4px;color:#e8c268}
+p{margin:6px 0}
+.sub{color:#b9d8c6;font-size:15px}
+.num{font-variant-numeric:tabular-nums}
+.tarjeta{background:linear-gradient(160deg,#0d2a1d,#081f15);border:1px solid #1e4d36;border-radius:20px;padding:16px;margin:12px 0;box-shadow:0 10px 24px rgba(0,0,0,.55),0 2px 0 rgba(255,255,255,.04) inset}
+.tarjeta.dorada{border-color:#8a6d2f;background:linear-gradient(160deg,#2a2210,#141a0e)}
+.tarjeta.saldo{border-color:#2f7d52}
+.tarjeta.transf{border-color:#3f6ea8}
+.hero-capital{font-size:52px;font-weight:800;color:#e8c268;line-height:1;margin:4px 0}
+.hero-capital small{font-size:20px;color:#f6e7c1}
+.etq-estado{display:inline-block;padding:4px 12px;border-radius:999px;font-weight:700;font-size:13px;letter-spacing:.4px}
+.est-cerrado{background:#3a3f45;color:#dfe5e1}
+.est-trabajando{background:#1d7a4c;color:#eafff3}
+.est-briku{background:#8a6d2f;color:#fff3d0}
+.est-espera{background:#274b63;color:#d6ecff}
+.trio{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin:10px 0}
+.trio .celda{background:#0a2117;border:1px solid #1e4d36;border-radius:14px;padding:10px 6px;text-align:center}
+.trio .celda b{display:block;font-size:19px;color:#e8c268}
+.trio .celda span{font-size:12px;color:#b9d8c6}
+.btn{display:block;width:100%;padding:16px;border-radius:16px;border:0;font-size:18px;font-weight:800;cursor:pointer;box-shadow:0 6px 0 rgba(0,0,0,.45),0 10px 22px rgba(0,0,0,.4);transition:transform .12s,filter .12s,box-shadow .12s}
+.btn:active{transform:translateY(2px);box-shadow:0 2px 0 rgba(0,0,0,.45);filter:brightness(.93)}
+.btn.dorado{background:linear-gradient(180deg,#f0cd72,#c99a2e);color:#241a05}
+.btn.verde{background:linear-gradient(180deg,#2f9e66,#1d7a4c);color:#fff}
+.btn.fantasma{background:#0d2a1d;color:#e8f5ec;border:2px solid #2f7d52;box-shadow:0 4px 0 rgba(0,0,0,.4)}
+.btn.chico{padding:11px;font-size:15px}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}
+.chip{padding:11px 16px;border-radius:999px;border:2px solid #2f7d52;background:#0a2117;color:#e8f5ec;font-size:16px;font-weight:700;cursor:pointer}
+.chip.sel{background:#e8c268;color:#241a05;border-color:#e8c268}
+.chip.merc-saldo.sel{background:#2f9e66;color:#fff;border-color:#2f9e66}
+.chip.merc-transf.sel{background:#3f6ea8;color:#fff;border-color:#3f6ea8}
+input,textarea,select{width:100%;padding:13px;border-radius:12px;border:2px solid #2f7d52;background:#04160e;color:#fff;font-size:18px;margin:6px 0}
+label{font-size:14px;color:#b9d8c6;font-weight:700}
+.fila{display:flex;gap:10px;align-items:center}
+.fila>*{flex:1}
+.vista{display:none}
+.vista.activa{display:block}
+.paso{display:none}
+.paso.activo{display:block}
+.paso-intro .kicker{color:#e8c268;font-weight:800;font-size:14px;letter-spacing:.5px}
+.paso-intro .sub{font-size:16px}
+.barra-pasos{position:static;background:#0a2117;border:1px solid #1e4d36;border-radius:18px;padding:14px;margin:14px 0;box-shadow:0 8px 20px rgba(0,0,0,.5)}
+.barra-progreso-fondo{height:12px;background:#04160e;border-radius:999px;overflow:hidden;margin:8px 0}
+#barra-progreso{height:100%;width:16.7%;background:linear-gradient(90deg,#2f9e66,#e8c268);border-radius:999px;transition:width .5s}
+#puntos{display:flex;gap:6px;justify-content:space-between;margin:10px 0}
+#puntos button{flex:1;padding:10px 0;border-radius:12px;border:2px solid #2f7d52;background:#04160e;color:#b9d8c6;font-weight:800;font-size:16px;cursor:pointer}
+#puntos button.sel{background:#e8c268;color:#241a05;border-color:#e8c268}
+.pastel{width:100%;max-width:340px;margin:8px auto;display:block}
+.rebanada{cursor:pointer;transition:transform .7s}
+.rebanada text{fill:#fff;paint-order:stroke;stroke:rgba(0,0,0,.75);stroke-width:3px;font-weight:800}
+.etq{font-size:13px;font-weight:700}
+.leyenda-fila{display:flex;gap:10px;align-items:center;padding:12px;border-radius:12px;cursor:pointer;border:2px solid transparent;margin:6px 0;background:#0a2117}
+.leyenda-fila.sel{border-color:#e8c268}
+.leyenda-fila .punto{width:16px;height:16px;border-radius:5px;flex:none}
+.leyenda-fila b{flex:1}
+.detalle{background:#04160e;border:1px solid #2f7d52;border-radius:14px;padding:12px;margin:10px 0;font-size:16px}
+.detalle b{color:#e8c268}
+.pendiente{background:#1a1408;border:1px solid #8a6d2f;border-radius:16px;padding:14px;margin:12px 0}
+.pendiente li{margin:8px 0}
+.barra-h{height:22px;border-radius:999px;overflow:hidden;display:flex;background:#04160e;border:1px solid #2f7d52}
+.barra-h div{height:100%}
+.casilla{padding:13px;border-radius:14px;border:2px solid #2f7d52;background:#0a2117;cursor:pointer;text-align:center;font-weight:800}
+.casilla.sel{border-color:#e8c268;background:#1a2f1e}
+.casilla.oculta{display:none}
+.det-ciclo{display:none}
+.det-ciclo.ver{display:block}
+.modal,.panel{position:fixed;inset:0;background:rgba(0,0,0,.72);display:none;align-items:flex-end;justify-content:center;z-index:50}
+.modal.abierto,.panel.abierto{display:flex}
+.modal-caja,.panel-caja{background:#0d2a1d;border:1px solid #8a6d2f;border-radius:22px 22px 0 0;padding:20px 16px calc(20px + env(safe-area-inset-bottom));width:100%;max-width:480px;max-height:88vh;overflow-y:auto}
+#toast{position:fixed;left:50%;transform:translateX(-50%) translateY(80px);bottom:130px;background:#e8c268;color:#241a05;font-weight:800;padding:13px 20px;border-radius:999px;opacity:0;transition:all .4s;z-index:60;pointer-events:none;max-width:92vw;text-align:center}
+#toast.ver{opacity:1;transform:translateX(-50%) translateY(0)}
+.barra-fija{position:fixed;left:0;right:0;bottom:0;background:rgba(4,18,12,.97);border-top:1px solid #1e4d36;padding:10px 14px calc(10px + env(safe-area-inset-bottom));display:flex;gap:10px;z-index:40}
+.barra-fija .btn{margin:0}
+.apunte{background:#0a2117;border:1px solid #1e4d36;border-radius:14px;padding:12px;margin:8px 0}
+.apunte .meta{font-size:13px;color:#b9d8c6}
+.mercado-saldo{color:#7fe3b0;font-weight:800}
+.mercado-transf{color:#8fc3f0;font-weight:800}
+.ejemplo{background:#04160e;border:1px dashed #2f7d52;border-radius:12px;padding:10px;font-size:15px;margin:8px 0}
+.aviso-plan{background:#2a2210;border:1px solid #8a6d2f;color:#ffe9a8;border-radius:12px;padding:12px;font-weight:700;text-align:center;margin:10px 0}
+.fallback{font-size:15px}
+.fallback b{color:#e8c268}
+.escena{position:relative;width:100%;height:300px;border-radius:18px;overflow:hidden;background:radial-gradient(circle at 50% 30%,#123524,#04160e)}
+.escena canvas{width:100%!important;height:100%!important;display:block}
+.escena .etq{position:absolute;transform:translate(-50%,-50%);pointer-events:none;text-align:center;color:#fff;font-weight:800;text-shadow:0 2px 0 rgba(0,0,0,.7),0 0 10px rgba(0,0,0,.85);line-height:1.15}
+.escena .etq .pct{font-size:19px;display:block}
+.escena .etq .cant{font-size:13px;display:block}
+.escena .fallback{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:center;padding:16px}
+.escena.con-3d .fallback{display:none}
+.pill{display:inline-block;background:#e8c268;color:#241a05;font-weight:800;border-radius:999px;padding:3px 10px;font-size:13px}
+.tabla{width:100%;border-collapse:collapse;font-size:15px}
+.tabla td,.tabla th{padding:8px 6px;border-bottom:1px solid #1e4d36;text-align:left}
+.tabla td:last-child,.tabla th:last-child{text-align:right}
+.muted{color:#b9d8c6;font-size:14px}
+@media (min-width:520px){body{max-width:480px;margin:0 auto}}
+</style>
+<script type="importmap">
+{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}
+</script>
+</head>
+<body>
+
+<!-- ============ MESA PRINCIPAL ============ -->
+<main id="mesa" class="vista activa">
+<h1>Libreta — El Juego</h1>
+<p class="sub">Tu libreta, en juego. Todo lo importante de un vistazo.</p>
+
+<section class="tarjeta dorada">
+<p class="muted" style="margin:0">Capital actual</p>
+<div class="hero-capital"><span id="hero-capital">41,250</span> <small>CUP</small></div>
+<p>42,000 − 500 (Briku) − 250 (yo) = <b class="num">41,250 CUP</b></p>
+<div class="trio">
+<div class="celda"><b class="num" id="trio-capital">41,250</b><span>Capital actual</span></div>
+<div class="celda"><b class="num" id="trio-total">42,613</b><span>Total en juego</span></div>
+<div class="celda"><b class="num" id="trio-diferencia">1,363</b><span>Diferencia</span></div>
+</div>
+<p class="muted">Capital actual 41,250 CUP · Total en juego 42,613 CUP · Diferencia 1,363 CUP. La diferencia es 1,363 CUP; su procedencia es desconocida. <b>No es ganancia.</b></p>
+</section>
+
+<section class="tarjeta">
+<h2 style="margin-top:0">Visión general</h2>
+<div class="escena" id="escena-vision-mesa" aria-label="Pastel 3D: total en juego 42,613 CUP">
+<div class="fallback" id="sinwebgl-vision-mesa">
+<b>Total en juego: 42,613 CUP</b>
+<p>· Caja 22,080 CUP (51.8%)</p>
+<p>· Briku 15,333 CUP (36.0%)</p>
+<p>· Yo 5,200 CUP (12.2%) — inversión personal</p>
+<p class="muted">15,333 + 5,200 + 22,080 = 42,613 CUP</p>
+</div>
+</div>
+<div id="leyendaGenM"></div>
+<div class="detalle" id="detalleGenM">Toca un pedazo o una fila para ver su detalle. <b>Total en juego: 42,613 CUP</b></div>
+</section>
+
+<section class="tarjeta">
+<h2 style="margin-top:0">Tus ciclos, cada uno por su lado</h2>
+<div class="apunte">
+<p style="margin:0"><b>Ciclo 23</b> <span class="etq-estado est-trabajando" id="est-23-mesa">TRABAJANDO</span></p>
+<p>20 recargas · 20,000 CUP · 34.25 QUSD → 10,275 saldo</p>
+<p>Ganancia del ciclo 23: <b class="num">2,465 CUP</b></p>
+<p class="muted">17,000 / 20,000 — pendiente de identificar qué es 17,000</p>
+</div>
+<div class="apunte">
+<p style="margin:0"><b>Ciclo 24</b> <span class="etq-estado est-briku" id="est-24-mesa">CON BRIKU</span></p>
+<p>Briku: 15,333 CUP comprado · le quedan 4,667 CUP</p>
+<p>Yo: 2,000 saldo · 5,200 CUP · caja 22,080 CUP</p>
+</div>
+<div class="apunte">
+<p style="margin:0"><b>Ciclo 25</b> <span class="etq-estado est-espera" id="est-25-mesa">EN ESPERA</span></p>
+<p>Sin empezar. Empieza cuando tú cierres uno de los que trabajan.</p>
+</div>
+<p class="muted">Las cantidades de cada ciclo van por separado: nunca se mezclan ni se suman entre ciclos.</p>
+</section>
+
+<section class="tarjeta saldo">
+<h2 style="margin-top:0">Saldo <span class="mercado-saldo">● mercado Saldo</span></h2>
+<p>Toque hoy: <b class="num">975 CUP</b> · Salida de Miguel: <b class="num">980 CUP por 1 QUSD</b></p>
+<p>Equilibrio: <b class="num">352.8</b> · Ganancia por recarga de 360: <b class="num">176 CUP</b></p>
+<p>Saldo total: <b class="num">7,520</b> (2,000 mío + 5,520 de Briku)</p>
+</section>
+
+<section class="tarjeta transf">
+<h2 style="margin-top:0">Transferencia <span class="mercado-transf">● mercado Transferencia</span></h2>
+<p>Saldo: <b>Saldo pendiente de confirmar</b></p>
+<p>Libro equilibrio: <b class="num">1,274</b> · Margen: <b class="num">11.8%</b> · % equilibrio: <b class="num">16.3%</b></p>
+<p>Salida de Miguel: <b class="num">980 CUP por 1 QUSD</b></p>
+<p class="muted">Los 5,200 CUP son tu inversión personal, no el saldo de Transferencia. Saldo y Transferencia son dos mercados separados: nunca se mezclan cantidades, precios, operaciones, ganancias ni historiales.</p>
+</section>
+
+<aside class="pendiente" id="sec-dudas">
+<h3 style="margin-top:0">Pendiente de confirmar</h3>
+<ul>
+<li>¿Qué es el 11,250?</li>
+<li>¿Por qué 42,613 es 1,363 más que el capital 41,250?</li>
+<li>¿Qué es el 17,000 del ciclo 23?</li>
+<li>¿La Transferencia tiene saldo propio o solo precio y margen?</li>
+</ul>
+<p class="muted">Sin respuestas inventadas. Cuando se sepa, se anota aquí.</p>
+</aside>
+
+<button class="btn verde" id="btn-libreta" onclick="irALibreta()">Mi Libreta Completa</button>
+<p style="height:6px"></p>
+<button class="btn fantasma" id="btn-calendario" onclick="irACalendario()">Calendario · Día / Mes / Año</button>
+</main>
+
+<!-- ============ LIBRETA: 6 PASOS ============ -->
+<main id="libreta" class="vista">
+<div class="barra-pasos">
+<div class="fila" style="align-items:baseline"><b id="paso-ahora">Paso 1 de 6</b><span class="muted" id="paso-nombre">Capital</span></div>
+<div class="barra-progreso-fondo"><div id="barra-progreso"></div></div>
+<div id="puntos">
+<button data-paso="1" class="sel" onclick="mostrarPaso(1)">1</button>
+<button data-paso="2" onclick="mostrarPaso(2)">2</button>
+<button data-paso="3" onclick="mostrarPaso(3)">3</button>
+<button data-paso="4" onclick="mostrarPaso(4)">4</button>
+<button data-paso="5" onclick="mostrarPaso(5)">5</button>
+<button data-paso="6" onclick="mostrarPaso(6)">6</button>
+</div>
+<div class="fila">
+<button class="btn fantasma chico" id="btn-atras" onclick="pasoAtras()" style="visibility:hidden">← Atrás</button>
+<button class="btn dorado chico" id="btn-siguiente" onclick="pasoSiguiente()">Siguiente →</button>
+</div>
+<p style="text-align:center;margin:10px 0 0"><button class="btn dorado chico" onclick="abrirAnotar()">✎ ANOTAR RÁPIDO</button></p>
+<p style="text-align:center;margin:8px 0 0"><a href="#" onclick="irAMesa();return false" style="color:#e8c268">← Volver a la mesa</a></p>
+</div>
+
+<!-- PASO 1 · CAPITAL -->
+<section class="paso activo" data-paso="1">
+<div class="paso-intro"><div class="kicker">Paso 1 de 6 · Capital</div>
+<p class="sub">Esto es lo que tienes para trabajar. Todo lo demás sale de aquí.</p></div>
+<div class="tarjeta dorada">
+<p class="muted" style="margin:0">Capital actual</p>
+<div class="hero-capital"><span id="hero-capital-1">41,250</span> <small>CUP</small></div>
+<p>42,000 − 500 (Briku) − 250 (yo) = <b class="num">41,250 CUP</b></p>
+<table class="tabla">
+<tr><td>Capital al inicio</td><td class="num"><b>42,000 CUP</b></td></tr>
+<tr><td>Para Briku</td><td class="num">− 500 CUP</td></tr>
+<tr><td>Para mí</td><td class="num">− 250 CUP</td></tr>
+<tr><td><b>Capital actual</b></td><td class="num"><b>41,250 CUP</b></td></tr>
+</table>
+</div>
+<div class="tarjeta"><h3 style="margin-top:0">Lo que viene</h3>
+<p>En el paso 2 ves cómo se repartió la ganancia del ciclo 22, con los números exactos del modelo y los que tú anotaste, cada uno por su lado.</p></div>
+</section>
+
+<!-- PASO 2 · REPARTO CICLO 22 -->
+<section class="paso" data-paso="2">
+<div class="paso-intro"><div class="kicker">Paso 2 de 6 · Reparto</div>
+<p class="sub">Ganancia del ciclo 22: 2,562.74 CUP. El modelo y lo anotado son dos cosas distintas: aquí van por separado.</p></div>
+<div class="tarjeta" id="bloque-modelo">
+<h3 style="margin-top:0">Lo que dice el modelo 70/20/10</h3>
+<p class="muted">Importes exactos del 70/20/10 sobre la ganancia 2,562.74 CUP:</p>
+<table class="tabla">
+<tr><td>Reinversión · 70%</td><td class="num"><b>1,793.92 CUP</b></td></tr>
+<tr><td>Briku · 20%</td><td class="num"><b>512.55 CUP</b></td></tr>
+<tr><td>Yo · 10%</td><td class="num"><b>256.27 CUP</b></td></tr>
+<tr><td><b>Total del modelo</b></td><td class="num"><b>2,562.74 CUP</b></td></tr>
+</table>
+<p class="muted">70% de 2,562.74 = 1,793.92 · 20% = 512.55 · 10% = 256.27</p>
+</div>
+<div class="tarjeta" id="bloque-anotado">
+<h3 style="margin-top:0">Lo que Ernesto anotó</h3>
+<p class="muted">Importes redondeados que usas en tu libreta (reparto redondeado 70.7% / 19.5% / 9.8%):</p>
+<table class="tabla">
+<tr><td>Reinversión</td><td class="num"><b>1,811 CUP</b> · 70.7%</td></tr>
+<tr><td>Briku</td><td class="num"><b>500 CUP</b> · 19.5%</td></tr>
+<tr><td>Yo</td><td class="num"><b>250 CUP</b> · 9.8%</td></tr>
+<tr><td><b>Total anotado</b></td><td class="num"><b>1,811 · 500 · 250 = 2,561 CUP</b></td></tr>
+</table>
+<p>El modelo es 70/20/10 sobre la ganancia 2,562.74; al redondear a cero quedan 1,811 + 500 + 250 = 2,561 (diferencia 1.74 CUP por redondeo).</p>
+<p class="muted">El modelo exacto y lo anotado son dos cosas distintas: no se mezclan.</p>
+</div>
+<div class="tarjeta" id="sec-reparto22">
+<h3 style="margin-top:0">El pastel de lo anotado</h3>
+<svg class="pastel" id="pastel22" viewBox="0 0 340 300" role="img" aria-label="Pastel del reparto anotado del ciclo 22"></svg>
+<div id="leyenda22"></div>
+<div class="detalle" id="detalle22">Toca un pedazo para ver su detalle. <b>Ganancia del ciclo 22: 2,562.74 CUP</b></div>
+<p class="muted">Tocar Reinversión muestra el exacto del modelo: 1,793.92 CUP (70%).</p>
+</div>
+</section>
+
+<!-- PASO 3 · PROYECCIÓN -->
+<section class="paso" data-paso="3">
+<div class="paso-intro"><div class="kicker">Paso 3 de 6 · Proyección</div>
+<p class="sub">El plan para el capital: dos ciclos de 20,000 y lo que queda. Es un plan, no dinero que ya tienes.</p></div>
+<div class="tarjeta" id="sec-proy">
+<div class="aviso-plan">Esto es un plan, no es dinero que ya tienes</div>
+<p class="sub" id="sub-proy">20,000 + 20,000 + 1,250 = 41,250 CUP</p>
+<label>Primer ciclo (CUP)</label>
+<input id="in-ciclo-a" inputmode="numeric" value="20000">
+<label>Segundo ciclo (CUP)</label>
+<input id="in-ciclo-b" inputmode="numeric" value="20000">
+<p>Lo que queda: <b class="num" id="out-resto">1,250 CUP</b></p>
+<svg class="pastel" id="pastelProy" viewBox="0 0 340 300" role="img" aria-label="Pastel de la proyección"></svg>
+<div id="leyendaProy"></div>
+<div class="detalle" id="detalleProy">Toca un pedazo para ver su detalle.</div>
+<p>Nada se cierra solo: el ciclo 25 espera. Nada se cierra solo: tú cierras cada ciclo cuando tú decidas.</p>
+<p class="muted">Queda bloqueada, sin cifras inventadas, la parte que aún no tiene dato: Clásica vive en el paso 6.</p>
+</div>
+</section>
+
+<!-- PASO 4 · CICLOS + PRECIOS -->
+<section class="paso" data-paso="4">
+<div class="paso-intro"><div class="kicker">Paso 4 de 6 · Ciclo que trabaja</div>
+<p class="sub">Cada ciclo tiene su estado y sus cantidades. Nada se mezcla entre ciclos.</p></div>
+<div class="tarjeta">
+<div class="fila" style="flex-wrap:wrap">
+<button class="casilla" id="casilla-22" onclick="verCiclo(22)">22 · CERRADO</button>
+<button class="casilla sel" id="casilla-23" onclick="verCiclo(23)">23 · TRABAJANDO</button>
+<button class="casilla" id="casilla-24" onclick="verCiclo(24)">24 · CON BRIKU</button>
+<button class="casilla" id="casilla-25" onclick="verCiclo(25)">25 · EN ESPERA</button>
+<button class="casilla oculta" id="casilla-26" onclick="verCiclo(26)">26 · EN ESPERA</button>
+</div>
+
+<div class="det-ciclo" id="det-22">
+<h3>Ciclo 22 · <span class="etq-estado est-cerrado" id="est-22">CERRADO</span></h3>
+<p>Ganancia del ciclo 22: <b class="num">2,562.74 CUP</b> (su reparto está en el paso 2).</p>
+<table class="tabla">
+<tr><td>Entregado</td><td>Sin dato en la libreta</td></tr>
+<tr><td>Recuperado</td><td>Completo (ganancia repartida)</td></tr>
+<tr><td>Trabajando</td><td>— (cerrado)</td></tr>
+<tr><td>Esperando</td><td>— (cerrado)</td></tr>
+<tr><td>Disponible</td><td>— (cerrado)</td></tr>
+</table>
+<p class="muted">Cada ganancia pertenece a su ciclo: nunca se mezclan.</p>
+</div>
+
+<div class="det-ciclo ver" id="det-23">
+<h3>Ciclo 23 · <span class="etq-estado est-trabajando" id="est-23">TRABAJANDO</span></h3>
+<p>20 × 360 · <b class="num">20,000 CUP</b> · <b class="num">34.25 QUSD</b> → <b class="num">10,275 saldo</b> (34.25 × 300 = 10,275)</p>
+<p>Toque hoy: <b class="num">975 CUP</b> · Salida de Miguel: <b class="num">980 CUP por 1 QUSD</b> · 34.25 × 980 = <b class="num">33,565.00 CUP</b></p>
+<p>Ganancia del ciclo 23: <b class="num">2,465 CUP</b> (4,666 − 650 − 1,000 − 320 + 9 − 240)</p>
+<p><b>17,000 / 20,000 — pendiente de identificar qué es 17,000.</b> Si 17,000 fuera lo recuperado, sería el 85%, pero eso NO está verificado.</p>
+<table class="tabla">
+<tr><td>Entregado</td><td>20,000 CUP (20 recargas)</td></tr>
+<tr><td>Recuperado</td><td>17,000 CUP — pendiente de identificar qué es 17,000</td></tr>
+<tr><td>Trabajando</td><td>34.25 QUSD → 10,275 saldo</td></tr>
+<tr><td>Esperando</td><td>Confirmar qué es el 17,000</td></tr>
+<tr><td>Disponible</td><td>—</td></tr>
+</table>
+</div>
+
+<div class="det-ciclo" id="det-24">
+<h3>Ciclo 24 · <span class="etq-estado est-briku" id="est-24">CON BRIKU</span></h3>
+<p>Briku: <b class="num">5,520 saldo</b> = <b class="num">15.33 recargas</b> · <b class="num">15,333 CUP</b> comprado · le quedan <b class="num">4,667 CUP</b></p>
+<p>Yo: <b class="num">2,000 saldo</b> = <b class="num">5.55 recargas</b> · <b class="num">5,200 CUP</b> (mi inversión personal)</p>
+<p>Caja: <b class="num">22,080 CUP</b> (27,280 − 5,200 = 22,080) · Saldo total: <b class="num">7,520</b> (2,000 + 5,520)</p>
+<p class="muted">15,333 + 4,667 = 20,000 · 5,520 = 360 + 120 + 120 + 480 + 720 = 1,800 saldo en una entrega · Entrega: 7,200 saldo, 24/11 5:25 pm</p>
+<table class="tabla">
+<tr><td>Entregado</td><td>20,000 CUP a Briku</td></tr>
+<tr><td>Recuperado</td><td>15,333 CUP comprado</td></tr>
+<tr><td>Trabajando</td><td>5,520 saldo (15.33 recargas)</td></tr>
+<tr><td>Esperando</td><td>4,667 CUP que le quedan a Briku</td></tr>
+<tr><td>Disponible</td><td>Caja 22,080 CUP</td></tr>
+</table>
+</div>
+
+<div class="det-ciclo" id="det-25">
+<h3>Ciclo 25 · <span class="etq-estado est-espera" id="est-25">EN ESPERA</span></h3>
+<p>Sin empezar. Empieza cuando tú cierres uno de los que trabajan.</p>
+<table class="tabla">
+<tr><td>Entregado</td><td>—</td></tr>
+<tr><td>Recuperado</td><td>—</td></tr>
+<tr><td>Trabajando</td><td>—</td></tr>
+<tr><td>Esperando</td><td>Que tú lo empieces</td></tr>
+<tr><td>Disponible</td><td>—</td></tr>
+</table>
+</div>
+
+<div class="det-ciclo" id="det-26">
+<h3>Ciclo 26 · <span class="etq-estado est-espera" id="est-26">EN ESPERA</span></h3>
+<p>Sin empezar. Se creó al cerrar el ciclo 24.</p>
+</div>
+
+<button class="btn dorado" id="btn-cerrar" onclick="pedirCerrarCiclo()">Cerrar el ciclo 23</button>
+<p class="muted" style="text-align:center">Nada se cierra solo: al tocarlo te preguntamos en esta misma pantalla.</p>
+</div>
+
+<div class="tarjeta" id="sec-precios">
+<h3 style="margin-top:0">Precios de hoy (se pueden cambiar)</h3>
+<p class="muted">Cambiar un precio NO cambia las operaciones viejas: cada apunte guarda el precio de su momento.</p>
+<div class="fila"><div><label>Toque hoy (CUP)</label><input id="in-toque" inputmode="decimal" value="975"></div>
+<div><label>Salida de Miguel (CUP por 1 QUSD)</label><input id="in-salida-s" inputmode="decimal" value="980"></div></div>
+<p>34.25 QUSD × Toque = <b class="num" id="out-toque">33,393.75 CUP</b> · 34.25 × Salida = <b class="num" id="out-salida">33,565.00 CUP</b></p>
+<div class="fila"><div><label>Tasa (saldo por QUSD)</label><input id="in-tasa" inputmode="decimal" value="300"></div>
+<div><label>Costo de la recarga de 360 (CUP)</label><input id="in-costo" inputmode="decimal" value="1000"></div></div>
+<p>Equilibrio Saldo: <b class="num" id="out-equilibrio">352.8</b> · Ganancia por recarga de 360: <b class="num" id="out-gan360">176 CUP</b></p>
+<p class="muted" id="ej-saldo">Ejemplo Saldo: equilibrio 352.8</p>
+<h3>Transferencia (mercado aparte)</h3>
+<div class="fila"><div><label>Tu % sobre transferencia</label><input id="in-pct" inputmode="decimal" value="30"></div>
+<div><label>Nivel vivo de transferencia (CUP por QUSD)</label><input id="in-nivel-transf" inputmode="decimal" value="1140"></div></div>
+<p>Libro equilibrio: <b class="num" id="out-libro-eq">1,274</b> · Margen: <b class="num" id="hero-margen">11.8%</b> · % equilibrio: <b class="num" id="out-pct-eq">16.3%</b></p>
+<p class="muted">Libro equilibrio en el resumen: <b class="num" id="hero-libro-eq">1,274</b></p>
+</div>
+</section>
+
+<!-- PASO 5 · GRÁFICA DE BRIKU -->
+<section class="paso" data-paso="5">
+<div class="paso-intro"><div class="kicker">Paso 5 de 6 · Gráfica de Briku</div>
+<p class="sub">Lo que Briku ya compró y lo que le queda, de 20,000 CUP.</p></div>
+<div class="tarjeta">
+<p><b class="num">15,333 CUP</b> comprado · <b class="num">4,667 CUP</b> le quedan · 15,333 + 4,667 = 20,000</p>
+<p><b class="num">5,520 saldo</b> = <b class="num">15.33 recargas</b> · <b class="num">77%</b> comprado</p>
+<div class="barra-h"><div id="barra-briku-lleno" style="width:76.7%;background:#2f9e66"></div><div id="barra-briku-falta" style="width:23.3%;background:#8a6d2f"></div></div>
+<p class="muted">76.7% comprado · 23.3% le queda</p>
+<svg class="pastel" id="pastelBriku" viewBox="0 0 340 300" role="img" aria-label="Pastel de Briku: comprado y lo que le queda"></svg>
+<div id="leyendaBriku"></div>
+<div class="detalle" id="detalleBriku">Toca un pedazo para ver su detalle.</div>
+<div class="escena" id="escena-briku" aria-label="Pastel 3D de Briku: 15,333 comprado de 20,000">
+<div class="fallback" id="sinwebgl-briku">
+<b>Briku: 20,000 CUP en total</b>
+<p>· Comprado 15,333 CUP (76.7%)</p>
+<p>· Le quedan 4,667 CUP (23.3%)</p>
+<p class="muted">15,333 + 4,667 = 20,000</p>
+</div>
+</div>
+<p class="muted">Si no ves el pastel en 3D, las cifras de arriba son las mismas: nada se pierde sin conexión.</p>
+<div class="tarjeta"><h3 style="margin-top:0">Lo que viene</h3>
+<p>En el paso 6 ves todo junto: caja, Briku y tú, en un solo pastel.</p></div>
+</div>
+</section>
+
+<!-- PASO 6 · VISIÓN GENERAL -->
+<section class="paso" data-paso="6">
+<div class="paso-intro"><div class="kicker">Paso 6 de 6 · Visión general</div>
+<p class="sub">Todo junto, en un solo pastel. Toca un pedazo y entra a sus movimientos.</p></div>
+<div class="tarjeta">
+<div class="escena" id="escena-vision" aria-label="Pastel 3D: total en juego 42,613 CUP">
+<div class="fallback" id="sinwebgl-vision">
+<b>Total en juego: 42,613 CUP</b>
+<p>· Caja 22,080 CUP (51.8%)</p>
+<p>· Briku 15,333 CUP (36.0%)</p>
+<p>· Yo 5,200 CUP (12.2%) — inversión personal</p>
+<p class="muted">15,333 + 5,200 + 22,080 = 42,613 CUP</p>
+</div>
+</div>
+<div id="leyendaGen"></div>
+<div class="detalle" id="detalleGen">Toca un pedazo o una fila para ver su detalle. <b>Total en juego: 42,613 CUP</b></div>
+<p>Total en juego 42,613 CUP · Capital 41,250 CUP · Diferencia 1,363 CUP</p>
+<p class="muted">La diferencia es 1,363 CUP; su procedencia es desconocida. No es ganancia.</p>
+</div>
+<div class="tarjeta" id="sec-clasica">
+<h3 style="margin-top:0">Clásica · BLOQUEADA</h3>
+<p>Este mercado está bloqueado, sin cifras inventadas. Cuando tenga dato real, se anota aquí.</p>
+</div>
+<div class="tarjeta">
+<h3 style="margin-top:0">Tus apuntes</h3>
+<p class="muted">Cada apunte guarda la fecha, el mercado y el precio de ese momento. Cambiar los precios de hoy no cambia los apuntes viejos.</p>
+<div id="lista-apuntes"></div>
+<button class="btn dorado" onclick="abrirAnotar()">✎ ANOTAR RÁPIDO</button>
+</div>
+</section>
+</main>
+
+<!-- ============ CALENDARIO ============ -->
+<main id="vista-calendario" class="vista">
+<h1>Calendario</h1>
+<p class="sub">Tus apuntes por día, por mes o por año. Sin amontonar nada en la mesa.</p>
+<div class="chips" id="chips-cal">
+<button class="chip" id="cal-dia" onclick="verCalendario('dia')">Día</button>
+<button class="chip sel" id="cal-mes" onclick="verCalendario('mes')">Mes</button>
+<button class="chip" id="cal-ano" onclick="verCalendario('ano')">Año</button>
+</div>
+<div class="tarjeta"><div id="cal-resumen">Elige Día, Mes o Año para ver tus apuntes de ese tiempo.</div></div>
+<button class="btn fantasma" onclick="irAMesa()">← Volver a la mesa</button>
+</main>
+
+<!-- ============ ANOTAR RÁPIDO ============ -->
+<div class="panel" id="panel-anotar">
+<div class="panel-caja">
+<h2 style="margin-top:0">Anotar rápido</h2>
+<p class="sub">Tan sencillo como escribir en la libreta. Elige qué es, pon la cantidad y mira qué cambia antes de guardar.</p>
+<label>¿Qué estás anotando?</label>
+<div class="chips" id="chips-tipo">
+<button class="chip" data-tipo="Recarga" onclick="elegirTipo('Recarga',this)">Recarga</button>
+<button class="chip" data-tipo="Compra" onclick="elegirTipo('Compra',this)">Compra</button>
+<button class="chip" data-tipo="Venta" onclick="elegirTipo('Venta',this)">Venta</button>
+<button class="chip" data-tipo="Ganancia" onclick="elegirTipo('Ganancia',this)">Ganancia</button>
+<button class="chip" data-tipo="Otro" onclick="elegirTipo('Otro',this)">Otro</button>
+</div>
+<div class="ejemplo" id="ejemplo-tipo">Ejemplo: «Briku me trajo una recarga de 360» → <b>Recarga</b>.</div>
+<div id="campo-otro" style="display:none">
+<label>Explícalo con tus palabras</label>
+<textarea id="in-otro-texto" rows="2" placeholder="Ejemplo: le presté 500 a mi primo para una recarga"></textarea>
+</div>
+<div id="campo-nueva-cat">
+<label>¿Falta una categoría? Escríbela y se añade a la lista:</label>
+<div class="fila"><input id="in-nueva-categoria" placeholder="Ejemplo: Préstamo"><button class="btn verde chico" style="flex:0 0 auto" onclick="agregarCategoria()">Añadir</button></div>
+</div>
+<label>¿De qué mercado es?</label>
+<div class="chips" id="chips-mercado">
+<button class="chip merc-saldo" data-mercado="Saldo" onclick="elegirMercado('Saldo',this)">Saldo</button>
+<button class="chip merc-transf" data-mercado="Transferencia" onclick="elegirMercado('Transferencia',this)">Transferencia</button>
+</div>
+<label>Cantidad (CUP)</label>
+<input id="in-monto" inputmode="decimal" placeholder="Ejemplo: 1000">
+<div id="campo-saldo-trae" style="display:none">
+<label>Saldo que trae (opcional)</label>
+<input id="in-saldo-trae" inputmode="decimal" placeholder="Ejemplo: 360">
+</div>
+<label>Nota (opcional)</label>
+<input id="in-nota" placeholder="Ejemplo: Briku, recarga de la tarde">
+<div class="tarjeta dorada">
+<h3 style="margin-top:0">Antes de guardar, mira qué cambia:</h3>
+<div id="vista-previa">Elige qué es, el mercado y la cantidad para ver el cambio.</div>
+</div>
+<button class="btn dorado" id="btn-guardar-apunte" onclick="guardarApunte()">Guardar en mi libreta</button>
+<p style="height:8px"></p>
+<button class="btn fantasma" onclick="cerrarAnotar()">Ahora no</button>
+</div>
+</div>
+
+<!-- ============ CERRAR CICLO ============ -->
+<div class="modal" id="modal-cerrar">
+<div class="modal-caja">
+<h2 id="titulo-cerrar">¿Seguro que quieres cerrar el ciclo 23?</h2>
+<p id="texto-cerrar">Al cerrarlo, su estado pasa a CERRADO y no se cierra nada más solo. Tú decides.</p>
+<button class="btn dorado" id="btn-cerrar-si" onclick="confirmarCerrarCiclo()">Sí, cerrar</button>
+<p style="height:8px"></p>
+<button class="btn fantasma" onclick="cancelarCerrarCiclo()">No, volver</button>
+</div>
+</div>
+
+<div id="toast"></div>
+<div class="barra-fija">
+<button class="btn dorado" onclick="abrirAnotar()">✎ ANOTAR</button>
+<button class="btn fantasma" onclick="irAMesa()">Mesa</button>
+<button class="btn fantasma" onclick="irALibreta()">Libreta</button>
+</div>
+
+<script>
+function fmt(n){ return Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ","); }
+function fmt2(n){ return n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ","); }
+function num(v){ var n=parseFloat(String(v).replace(/,/g,"")); return isNaN(n)?0:n; }
+var TOTAL_VIVO=42613, CAPITAL=41250, CAJA=22080, SALDO_TOTAL=7520;
+var VISION=[
+ {nombre:"Caja",valor:22080,color:"#2f9e66",pct:"51.8%",detalle:"<b>Caja: 22,080 CUP (51.8%)</b> · Es el dinero en mano para trabajar."},
+ {nombre:"Briku",valor:15333,color:"#e8c268",pct:"36.0%",detalle:"<b>Briku: 15,333 CUP en recargas · 15.33 recargas (5,520 saldo ÷ 360)</b> · 36.0% del total en juego."},
+ {nombre:"Yo",valor:5200,color:"#3f6ea8",pct:"12.2%",detalle:"<b>Yo: 5,200 CUP (12.2%)</b> · 5.55 recargas (2,000 saldo ÷ 360) · Es mi inversión personal, no el saldo de Transferencia."}
+];
+var REPARTO22=[
+ {nombre:"Reinversión",valor:1811,color:"#2f9e66",pct:"70.7%",detalle:"<b>Reinversión: 1,811 CUP (70.7%)</b> · Exacto del modelo: 1,793.92 CUP (70% de 2,562.74)."},
+ {nombre:"Briku",valor:500,color:"#e8c268",pct:"19.5%",detalle:"<b>Briku: 500 CUP (19.5%)</b> · Exacto del modelo: 512.55 CUP (20% de 2,562.74)."},
+ {nombre:"Yo",valor:250,color:"#3f6ea8",pct:"9.8%",detalle:"<b>Yo: 250 CUP (9.8%)</b> · Exacto del modelo: 256.27 CUP (10% de 2,562.74)."}
+];
+var BRIKU=[
+ {nombre:"Comprado",valor:15333,color:"#2f9e66",pct:"76.7%",detalle:"<b>Comprado: 15,333 CUP (76.7%)</b> · 5,520 saldo = 15.33 recargas."},
+ {nombre:"Le quedan",valor:4667,color:"#8a6d2f",pct:"23.3%",detalle:"<b>Le quedan: 4,667 CUP (23.3%)</b> · Es lo que falta de sus 20,000 CUP."}
+];
+/* ---------- pasteles SVG (siempre visibles; el 3D los acompaña cuando hay red) ---------- */
+function arco(cx,cy,r,a0,a1){ var x0=cx+r*Math.cos(a0),y0=cy+r*Math.sin(a0),x1=cx+r*Math.cos(a1),y1=cy+r*Math.sin(a1); var grande=(a1-a0)>Math.PI?1:0; return "M"+cx+","+cy+" L"+x0.toFixed(1)+","+y0.toFixed(1)+" A"+r+","+r+" 0 "+grande+" 1 "+x1.toFixed(1)+","+y1.toFixed(1)+" Z"; }
+function dibujarPastel(svgId,datos,detalleId,leyendaId){
+ var svg=document.getElementById(svgId); if(!svg) return;
+ var total=datos.reduce(function(s,d){return s+d.valor;},0);
+ var cx=170,cy=140,r=105,ang=-Math.PI/2,html="";
+ html+='<text x="170" y="272" text-anchor="middle" style="fill:#f6e7c1;paint-order:stroke;stroke:rgba(0,0,0,.7);stroke-width:3px;font-weight:800;font-size:17px">Total: '+fmt(total)+' CUP</text>';
+ datos.forEach(function(d,i){
+   var a0=ang,a1=ang+(d.valor/total)*Math.PI*2,mid=(a0+a1)/2;
+   var tx=cx+Math.cos(mid)*r*0.60,ty=cy+Math.sin(mid)*r*0.60;
+   html+='<g class="rebanada" data-idx="'+i+'"><path d="'+arco(cx,cy,r,a0,a1)+'" fill="'+d.color+'" stroke="#04120c" stroke-width="2"/>'
+     +'<text x="'+tx.toFixed(1)+'" y="'+(ty-4).toFixed(1)+'" text-anchor="middle" font-size="16">'+d.pct+'</text>'
+     +'<text x="'+tx.toFixed(1)+'" y="'+(ty+13).toFixed(1)+'" text-anchor="middle" font-size="12">'+fmt(d.valor)+'</text></g>';
+   ang=a1;
+ });
+ svg.innerHTML=html;
+ svg.querySelectorAll(".rebanada").forEach(function(g){
+   g.addEventListener("click",function(){ seleccionarPastel(datos,Number(g.dataset.idx),detalleId); });
+ });
+ if(leyendaId){ var ley=document.getElementById(leyendaId);
+   ley.innerHTML=datos.map(function(d,i){ return '<div class="leyenda-fila" data-idx="'+i+'"><span class="punto" style="background:'+d.color+'"></span><b>'+d.nombre+'</b><span>'+d.pct+' · '+fmt(d.valor)+' CUP</span></div>'; }).join("");
+   ley.querySelectorAll(".leyenda-fila").forEach(function(f){
+     f.addEventListener("click",function(){ seleccionarPastel(datos,Number(f.dataset.idx),detalleId);
+       ley.querySelectorAll(".leyenda-fila").forEach(function(x){x.classList.remove("sel");}); f.classList.add("sel"); });
+   });
+ }
+}
+function seleccionarPastel(datos,i,detalleId){
+ var d=datos[i],el=document.getElementById(detalleId); if(!el) return;
+ el.innerHTML=d.detalle+' <button class="btn verde chico" style="margin-top:8px" onclick="verMovimientos(\''+d.nombre+'\')">Ver sus movimientos →</button>';
+}
+function verMovimientos(nombre){
+ if(nombre==="Briku"){ mostrarPaso(4); verCiclo(24); }
+ else { mostrarPaso(6); var l=document.getElementById("lista-apuntes"); if(l&&l.scrollIntoView) l.scrollIntoView(); }
+}
+/* leyenda + detalle de Visión (mesa y paso 6) */
+function construirLeyendaVision(leyendaId,detalleId,origen){
+ var ley=document.getElementById(leyendaId); if(!ley) return;
+ ley.innerHTML=VISION.map(function(d,i){ return '<div class="leyenda-fila" data-idx="'+i+'"><span class="punto" style="background:'+d.color+'"></span><b>'+d.nombre+'</b><span>'+d.pct+' · '+fmt(d.valor)+' CUP</span></div>'; }).join("");
+ ley.querySelectorAll(".leyenda-fila").forEach(function(f){
+   f.addEventListener("click",function(){
+     ley.querySelectorAll(".leyenda-fila").forEach(function(x){x.classList.remove("sel");}); f.classList.add("sel");
+     seleccionarVision(Number(f.dataset.idx),detalleId);
+     window.dispatchEvent(new CustomEvent("vision-seleccionar",{detail:{indice:Number(f.dataset.idx),origen:origen}}));
+   });
+ });
+}
+function seleccionarVision(i,detalleId){
+ var d=VISION[i],el=document.getElementById(detalleId||"detalleGen"); if(!el||!d) return;
+ el.innerHTML=d.detalle+' <button class="btn verde chico" style="margin-top:8px" onclick="verMovimientos(\''+d.nombre+'\')">Ver sus movimientos →</button>';
+}
+/* ---------- navegación ---------- */
+var NOMBRES={1:"Capital",2:"Reparto",3:"Proyección",4:"Ciclo que trabaja",5:"Gráfica de Briku",6:"Visión general"};
+var ANCHOS={1:"16.7%",2:"33.3%",3:"50%",4:"66.7%",5:"83.3%",6:"100%"};
+function pasoActivo(){ var p=document.querySelector(".paso.activo"); return p?Number(p.dataset.paso):0; }
+function mostrarPaso(n){
+ document.querySelectorAll(".paso").forEach(function(p){ p.classList.toggle("activo",Number(p.dataset.paso)===n); });
+ document.getElementById("paso-ahora").textContent="Paso "+n+" de 6";
+ document.getElementById("paso-nombre").textContent=NOMBRES[n];
+ document.getElementById("barra-progreso").style.width=ANCHOS[n];
+ document.querySelectorAll("#puntos button").forEach(function(b){ b.classList.toggle("sel",Number(b.dataset.paso)===n); });
+ document.getElementById("btn-atras").style.visibility=(n===1?"hidden":"visible");
+ document.getElementById("btn-siguiente").textContent=(n===6?"Volver a la mesa":"Siguiente →");
+}
+function pasoSiguiente(){ var n=pasoActivo(); if(n===6){ irAMesa(); } else { mostrarPaso(n+1); } }
+function pasoAtras(){ var n=pasoActivo(); if(n>1) mostrarPaso(n-1); }
+function mostrarVista(id){ document.querySelectorAll(".vista").forEach(function(v){ v.classList.toggle("activa",v.id===id); }); }
+function irAMesa(){ mostrarVista("mesa"); }
+function irALibreta(){ mostrarVista("libreta"); if(!pasoActivo()) mostrarPaso(1); }
+function irACalendario(){ mostrarVista("vista-calendario"); verCalendario("mes"); }
+/* ---------- ciclos ---------- */
+var cicloACerrar=23;
+function verCiclo(n){
+ document.querySelectorAll(".det-ciclo").forEach(function(d){ d.classList.toggle("ver",d.id==="det-"+n); });
+ document.querySelectorAll(".casilla").forEach(function(c){ c.classList.toggle("sel",c.id==="casilla-"+n); });
+ if(n===22){ mostrarPaso(2); }
+}
+function pedirCerrarCiclo(){
+ document.getElementById("titulo-cerrar").textContent="¿Seguro que quieres cerrar el ciclo "+cicloACerrar+"?";
+ document.getElementById("texto-cerrar").textContent="Al cerrarlo, su estado pasa a CERRADO y no se cierra nada más solo. Tú decides.";
+ document.getElementById("modal-cerrar").classList.add("abierto");
+}
+function cancelarCerrarCiclo(){ document.getElementById("modal-cerrar").classList.remove("abierto"); }
+function confirmarCerrarCiclo(){
+ document.getElementById("modal-cerrar").classList.remove("abierto");
+ var n=cicloACerrar;
+ var est=document.getElementById("est-"+n); if(est){ est.textContent="CERRADO"; est.className="etq-estado est-cerrado"; }
+ var cas=document.getElementById("casilla-"+n); if(cas){ cas.textContent=n+" · CERRADO"; }
+ var mesaEst=document.getElementById("est-"+n+"-mesa"); if(mesaEst){ mesaEst.textContent="CERRADO"; mesaEst.className="etq-estado est-cerrado"; }
+ if(n===23){ cicloACerrar=24; document.getElementById("btn-cerrar").textContent="Cerrar el ciclo 24"; }
+ else if(n===24){
+   cicloACerrar=25;
+   document.getElementById("btn-cerrar").textContent="Cerrar el ciclo 25";
+   var e25=document.getElementById("est-25"); if(e25){ e25.textContent="TRABAJANDO"; e25.className="etq-estado est-trabajando"; }
+   var m25=document.getElementById("est-25-mesa"); if(m25){ m25.textContent="TRABAJANDO"; m25.className="etq-estado est-trabajando"; }
+   var c26=document.getElementById("casilla-26"); if(c26) c26.classList.remove("oculta");
+ }
+ mostrarToast("Ciclo "+n+" cerrado. Nada más se cerró solo.");
+}
+/* ---------- precios ---------- */
+function leerPrecios(){
+ return {toque:num(document.getElementById("in-toque").value),salida:num(document.getElementById("in-salida-s").value),
+  tasa:num(document.getElementById("in-tasa").value),costo:num(document.getElementById("in-costo").value),
+  pct:num(document.getElementById("in-pct").value),nivel:num(document.getElementById("in-nivel-transf").value)};
+}
+function recalcularPrecios(){
+ var p=leerPrecios(); if(!p.salida||!p.tasa) return;
+ document.getElementById("out-toque").textContent=fmt2(34.25*p.toque)+" CUP";
+ document.getElementById("out-salida").textContent=fmt2(34.25*p.salida)+" CUP";
+ var eq=360*p.salida/1000;
+ document.getElementById("out-equilibrio").textContent=eq.toFixed(1);
+ document.getElementById("ej-saldo").textContent="Ejemplo Saldo: equilibrio "+eq.toFixed(1);
+ document.getElementById("out-gan360").textContent=fmt(Math.round(360/p.tasa*p.salida-p.costo))+" CUP";
+ var libro=Math.round(p.salida*(1+p.pct/100));
+ document.getElementById("out-libro-eq").textContent=fmt(libro);
+ document.getElementById("hero-libro-eq").textContent=fmt(libro);
+ var margen=(libro-p.nivel)/p.nivel*100;
+ document.getElementById("hero-margen").textContent=margen.toFixed(1)+"%";
+ document.getElementById("out-pct-eq").textContent=((p.nivel/p.salida-1)*100).toFixed(1)+"%";
+ try{ localStorage.setItem("libreta-v2-precios",JSON.stringify(p)); }catch(e){}
+ actualizarPrevia();
+}
+/* ---------- proyección ---------- */
+function recalcularProy(){
+ var a=num(document.getElementById("in-ciclo-a").value),b=num(document.getElementById("in-ciclo-b").value);
+ var resto=CAPITAL-a-b;
+ document.getElementById("out-resto").textContent=fmt(resto)+" CUP";
+ document.getElementById("sub-proy").textContent=fmt(a)+" + "+fmt(b)+" + "+fmt(resto)+" = 41,250 CUP";
+ dibujarPastel("pastelProy",[
+   {nombre:"Primer ciclo",valor:a,color:"#2f9e66",pct:(a/CAPITAL*100).toFixed(1)+"%",detalle:"<b>Primer ciclo: "+fmt(a)+" CUP ("+(a/CAPITAL*100).toFixed(1)+"%)</b>"},
+   {nombre:"Segundo ciclo",valor:b,color:"#e8c268",pct:(b/CAPITAL*100).toFixed(1)+"%",detalle:"<b>Segundo ciclo: "+fmt(b)+" CUP ("+(b/CAPITAL*100).toFixed(1)+"%)</b>"},
+   {nombre:"Lo que queda",valor:resto,color:"#3f6ea8",pct:(resto/CAPITAL*100).toFixed(1)+"%",detalle:"<b>Lo que queda: "+fmt(resto)+" CUP ("+(resto/CAPITAL*100).toFixed(1)+"%)</b>"}
+ ],"detalleProy","leyendaProy");
+}
+/* ---------- apuntes (localStorage: sobreviven al cerrar Safari) ---------- */
+var CLAVE_APUNTES="libreta-v2-apuntes";
+var apuntes=[],tipoSel="",mercadoSel="",editandoIdx=-1;
+function cargarApuntes(){ try{ apuntes=JSON.parse(localStorage.getItem(CLAVE_APUNTES)||"[]"); }catch(e){ apuntes=[]; } }
+function guardarLocal(){ try{ localStorage.setItem(CLAVE_APUNTES,JSON.stringify(apuntes)); }catch(e){} }
+function fechaCorta(iso){ try{ var d=new Date(iso); return d.toLocaleDateString("es-ES",{day:"numeric",month:"short",year:"numeric"})+" · "+d.toLocaleTimeString("es-ES",{hour:"numeric",minute:"2-digit"}); }catch(e){ return iso; } }
+function renderApuntes(){
+ var lista=document.getElementById("lista-apuntes"); if(!lista) return;
+ if(!apuntes.length){ lista.innerHTML="<p class='muted'>Aún no hay apuntes. Toca ANOTAR y escribe el primero, como en tu libreta.</p>"; return; }
+ lista.innerHTML=apuntes.map(function(a,i){
+   var cls=a.mercado==="Saldo"?"mercado-saldo":"mercado-transf";
+   return '<div class="apunte"><b>'+a.tipo+'</b> · <span class="'+cls+'">'+a.mercado+'</span> · <b class="num">'+fmt(a.monto)+' CUP</b>'
+   +(a.otro?'<p>«'+a.otro+'»</p>':"")+(a.nota?'<p>'+a.nota+'</p>':"")+(a.saldoTrae?'<p>Saldo que trae: '+fmt(a.saldoTrae)+'</p>':"")
+   +'<p class="meta">'+fechaCorta(a.fecha)+' · Precio de ese momento: Toque '+fmt(a.precioToque)+' · Salida '+fmt(a.precioSalida)+'</p>'
+   +'<div class="fila"><button class="btn verde chico" onclick="editarApunte('+i+')">Editar</button>'
+   +'<button class="btn fantasma chico" onclick="borrarApunte('+i+',this)">Borrar</button></div></div>';
+ }).join("");
+}
+function elegirTipo(t,btn){
+ tipoSel=t;
+ document.querySelectorAll("#chips-tipo .chip").forEach(function(c){ c.classList.toggle("sel",c===btn); });
+ document.getElementById("campo-otro").style.display=(t==="Otro"?"block":"none");
+ document.getElementById("campo-saldo-trae").style.display=(t==="Recarga"?"block":"none");
+ var ej={Recarga:"Ejemplo: «Briku me trajo una recarga de 360» → <b>Recarga</b>.",
+  Compra:"Ejemplo: «Compré saldo para revender» → <b>Compra</b>.",
+  Venta:"Ejemplo: «Le vendí 10 QUSD a Miguel» → <b>Venta</b>.",
+  Ganancia:"Ejemplo: «Me quedó ganancia de la vuelta» → <b>Ganancia</b>.",
+  Otro:"Ejemplo: «Le presté 500 a mi primo» → <b>Otro</b>: explícalo con tus palabras abajo."};
+ document.getElementById("ejemplo-tipo").innerHTML=ej[t]||ej.Otro;
+ actualizarPrevia();
+}
+function elegirMercado(m,btn){
+ mercadoSel=m;
+ document.querySelectorAll("#chips-mercado .chip").forEach(function(c){ c.classList.toggle("sel",c===btn); });
+ actualizarPrevia();
+}
+function agregarCategoria(){
+ var inp=document.getElementById("in-nueva-categoria"),nombre=inp.value.trim(); if(!nombre) return;
+ var b=document.createElement("button"); b.className="chip"; b.textContent=nombre; b.dataset.tipo=nombre;
+ b.addEventListener("click",function(){ elegirTipo(nombre,b); });
+ document.getElementById("chips-tipo").appendChild(b); inp.value=""; elegirTipo(nombre,b);
+ mostrarToast("Categoría «"+nombre+"» añadida a tu lista.");
+}
+function actualizarPrevia(){
+ var pv=document.getElementById("vista-previa"); if(!pv) return;
+ var monto=num(document.getElementById("in-monto").value);
+ var p=leerPrecios();
+ if(!tipoSel||!mercadoSel||!monto){ pv.innerHTML="Elige qué es, el mercado y la cantidad para ver el cambio."; return; }
+ var otro=document.getElementById("in-otro-texto").value.trim();
+ var html="<p><b>Qué estoy anotando:</b> "+tipoSel+" · <b>Mercado:</b> <span class='"+(mercadoSel==="Saldo"?"mercado-saldo":"mercado-transf")+"'>"+mercadoSel+"</span> · <b>Cantidad:</b> "+fmt(monto)+" CUP</p>";
+ if(tipoSel==="Otro"){
+   html+="<p><b>Con tus palabras:</b> «"+(otro||"— escribe arriba qué es —")+"»</p>";
+   html+="<p><b>Qué cambia:</b> tu caja queda en 22,080 CUP por ahora. Es un apunte con tus palabras: no cambia ningún total hasta que lo clasifiques.</p>";
+ } else {
+   var caja=(tipoSel==="Venta"||tipoSel==="Ganancia")?CAJA+monto:CAJA-monto;
+   html+="<p><b>Qué cambia:</b> tu caja pasará de 22,080 a <b class='num'>"+fmt(caja)+" CUP</b>.</p>";
+   if(tipoSel==="Recarga"){ var trae=num(document.getElementById("in-saldo-trae").value); if(trae){ html+="<p>Saldo total pasará de 7,520 a <b class='num'>"+fmt(SALDO_TOTAL+trae)+"</b>.</p>"; } }
+ }
+ html+="<p><b>Cómo queda:</b> se guardará en tu historial con la fecha de hoy y el precio de este momento (Toque "+fmt(p.toque)+" · Salida "+fmt(p.salida)+").</p>";
+ pv.innerHTML=html;
+}
+function abrirAnotar(){ document.getElementById("panel-anotar").classList.add("abierto"); actualizarPrevia(); }
+function cerrarAnotar(){ document.getElementById("panel-anotar").classList.remove("abierto"); editandoIdx=-1; }
+function guardarApunte(){
+ var monto=num(document.getElementById("in-monto").value);
+ if(!tipoSel||!mercadoSel||!monto){ mostrarToast("Falta qué es, el mercado o la cantidad."); return; }
+ var p=leerPrecios();
+ var a={tipo:tipoSel,mercado:mercadoSel,monto:monto,nota:document.getElementById("in-nota").value.trim(),
+  otro:(tipoSel==="Otro"?document.getElementById("in-otro-texto").value.trim():""),
+  saldoTrae:num(document.getElementById("in-saldo-trae").value)||0,
+  precioToque:p.toque,precioSalida:p.salida,fecha:new Date().toISOString()};
+ if(editandoIdx>=0){ var viejo=apuntes[editandoIdx]; a.fecha=viejo.fecha; a.precioToque=viejo.precioToque; a.precioSalida=viejo.precioSalida; apuntes[editandoIdx]=a; }
+ else { apuntes.push(a); }
+ guardarLocal(); renderApuntes(); verCalendario(document.querySelector("#chips-cal .chip.sel")?document.querySelector("#chips-cal .chip.sel").id.replace("cal-",""):"mes");
+ mostrarToast("Guardado en tu libreta.");
+ document.getElementById("in-monto").value=""; document.getElementById("in-nota").value="";
+ document.getElementById("in-otro-texto").value=""; document.getElementById("in-saldo-trae").value="";
+ cerrarAnotar();
+}
+function editarApunte(i){
+ var a=apuntes[i]; if(!a) return; editandoIdx=i;
+ var btnT=document.querySelector('#chips-tipo .chip[data-tipo="'+a.tipo+'"]');
+ if(btnT){ elegirTipo(a.tipo,btnT); } else { tipoSel=a.tipo; }
+ var btnM=document.querySelector('#chips-mercado .chip[data-mercado="'+a.mercado+'"]');
+ if(btnM) elegirMercado(a.mercado,btnM);
+ document.getElementById("in-monto").value=a.monto;
+ document.getElementById("in-nota").value=a.nota||"";
+ document.getElementById("in-otro-texto").value=a.otro||"";
+ document.getElementById("in-saldo-trae").value=a.saldoTrae||"";
+ abrirAnotar();
+}
+function borrarApunte(i,btn){
+ if(!btn.dataset.confirm){ btn.dataset.confirm="1"; btn.textContent="¿Seguro? Toca otra vez para borrar"; return; }
+ apuntes.splice(i,1); guardarLocal(); renderApuntes(); mostrarToast("Apunte borrado.");
+}
+/* ---------- calendario ---------- */
+function verCalendario(periodo){
+ document.querySelectorAll("#chips-cal .chip").forEach(function(c){ c.classList.toggle("sel",c.id==="cal-"+periodo); });
+ var res=document.getElementById("cal-resumen"); if(!res) return;
+ var ahora=new Date();
+ var lista=apuntes.filter(function(a){ var d=new Date(a.fecha);
+   if(periodo==="dia") return d.toDateString()===ahora.toDateString();
+   if(periodo==="mes") return d.getMonth()===ahora.getMonth()&&d.getFullYear()===ahora.getFullYear();
+   return d.getFullYear()===ahora.getFullYear(); });
+ var nombre={dia:"este día",mes:"este mes",ano:"este año"}[periodo];
+ if(!lista.length){ res.innerHTML="<p>No hay apuntes en "+nombre+".</p>"; return; }
+ res.innerHTML="<p><b>"+lista.length+" apunte(s) en "+nombre+":</b></p>"+lista.map(function(a){
+   return "<p>· "+a.tipo+" · "+a.mercado+" · "+fmt(a.monto)+" CUP · "+fechaCorta(a.fecha)+"</p>"; }).join("");
+}
+/* ---------- toast ---------- */
+var toastTimer=null;
+function mostrarToast(msg){ var t=document.getElementById("toast"); t.textContent=msg; t.classList.add("ver");
+ clearTimeout(toastTimer); toastTimer=setTimeout(function(){ t.classList.remove("ver"); },2600); }
+/* ---------- inicio ---------- */
+cargarApuntes(); renderApuntes();
+try{ var pg=JSON.parse(localStorage.getItem("libreta-v2-precios")||"null");
+ if(pg){ document.getElementById("in-toque").value=pg.toque; document.getElementById("in-salida-s").value=pg.salida;
+  document.getElementById("in-tasa").value=pg.tasa; document.getElementById("in-costo").value=pg.costo;
+  document.getElementById("in-pct").value=pg.pct; document.getElementById("in-nivel-transf").value=pg.nivel; }
+}catch(e){}
+["in-toque","in-salida-s","in-tasa","in-costo","in-pct","in-nivel-transf"].forEach(function(id){
+ document.getElementById(id).addEventListener("input",recalcularPrecios);
+});
+document.getElementById("in-ciclo-a").addEventListener("change",function(){ this.value=fmt(num(this.value)); recalcularProy(); });
+document.getElementById("in-ciclo-b").addEventListener("change",function(){ this.value=fmt(num(this.value)); recalcularProy(); });
+["in-monto","in-nota","in-otro-texto","in-saldo-trae"].forEach(function(id){
+ document.getElementById(id).addEventListener("input",actualizarPrevia);
+});
+dibujarPastel("pastel22",REPARTO22,"detalle22","leyenda22");
+dibujarPastel("pastelBriku",BRIKU,"detalleBriku","leyendaBriku");
+construirLeyendaVision("leyendaGenM","detalleGenM","mesa");
+construirLeyendaVision("leyendaGen","detalleGen","paso6");
+recalcularProy(); recalcularPrecios(); mostrarPaso(1); verCalendario("mes");
+</script>
+
+<script type="module">
+/* Pasteles 3D: cada pedazo es su propio Shape + ExtrudeGeometry con bevel.
+   Si no hay WebGL o no carga el CDN, el texto de reserva queda visible: las cifras nunca se pierden. */
+let THREE=null;
+try{ THREE=await import("three"); }catch(e){ THREE=null; }
+if(THREE){
+  const {RoomEnvironment}=await import("three/addons/environments/RoomEnvironment.js");
+  const DATOS_VIVOS=[
+    {nombre:"Caja",valor:22080,color:0x2f9e66,detalle:"Caja: 22,080 CUP (51.8%)"},
+    {nombre:"Briku",valor:15333,color:0xe8c268,detalle:"Briku: 15,333 CUP (36.0%)"},
+    {nombre:"Yo",valor:5200,color:0x3f6ea8,detalle:"Yo: 5,200 CUP (12.2%)"}
+  ];
+  const TOTAL_VIVO=42613;
+  const DATOS_BRIKU=[
+    {nombre:"Comprado",valor:15333,color:0x2f9e66,detalle:"Comprado: 15,333 CUP (76.7%)"},
+    {nombre:"Le quedan",valor:4667,color:0x8a6d2f,detalle:"Le quedan: 4,667 CUP (23.3%)"}
+  ];
+  const DEPTH=0.42;
+  function crearPastel3D(escenaId,datos,total,detalleId,evento){
+    const escenaEl=document.getElementById(escenaId); if(!escenaEl) return null;
+    const renderer=new THREE.WebGLRenderer({antialias:true,alpha:true});
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2));
+    renderer.shadowMap.enabled=true;
+    escenaEl.appendChild(renderer.domElement);
+    const scene=new THREE.Scene();
+    scene.environment=new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironment(),0.04).texture;
+    const cam=new THREE.PerspectiveCamera(38,1,0.1,100); cam.position.set(0,-6.4,4.6); cam.lookAt(0,0,0);
+    const luz=new THREE.DirectionalLight(0xffffff,1.4); luz.position.set(3,4,6); luz.castShadow=true; scene.add(luz);
+    scene.add(new THREE.AmbientLight(0xffffff,0.35));
+    const inclinado=new THREE.Group(); inclinado.rotation.x=0.22; scene.add(inclinado);
+    const giro=new THREE.Group(); inclinado.add(giro);
+    const unidades=[]; let ang=-Math.PI/2;
+    datos.forEach((d,i)=>{
+      const a0=ang,a1=ang+(d.valor/total)*Math.PI*2; ang=a1;
+      const shape=new THREE.Shape();
+      shape.moveTo(0,0);
+      shape.absarc(0,0,2.1,a0,a1,false);
+      shape.lineTo(0,0);
+      const geo=new THREE.ExtrudeGeometry(shape,{depth:DEPTH,bevelEnabled:true,bevelThickness:0.06,bevelSize:0.06,bevelSegments:8,curveSegments:48});
+      const mat=new THREE.MeshPhysicalMaterial({color:d.color,roughness:0.32,metalness:0.08,clearcoat:1,clearcoatRoughness:0.25,emissive:d.color,emissiveIntensity:0});
+      const mesh=new THREE.Mesh(geo,mat); mesh.castShadow=true; mesh.receiveShadow=true;
+      mesh.userData={indice:i,nombre:d.nombre};
+      giro.add(mesh);
+      const mid=(a0+a1)/2;
+      const dentro=document.createElement("div"); dentro.className="etq";
+      dentro.innerHTML='<span class="pct">'+(d.valor/total*100).toFixed(1)+'%</span><span class="cant">'+d.valor.toLocaleString("en-US")+' CUP</span>';
+      dentro.dataset.angulo=mid; dentro.dataset.radio=1.25;
+      escenaEl.appendChild(dentro);
+      unidades.push({mesh,mat,dentro,mid,fuera:0,objetivo:false});
+    });
+    const raycaster=new THREE.Raycaster();
+    function seleccionar(i,detalle){
+      unidades.forEach((u,j)=>{ u.objetivo=(j===i); });
+      const el=document.getElementById(detalle); if(el) el.textContent=datos[i].detalle+" · Total: "+total.toLocaleString("en-US")+" CUP";
+      if(window.seleccionarVision && detalle==="detalleGen") window.seleccionarVision(i,"detalleGen");
+      if(window.seleccionarVision && detalle==="detalleGenM") window.seleccionarVision(i,"detalleGenM");
+    }
+    function alTocar(ev){
+      const r=renderer.domElement.getBoundingClientRect();
+      const x=((ev.clientX-r.left)/r.width)*2-1, y=-((ev.clientY-r.top)/r.height)*2+1;
+      raycaster.setFromCamera({x,y},cam);
+      const hit=raycaster.intersectObjects(giro.children,false)[0];
+      if(hit) seleccionar(hit.object.userData.indice,detalleId);
+    }
+    renderer.domElement.addEventListener("click",alTocar);
+    renderer.domElement.addEventListener("pointerdown",alTocar);
+    if(evento) window.addEventListener(evento,(ev)=>{ if(typeof ev.detail?.indice==="number") seleccionar(ev.detail.indice,detalleId); });
+    let ultimoAncho=0;
+    function __visionResize(){
+      const w=escenaEl.clientWidth,h=escenaEl.clientHeight; if(!w||!h) return;
+      if(w!==ultimoAncho){ ultimoAncho=w; renderer.setSize(w,h); cam.aspect=w/h; cam.updateProjectionMatrix(); }
+    }
+    const reloj=new THREE.Clock();
+    (function bucle(){
+      requestAnimationFrame(bucle);
+      if(!escenaEl.isConnected) return;
+      const t=reloj.getElapsedTime();
+      giro.rotation.z=t*0.096;
+      __visionResize();
+      unidades.forEach((u)=>{
+        u.fuera+=((u.objetivo?1:0)-u.fuera)*0.08;
+        const d=u.fuera*0.38;
+        u.mesh.position.x=Math.cos(u.mid)*d; u.mesh.position.y=Math.sin(u.mid)*d;
+        u.mat.emissiveIntensity=u.objetivo?0.35:0;
+        const v=new THREE.Vector3(Math.cos(u.mid)*u.radio,Math.sin(u.mid)*u.radio,DEPTH/2);
+        v.applyMatrix4(giro.matrixWorld); v.applyMatrix4(inclinado.matrixWorld);
+        v.project(cam);
+        u.dentro.style.left=((v.x*0.5+0.5)*escenaEl.clientWidth)+"px";
+        u.dentro.style.top=((-v.y*0.5+0.5)*escenaEl.clientHeight)+"px";
+      });
+      renderer.render(scene,cam);
+    })();
+    escenaEl.classList.add("con-3d");
+    return {seleccionar};
+  }
+  try{
+    crearPastel3D("escena-vision-mesa",DATOS_VIVOS,TOTAL_VIVO,"detalleGenM","vision-seleccionar");
+    crearPastel3D("escena-vision",DATOS_VIVOS,TOTAL_VIVO,"detalleGen","vision-seleccionar");
+    crearPastel3D("escena-briku",DATOS_BRIKU,20000,"detalleBriku","briku-seleccionar");
+    window.__tresCargado=true;
+  }catch(e){ /* sin WebGL: el texto de reserva sigue visible */ }
+}
+</script>
+</body>
+</html>
