@@ -80,7 +80,7 @@ body{font-family:var(--fuente);background:var(--bg-0);color:var(--txt-1);overflo
 .pastel-wrap{display:flex;flex-direction:column;align-items:center;gap:4px;filter:drop-shadow(0 12px 22px rgba(0,0,0,.45))}
 .pastel-wrap svg{width:280px;height:280px;overflow:visible}
 .rebanada{cursor:pointer;transition:transform .7s var(--lento),opacity .7s var(--lento);transform-origin:180px 180px}
-.rebanada.sel{filter:drop-shadow(0 6px 14px rgba(0,0,0,.45))}
+.rebanada.sel{filter:drop-shadow(0 8px 16px rgba(0,0,0,.5)) brightness(1.18)}
 .rebanada text{font-family:var(--fuente);font-weight:800;fill:#0B1210;text-anchor:middle;pointer-events:none}
 .rebanada text.etq-fuera{fill:#F2F5F9;font-weight:800}
 .rebanada text.etq-fuera-cup{fill:rgba(242,245,249,.75);font-weight:700}
@@ -96,8 +96,14 @@ body{font-family:var(--fuente);background:var(--bg-0);color:var(--txt-1);overflo
 .leyenda-fila .nom{font-weight:700}
 .leyenda-fila .val{margin-left:auto;flex-shrink:0;font-family:var(--fuente-num);font-weight:700;font-variant-numeric:tabular-nums;text-align:right}
 .centro-txt{font-family:var(--fuente-num);text-anchor:middle}
-.detalle-pastel{min-height:56px;text-align:center;font-size:14px;line-height:1.5;color:var(--txt-2)}
-.detalle-pastel b{color:var(--txt-1);font-size:16px}
+.detalle-pastel{min-height:118px;text-align:center;font-size:14px;line-height:1.5;color:var(--txt-2);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
+.detalle-pastel .det-nombre{font-size:20px;font-weight:800;color:var(--txt-1);line-height:1.25}
+.detalle-pastel .det-punto{display:inline-block;width:13px;height:13px;border-radius:50%;margin-right:8px;vertical-align:-1px}
+.detalle-pastel .det-cifra{font-family:var(--fuente-num);font-size:27px;font-weight:700;color:var(--dorado-claro);font-variant-numeric:tabular-nums;line-height:1.2}
+.detalle-pastel .det-que{font-size:13.5px;color:var(--txt-2);line-height:1.45;max-width:300px}
+.detalle-pastel .det-total{font-size:12px;color:var(--txt-3);margin-top:2px}
+.detalle-pastel.pop{animation:pop .45s var(--lento)}
+@keyframes pop{from{opacity:0;transform:translateY(6px) scale(.98)}to{opacity:1;transform:none}}
 .etiqueta-estado{display:inline-block;font-size:11px;font-weight:800;padding:4px 10px;border-radius:999px}
 .est-activo{background:var(--verde-suave);color:var(--verde)}
 .est-espera{background:var(--ambar-suave);color:var(--ambar)}
@@ -168,7 +174,7 @@ label{display:block;font-size:13px;font-weight:600;color:var(--txt-2);margin:0 0
   <div class="cuerpo">
     <div class="card">
       <h2>El pastel del ciclo 22 <span class="etiqueta-estado est-cerrado">CERRADO</span></h2>
-      <p class="sub">Tócalo: cada pedazo dice su % y su cantidad, los dos juntos.</p>
+      <p class="sub">Tócalo: el pedazo se separa, se ilumina y abajo te lo explico grande — quién es, su % y su cantidad.</p>
       <div class="pastel-wrap">
         <svg id="pastel22" viewBox="0 0 360 360" role="img" aria-label="Pastel del ciclo 22: reinversión 70.7 por ciento, 1,811 CUP; Briku 19.5 por ciento, 500 CUP; yo 9.8 por ciento, 250 CUP"></svg>
         <div class="leyenda" id="leyenda22" aria-label="Leyenda del pastel del ciclo 22"></div>
@@ -260,7 +266,7 @@ label{display:block;font-size:13px;font-weight:600;color:var(--txt-2);margin:0 0
   <div class="cuerpo">
     <div class="card">
       <h2>Reparto del dinero</h2>
-      <p class="sub" id="sub-proy">Tu proyección: 20,000 + 20,000 + 1,250. Tócala para ver cada parte.</p>
+      <p class="sub" id="sub-proy">Tu proyección: 20,000 + 20,000 + 1,250. Tócala: el pedazo se separa y abajo te lo explico grande.</p>
       <div class="pastel-wrap">
         <svg id="pastelProy" viewBox="0 0 360 360" role="img" aria-label="Pastel de proyección: ciclo 23, 20,000 CUP; ciclo 24, 20,000 CUP; resto 1,250 CUP"></svg>
         <div class="leyenda" id="leyendaProy" aria-label="Leyenda del pastel de proyección"></div>
@@ -353,13 +359,13 @@ label{display:block;font-size:13px;font-weight:600;color:var(--txt-2);margin:0 0
 var SEMILLA = {
   capital: 41250,
   ciclo22: { total: 2562.74, partes: [
-    { nombre: "Reinversión", pct: 70.7, cup: 1811, color: "#2CEB7E", modelo: 70 },
-    { nombre: "Briku", pct: 19.5, cup: 500, color: "#FFB020", modelo: 20 },
-    { nombre: "Yo", pct: 9.8, cup: 250, color: "#38B6FF", modelo: 10 } ] },
+    { nombre: "Reinversión", pct: 70.7, cup: 1811, color: "#2CEB7E", modelo: 70, que: "Lo que vuelve a trabajar: con esto compras las próximas recargas." },
+    { nombre: "Briku", pct: 19.5, cup: 500, color: "#FFB020", modelo: 20, que: "Lo que le toca a Briku por buscarte las recargas." },
+    { nombre: "Yo", pct: 9.8, cup: 250, color: "#38B6FF", modelo: 10, que: "Lo que te queda a ti, limpio, de esta vuelta." } ] },
   proy: { total: 41250, partes: [
-    { nombre: "Ciclo 23", pct: 48.5, cup: 20000, color: "#2CEB7E" },
-    { nombre: "Ciclo 24", pct: 48.5, cup: 20000, color: "#FFB020" },
-    { nombre: "Resto", pct: 3, cup: 1250, color: "#38B6FF" } ] }
+    { nombre: "Ciclo 23", pct: 48.5, cup: 20000, color: "#2CEB7E", que: "El ciclo que está trabajando ahora mismo." },
+    { nombre: "Ciclo 24", pct: 48.5, cup: 20000, color: "#FFB020", que: "El que espera: se activa solo cuando tú cierres el 23." },
+    { nombre: "Resto", pct: 3, cup: 1250, color: "#38B6FF", que: "Lo que queda sin repartir de tu capital." } ] }
 };
 var tipoElegido = "Recarga";
 var CLAVE = "libreta-maqueta-apuntes";
@@ -377,7 +383,15 @@ function irA(id){
   if(id === "h-proyeccion"){ dibujarPastel("pastelProy", SEMILLA.proy.partes, SEMILLA.proy.total, "detalleProy", true); }
 }
 
-/* ---------- Pasteles: SVG por rebanadas, % y CUP dentro de cada pedazo ---------- */
+/* ---------- Pasteles 3D: inclinados en perspectiva, con grosor, brillo y sombra ----------
+   Técnica: el pastel vive en un grupo .inclinado con transform
+   translate(180 180) scale(1 0.62) translate(-180 -180): visto desde arriba, como
+   una infografía 3D. La cara superior lleva degradado vivo por pedazo; el grosor
+   son las mismas rebanadas apiladas hacia abajo (18 capas, cada vez más oscuras);
+   el brillo es una elipse radial blanca recortada al anillo; debajo, una sombra
+   elíptica suave en el suelo. Las etiquetas y el total NO se inclinan: viven en
+   su propia capa, horizontales, con la línea naciendo en el borde inclinado.
+   El total va en una pastilla sobre el centro, nunca cortado. */
 function polar(cx, cy, r, ang){ var a = (ang - 90) * Math.PI / 180; return [cx + r * Math.cos(a), cy + r * Math.sin(a)]; }
 function rebanada(cx, cy, r, a0, a1){
   var p0 = polar(cx, cy, r, a0), p1 = polar(cx, cy, r, a1);
@@ -416,38 +430,83 @@ function construirLeyenda(leyendaId, svgId, partes, total){
     b.addEventListener("click", function(){ seleccionarPastel(svgId, Number(b.dataset.i), total); });
   });
 }
+var KY = 0.62;      /* inclinación 3D: 1 = de frente plano, 0.62 = visto desde arriba */
+var GROSOR = 18;    /* extrusión en unidades locales (~11 px en pantalla) */
+function tono(hex, f){
+  var n = parseInt(hex.slice(1), 16);
+  var r = Math.min(255, Math.round(((n >> 16) & 255) * f));
+  var g = Math.min(255, Math.round(((n >> 8) & 255) * f));
+  var b = Math.min(255, Math.round((n & 255) * f));
+  return "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
+}
 function dibujarPastel(svgId, partes, total, detalleId, animar){
-  var svg = $(svgId), cx = 180, cy = 180, R = 95, r = 46, rebanadas = "", etiquetas = "";
+  var svg = $(svgId), cx = 180, cy = 180, R = 95, r = 46, rebanadas = "", etiquetas = "", defs = "", anillo = "";
   var ang = 0; /* el pedazo más grande empieza en las 12 y sigue en sentido horario */
   var dec = svgId === "pastel22" ? 2 : 0;
   partes.forEach(function(p, i){
     var a0 = ang, a1 = ang + p.pct / 100 * 360; ang = a1;
     var medio = (a0 + a1) / 2;
+    var dir = (medio - 90) * Math.PI / 180, cd = Math.cos(dir), sd = Math.sin(dir);
     var txt = pctTxt(p.pct) + "%";
     /* E1: TODAS las etiquetas FUERA, horizontales, con línea conectora.
        Viven en su propia capa (.etq), nunca dentro del pedazo: al separarse
-       el pedazo la etiqueta no se mueve, no se tapa ni se recorta. */
-    var borde = polar(cx, cy, R + 3, medio), punta = polar(cx, cy, R + 20, medio);
-    var tx = polar(cx, cy, R + 36, medio);
+       el pedazo la etiqueta no se mueve, no se tapa ni se recorta.
+       La posición usa la elipse (KY): la línea nace justo en el borde inclinado
+       y la etiqueta queda fuera del volumen, con aire hasta al separarse. */
+    var radioEtq = sd < -0.8 ? 156 : 146; /* las de arriba, más lejos: el pedazo sube al separarse */
+    var ex = cx + (R + 3) * cd, ey = cy + (R + 3) * sd * KY;
+    var px = cx + (R + 17) * cd, py = cy + (R + 17) * sd * KY;
+    var lx = cx + radioEtq * cd, ly = cy + radioEtq * sd * KY;
     etiquetas += '<g class="etq" data-i="' + i + '">'
-      + '<line x1="' + borde[0].toFixed(1) + '" y1="' + borde[1].toFixed(1) + '" x2="' + punta[0].toFixed(1) + '" y2="' + punta[1].toFixed(1) + '" stroke="rgba(242,245,249,.65)" stroke-width="1"/>'
-      + '<circle cx="' + borde[0].toFixed(1) + '" cy="' + borde[1].toFixed(1) + '" r="2" fill="rgba(242,245,249,.65)"/>'
-      + '<text x="' + tx[0].toFixed(1) + '" y="' + (tx[1] - 2).toFixed(1) + '" font-size="13">' + txt + '</text>'
-      + '<text class="cup" x="' + tx[0].toFixed(1) + '" y="' + (tx[1] + 13).toFixed(1) + '" font-size="10">' + fmt(p.cup) + ' CUP</text></g>';
+      + '<line x1="' + ex.toFixed(1) + '" y1="' + ey.toFixed(1) + '" x2="' + px.toFixed(1) + '" y2="' + py.toFixed(1) + '" stroke="rgba(242,245,249,.65)" stroke-width="1"/>'
+      + '<circle cx="' + ex.toFixed(1) + '" cy="' + ey.toFixed(1) + '" r="2" fill="rgba(242,245,249,.65)"/>'
+      + '<text x="' + lx.toFixed(1) + '" y="' + (ly - 2).toFixed(1) + '" font-size="13">' + txt + '</text>'
+      + '<text class="cup" x="' + lx.toFixed(1) + '" y="' + (ly + 13).toFixed(1) + '" font-size="10">' + fmt(p.cup) + ' CUP</text></g>';
+    /* Degradado vivo de la cara superior: claro arriba, color, oscuro abajo. */
+    defs += '<linearGradient id="' + svgId + '-g' + i + '" x1="0" y1="0" x2="0" y2="1">'
+      + '<stop offset="0" stop-color="' + tono(p.color, 1.30) + '"/>'
+      + '<stop offset=".55" stop-color="' + p.color + '"/>'
+      + '<stop offset="1" stop-color="' + tono(p.color, 0.80) + '"/></linearGradient>';
+    /* Grosor: la misma rebanada apilada hacia abajo en tonos cada vez más oscuros. */
+    var lados = "";
+    for(var d = GROSOR; d >= 1; d--){
+      lados += '<path class="lado" d="' + donut(cx, cy + d, R, r, a0, a1) + '" fill="' + tono(p.color, 0.74 - 0.36 * d / GROSOR) + '"/>';
+    }
+    anillo += '<path d="' + donut(cx, cy, R, r, a0, a1) + '"/>';
     rebanadas += '<g class="rebanada" data-i="' + i + '" data-medio="' + medio.toFixed(1) + '">'
-      + '<path d="' + donut(cx, cy, R, r, a0, a1) + '" fill="' + p.color + '" stroke="#0E1512" stroke-width="3" stroke-linejoin="round"/></g>';
+      + lados
+      + '<path class="cara" d="' + donut(cx, cy, R, r, a0, a1) + '" fill="url(#' + svgId + '-g' + i + ')" stroke="#0E1512" stroke-width="3" stroke-linejoin="round"/></g>';
   });
-  var centro = '<circle cx="180" cy="180" r="42" fill="#0E1512"/>'
-    + '<text class="centro-txt" x="180" y="177" fill="#F5D67B" font-size="14" font-weight="700">' + fmt(total, dec) + '</text>'
-    + '<text class="centro-txt" x="180" y="193" fill="#9aa6c4" font-size="9">CUP en total</text>';
-  svg.innerHTML = '<g class="giro">' + rebanadas + '</g>' + etiquetas + centro;
+  defs += '<radialGradient id="' + svgId + '-brillo" cx=".38" cy=".30" r=".75">'
+    + '<stop offset="0" stop-color="#ffffff" stop-opacity=".34"/>'
+    + '<stop offset=".55" stop-color="#ffffff" stop-opacity=".10"/>'
+    + '<stop offset="1" stop-color="#ffffff" stop-opacity="0"/></radialGradient>';
+  defs += '<radialGradient id="' + svgId + '-sombra" cx=".5" cy=".5" r=".5">'
+    + '<stop offset="0" stop-color="#000000" stop-opacity=".55"/>'
+    + '<stop offset=".7" stop-color="#000000" stop-opacity=".22"/>'
+    + '<stop offset="1" stop-color="#000000" stop-opacity="0"/></radialGradient>';
+  defs += '<clipPath id="' + svgId + '-anillo">' + anillo + '</clipPath>';
+  var sombra = '<ellipse class="sombra-suelo" cx="180" cy="258" rx="122" ry="14" fill="url(#' + svgId + '-sombra)"/>';
+  var brillo = '<g clip-path="url(#' + svgId + '-anillo)" pointer-events="none"><ellipse cx="150" cy="132" rx="98" ry="58" fill="url(#' + svgId + '-brillo)"/></g>';
+  var inclinado = '<g class="inclinado" transform="translate(180 180) scale(1 ' + KY + ') translate(-180 -180)">'
+    + '<circle cx="180" cy="180" r="46" fill="#0B1210"/>'
+    + '<g class="giro">' + rebanadas + '</g>' + brillo + '</g>';
+  /* El total va en pastilla sobre el centro: se lee siempre, inclinado o no. */
+  var pastilla = '<g class="pastilla" pointer-events="none">'
+    + '<rect x="122" y="158" width="116" height="50" rx="14" fill="#000000" opacity=".35"/>'
+    + '<rect x="122" y="155" width="116" height="50" rx="14" fill="#0E1512" stroke="rgba(232,184,75,.45)" stroke-width="1"/>'
+    + '<text class="centro-txt" x="180" y="176" fill="#F5D67B" font-size="15" font-weight="700">' + fmt(total, dec) + '</text>'
+    + '<text class="centro-txt" x="180" y="192" fill="#9aa6c4" font-size="9">CUP en total</text></g>';
+  svg.innerHTML = '<defs>' + defs + '</defs>' + sombra + inclinado + etiquetas + pastilla;
   svg.querySelectorAll(".rebanada").forEach(function(g){
     g.addEventListener("click", function(){ seleccionarPastel(svgId, Number(g.dataset.i), total); });
   });
   construirLeyenda(svgId === "pastel22" ? "leyenda22" : "leyendaProy", svgId, partes, total);
-  if(detalleId){ $(detalleId).innerHTML = svgId === "pastel22" ? 'Ganancia total <b class="num">2,562.74 CUP</b> · toca un pedazo para verlo' : 'Total <b class="num">' + fmt(total) + ' CUP</b> · toca un pedazo para verlo'; }
-  /* El giro lento (2.4 s) es SOLO de las rebanadas (.giro): las etiquetas y el
-     centro quedan quietos y horizontales siempre, también durante el giro. */
+  if(detalleId){ $(detalleId).innerHTML = svgId === "pastel22"
+    ? '<div class="det-nombre">Ganancia total</div><div class="det-cifra num">2,562.74 CUP</div><div class="det-que">Toca un pedazo: te digo quién es, su % y su cantidad, grande y claro.</div>'
+    : '<div class="det-nombre">Total</div><div class="det-cifra num">' + fmt(total) + ' CUP</div><div class="det-que">Toca un pedazo para ver cada parte, grande y claro.</div>'; }
+  /* El giro lento (2.4 s) es SOLO de las rebanadas (.giro): las etiquetas, el
+     brillo, la sombra y la pastilla quedan quietos y horizontales siempre. */
   var giro = svg.querySelector(".giro");
   var etqs = svg.querySelectorAll(".etq");
   function mostrarEtq(){ etqs.forEach(function(e){ e.style.opacity = "1"; }); }
@@ -476,9 +535,17 @@ function seleccionarPastel(svgId, i, total){
   if(caja){ caja.querySelectorAll(".leyenda-fila").forEach(function(b){ b.classList.toggle("sel", Number(b.dataset.i) === i); }); }
   var detalleId = svgId === "pastel22" ? "detalle22" : "detalleProy";
   var dec = svgId === "pastel22" ? 2 : 0;
+  /* Detalle GRANDE y en sus palabras: quién es, % exacto, cantidad, y qué es eso. */
   var extra = "";
-  if(svgId === "pastel22" && p.modelo != null){ extra = "<br><span style='font-size:12px'>el " + p.modelo + "% exacto serían " + fmt(total * p.modelo / 100, 2) + " CUP</span>"; }
-  $(detalleId).innerHTML = "<b>" + p.nombre + ": " + pctTxt(p.pct) + "% · " + fmt(p.cup) + " CUP</b><br>de " + fmt(total, dec) + " CUP en total" + extra;
+  if(svgId === "pastel22" && p.modelo != null){ extra = "<div class=\"det-total\">el " + p.modelo + "% exacto serían " + fmt(total * p.modelo / 100, 2) + " CUP · de " + fmt(total, dec) + " CUP en total</div>"; }
+  else { extra = "<div class=\"det-total\">de " + fmt(total, dec) + " CUP en total</div>"; }
+  var det = $(detalleId);
+  det.innerHTML = '<div class="det-nombre"><span class="det-punto" style="background:' + p.color + '"></span>' + p.nombre + ' · ' + pctTxt(p.pct) + '%</div>'
+    + '<div class="det-cifra num">' + fmt(p.cup) + ' CUP</div>'
+    + (p.que ? '<div class="det-que">' + p.que + '</div>' : '')
+    + extra;
+  /* Que cada toque se sienta: el detalle salta al cambiar. */
+  det.classList.remove("pop"); void det.offsetWidth; det.classList.add("pop");
 }
 function tocarPastel(el, svgId, total, indice){
   var i = indice != null ? indice : (el ? Number(el.dataset.i) : 0);
@@ -529,12 +596,12 @@ function repartir(animar){
   var resto = SEMILLA.capital - a - b;
   $("out-resto").textContent = fmt(resto) + " CUP";
   $("out-resto").style.color = resto < 0 ? "var(--rojo)" : "";
-  $("sub-proy").textContent = "Tu proyección: " + fmt(a) + " + " + fmt(b) + " + " + fmt(resto) + ". Tócala para ver cada parte.";
+  $("sub-proy").textContent = "Tu proyección: " + fmt(a) + " + " + fmt(b) + " + " + fmt(resto) + ". Tócala: el pedazo se separa y abajo te lo explico grande.";
   if(resto < 0){ return; }
   SEMILLA.proy.partes = [
-    { nombre: "Ciclo 23", cup: a, color: "#2CEB7E" },
-    { nombre: "Ciclo 24", cup: b, color: "#FFB020" },
-    { nombre: "Resto", cup: resto, color: "#38B6FF" } ];
+    { nombre: "Ciclo 23", cup: a, color: "#2CEB7E", que: "El ciclo que está trabajando ahora mismo." },
+    { nombre: "Ciclo 24", cup: b, color: "#FFB020", que: "El que espera: se activa solo cuando tú cierres el 23." },
+    { nombre: "Resto", cup: resto, color: "#38B6FF", que: "Lo que queda sin repartir de tu capital." } ];
   SEMILLA.proy.partes.forEach(function(p){ p.pct = Math.round(p.cup / SEMILLA.capital * 1000) / 10; });
   dibujarPastel("pastelProy", SEMILLA.proy.partes, SEMILLA.proy.total, "detalleProy", animar);
 }

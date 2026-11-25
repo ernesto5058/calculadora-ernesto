@@ -23,7 +23,8 @@ t("tocar Reinversión muestra exacto 1,793.92",
 t("tocar Briku muestra 19.5% y exacto 512.55",
   (function(){ const p=d.querySelectorAll('#pastel22 .rebanada'); p[1].dispatchEvent(new w.Event('click',{bubbles:true})); return txt('detalle22').includes('512.55') && txt('detalle22').includes('19.5%'); })());
 t("pedazo seleccionado visible (sel + opacidad)", (function(){ const p=d.querySelectorAll('#pastel22 .rebanada'); return p[1].classList.contains('sel') && p[0].style.opacity==="0.55"; })());
-t("donut: centro hueco r42 sin cortar el total", html.includes('r="42"') && txt('pastel22').includes('CUP en total'));
+t("3D: centro en pastilla legible (2,562.74 + CUP en total)", txt('pastel22').includes('2,562.74') && txt('pastel22').includes('CUP en total'));
+t("3D: pastilla del total en los dos pasteles", d.querySelectorAll('.pastilla').length===2);
 t("leyenda Saldo: 3 filas tocables con % y CUP", (function(){ const f=d.querySelectorAll('#leyenda22 .leyenda-fila'); return f.length===3 && f[1].textContent.includes('Briku') && f[1].textContent.includes('19.5%') && f[1].textContent.includes('500 CUP'); })());
 t("leyenda Proyección: 3 filas", d.querySelectorAll('#leyendaProy .leyenda-fila').length===3);
 t("tocar leyenda Briku selecciona el pedazo y lo separa", (function(){ const f=d.querySelectorAll('#leyenda22 .leyenda-fila'); f[1].dispatchEvent(new w.Event('click',{bubbles:true})); const p=d.querySelectorAll('#pastel22 .rebanada'); return p[1].classList.contains('sel') && p[1].style.transform.includes('translate') && f[1].classList.contains('sel'); })());
@@ -112,5 +113,42 @@ t("profundidad: botón dorado flota y se hunde al tocar", html.includes('box-sha
 t("profundidad: barra inferior con sombra flotante", html.includes('box-shadow:var(--sombra-flotante)'));
 t("profundidad: pastel con drop-shadow", html.includes('.pastel-wrap{') && html.includes('drop-shadow(0 12px 22px'));
 t("profundidad: modal y toast con sombra", html.includes('0 -18px 48px') && html.includes('0 10px 26px'));
+// 3D DE VERDAD + DETALLE GRANDE AL TOCAR
+function etqCajas(svgId){
+  // cajas estimadas de cada etiqueta (ancho ~0.62 * tamaño * caracteres), en coords del viewBox
+  return [...d.querySelectorAll('#'+svgId+' .etq')].map(function(g){
+    var ts=[...g.querySelectorAll('text')].map(function(x){ return { x:+x.getAttribute('x'), y:+x.getAttribute('y'), s:+x.getAttribute('font-size'), w:x.textContent.length*(+x.getAttribute('font-size'))*0.62 }; });
+    var x0=Math.min.apply(null, ts.map(function(o){return o.x-o.w/2;})), x1=Math.max.apply(null, ts.map(function(o){return o.x+o.w/2;}));
+    var y0=Math.min.apply(null, ts.map(function(o){return o.y-o.s;})), y1=Math.max.apply(null, ts.map(function(o){return o.y+3;}));
+    return { x0:x0, x1:x1, y0:y0, y1:y1 };
+  });
+}
+function cajasSinSolape(cajas){
+  for(var a=0;a<cajas.length;a++) for(var b=a+1;b<cajas.length;b++){
+    if(cajas[a].x0 < cajas[b].x1-2 && cajas[b].x0 < cajas[a].x1-2 && cajas[a].y0 < cajas[b].y1-2 && cajas[b].y0 < cajas[a].y1-2) return false;
+  }
+  return true;
+}
+t("3D: pastel inclinado en perspectiva (scaleY 0.62)", (function(){ var g=d.querySelector('#pastel22 .inclinado'); return g && g.getAttribute('transform').includes('scale(1 0.62)'); })());
+t("3D: inclinación en los dos pasteles", (function(){ var g=d.querySelector('#pastelProy .inclinado'); return g && g.getAttribute('transform').includes('scale(1 0.62)'); })());
+t("3D: grosor por capas (54 lados por pastel = 18 x 3 pedazos)", d.querySelectorAll('#pastel22 .lado').length===54 && d.querySelectorAll('#pastelProy .lado').length===54);
+t("3D: degradado vivo en cada cara superior", d.querySelectorAll('#pastel22 .cara').length===3 && [...d.querySelectorAll('#pastel22 .cara')].every(function(p){ return (p.getAttribute('fill')||'').indexOf('url(#pastel22-g')===0; }));
+t("3D: brillo arriba recortado al anillo", !!d.getElementById('pastel22-brillo') && !!d.getElementById('pastel22-anillo'));
+t("3D: sombra suave debajo del pastel", d.querySelectorAll('#pastel22 .sombra-suelo').length===1 && d.querySelectorAll('#pastelProy .sombra-suelo').length===1);
+t("3D: etiquetas dentro del viewBox 360", (function(){ var c=etqCajas('pastel22').concat(etqCajas('pastelProy')); return c.every(function(b){ return b.x0>=0 && b.x1<=360 && b.y0>=0 && b.y1<=360; }); })());
+t("3D: etiquetas sin solaparse entre sí", cajasSinSolape(etqCajas('pastel22')) && cajasSinSolape(etqCajas('pastelProy')));
+t("3D: etiquetas inclinadas (la de arriba no está en el borde plano)", (function(){ var ys=[...d.querySelectorAll('#pastel22 .etq text')].map(function(x){ return +x.getAttribute('y'); }); return Math.min.apply(null,ys) > 70; })());
+t("3D: el giro lento sigue tras el redibujo", (function(){ w.irA('h-saldo'); return d.querySelectorAll('#pastel22 .rebanada').length===3 && d.querySelectorAll('#pastel22 .lado').length===54 && !!d.querySelector('#pastel22 .inclinado'); })());
+// ACCIÓN AL TOCAR: se separa, se ilumina, detalle GRANDE en sus palabras
+(function(){ const p=d.querySelectorAll('#pastel22 .rebanada'); p[0].dispatchEvent(new w.Event('click',{bubbles:true})); })();
+t("TOQUE: Reinversión se separa + se ilumina (sel + brightness)", (function(){ const p=d.querySelectorAll('#pastel22 .rebanada'); return p[0].classList.contains('sel') && html.includes('brightness(1.18)'); })());
+t("TOQUE: detalle GRANDE Reinversión (nombre + % + CUP + qué es)", txt('detalle22').includes('Reinversión') && txt('detalle22').includes('70.7%') && txt('detalle22').includes('1,811 CUP') && txt('detalle22').includes('vuelve a trabajar'));
+t("TOQUE: detalle con cifra grande y exacto 1,793.92", d.getElementById('detalle22').innerHTML.includes('det-cifra') && txt('detalle22').includes('1,793.92'));
+t("TOQUE: detalle salta al cambiar (pop)", d.getElementById('detalle22').classList.contains('pop'));
+(function(){ const p=d.querySelectorAll('#pastelProy .rebanada'); p[1].dispatchEvent(new w.Event('click',{bubbles:true})); })();
+t("TOQUE Proyección: Ciclo 24 grande y claro (48.5% · 20,000 CUP · espera)", txt('detalleProy').includes('Ciclo 24') && txt('detalleProy').includes('48.5%') && txt('detalleProy').includes('20,000 CUP') && txt('detalleProy').includes('espera'));
+t("TOQUE Proyección: Resto dice qué es (sin repartir)", (function(){ const p=d.querySelectorAll('#pastelProy .rebanada'); p[2].dispatchEvent(new w.Event('click',{bubbles:true})); return txt('detalleProy').includes('Resto') && txt('detalleProy').includes('1,250 CUP') && txt('detalleProy').includes('sin repartir'); })());
+t("TOQUE: al separar, la etiqueta NO se mueve ni se tapa", (function(){ const e=d.querySelector('#pastelProy .etq[data-i="2"]'); const p=d.querySelectorAll('#pastelProy .rebanada'); return p[2].style.transform.includes('translate') && (!e.style.transform || e.style.transform===""); })());
+t("TOQUE: detalle por defecto también grande (total 2,562.74)", (function(){ w.irA('h-saldo'); return d.getElementById('detalle22').innerHTML.includes('det-cifra') && txt('detalle22').includes('2,562.74 CUP'); })());
 console.log(`\nDOM: ${pass} PASS / ${fail} FAIL`);
 process.exit(fail?1:0);
