@@ -455,7 +455,7 @@
       <div class="act" onclick="openActivity('home', 1)"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div><div><b>Servicios rearrancados solos</b><span>Tras el reinicio de la máquina, el timer los levantó.</span></div><time>01:14</time></div>
       <div class="act" onclick="openActivity('home', 2)"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" stroke-width="2" stroke-linecap="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/></svg></div><div><b>WhatsApp Baileys cayó 2 veces</b><span>Reinicios de máquina; levantado a mano.</span></div><time>01:20</time></div>
     </div>
-    <p class="foot">Muse Control · Maqueta v16 · Los datos de esta pantalla son de ejemplo.</p>
+    <p class="foot">Muse Control · Maqueta v17 · Los datos de esta pantalla son de ejemplo.</p>
     <div style="text-align:center; margin-top:10px;"><button class="btn ghost" style="flex:none; padding:9px 18px;" onclick="resetDemo()">Restablecer demo</button></div>
   </section>
 
@@ -603,7 +603,7 @@
       <div class="act" onclick="openActivity('taller', 1)"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#f87171" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></div><div><b>Despliegue rechazado</b><span>Maqueta v7-u2net · en cuarentena.</span></div><time>ayer</time></div>
       <div class="act" onclick="openActivity('taller', 2)"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div><div><b>Pruebas del banco: 72/72</b><span>Juego v9 · sin fallos.</span></div><time>ayer</time></div>
     </div>
-    <p class="foot">Taller · Maqueta v16 · Ningún despliegue o comando destructivo se ejecuta sin tu autorización.</p>
+    <p class="foot">Taller · Maqueta v17 · Ningún despliegue o comando destructivo se ejecuta sin tu autorización.</p>
   </section>
 
   <!-- ============ BARRA INFERIOR ============ -->
@@ -861,7 +861,7 @@
       else if (!c.pending) label = 'Leídas';
       else if (!c.silenced) label = 'Revisar zrok';
       else if (!c.unread) label = c.silenced + (c.silenced > 1 ? ' silenciadas' : ' silenciada');
-      else label = c.unread + ' sin leer · ' + c.silenced + ' silenciada' + (c.silenced > 1 ? 's' : '');
+      else label = c.unread + ' sin leer · ' + c.silenced + ' sil.'; /* (v17) «sil.» abreviado: el texto completo («1 sin leer · 1 silenciada») se parte en 2 líneas en la tarjeta de media columna (139 px de contenido; medido: 36 px de alto frente a 22 px en 1 línea; ni con fuente 11 px cabe). Los conteos siguen exactos; el subtítulo se lee «2 · 1 sin leer · 1 sil.». */
       pill.innerHTML = '<span class="d"></span>' + label;
     }
     var home = document.querySelectorAll('.home-alert');
@@ -964,15 +964,14 @@
        reproducido en render real antes de corregir). Con vista abierta
        se guarda la posición a la que volvería «‹ Volver»
        (overlayReturnY); sin vista, la posición de lectura
-       (resetAnchorY). */
+       (resetPickY()). */
     var y = 0;
     try {
-      y = document.getElementById('overlay').classList.contains('open') ? overlayReturnY : resetAnchorY;
-      /* Respaldo de paradas (v16): si el ancla es 0, la lectura pudo ser
-         en pasos con pausa corta (hueco de la regla de 3 s). Se toma el
-         origen del descenso (la primera parada de la bajada hacia el
-         pie); si no hay ninguna, queda 0. */
-      if (!document.getElementById('overlay').classList.contains('open') && y === 0) y = fallbackResetY();
+      /* (v17) resetPickY(): la lectura fijada si existe; si no, el ancla
+         síncrona (última posición antes del fondo); si no, 0. Sin
+         respaldo: el ancla se registra en cada scroll, así que siempre
+         existe cuando hubo lectura. */
+      y = document.getElementById('overlay').classList.contains('open') ? overlayReturnY : resetPickY();
     } catch (e) {}
     try { localStorage.clear(); } catch (e) {}
     try { sessionStorage.clear(); } catch (e) {}
@@ -1065,12 +1064,6 @@
        pertenece a la acción que lo provocó. (Por eso «Demo
        restablecida» ya no sobrevive a la navegación.) */
     hideToast();
-    settledY = 0; resetAnchorY = 0; resetSettles.length = 0; /* la pantalla nueva empieza arriba del todo, visita nueva */
-    /* La navegación empieza una ráfaga nueva: si no, el scroll a 0 de
-       go() y el salto inmediato a la posición de lectura forman una
-       sola ráfaga (desplazamiento neto 0) y la lectura nunca se
-       confirma — el restablecer volvía a 0 aunque se leyera a 620. */
-    resetBurstStartY = 0; resetLastScrollY = 0; resetLastScrollAt = 0; resetAnchorConfirmed = false;
     var screens = document.querySelectorAll('.screen');
     for (var i = 0; i < screens.length; i++) screens[i].classList.remove('active');
     document.getElementById('scr-' + name).classList.add('active');
@@ -1080,6 +1073,10 @@
        peleaba con el autoscroll del chat (si aún animaba cuando llegaba
        la respuesta, le ganaba y la tarjeta quedaba bajo el pliegue). */
     window.scrollTo({ top: 0, behavior: 'instant' });
+    /* El estado del mecanismo de restablecer se limpia DESPUÉS del
+       scrollTo: el envoltorio síncrono registra la salida (la posición
+       que se abandona) y pisaría el ancla=0 si el reseteo fuera antes. */
+    settledY = 0; resetAnchorY = 0; resetReadY = null; resetLastY = 0; clearTimeout(resetPinTimer); /* la pantalla nueva empieza arriba del todo, visita nueva */
     /* Al re-entrar en Máximo, la última tarjeta del plan no debe quedar
        tapada por el compositor: el ajuste de scroll también corre aquí,
        no solo al recibir la respuesta. */
@@ -1475,7 +1472,7 @@
   function genericPlan(text) {
     var t = (text || '').toLowerCase();
     var order = escapeHtml((text || '').trim());
-    var short = order.length > 48 ? order.slice(0, 48) + '…' : order;
+    var short = order.length > 90 ? order.slice(0, 90) + '…' : order; /* (v17) tope 90, no 48: la orden de 50 caracteres del Ojo («Prepara un plan de copias de seguridad para la PWA») se cortaba a «para la P…»; el título envuelve en la burbuja, no lleva elipsis CSS */
     var title = 'Plan: ' + capFirst(short);
     var topics = [
       { keys: ['reinicia', 'servicio'], items: ['Parar y levantar OpenCode, el shim, zrok y SearXNG en ese orden.', 'Comprobar que cada servicio responde tras el reinicio.', 'Si alguno no levanta, decir cuál es y qué error da.', 'Dejar el estado final por escrito, servicio por servicio.', 'Pedir tu «dale» antes de reiniciar nada.'] },
@@ -1550,6 +1547,7 @@
   }
   function decide(btn, ok) {
     var wrap = btn.parentElement;
+    if (!wrap) return; /* botón desprendido (p. ej. doble toque sobre la referencia vieja tras decidir): no hay nada que confirmar */
     /* La confirmación en línea sustituye a los botones sin mover la
        vista: si el cambio de altura mueve la fila, se compensa para que
        quede exactamente donde estaba. Aprobar o rechazar no salta la
@@ -1576,6 +1574,7 @@
   }
   function undoDecide(btn) {
     var wrap = btn.parentElement;
+    if (!wrap) return; /* botón desprendido: no hay nada que deshacer */
     var before = wrap.getBoundingClientRect().top;
     wrap.innerHTML = '<button class="btn go" onclick="decide(this,true)">Aprobar</button>'
       + '<button class="btn no" onclick="decide(this,false)">Rechazar</button>';
@@ -1583,7 +1582,7 @@
     /* La compensación es sobre el scroll INTERNO del chat (v15): la fila
        vive dentro del contenedor con desplazamiento, no en la ventana. */
     if (dy) { var chU = document.getElementById('chat'); if (chU) chU.scrollTop += dy; }
-    toast('Decisión deshecha: el plan vuelve a esperar tu toque (maqueta)');
+    toast('Decisión deshecha: el plan espera (maqueta)'); /* (v17) 43 caracteres: cabe en 1 línea a 390 px; el texto de 62 se partía en 2 (fallo del Ojo en la v16, medido en render real) */
     scrollChatToBottom();
     saveChat();
   }
@@ -1599,7 +1598,7 @@
     { name: 'Maqueta Libreta — pastel 3D', sub: 'Gemini 3.1 Flash Lite · hace 12 min', pill: 'run', label: 'Activa', model: 'Gemini 3.1 Flash Lite', project: 'calculadora-ernesto', desc: 'La maqueta de la libreta con el gráfico de pastel en 3D, precargada con los datos de Ernesto.', tasks: [ { label: 'Pastel 3D con perspectiva y extrusión', state: 'done' }, { label: 'Etiquetas fuera con conectora', state: 'done' }, { label: 'Pulido final y publicación', state: 'now' } ] },
     { name: 'Juego v9 — parte del trabajador', sub: 'Gemini 3.1 Flash Lite · hace 1 h', pill: 'ok', label: 'Terminada', model: 'Gemini 3.1 Flash Lite', project: 'calculadora-ernesto', desc: 'El juego de Mi Trabajo con la parte del trabajador al 20% de la ganancia y la ganancia total siempre oculta.', tasks: [ { label: 'Parte del trabajador al 20% de la ganancia', state: 'done' }, { label: 'La ganancia total nunca se muestra', state: 'done' }, { label: 'Publicación y entrega', state: 'done' } ] },
     { name: 'Consejo Fase 2 — diseño técnico', sub: 'Gemini 3.1 Flash Lite · en espera', pill: 'idle', label: 'Pausada', model: 'Gemini 3.1 Flash Lite', project: 'consejo-ia', desc: 'El diseño técnico de la Fase 2 del Consejo: consenso con Gemini Y Nemotron, planificador y verificador corregidos.', tasks: [ { label: 'Diseño técnico D1–D8', state: 'done' }, { label: 'Congelación y copia de seguridad', state: 'wait' }, { label: 'Corrección del consenso', state: 'wait' } ] },
-    { name: 'Maqueta Muse Control — panel de mando', sub: 'Gemini 3.1 Flash Lite · hace 30 min', pill: 'run', label: 'Activa', model: 'Gemini 3.1 Flash Lite', project: 'calculadora-ernesto', desc: 'Esta misma maqueta: el panel de mando de Muse para el iPhone, en versión offline.', tasks: [ { label: 'Maqueta v16 offline', state: 'done' }, { label: 'Pasada del Ojo en vivo', state: 'done' }, { label: 'Pulido de defectos bajos', state: 'now' } ] },
+    { name: 'Maqueta Muse Control — panel de mando', sub: 'Gemini 3.1 Flash Lite · hace 30 min', pill: 'run', label: 'Activa', model: 'Gemini 3.1 Flash Lite', project: 'calculadora-ernesto', desc: 'Esta misma maqueta: el panel de mando de Muse para el iPhone, en versión offline.', tasks: [ { label: 'Maqueta v17 offline', state: 'done' }, { label: 'Pasada del Ojo en vivo', state: 'done' }, { label: 'Pulido de defectos bajos', state: 'now' } ] },
     { name: 'Vigía de ofertas QvaPay — libro en vivo', sub: 'Gemini 3.1 Flash Lite · hace 48 min', pill: 'run', label: 'Activa', model: 'Gemini 3.1 Flash Lite', project: 'qvapay-saldo-trading', desc: 'El vigía que lee el libro de QvaPay en vivo y avisa cuando se aplica una oferta.', tasks: [ { label: 'Lectura del libro en vivo', state: 'done' }, { label: 'Aviso de aplicación', state: 'done' }, { label: 'Seguimiento de la oferta', state: 'now' } ] },
     { name: 'Exporte completo — paquete para otro agente', sub: 'Gemini 3.1 Flash Lite · ayer', pill: 'ok', label: 'Terminada', model: 'Gemini 3.1 Flash Lite', project: 'exporte-otro-agente', desc: 'La memoria portable y el exporte completo del trabajo, en ZIPs para otro agente.', tasks: [ { label: 'Memoria portable', state: 'done' }, { label: 'Exporte completo', state: 'done' }, { label: 'ZIPs para otro agente', state: 'done' } ] }
   ];
@@ -1652,8 +1651,8 @@
      deliberado corto (≤300 px) seguido de una espera larga antes de
      tocar restaura la posición anterior al desplazamiento (sigue
      siendo una posición donde se estaba leyendo, nunca arriba).
-     Mientras la vista está abierta la ventana está en 0 y no se
-     registra nada. */
+     Mientras la vista está abierta la ventana se queda donde estaba
+     y no se registra nada (v17: ya no se desplaza a 0 al abrir). */
   var settledY = 0;
   var settledTimer = null;
   /* Ráfaga de desplazamiento: dónde se estaba leyendo antes de que
@@ -1675,162 +1674,109 @@
     clearTimeout(settledTimer);
     settledTimer = setTimeout(function () { settledY = window.scrollY; }, 800);
   }, { passive: true });
-  /* Posición de LECTURA para restablecer (resetAnchorY): dónde estaba
-     el usuario LEYENDO antes de desplazarse hasta el botón
-     «Restablecer demo». Se confirma al asentarse 600 ms si el
-     movimiento fue un SALTO (>250 px) o tras 3 s quieto (lectura
-     larga); los pasos cortos (~200 px) con pausas de ~2 s son tránsito
-     y no mueven el ancla. Un salto que sale de una lectura confirmada
-     hacia abajo con el botón a la vista es ir a restablecer, no leer:
-     no confirma (salvo 3 s quieto). El botón visible NO congela por
-     sí solo: a 1919 px está visible desde 582 px. Con el umbral viejo
-     de 3 s, una lectura breve (~1 s, como hace el Ojo) no movía el
-     ancla de 0 y restablecer volvía arriba en vez de a la posición de
-     lectura (fallo del Ojo en la v12, reproducido en render real antes
-     de corregir). La posición del clic — que en la v11 era la de
-     abajo — nunca se guarda. Al entrar en una pantalla el ancla es 0;
-     al cerrar una vista es la posición a la que se volvió. */
+  /* Posición de LECTURA para restablecer (v17): reescritura completa.
+     Las v13–v16 inferían la lectura del historial de scroll con
+     temporizadores y umbrales (salto >250 px, 3 s quieto, 600 ms,
+     respaldo de paradas, caminata de origen). La sonda de la v17
+     reprodujo los patrones del Ojo en render real y midió 4 modos de
+     fallo distintos (probe-e3-eye.log):
+     F1 — clic <600 ms tras el último scroll: el temporizador de 600 ms
+     aún no había corrido y no existía ningún registro de la lectura → 0.
+     F2 — espera ≥3 s en el pie antes de tocar: la rama «salvo 3 s
+     quieto» fijaba el ancla EN EL PIE → restablecer devolvía el pie
+     (841 a 390 px, 618 a 1919 px).
+     F3 — paso de tránsito de 260–280 px: la rama «salto = leer en otra
+     zona» confirmaba un ancla falsa en el paso (660 a 390 px, 467 a
+     1919 px).
+     F4 — llegada en pasos sin salto: el ancla nunca confirmaba y la
+     caminata de respaldo incluía la parada de carga (y=0) y volvía a 0
+     (el filtro «since» no la excluye cuando nunca se fijó un ancla).
+     La lección: ningún umbral distingue un paso largo de un salto, ni
+     una espera en el pie de una lectura. La v17 no infiere: REGISTRA.
+     - Ancla síncrona (resetAnchorY): en CADA evento de scroll, si la
+       posición no está al fondo, el ancla ES esa posición. Sin
+       temporizador ni umbral de distancia: un salto con clic inmediato
+       ya ve el ancla (F1), y un paso de 280 px solo mueve el ancla a
+       donde el usuario está de verdad (F3).
+     - Al fondo (resetAtBottom): a ≤5 px del máximo. Ahí vive el botón:
+       llegar ahí es ir a restablecer, no leer. El ancla se congela en
+       la última posición antes del fondo (F2) y el fondo nunca se fija
+       como lectura. El margen es estrecho a propósito: la última parada
+       de la bajada (800 a 390 px, 607 a 1919 px) queda fuera de la zona
+       y sí se registra.
+     - Lectura fijada (resetReadY): si el usuario se queda quieto ≥3 s
+       en una posición (y ≥ 100, no al fondo), esa posición se FIJA y
+       manda sobre el ancla. Es lo que distingue «leí 5 s en Servicios
+       y luego bajé» (vuelve a Servicios) de «bajé en pasos» (vuelve a
+       la última parada antes del pie, que es lo que el Ojo esperaba en
+       la bajada simple). La fijación solo se pierde si el usuario sube
+       >250 px (vuelve a leer arriba) o salta >300 px a otra zona (el
+       umbral sale de los datos: pasos del Ojo ≤280 px, saltos ≥400 px).
+       Bajar nunca la mueve. El umbral de 3 s solo decide entre dos
+       respuestas defendibles (última parada vs lectura fijada): nunca
+       devuelve 0, el pie ni un paso al azar.
+     - resetDemo() usa la lectura fijada si existe; si no, el ancla;
+       si no, 0 (desde arriba, sin desplazarse). Sin respaldo: el ancla
+       se registra en cada scroll, así que siempre existe cuando hubo
+       lectura. */
   var resetAnchorY = 0;
-  var resetAnchorTimer = null;
-  function resetBtnInView() {
-    var els = document.querySelectorAll('#scr-inicio button');
-    for (var i = 0; i < els.length; i++) {
-      if (els[i].textContent.trim() === 'Restablecer demo') {
-        var r = els[i].getBoundingClientRect();
-        return r.top < window.innerHeight && r.bottom > 0;
-      }
-    }
-    return false;
+  var resetReadY = null;
+  var resetPinTimer = null;
+  var resetLastY = 0;
+  function resetMaxScroll() { return Math.max(0, document.documentElement.scrollHeight - window.innerHeight); }
+  function resetAtBottom(y) { return y >= resetMaxScroll() - 5; }
+  function resetPickY() { return resetReadY !== null ? resetReadY : resetAnchorY; }
+  function resetArmPin() {
+    clearTimeout(resetPinTimer);
+    resetPinTimer = setTimeout(function () {
+      if (document.getElementById('overlay').classList.contains('open')) return;
+      var y = Math.round(window.scrollY);
+      if (y >= 100 && !resetAtBottom(y)) resetReadY = y;
+    }, 3000);
   }
-  /* Ráfaga de desplazamiento: los scrolls con menos de 300 ms entre sí
-     son un solo movimiento (el scroll suave de go(), un salto con
-     scrollIntoView). El ancla es la última posición de LECTURA y se
-     confirma al asentarse 600 ms si el movimiento fue un SALTO
-     (>250 px desde que empezó la ráfaga) o tras 3 s quieto (lectura
-     larga). Los pasos cortos (~200 px) con pausas de ~2 s son tránsito
-     hacia el botón, no lectura: no mueven el ancla. Un salto que sale
-     de una lectura confirmada hacia abajo con el botón a la vista es
-     ir a restablecer, no leer: no confirma (salvo 3 s quieto). El
-     botón visible NO congela por sí solo: a 1919 px está visible
-     desde 582 px y congelar en el listener dejaba el ancla en 0.
-     (v13-E1: la regla de 600 ms a secas fallaba a 390 px — la bajada
-     lenta en pasos marchaba el ancla hasta la última pausa antes del
-     botón, y desde arriba terminaba en 600 en vez de 0.) */
-  var resetBurstStartY = 0;
-  var resetLastScrollY = 0;
-  var resetLastScrollAt = 0;
-  var resetAnchorConfirmed = false; /* el ancla vale como lectura solo tras confirmarse */
-  /* Respaldo de paradas (v15): la regla de 3 s deja un hueco — llegada
-     en pasos con lectura de 1,2–3 s nunca confirma el ancla y el
-     restablecer vuelve a 0 (fallo intermitente del Ojo en la v14: 1 de
-     3, reproducido en render real con lectura de 2,0 s). El umbral no se
-     puede bajar sin más: la bajada lenta con pausas de 2 s marcharía el
-     ancla (caso B de la v13). El respaldo registra cada parada
-     (posición + instante del último scroll) y solo se consulta al
-     restablecer cuando el ancla es 0: se toma la parada más reciente
-     con pausa ≥1800 ms, fuera de arriba (y≥100) y de la zona del botón
-     (a más de 150 px del máximo). Solo actúa cuando el ancla no se
-     confirmó en ninguna lectura: nunca toca las variantes verificadas. */
-  var resetSettles = [];
-  var resetAnchorSetAt = 0;
-  function setResetAnchor(y) { resetAnchorY = y; resetAnchorConfirmed = true; resetAnchorSetAt = Date.now(); }
-  function noteResetSettle(y) {
-    var last = resetSettles[resetSettles.length - 1];
-    if (last && last.y === y) return;
-    resetSettles.push({ y: y, since: resetLastScrollAt });
-    if (resetSettles.length > 12) resetSettles.shift();
-  }
-  /* Origen del descenso final (v16): la lectura es la primera parada de
-     la bajada hacia el pie — determinista por POSICIÓN, sin umbrales de
-     tiempo. La sonda de la v16 lo probó con datos: con llegada en salto
-     a 207 px y bajada en pasos, el ancla nunca confirma (207 < 250 px,
-     pausas de 1,5 s < 3 s de quietud) y el respaldo viejo no encontraba
-     nada (ninguna parada con pausa ≥1800 ms; la única con pausa larga
-     era el pie, excluido por su zona). La regla vieja (la parada MÁS
-     RECIENTE con pausa larga) devolvía además un paso de tránsito (578
-     px en el Ojo de la v15) en vez de la lectura. La caminata: desde la
-     posición actual se retrocede por las paradas mientras los pasos sean
-     cortos (≤250 px); un salto grande (>250 px) marca el inicio del
-     descenso (la parada anterior al salto es la lectura); si se llega al
-     pie sin paradas, no hubo lectura (desde arriba → 0). La parada de
-     carga (y=0) queda fuera por el filtro de since. La posición del clic
-     (el pie) NUNCA es una lectura: ahí se viene a restablecer, no a leer
-     — sin excluirla, desde arriba con una pausa larga en el pie el
-     restablecer devolvería el pie en vez de 0 (la parada del pie se
-     registra a los 600 ms aunque el ancla no confirme). LÍMITE CONOCIDO Y
-     HONESTO: si la llegada a la lectura fue TAMBIÉN en pasos (sin salto),
-     la primera parada de la caminata es un paso de tránsito y no la
-     lectura — llegada y bajada en pasos son indistinguibles por
-     desplazamiento y tiempo (misma historia de scroll, dos lecturas
-     distintas); en ese caso el restablecer vuelve a ese primer paso,
-     nunca arriba del todo. */
-  function resetDescentOrigin(stops, curY) {
-    var origin = null, head = curY;
-    for (var i = stops.length - 1; i >= 0; i--) {
-      var s = stops[i];
-      if (Math.abs(s - curY) <= 5) continue; /* el pie no es lectura */
-      if (s > head + 5) break; /* subir rompe el descenso: la lectura era head */
-      if (head - s > 250) { origin = s; break; } /* salto grande: la lectura es s */
-      origin = s; head = s;
-    }
-    return origin;
-  }
-  function fallbackResetY() {
-    var stops = [];
-    for (var i = 0; i < resetSettles.length; i++) {
-      var st = resetSettles[i];
-      if (st.since < resetAnchorSetAt) continue;
-      stops.push(st.y);
-    }
-    var o = resetDescentOrigin(stops, Math.round(window.scrollY));
-    return o === null ? 0 : o;
-  }
-  function armResetAnchor() {
-    clearTimeout(resetAnchorTimer);
-    resetAnchorTimer = setTimeout(commitResetAnchor, 600);
-  }
-  function commitResetAnchor() {
+  function resetTrackScroll() {
     if (document.getElementById('overlay').classList.contains('open')) return;
     var y = Math.round(window.scrollY);
-    if (y !== resetLastScrollY) return; /* se movió de nuevo: rearmar */
-    noteResetSettle(y); /* parada observada: entra en el respaldo (v15) */
-    var jumped = Math.abs(y - resetBurstStartY) > 250;
-    /* Salir de una lectura confirmada hacia abajo con el botón a la
-       vista es ir a restablecer, no leer ahí: no confirma — salvo que
-       se quede 3 s quieto en el destino (entonces sí estaba leyendo). */
-    var leavingConfirmed = jumped && y > resetBurstStartY && resetBurstStartY === resetAnchorY && resetAnchorConfirmed && resetBtnInView();
-    if (leavingConfirmed) {
-      if (Date.now() - resetLastScrollAt >= 3000) { setResetAnchor(y); return; }
-      resetAnchorTimer = setTimeout(commitResetAnchor, 3000 - (Date.now() - resetLastScrollAt));
-      return;
-    }
-    /* SALTO (en esa ventana de 600 ms): es que el usuario fue a leer a
-       otra zona. PERO si el salto ATERRIZA con el botón del pie a la
-       vista, es que el usuario va a restablecer, no a leer ahí: NO se
-       confirma el pie como lectura (v16 — antes el ancla se fijaba en el
-       pie por una carrera de 600 ms y el restablecer devolvía el pie en
-       vez de la lectura; la sonda de la v16 lo reprodujo). La lectura en
-       ese caso la devuelve el respaldo. */
-    if (jumped) { if (!resetBtnInView()) setResetAnchor(y); return; }
-    if (resetBtnInView()) return; /* pasos de tránsito junto al botón: no confirma */
-    if (Date.now() - resetLastScrollAt >= 3000) { setResetAnchor(y); return; }
-    /* Sin salto y sin 3 s quieto: esperar a los 3 s (si sigue quieto). */
-    resetAnchorTimer = setTimeout(commitResetAnchor, 3000 - (Date.now() - resetLastScrollAt));
+    if (resetReadY !== null && y < resetReadY - 250) resetReadY = null; /* subió a releer arriba: la fijación queda vieja */
+    if (resetReadY !== null && Math.abs(y - resetLastY) > 300 && !resetAtBottom(y)) resetReadY = null; /* salto a otra zona: la fijación queda vieja */
+    resetLastY = y;
+    if (!resetAtBottom(y)) resetAnchorY = y;
+    resetArmPin();
   }
-  window.addEventListener('scroll', function () {
-    /* El listener siempre arma: quien decide es commitResetAnchor (un
-       salto a una posición de lectura confirma aunque el botón ya se
-       vea — a 1919 px el botón está visible desde 582 px, y congelar
-       en el listener dejaba el ancla en 0; la única excepción es el
-       salto que ATERRIZA en la zona del pie, que no confirma: es ir a
-       restablecer, y la lectura la devuelve el respaldo — v16). */
-    var now = Date.now();
-    if (now - resetLastScrollAt > 300) resetBurstStartY = resetLastScrollY;
-    resetLastScrollY = Math.round(window.scrollY);
-    resetLastScrollAt = now;
-    armResetAnchor();
-  }, { passive: true });
-  armResetAnchor();
+  window.addEventListener('scroll', resetTrackScroll, { passive: true });
+  /* Registro síncrono de la SALIDA (cierre de la carrera del lote, F5):
+     el ancla vivía solo del evento 'scroll', que es asíncrono y Chrome
+     lo fusiona: si el salto a la lectura y el scrollIntoView hacia el
+     pie caen en el mismo fotograma, solo llega UN evento (en el pie) y
+     el ancla nunca ve la lectura. Medido en la sonda del lote a 1919
+     (10 repeticiones): 1 sin evento en 207 — solo [t, 618, ancla 0] —
+     y el restablecer devolvía 0; las otras 9 sí vieron el evento.
+     La salida se registra ANTES de desplazarse: al llamar a scrollTo,
+     scrollBy o scrollIntoView, la posición actual (la que se abandona)
+     es la lectura si no está al fondo. El evento sigue mandando para
+     los desplazamientos de rueda/teclado, que son graduales y siempre
+     generan eventos. Con vista abierta no se registra nada (misma
+     guardia que el listener). */
+  var _scrollTo = window.scrollTo.bind(window);
+  var _scrollBy = window.scrollBy.bind(window);
+  var _scrollIntoView = Element.prototype.scrollIntoView;
+  function resetNoteDeparture() {
+    if (document.getElementById('overlay').classList.contains('open')) return;
+    var y = Math.round(window.scrollY);
+    if (!resetAtBottom(y)) resetAnchorY = y;
+  }
+  window.scrollTo = function () { resetNoteDeparture(); return _scrollTo.apply(window, arguments); };
+  window.scrollBy = function () { resetNoteDeparture(); return _scrollBy.apply(window, arguments); };
+  /* scrollIntoView puede no existir (jsdom no lo implementa): sin
+     original no hay envoltorio que poner. */
+  if (typeof _scrollIntoView === 'function') {
+    Element.prototype.scrollIntoView = function () { resetNoteDeparture(); return _scrollIntoView.apply(this, arguments); };
+  }
+  /* La restauración tras un restablecer ya desplazó la página antes de
+     que este bloque corriera: el ancla parte de donde se está, no de 0. */
+  resetLastY = Math.round(window.scrollY);
+  if (!resetAtBottom(resetLastY)) resetAnchorY = resetLastY;
+  resetArmPin();
   var overlayReturnY = 0;
   var overlayStack = [];
   function openOverlay(title, bodyHtml, opts) {
@@ -1874,7 +1820,11 @@
        para avisos nacidos en pantalla o en este mismo detalle. */
     if (toastBornInOverlay && !opts.replace && toastBornTitle !== title) hideToast();
     carryToastToOverlay(); /* el aviso activo se ve dentro de la vista */
-    window.scrollTo({ top: 0, behavior: 'instant' });
+    /* (v17) La ventana NO se desplaza al abrir la vista: la vista es
+       fija y cubre la ventana, y desplazar la ventana saltaba la vista
+       subyacente arriba (~620 px) mientras el listado estaba abierto
+       (observación del Ojo en la v16). Al cerrar, «‹ Volver» restaura
+       overlayReturnY, así que la posición queda exacta igual. */
   }
   /* «‹ Volver»: un nivel atrás en la pila; si no queda nada, cierra la
      vista y restaura la posición exacta de la pantalla de origen. */
