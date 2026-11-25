@@ -77,6 +77,21 @@
   }
   .screen { display: none; padding: 12px 16px 8px; animation: fade .35s ease; }
   .screen.active { display: block; }
+  /* Máximo es un chat de verdad (v15): la pantalla es una columna de
+     altura de ventana y el chat es SU PROPIO contenedor con
+     desplazamiento, con el borde inferior POR ENCIMA del compositor.
+     Antes el chat formaba parte del desplazamiento de la página y el
+     compositor pegajoso tapaba los mensajes a mitad de recorrido (fallo
+     del Ojo en la v14: la burbuja morada y los botones Aprobar/Rechazar
+     quedaban bajo el compositor). Ahora ningún mensaje puede quedar bajo
+     el compositor en ninguna posición de desplazamiento: el contenido se
+     recorta en el borde del chat, que está por encima del compositor.
+     La altura deja fuera la cabecera (banner + header) para que el
+     compositor quede justo encima de la barra inferior también sin
+     desplazar; fitComposer() la ajusta con la medida real. */
+  #scr-maximo.active { display: flex; flex-direction: column; height: calc(100dvh - 120px); }
+  #scr-maximo .chat { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+  #scr-maximo .composer { position: static; }
   @keyframes fade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
   h1 { font-size: 22px; margin: 6px 0 2px; }
   .sub { color: var(--muted); font-size: 13px; margin-bottom: 14px; }
@@ -280,10 +295,11 @@
   .tappable { cursor: pointer; }
   .tappable:active { opacity: .75; }
   .svc[onclick], .act[onclick] { cursor: pointer; }
-  /* Espacio al final del chat: sin él la página no tiene recorrido para
-     dejar la última tarjeta por encima del compositor (ver
-     scrollChatToBottom). Son 200 px vacíos al final de Máximo. */
-  .chat-spacer { height: 200px; }
+  /* Espacio al final del chat (v15): ya no se usa en Máximo — el chat
+     es su propio contenedor con desplazamiento y su borde inferior está
+     por encima del compositor por construcción, así que no hace falta
+     recorrido extra de página para despejar la última tarjeta. Se
+     conserva la clase por si otra pantalla la usa. */
   /* Barra inferior */
   nav.bottom {
     position: fixed; left: 50%; transform: translateX(-50%);
@@ -439,7 +455,7 @@
       <div class="act" onclick="openActivity('home', 1)"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div><div><b>Servicios rearrancados solos</b><span>Tras el reinicio de la máquina, el timer los levantó.</span></div><time>01:14</time></div>
       <div class="act" onclick="openActivity('home', 2)"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" stroke-width="2" stroke-linecap="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/></svg></div><div><b>WhatsApp Baileys cayó 2 veces</b><span>Reinicios de máquina; levantado a mano.</span></div><time>01:20</time></div>
     </div>
-    <p class="foot">Muse Control · Maqueta v14 · Los datos de esta pantalla son de ejemplo.</p>
+    <p class="foot">Muse Control · Maqueta v15 · Los datos de esta pantalla son de ejemplo.</p>
     <div style="text-align:center; margin-top:10px;"><button class="btn ghost" style="flex:none; padding:9px 18px;" onclick="resetDemo()">Restablecer demo</button></div>
   </section>
 
@@ -447,6 +463,7 @@
   <section class="screen" id="scr-maximo">
     <h1>Máximo</h1>
     <p class="sub">Conversación principal. Escribe una orden en lenguaje natural.</p>
+    <p class="foot" style="margin-bottom:10px;">Ejemplo: «Audita la arquitectura de Muse y busca problemas de seguridad».</p>
     <div class="chat" id="chat">
       <div class="msg bot"><b>Máximo</b><br>Hola Ernesto, soy yo. Dime qué quieres que haga la orquesta y te preparo el plan. Nada se ejecuta sin que tú lo apruebes.</div>
     </div>
@@ -462,8 +479,6 @@
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
       </button>
     </div>
-    <p class="foot">Ejemplo: «Audita la arquitectura de Muse y busca problemas de seguridad».</p>
-    <div class="chat-spacer" aria-hidden="true"></div>
   </section>
 
   <!-- ============ 03 ORQUESTA ============ -->
@@ -521,7 +536,7 @@
     <div class="card">
       <h3>Motivos del desacuerdo</h3>
       <p style="font-size:13.5px; line-height:1.6; color:#ddd6f3;">1. Leen el mismo registro de arranque y sacan causas distintas.<br>2. La evidencia de Hermes cubre el síntoma, no la causa raíz.<br>3. Falta una prueba que distinga túnel de certificado: arrancar el build con el túnel ya levantado.</p>
-      <p class="evidence">Regla del Consejo: para corroborar hacen falta <b>Gemini Y Nemotron</b> de acuerdo. Aquí no lo están, así que <b>no hay consenso</b>. Nunca se muestra un consenso inventado.</p>
+      <p class="evidence">Regla del Consejo: para corroborar hacen falta&nbsp;<b>Gemini Y Nemotron</b>&nbsp;de acuerdo. Aquí no lo están, así que <b>no hay consenso</b>. Nunca se muestra un consenso inventado.</p>
     </div>
 
     <div class="card">
@@ -588,7 +603,7 @@
       <div class="act" onclick="openActivity('taller', 1)"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#f87171" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></div><div><b>Despliegue rechazado</b><span>Maqueta v7-u2net · en cuarentena.</span></div><time>ayer</time></div>
       <div class="act" onclick="openActivity('taller', 2)"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div><div><b>Pruebas del banco: 72/72</b><span>Juego v9 · sin fallos.</span></div><time>ayer</time></div>
     </div>
-    <p class="foot">Taller · Maqueta v14 · Ningún despliegue o comando destructivo se ejecuta sin tu autorización.</p>
+    <p class="foot">Taller · Maqueta v15 · Ningún despliegue o comando destructivo se ejecuta sin tu autorización.</p>
   </section>
 
   <!-- ============ BARRA INFERIOR ============ -->
@@ -646,6 +661,8 @@
   var toastMsg = '';
   var toastUntil = 0;
   var toastKind = '';
+  var toastBornInOverlay = false; /* el aviso nació dentro de una vista (v15) */
+  var toastBornTitle = ''; /* título de la vista donde nació (v15) */
   function fillToast(el, msg, kind) {
     /* La × del aviso de filtro (kind 'filter') también QUITA el filtro:
        en la v11 solo cerraba el aviso y el chip quedaba marcado, así que
@@ -665,6 +682,10 @@
     var persist = !!(opts && opts.persist);
     toastUntil = persist ? Infinity : Date.now() + 8000;
     var overlayOpen = document.getElementById('overlay').classList.contains('open');
+    /* Dónde nació el aviso (v15): al cambiar de detalle, un aviso
+       nacido dentro de otro detalle se limpia (E6), no se traslada. */
+    toastBornInOverlay = overlayOpen;
+    toastBornTitle = overlayOpen ? document.getElementById('ovTitle').textContent : '';
     var show = overlayOpen ? document.getElementById('ovToast') : document.getElementById('toast');
     var hide = overlayOpen ? document.getElementById('toast') : document.getElementById('ovToast');
     if (hide) hide.classList.remove('show');
@@ -922,6 +943,10 @@
     var y = 0;
     try {
       y = document.getElementById('overlay').classList.contains('open') ? overlayReturnY : resetAnchorY;
+      /* Respaldo de paradas (v15): si el ancla es 0, la lectura pudo ser
+         en pasos con pausa corta (hueco de la regla de 3 s). Se toma la
+         última parada con pausa larga; si no hay ninguna, queda 0. */
+      if (!document.getElementById('overlay').classList.contains('open') && y === 0) y = fallbackResetY();
     } catch (e) {}
     try { localStorage.clear(); } catch (e) {}
     try { sessionStorage.clear(); } catch (e) {}
@@ -993,7 +1018,7 @@
        pertenece a la acción que lo provocó. (Por eso «Demo
        restablecida» ya no sobrevive a la navegación.) */
     hideToast();
-    settledY = 0; resetAnchorY = 0; /* la pantalla nueva empieza arriba del todo */
+    settledY = 0; resetAnchorY = 0; resetSettles.length = 0; /* la pantalla nueva empieza arriba del todo, visita nueva */
     /* La navegación empieza una ráfaga nueva: si no, el scroll a 0 de
        go() y el salto inmediato a la posición de lectura forman una
        sola ráfaga (desplazamiento neto 0) y la lectura nunca se
@@ -1011,7 +1036,7 @@
     /* Al re-entrar en Máximo, la última tarjeta del plan no debe quedar
        tapada por el compositor: el ajuste de scroll también corre aquí,
        no solo al recibir la respuesta. */
-    if (name === 'maximo') scrollChatToBottom();
+    if (name === 'maximo') { fitComposer(); scrollChatToBottom(); }
     /* Al volver a Orquesta con un filtro activo, el aviso del filtro
        vuelve a aparecer: en la v13 el filtro persistía pero el aviso se
        perdía al navegar (fallo del Ojo). Con el filtro quitado no hay
@@ -1071,11 +1096,28 @@
     return shown;
   }
   /* Texto del aviso de filtro, con el conteo vivo: lo usan setFilter()
-     y go() al volver a Orquesta con un filtro activo (M2). */
-  function filterToastText() {
-    var label = 'Todos';
+     y go() al volver a Orquesta con un filtro activo (M2). La etiqueta
+     viene de un mapa por data-f, no del texto del chip: desde la v15 el
+     chip lleva su conteo («Activos · 2») y el aviso no debe repetirlo. */
+  var chipLabels = { all: 'Todos', active: 'Activos', idle: 'En espera', offline: 'Sin conexión', busy: 'Ocupados' };
+  /* Conteos en los propios chips (v15): el Ojo de la v14 encontró solo
+     «Todos», «Activos»… sin números. Se calculan de los datos de ejemplo
+     (no a mano) y se dibujan al cargar: Todos 5, Activos 2, En espera 1,
+     Sin conexión 1, Ocupados 1. */
+  function renderChips() {
+    var counts = { all: 0, active: 0, idle: 0, offline: 0, busy: 0 };
+    for (var i = 0; i < agents.length; i++) {
+      counts.all++;
+      if (counts[agents[i].status] !== undefined) counts[agents[i].status]++;
+    }
     var chips = document.querySelectorAll('#chips .chip');
-    for (var i = 0; i < chips.length; i++) if (chips[i].getAttribute('data-f') === currentFilter) label = chips[i].textContent.trim();
+    for (var j = 0; j < chips.length; j++) {
+      var f = chips[j].getAttribute('data-f');
+      if (chipLabels[f] !== undefined) chips[j].textContent = chipLabels[f] + ' · ' + counts[f];
+    }
+  }
+  function filterToastText() {
+    var label = chipLabels[currentFilter] || 'Todos';
     var shown = renderAgents();
     return 'Filtro ' + label + ': ' + shown + (shown === 1 ? ' agente visible' : ' agentes visibles') + ' (maqueta)';
   }
@@ -1097,6 +1139,7 @@
   }
   function filterAgents() { renderAgents(); renderOrchActivity(); }
   renderAgents();
+  renderChips();
 
   /* ---------- Orquesta: actividad reciente (sigue al buscador y a los filtros) ---------- */
   var actIcons = {
@@ -1283,68 +1326,57 @@
      y asomando entre él y la barra (fallo del Ojo). El 84 queda como
      respaldo si la barra no se puede medir (p. ej. jsdom). */
   function navH() { var n = document.querySelector('nav.bottom'); return (n && n.offsetHeight) || 84; }
-  function fitComposer() { var c = document.querySelector('#scr-maximo .composer'); if (c) c.style.bottom = navH() + 'px'; }
+  /* Altura de la pantalla de Máximo (v15): la ventana menos la cabecera
+     (banner + header, medida real) para que el compositor quede justo
+     encima de la barra inferior sin desplazar la página. El CSS trae
+     calc(100dvh - 120px) como respaldo antes de que corra este ajuste.
+     El relleno inferior es EXACTO la altura de la barra: ni un px más
+     (con +8 px la pantalla quedaba 8 px corta y el compositor otros 8
+     por encima de la barra: franja de 16 px, regresión de la v14
+     cazada por el banco CDP de la v15). */
+  function fitComposer() {
+    var s = document.getElementById('scr-maximo');
+    if (s) {
+      var ban = document.querySelector('.banner');
+      var head = document.querySelector('header.top');
+      var chrome = (ban ? ban.offsetHeight : 0) + (head ? head.offsetHeight : 0);
+      s.style.height = 'calc(100dvh - ' + chrome + 'px)';
+      s.style.paddingBottom = navH() + 'px';
+    }
+  }
   window.addEventListener('resize', fitComposer);
   fitComposer();
   function scrollChatToBottom() {
     var chat = document.getElementById('chat');
-    var composer = document.querySelector('#scr-maximo .composer');
-    if (!chat || !composer) return;
-    /* Cancelar cualquier scroll suave en vuelo (p. ej. el de go()) para
-       que no le gane a este desplazamiento. */
-    try { window.scrollTo({ top: window.scrollY, behavior: 'instant' }); } catch (e) {}
-    var compH = composer.offsetHeight || 58;
-    var limit = window.innerHeight - navH() - compH - 12;
-    /* Borde inferior del ancla: los atajos si están visibles (siempre en
-       la v7), si no la última tarjeta del chat. */
-    function anchorBottom() {
-      var sugg = document.getElementById('sugg');
-      if (sugg && sugg.offsetHeight) return sugg.getBoundingClientRect().bottom + window.scrollY;
-      var last = chat.lastElementChild;
-      return last ? last.getBoundingClientRect().bottom + window.scrollY : 0;
-    }
-    for (var i = 0; i < 4; i++) {
-      var cardDocBottom = anchorBottom();
-      if (!cardDocBottom) return;
-      var dy = (cardDocBottom - window.scrollY) - limit;
-      if (dy <= 1) break; /* el ancla ya cabe entera: salir del bucle SIN
-        retornar, que el remate anti-recorte (abajo) debe correr igual:
-        con el chat lleno el ancla cabe pero una burbuja vieja puede
-        quedar a caballo del borde superior (fallo del Ojo en la v12) */
-      var max = document.documentElement.scrollHeight - window.innerHeight;
-      var target = window.scrollY + dy;
-      if (target > max) target = max;
-      window.scrollTo({ top: target, behavior: 'instant' });
-      /* Sin más recorrido no hay nada que hacer: el spacer de 200 px al
-         final del chat garantiza que con un solo plan siempre lo hay. */
-      if (window.scrollY >= max) break; /* igual que arriba: el remate debe correr */
-    }
-    /* Remate: que ningún mensaje quede a caballo del borde superior
-       de la ventana con solo una franja visible (fallo del Ojo en la
-       v12: tras llegar con «Preguntar a Máximo» se veía una pastilla
-       morada recortada arriba, sin texto legible — era una burbuja del
-       chat cortada por el desplazamiento; reproducido en render real).
-       Si la franja visible es pequeña (<48 px) se esconde del todo
-       desplazando hacia abajo; si es grande se deja, que es contenido
-       legible. Bajar nunca tapa la tarjeta del plan: su borde inferior
-       queda por encima del compositor. */
+    if (!chat) return;
+    /* El chat es su propio contenedor con desplazamiento (v15): bajar es
+       mover su scroll interno, no la ventana. La ventana no se toca: la
+       pantalla ya cabe en la ventana y el compositor está siempre visible
+       encima de la barra inferior. Antes se desplazaba la ventana y los
+       mensajes pasaban bajo el compositor pegajoso a mitad de recorrido. */
+    chat.scrollTop = chat.scrollHeight;
+    /* Remate: que ningún mensaje quede a caballo del borde superior DEL
+       CHAT con solo una franja visible (fallo del Ojo en la v12, antes
+       contra el borde de la ventana; ahora el borde es el del contenedor
+       del chat). Si la franja visible es pequeña (<48 px) se esconde del
+       todo desplazando el chat hacia abajo; si es grande se deja, que es
+       contenido legible. */
     (function snapTopEdge() {
-      var msgs = document.querySelectorAll('#scr-maximo .msg');
+      var top = chat.getBoundingClientRect().top;
+      var msgs = chat.querySelectorAll('.msg');
       for (var m = 0; m < msgs.length; m++) {
         var r = msgs[m].getBoundingClientRect();
-        if (r.top < 0 && r.bottom > 0 && r.bottom < 48) { window.scrollBy({ top: r.bottom, behavior: 'instant' }); return; }
+        if (r.top < top && r.bottom > top && (r.bottom - top) < 48) { chat.scrollTop += (r.bottom - top); return; }
       }
     })();
     /* Red de seguridad tardía y corta por si el navegador aún está pintando. */
     setTimeout(function(){
-      var cardDocBottom = anchorBottom();
-      if (!cardDocBottom) return;
-      var dy = (cardDocBottom - window.scrollY) - limit;
-      if (dy > 1) window.scrollTo({ top: window.scrollY + dy, behavior: 'instant' });
-      var msgs2 = document.querySelectorAll('#scr-maximo .msg');
+      chat.scrollTop = chat.scrollHeight;
+      var top2 = chat.getBoundingClientRect().top;
+      var msgs2 = chat.querySelectorAll('.msg');
       for (var m2 = 0; m2 < msgs2.length; m2++) {
         var r2 = msgs2[m2].getBoundingClientRect();
-        if (r2.top < 0 && r2.bottom > 0 && r2.bottom < 48) { window.scrollBy({ top: r2.bottom, behavior: 'instant' }); return; }
+        if (r2.top < top2 && r2.bottom > top2 && (r2.bottom - top2) < 48) { chat.scrollTop += (r2.bottom - top2); return; }
       }
     }, 150);
   }
@@ -1466,7 +1498,9 @@
       : '<span style="color:var(--red); font-weight:700; font-size:13px;">Rechazado en la maqueta — no se ejecuta nada.</span>')
       + '<button class="btn ghost" style="flex:none; padding:8px 14px;" onclick="undoDecide(this)">Deshacer</button>';
     var dy = wrap.getBoundingClientRect().top - before;
-    if (dy) window.scrollBy(0, dy);
+    /* La compensación es sobre el scroll INTERNO del chat (v15): la fila
+       vive dentro del contenedor con desplazamiento, no en la ventana. */
+    if (dy) { var chD = document.getElementById('chat'); if (chD) chD.scrollTop += dy; }
     /* El aviso es fijo a la ventana: se ve sin mover la vista. */
     toast(ok ? 'Plan aprobado (maqueta)' : 'Plan rechazado (maqueta)');
     /* La confirmación cambia la altura de la tarjeta y empuja los
@@ -1482,15 +1516,17 @@
     wrap.innerHTML = '<button class="btn go" onclick="decide(this,true)">Aprobar</button>'
       + '<button class="btn no" onclick="decide(this,false)">Rechazar</button>';
     var dy = wrap.getBoundingClientRect().top - before;
-    if (dy) window.scrollBy(0, dy);
+    /* La compensación es sobre el scroll INTERNO del chat (v15): la fila
+       vive dentro del contenedor con desplazamiento, no en la ventana. */
+    if (dy) { var chU = document.getElementById('chat'); if (chU) chU.scrollTop += dy; }
     toast('Decisión deshecha: el plan vuelve a esperar tu toque (maqueta)');
     scrollChatToBottom();
   }
 
   /* ---------- Listados completos (overlay) ---------- */
   var alertsData = [
-    { cls: 'red', title: 'El túnel zrok es público', sub: 'La API del shim responde sin autenticación de cliente. Antes de usarlo como puerta de mando hay que cerrarlo: share privado o auth por cliente.', time: '02:27', reviewLabel: 'Revisar el túnel', review: 'El túnel zrok es público: hay que cerrarlo antes de conectar (maqueta)', risk: 'Con el túnel abierto, cualquiera con la URL llega a la API (maqueta)', read: false, silenced: false },
-    { cls: 'amber', title: 'RAM ajustada: 1,2 GB libres', sub: 'La PWA y un adaptador ligero sí caben. Nada de base de datos grande ni modelos locales.', time: '02:27', reviewLabel: 'Revisar la RAM', review: 'La RAM está ajustada: 1,2 GB libres; la PWA y un adaptador ligero caben, sin base de datos grande ni modelos locales (maqueta)', risk: 'Con 1,2 GB libres, un servicio más ya no cabe: la PWA o el adaptador se quedarían sin memoria (maqueta)', read: false, silenced: false }
+    { cls: 'red', title: 'El túnel zrok es público', sub: 'La API del shim responde sin autenticación de cliente. Antes de usarlo como puerta de mando hay que cerrarlo: share privado o auth por cliente.', time: '02:27', reviewLabel: 'Revisar el túnel', review: 'Túnel público: hay que cerrarlo (maqueta)', risk: 'Túnel abierto: cualquiera entra (maqueta)', read: false, silenced: false },
+    { cls: 'amber', title: 'RAM ajustada: 1,2 GB libres', sub: 'La PWA y un adaptador ligero sí caben. Nada de base de datos grande ni modelos locales.', time: '02:27', reviewLabel: 'Revisar la RAM', review: 'RAM ajustada: 1,2 GB libres (maqueta)', risk: 'RAM al límite: no cabe nada más (maqueta)', read: false, silenced: false }
   ];
   /* Dibujo inicial de la tarjeta de Inicio desde el estado real (E1). */
   updateAlertsUI();
@@ -1498,7 +1534,7 @@
     { name: 'Maqueta Libreta — pastel 3D', sub: 'Gemini 3.1 Flash Lite · hace 12 min', pill: 'run', label: 'Activa', model: 'Gemini 3.1 Flash Lite', project: 'calculadora-ernesto', desc: 'La maqueta de la libreta con el gráfico de pastel en 3D, precargada con los datos de Ernesto.', tasks: [ { label: 'Pastel 3D con perspectiva y extrusión', state: 'done' }, { label: 'Etiquetas fuera con conectora', state: 'done' }, { label: 'Pulido final y publicación', state: 'now' } ] },
     { name: 'Juego v9 — parte del trabajador', sub: 'Gemini 3.1 Flash Lite · hace 1 h', pill: 'ok', label: 'Terminada', model: 'Gemini 3.1 Flash Lite', project: 'calculadora-ernesto', desc: 'El juego de Mi Trabajo con la parte del trabajador al 20% de la ganancia y la ganancia total siempre oculta.', tasks: [ { label: 'Parte del trabajador al 20% de la ganancia', state: 'done' }, { label: 'La ganancia total nunca se muestra', state: 'done' }, { label: 'Publicación y entrega', state: 'done' } ] },
     { name: 'Consejo Fase 2 — diseño técnico', sub: 'Gemini 3.1 Flash Lite · en espera', pill: 'idle', label: 'Pausada', model: 'Gemini 3.1 Flash Lite', project: 'consejo-ia', desc: 'El diseño técnico de la Fase 2 del Consejo: consenso con Gemini Y Nemotron, planificador y verificador corregidos.', tasks: [ { label: 'Diseño técnico D1–D8', state: 'done' }, { label: 'Congelación y copia de seguridad', state: 'wait' }, { label: 'Corrección del consenso', state: 'wait' } ] },
-    { name: 'Maqueta Muse Control — panel de mando', sub: 'Gemini 3.1 Flash Lite · hace 30 min', pill: 'run', label: 'Activa', model: 'Gemini 3.1 Flash Lite', project: 'calculadora-ernesto', desc: 'Esta misma maqueta: el panel de mando de Muse para el iPhone, en versión offline.', tasks: [ { label: 'Maqueta v14 offline', state: 'done' }, { label: 'Pasada del Ojo en vivo', state: 'done' }, { label: 'Pulido de defectos bajos', state: 'now' } ] },
+    { name: 'Maqueta Muse Control — panel de mando', sub: 'Gemini 3.1 Flash Lite · hace 30 min', pill: 'run', label: 'Activa', model: 'Gemini 3.1 Flash Lite', project: 'calculadora-ernesto', desc: 'Esta misma maqueta: el panel de mando de Muse para el iPhone, en versión offline.', tasks: [ { label: 'Maqueta v15 offline', state: 'done' }, { label: 'Pasada del Ojo en vivo', state: 'done' }, { label: 'Pulido de defectos bajos', state: 'now' } ] },
     { name: 'Vigía de ofertas QvaPay — libro en vivo', sub: 'Gemini 3.1 Flash Lite · hace 48 min', pill: 'run', label: 'Activa', model: 'Gemini 3.1 Flash Lite', project: 'qvapay-saldo-trading', desc: 'El vigía que lee el libro de QvaPay en vivo y avisa cuando se aplica una oferta.', tasks: [ { label: 'Lectura del libro en vivo', state: 'done' }, { label: 'Aviso de aplicación', state: 'done' }, { label: 'Seguimiento de la oferta', state: 'now' } ] },
     { name: 'Exporte completo — paquete para otro agente', sub: 'Gemini 3.1 Flash Lite · ayer', pill: 'ok', label: 'Terminada', model: 'Gemini 3.1 Flash Lite', project: 'exporte-otro-agente', desc: 'La memoria portable y el exporte completo del trabajo, en ZIPs para otro agente.', tasks: [ { label: 'Memoria portable', state: 'done' }, { label: 'Exporte completo', state: 'done' }, { label: 'ZIPs para otro agente', state: 'done' } ] }
   ];
@@ -1619,6 +1655,42 @@
   var resetLastScrollY = 0;
   var resetLastScrollAt = 0;
   var resetAnchorConfirmed = false; /* el ancla vale como lectura solo tras confirmarse */
+  /* Respaldo de paradas (v15): la regla de 3 s deja un hueco — llegada
+     en pasos con lectura de 1,2–3 s nunca confirma el ancla y el
+     restablecer vuelve a 0 (fallo intermitente del Ojo en la v14: 1 de
+     3, reproducido en render real con lectura de 2,0 s). El umbral no se
+     puede bajar sin más: la bajada lenta con pausas de 2 s marcharía el
+     ancla (caso B de la v13). El respaldo registra cada parada
+     (posición + instante del último scroll) y solo se consulta al
+     restablecer cuando el ancla es 0: se toma la parada más reciente
+     con pausa ≥1800 ms, fuera de arriba (y≥100) y de la zona del botón
+     (a más de 150 px del máximo). Solo actúa cuando el ancla no se
+     confirmó en ninguna lectura: nunca toca las variantes verificadas. */
+  var resetSettles = [];
+  var resetAnchorSetAt = 0;
+  function setResetAnchor(y) { resetAnchorY = y; resetAnchorConfirmed = true; resetAnchorSetAt = Date.now(); }
+  function noteResetSettle(y) {
+    var last = resetSettles[resetSettles.length - 1];
+    if (last && last.y === y) return;
+    resetSettles.push({ y: y, since: resetLastScrollAt });
+    if (resetSettles.length > 12) resetSettles.shift();
+  }
+  /* Última parada con pausa larga antes de ir al botón (v15). La pausa
+     de una parada es el tiempo hasta la siguiente parada (o hasta ahora
+     para la última). Solo se miran paradas posteriores a la última vez
+     que se fijó el ancla: si el usuario volvió arriba a posta y el ancla
+     es 0, el respaldo no debe resucitar una lectura vieja. */
+  function fallbackResetY() {
+    var max = document.documentElement.scrollHeight - window.innerHeight;
+    for (var i = resetSettles.length - 1; i >= 0; i--) {
+      var st = resetSettles[i];
+      if (st.since < resetAnchorSetAt) continue;
+      var nx = resetSettles[i + 1];
+      var dwell = (nx ? nx.since : Date.now()) - st.since;
+      if (dwell >= 1800 && st.y >= 100 && st.y <= max - 150) return st.y;
+    }
+    return 0;
+  }
   function armResetAnchor() {
     clearTimeout(resetAnchorTimer);
     resetAnchorTimer = setTimeout(commitResetAnchor, 600);
@@ -1627,19 +1699,20 @@
     if (document.getElementById('overlay').classList.contains('open')) return;
     var y = Math.round(window.scrollY);
     if (y !== resetLastScrollY) return; /* se movió de nuevo: rearmar */
+    noteResetSettle(y); /* parada observada: entra en el respaldo (v15) */
     var jumped = Math.abs(y - resetBurstStartY) > 250;
     /* Salir de una lectura confirmada hacia abajo con el botón a la
        vista es ir a restablecer, no leer ahí: no confirma — salvo que
        se quede 3 s quieto en el destino (entonces sí estaba leyendo). */
     var leavingConfirmed = jumped && y > resetBurstStartY && resetBurstStartY === resetAnchorY && resetAnchorConfirmed && resetBtnInView();
     if (leavingConfirmed) {
-      if (Date.now() - resetLastScrollAt >= 3000) { resetAnchorY = y; resetAnchorConfirmed = true; return; }
+      if (Date.now() - resetLastScrollAt >= 3000) { setResetAnchor(y); return; }
       resetAnchorTimer = setTimeout(commitResetAnchor, 3000 - (Date.now() - resetLastScrollAt));
       return;
     }
-    if (jumped) { resetAnchorY = y; resetAnchorConfirmed = true; return; }
+    if (jumped) { setResetAnchor(y); return; }
     if (resetBtnInView()) return; /* pasos de tránsito junto al botón: no confirma */
-    if (Date.now() - resetLastScrollAt >= 3000) { resetAnchorY = y; resetAnchorConfirmed = true; return; }
+    if (Date.now() - resetLastScrollAt >= 3000) { setResetAnchor(y); return; }
     /* Sin salto y sin 3 s quieto: esperar a los 3 s (si sigue quieto). */
     resetAnchorTimer = setTimeout(commitResetAnchor, 3000 - (Date.now() - resetLastScrollAt));
   }
@@ -1692,6 +1765,11 @@
       var bd = document.getElementById('ovBackdrop');
       if (bd) bd.classList.toggle('show', isDetail);
     }
+    /* Un aviso nacido dentro de OTRO detalle no entra en este: en la
+       v14 «Alerta marcada como leída (maqueta)» seguía visible al abrir
+       el detalle de la otra alerta. El traslado a la vista solo vale
+       para avisos nacidos en pantalla o en este mismo detalle. */
+    if (toastBornInOverlay && !opts.replace && toastBornTitle !== title) hideToast();
     carryToastToOverlay(); /* el aviso activo se ve dentro de la vista */
     window.scrollTo({ top: 0, behavior: 'instant' });
   }
@@ -1734,6 +1812,10 @@
     document.getElementById('overlay').classList.remove('detail');
     var bd = document.getElementById('ovBackdrop');
     if (bd) bd.classList.remove('show');
+    /* Un aviso nacido dentro de la vista muere con ella (v15, mismo
+       fallo que en openOverlay): si se trasladara a la pantalla,
+       entraría después en el siguiente detalle como aviso viejo. */
+    if (toastBornInOverlay) hideToast();
     carryToastToScreen();
     window.scrollTo({ top: overlayReturnY, behavior: 'instant' });
     var t = document.getElementById('toast');
@@ -1753,7 +1835,7 @@
       for (var i = 0; i < alertsData.length; i++) {
         var ai = alertsData[i];
         var clearedAi = ai.read || ai.silenced;
-        h += '<div class="alert ' + ai.cls + (clearedAi ? ' read' : '') + '"><div><b>' + ai.title + (clearedAi ? ' · ' + alertTag(ai) : '') + '</b><span>' + ai.sub + '</span></div></div>';
+        h += '<div class="alert ' + ai.cls + (clearedAi ? ' read' : '') + ' tappable" onclick="openAlert(' + i + ')"><div><b>' + ai.title + (clearedAi ? ' · ' + alertTag(ai) : '') + '</b><span>' + ai.sub + '</span></div></div>';
       }
       var allSilA = true;
       for (var si2 = 0; si2 < alertsData.length; si2++) if (!alertsData[si2].silenced) allSilA = false;
