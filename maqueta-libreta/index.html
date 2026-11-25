@@ -72,8 +72,8 @@ body{font-family:var(--fuente);background:var(--bg-0);color:var(--txt-1);overflo
 .tabs button.activo{color:var(--dorado)}
 .pastel-wrap{display:flex;flex-direction:column;align-items:center;gap:4px}
 .pastel-wrap svg{width:240px;height:240px;overflow:visible}
-.rebanada{cursor:pointer;transition:transform 1.2s var(--lento),opacity 1.2s var(--lento);transform-origin:120px 120px}
-.rebanada.sel{transform:scale(1.07)}
+.rebanada{cursor:pointer;transition:transform 1.2s var(--lento),opacity 1.2s var(--lento);transform-origin:130px 130px}
+.rebanada.sel{transform:scale(1.14)}
 .rebanada text{font-family:var(--fuente);font-weight:800;fill:#10160F;text-anchor:middle;pointer-events:none}
 .rebanada text .pct{font-size:15px}
 .rebanada text .cup{font-size:10px;font-weight:700}
@@ -89,7 +89,7 @@ input[type=number],input[type=text]{width:100%;height:52px;background:var(--bg-2
 input:focus{border-color:var(--dorado)}
 label{display:block;font-size:13px;font-weight:600;color:var(--txt-2);margin:0 0 6px}
 .ayuda{font-size:12px;color:var(--txt-3);margin:6px 0 0;line-height:1.4}
-.ecu{font-family:var(--fuente-num);font-size:15px;font-weight:700;color:var(--dorado-claro);background:var(--bg-2);border:1px solid var(--borde);border-radius:12px;padding:10px 12px;margin:8px 0 2px;overflow-x:auto;white-space:nowrap}
+.ecu{font-family:var(--fuente-num);font-size:15px;font-weight:700;color:var(--dorado-claro);background:var(--bg-2);border:1px solid var(--borde);border-radius:12px;padding:10px 12px;margin:8px 0 2px;line-height:1.5}
 .chips{display:flex;flex-wrap:wrap;gap:8px}
 .chips button{flex:1 1 30%;min-height:48px;border-radius:999px;border:1px solid var(--borde-fuerte);background:var(--bg-2);color:var(--txt-1);font-family:var(--fuente);font-size:14px;font-weight:700;cursor:pointer}
 .chips button.sel{background:rgba(232,184,75,.16);border-color:var(--dorado);color:var(--dorado)}
@@ -98,7 +98,7 @@ label{display:block;font-size:13px;font-weight:600;color:var(--txt-2);margin:0 0
 .modal .hoja{background:var(--bg-1);border:1px solid var(--borde-fuerte);border-radius:28px 28px 0 0;width:100%;padding:20px 16px calc(20px + env(safe-area-inset-bottom));animation:sube 1s var(--lento)}
 @keyframes sube{from{transform:translateY(60px);opacity:0}to{transform:none;opacity:1}}
 .modal .hoja h2{margin:0 0 12px;font-size:19px}
-.toast{position:absolute;left:16px;right:16px;bottom:92px;background:var(--bg-3);border:1px solid var(--borde-fuerte);border-radius:14px;padding:12px 16px;text-align:center;font-size:14px;font-weight:600;display:none;z-index:6}
+.toast{position:absolute;left:16px;right:16px;top:12px;background:var(--bg-3);border:1px solid var(--borde-fuerte);border-radius:14px;padding:12px 16px;text-align:center;font-size:14px;font-weight:600;display:none;z-index:6}
 .toast.ver{display:block;animation:entra 1s var(--lento)}
 .lista-apuntes{font-size:14px;line-height:1.5;color:var(--txt-2)}
 .lista-apuntes div{padding:8px 0;border-bottom:1px solid rgba(255,255,255,.06)}
@@ -130,8 +130,8 @@ label{display:block;font-size:13px;font-weight:600;color:var(--txt-2);margin:0 0
       </div>
     </div>
     <div class="duo">
-      <div class="mini" style="border-color:rgba(47,191,113,.4)"><div class="etiqueta" style="color:var(--verde)">Saldo · QvaPay</div><div class="cifra num" id="mini-saldo-gan">152</div><div class="nota">ganancia por cada 360 · tasa 300</div></div>
-      <div class="mini" style="border-color:rgba(76,195,255,.4)"><div class="etiqueta" style="color:var(--azul)">Transferencia</div><div class="cifra num" id="mini-transf-margen">9.5%</div><div class="nota">margen por vuelta · +30%</div></div>
+      <div class="mini" style="border-color:rgba(47,191,113,.4)"><div class="etiqueta" style="color:var(--verde)">Saldo · QvaPay</div><div class="cifra num" id="mini-saldo-gan">152</div><div class="nota" id="mini-saldo-nota">ganancia por cada 360 · tasa 300</div></div>
+      <div class="mini" style="border-color:rgba(76,195,255,.4)"><div class="etiqueta" style="color:var(--azul)">Transferencia</div><div class="cifra num" id="mini-transf-margen">9.5%</div><div class="nota" id="mini-transf-nota">margen por vuelta · +30%</div></div>
     </div>
     <button class="btn" onclick="irA('h-saldo')">SEGUIR · CONTINUAR CICLO 23</button>
     <button class="btn sec" onclick="abrirAnotar()">ANOTAR RÁPIDO</button>
@@ -151,16 +151,36 @@ label{display:block;font-size:13px;font-weight:600;color:var(--txt-2);margin:0 0
       <h2>El pastel del ciclo 22 <span class="etiqueta-estado est-cerrado">CERRADO</span></h2>
       <p class="sub">Tócalo: cada pedazo dice su % y su cantidad, los dos juntos.</p>
       <div class="pastel-wrap">
-        <svg id="pastel22" viewBox="0 0 240 240" role="img" aria-label="Pastel del ciclo 22: reinversión 70 por ciento, 1,811 CUP; Briku 20 por ciento, 500 CUP; yo 10 por ciento, 250 CUP"></svg>
+        <svg id="pastel22" viewBox="0 0 260 260" role="img" aria-label="Pastel del ciclo 22: reinversión 70.7 por ciento, 1,811 CUP; Briku 19.5 por ciento, 500 CUP; yo 9.8 por ciento, 250 CUP"></svg>
         <div class="detalle-pastel" id="detalle22">Ganancia total <b class="num">2,562.74 CUP</b> · toca un pedazo para verlo</div>
+      <p class="ayuda" style="text-align:center">Los pedazos suman 2,561 CUP porque son tus números redondeados (Briku 512.55 → 500 · yo 256.27 → 250 · reinversión 1,793.92 → 1,811). La ganancia exacta es 2,562.74 CUP; la diferencia es 1.74 CUP de redondeo.</p>
       </div>
     </div>
     <div class="card">
+      <h2>Saldo · tus ecuaciones</h2>
+      <div class="ecu">Equilibrio = 360 × salida ÷ costo</div>
+      <p class="sub">Tu techo: por encima de esto, pierdes · <span id="ej-saldo">ahora mismo: 345.6</span></p>
+      <div class="ecu">Gan./360 = (360 ÷ tasa) × salida − costo</div>
+      <p class="sub">Lo que ganas por cada recarga de 360 que vendes.</p>
+      <div class="ecu">Gan. total = gan. × (saldo ÷ 360) − 14.44</div>
+      <p class="sub">La vuelta completa. Se restan 14.44 CUP: son los 5 de saldo que se pierden en el traspaso de ETECSA.</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px">
+        <div><label for="in-salida-s">Salida</label><input type="text" id="in-salida-s" value="960" inputmode="decimal" oninput="recalcular()" onchange="recalcular();formatearMiles(this)"></div>
+        <div><label for="in-costo">Costo</label><input type="text" id="in-costo" value="1000" inputmode="decimal" oninput="recalcular()" onchange="recalcular();formatearMiles(this)"></div>
+        <div><label for="in-tasa">Tasa</label><input type="text" id="in-tasa" value="300" inputmode="decimal" oninput="recalcular()" onchange="recalcular();formatearMiles(this)"></div>
+        <div><label for="in-saldo">Saldo a vender</label><input type="text" id="in-saldo" value="10275" inputmode="decimal" oninput="recalcular()" onchange="recalcular();formatearMiles(this)"></div>
+      </div>
+      <div class="fila" style="margin-top:8px"><span class="k">Equilibrio</span><span class="v num" id="out-equilibrio">345.6</span></div>
+      <div class="fila"><span class="k">Ganancia por cada 360</span><span class="v num" id="out-gan360">152 CUP</span></div>
+      <div class="fila"><span class="k">Ganancia total de la vuelta</span><span class="v num" id="out-gantotal">4,323.89 CUP</span></div>
+    </div>
+    <div class="card">
       <h2>Ciclo 23 · en juego</h2>
-      <div class="fila"><span class="k">Recargas</span><span class="v num">20 × 360 · 20,000 CUP</span></div>
+      <div class="fila"><span class="k">Recargas</span><span class="v num">20 × 360 = 7,200 saldo</span></div>
+      <div class="fila"><span class="k">Efectivo que diste</span><span class="v num">20 × 1,000 = 20,000 CUP</span></div>
       <div class="fila"><span class="k">Quedan por buscar</span><span class="v num">3,000 CUP</span></div>
       <div class="fila"><span class="k">Tasa · QUSD · saldo</span><span class="v num">300 · 34.25 · 10,275</span></div>
-      <div class="fila"><span class="k">Toque hoy (tío ZIS)</span><span class="v num">970 · 33,200 CUP</span></div>
+      <div class="fila"><span class="k">Toque hoy (tío ZIS)</span><span class="v num">970 · 33,222.50 CUP<small>≈ 33,200 redondeado</small></span></div>
       <div class="fila"><span class="k">G. neta</span><span class="v num" style="color:var(--verde)">2,465 CUP</span></div>
       <div class="fila"><span class="k">Columna</span><span class="v num" style="font-size:13px">4,666 − 650 − 1,000 − 320 + 9 − 240 = 2,465</span></div>
       <div class="barra"><i id="barra23" style="width:0%"></i></div>
@@ -178,7 +198,7 @@ label{display:block;font-size:13px;font-weight:600;color:var(--txt-2);margin:0 0
     <div class="hero">
       <div class="etiqueta">Margen por vuelta</div>
       <div class="cifra num" id="hero-margen">9.5%</div>
-      <div class="detalle">Con +30%, libro 1,140 y salida 960 · equilibrio 1,248</div>
+      <div class="detalle">Con <span id="hero-pct">+30%</span>, libro <span id="hero-libro">1,140</span> y salida <span id="hero-salida-t">960</span> · precio de libro de equilibrio <span class="num" id="hero-libro-eq">1,248</span></div>
     </div>
     <div class="card">
       <h2>Tus ecuaciones, con calculadora viva</h2>
@@ -190,8 +210,8 @@ label{display:block;font-size:13px;font-weight:600;color:var(--txt-2);margin:0 0
       <p class="sub">Los QUSD que compras con esa transferencia.</p>
       <div class="ecu">Regreso = QUSD × salida</div>
       <p class="sub">El efectivo que vuelve a ti al vender los QUSD.</p>
-      <div class="ecu">Equilibrio = libro ÷ salida</div>
-      <p class="sub">Más de ese % ya ganas · ej. al 19% (1,130 y 950).</p>
+      <div class="ecu">% de equilibrio = libro ÷ salida − 1</div>
+      <p class="sub" id="ej-transf">Más de ese % ya ganas · ahora mismo: 18.8% con libro 1,140 y salida 960.</p>
       <div class="ecu">Margen % = (1 + %) × salida ÷ libro − 1</div>
       <p class="sub">Tu % de ganancia en la vuelta completa.</p>
     </div>
@@ -199,14 +219,16 @@ label{display:block;font-size:13px;font-weight:600;color:var(--txt-2);margin:0 0
       <h2>Precios de hoy · editables</h2>
       <p class="sub">Nadie sabe cómo amanece el mercado mañana. Cámbialos y todo recalcula solo.</p>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px">
-        <div><label for="in-pct">Tu %</label><input type="number" id="in-pct" value="30" inputmode="decimal" onchange="recalcular()"></div>
-        <div><label for="in-libro">Libro</label><input type="number" id="in-libro" value="1140" inputmode="decimal" onchange="recalcular()"></div>
-        <div><label for="in-salida-t">Salida</label><input type="number" id="in-salida-t" value="960" inputmode="decimal" onchange="recalcular()"></div>
-        <div><label for="in-efectivo">Efectivo a dar</label><input type="number" id="in-efectivo" value="100" inputmode="decimal" onchange="recalcular()"></div>
+        <div><label for="in-pct">Tu %</label><input type="text" id="in-pct" value="30" inputmode="decimal" oninput="recalcular()" onchange="recalcular();formatearMiles(this)"></div>
+        <div><label for="in-libro">Libro</label><input type="text" id="in-libro" value="1140" inputmode="decimal" oninput="recalcular()" onchange="recalcular();formatearMiles(this)"></div>
+        <div><label for="in-salida-t">Salida</label><input type="text" id="in-salida-t" value="960" inputmode="decimal" oninput="recalcular()" onchange="recalcular();formatearMiles(this)"></div>
+        <div><label for="in-efectivo">Efectivo a dar</label><input type="text" id="in-efectivo" value="100" inputmode="decimal" oninput="recalcular()" onchange="recalcular();formatearMiles(this)"></div>
       </div>
       <div class="fila" style="margin-top:8px"><span class="k">Recibes en transferencia</span><span class="v num" id="out-transf">130 CUP</span></div>
       <div class="fila"><span class="k">Compras en QUSD</span><span class="v num" id="out-qusd">0.11 QUSD</span></div>
       <div class="fila"><span class="k">Te regresa en efectivo</span><span class="v num" id="out-regreso">109.47 CUP</span></div>
+      <div class="fila"><span class="k">Precio de libro de equilibrio</span><span class="v num" id="out-libro-eq">1,248 CUP</span></div>
+      <div class="fila"><span class="k">% de equilibrio</span><span class="v num" id="out-pct-eq">18.8%</span></div>
     </div>
     <button class="btn" onclick="abrirAnotar()">ANOTAR RÁPIDO</button>
   </div>
@@ -218,9 +240,9 @@ label{display:block;font-size:13px;font-weight:600;color:var(--txt-2);margin:0 0
   <div class="cuerpo">
     <div class="card">
       <h2>Reparto del dinero</h2>
-      <p class="sub">Tu proyección: 20,000 + 20,000 + 1,250. Tócala para ver cada parte.</p>
+      <p class="sub" id="sub-proy">Tu proyección: 20,000 + 20,000 + 1,250. Tócala para ver cada parte.</p>
       <div class="pastel-wrap">
-        <svg id="pastelProy" viewBox="0 0 240 240" role="img" aria-label="Pastel de proyección: ciclo 23, 20,000 CUP; ciclo 24, 20,000 CUP; resto 1,250 CUP"></svg>
+        <svg id="pastelProy" viewBox="0 0 260 260" role="img" aria-label="Pastel de proyección: ciclo 23, 20,000 CUP; ciclo 24, 20,000 CUP; resto 1,250 CUP"></svg>
         <div class="detalle-pastel" id="detalleProy">Total <b class="num">41,250 CUP</b> · toca un pedazo para verlo</div>
       </div>
     </div>
@@ -228,14 +250,14 @@ label{display:block;font-size:13px;font-weight:600;color:var(--txt-2);margin:0 0
       <h2>Repartir el capital en dos ciclos</h2>
       <p class="sub">Tú decides cuánto va a cada ciclo. Uno trabaja, el otro espera. <b style="color:var(--txt-1)">Nada se cierra solo:</b> el ciclo 2 se activa solo cuando TÚ cierras el 1.</p>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px">
-        <div><label for="in-ciclo-a">Ciclo 1 · a trabajar</label><input type="number" id="in-ciclo-a" value="20000" inputmode="decimal" onchange="repartir()"></div>
-        <div><label for="in-ciclo-b">Ciclo 2 · en espera</label><input type="number" id="in-ciclo-b" value="20000" inputmode="decimal" onchange="repartir()"></div>
+        <div><label for="in-ciclo-a">Ciclo 1 · a trabajar</label><input type="text" id="in-ciclo-a" value="20000" inputmode="decimal" oninput="repartir(false)" onchange="repartir(true);formatearMiles(this)"></div>
+        <div><label for="in-ciclo-b">Ciclo 2 · en espera</label><input type="text" id="in-ciclo-b" value="20000" inputmode="decimal" oninput="repartir(false)" onchange="repartir(true);formatearMiles(this)"></div>
       </div>
       <div class="fila" style="margin-top:8px"><span class="k">Capital total</span><span class="v num" id="out-capital">41,250 CUP</span></div>
       <div class="fila"><span class="k">Queda sin repartir</span><span class="v num" id="out-resto">1,250 CUP</span></div>
       <div class="fila"><span class="k">Ciclo 1</span><span class="v"><span class="etiqueta-estado est-activo">ACTIVO · TRABAJANDO</span></span></div>
       <div class="fila"><span class="k">Ciclo 2</span><span class="v"><span class="etiqueta-estado est-espera">EN ESPERA</span></span></div>
-      <p class="ayuda">Ciclo 23 compró ☑ · Ciclo 24 pendiente ☐ · Quedan 11,250 por repartir después.</p>
+      <p class="ayuda">Ciclo 23 compró ☑ · Ciclo 24 pendiente ☐ · Los 11,250 son lo que queda por repartir después del ciclo 24, según tu libreta.</p>
       <button class="btn sec" style="margin-top:12px" onclick="cerrarCiclo()">Cerrar el ciclo 1 y pasar al ciclo 2</button>
       <p class="ayuda" id="aviso-cierre">Esto solo lo haces tú, cuando el ciclo 1 esté terminado de verdad.</p>
     </div>
@@ -260,22 +282,14 @@ label{display:block;font-size:13px;font-weight:600;color:var(--txt-2);margin:0 0
       <div class="fila"><span class="k">El capital</span><span class="v" style="font-size:14px">no se reparte, solo la ganancia</span></div>
     </div>
     <div class="card">
-      <h2>Saldo · tus ecuaciones</h2>
+      <h2>Saldo · tus ecuaciones (referencia)</h2>
       <div class="ecu">Equilibrio = 360 × salida ÷ costo</div>
-      <p class="sub">Tu techo: por encima de esto, pierdes · ej. 328.85</p>
+      <p class="sub">Tu techo: por encima de esto, pierdes.</p>
       <div class="ecu">Gan./360 = (360 ÷ tasa) × salida − costo</div>
       <p class="sub">Lo que ganas por cada recarga de 360 que vendes.</p>
       <div class="ecu">Gan. total = gan. × (saldo ÷ 360) − 14.44</div>
-      <p class="sub">La vuelta completa · los 14.44 son los 5 de ETECSA.</p>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px">
-        <div><label for="in-salida-s">Salida</label><input type="number" id="in-salida-s" value="960" inputmode="decimal" onchange="recalcular()"></div>
-        <div><label for="in-costo">Costo</label><input type="number" id="in-costo" value="1000" inputmode="decimal" onchange="recalcular()"></div>
-        <div><label for="in-tasa">Tasa</label><input type="number" id="in-tasa" value="300" inputmode="decimal" onchange="recalcular()"></div>
-        <div><label for="in-saldo">Saldo a vender</label><input type="number" id="in-saldo" value="10275" inputmode="decimal" onchange="recalcular()"></div>
-      </div>
-      <div class="fila" style="margin-top:8px"><span class="k">Equilibrio</span><span class="v num" id="out-equilibrio">345.6</span></div>
-      <div class="fila"><span class="k">Ganancia por cada 360</span><span class="v num" id="out-gan360">152 CUP</span></div>
-      <div class="fila"><span class="k">Ganancia total de la vuelta</span><span class="v num" id="out-gantotal">4,323.89 CUP</span></div>
+      <p class="sub">La vuelta completa. Se restan 14.44 CUP: son los 5 de saldo que se pierden en el traspaso de ETECSA.</p>
+      <p class="ayuda">Estas son las ecuaciones de Saldo, de referencia. La calculadora viva está en la hoja Saldo. Aquí no se edita nada: Clásica sigue pendiente.</p>
     </div>
     <button class="btn" onclick="abrirAnotar()">ANOTAR RÁPIDO</button>
   </div>
@@ -303,7 +317,7 @@ label{display:block;font-size:13px;font-weight:600;color:var(--txt-2);margin:0 0
       <button data-tipo="Proyección" onclick="elegirTipo(this)">Proyección</button>
       <button data-tipo="Apunte" onclick="elegirTipo(this)">Apunte</button>
     </div>
-    <div style="margin-top:16px"><label for="in-monto">Cantidad (CUP)</label><input type="number" id="in-monto" placeholder="Ej. 1000" inputmode="decimal"></div>
+    <div style="margin-top:16px"><label for="in-monto">Cantidad (CUP)</label><input type="text" id="in-monto" placeholder="Ej. 1000" inputmode="decimal"></div>
     <div style="margin-top:12px"><label for="in-nota">Nota corta (si quieres)</label><input type="text" id="in-nota" placeholder="Ej. recarga de 360"></div>
     <button class="btn" style="margin-top:16px" onclick="guardarApunte()">Guardar apunte</button>
     <button class="btn fantasma" onclick="cerrarAnotar()">Cancelar</button>
@@ -318,9 +332,9 @@ label{display:block;font-size:13px;font-weight:600;color:var(--txt-2);margin:0 0
 var SEMILLA = {
   capital: 41250,
   ciclo22: { total: 2562.74, partes: [
-    { nombre: "Reinversión", pct: 70, cup: 1811, color: "#2FBF71" },
-    { nombre: "Briku", pct: 20, cup: 500, color: "#E8B84B" },
-    { nombre: "Yo", pct: 10, cup: 250, color: "#4CC3FF" } ] },
+    { nombre: "Reinversión", pct: 70.7, cup: 1811, color: "#2FBF71", modelo: 70 },
+    { nombre: "Briku", pct: 19.5, cup: 500, color: "#E8B84B", modelo: 20 },
+    { nombre: "Yo", pct: 9.8, cup: 250, color: "#4CC3FF", modelo: 10 } ] },
   proy: { total: 41250, partes: [
     { nombre: "Ciclo 23", pct: 48.5, cup: 20000, color: "#2FBF71" },
     { nombre: "Ciclo 24", pct: 48.5, cup: 20000, color: "#E8B84B" },
@@ -338,7 +352,8 @@ function irA(id){
   document.querySelectorAll(".screen").forEach(function(s){ s.classList.remove("active"); });
   $(id).classList.add("active");
   document.querySelectorAll(".tabs button").forEach(function(b){ b.classList.toggle("activo", b.dataset.hoja === id); });
-  if(id === "h-saldo"){ setTimeout(function(){ $("barra23").style.width = "85%"; }, 300); }
+  if(id === "h-saldo"){ setTimeout(function(){ $("barra23").style.width = "85%"; }, 300); dibujarPastel("pastel22", SEMILLA.ciclo22.partes, SEMILLA.ciclo22.total, "detalle22", true); }
+  if(id === "h-proyeccion"){ dibujarPastel("pastelProy", SEMILLA.proy.partes, SEMILLA.proy.total, "detalleProy", true); }
 }
 
 /* ---------- Pasteles: SVG por rebanadas, % y CUP dentro de cada pedazo ---------- */
@@ -349,55 +364,51 @@ function rebanada(cx, cy, r, a0, a1){
   return "M " + cx + " " + cy + " L " + p0[0].toFixed(1) + " " + p0[1].toFixed(1) +
     " A " + r + " " + r + " 0 " + grande + " 1 " + p1[0].toFixed(1) + " " + p1[1].toFixed(1) + " Z";
 }
-function dibujarPastel(svgId, partes, total, detalleId){
-  var svg = $(svgId), cx = 120, cy = 120, r = 104, html = "";
+function pctTxt(pct){ var v = Math.round(pct * 10) / 10; return v % 1 === 0 ? String(v) : v.toFixed(1); }
+function dibujarPastel(svgId, partes, total, detalleId, animar){
+  var svg = $(svgId), cx = 130, cy = 130, r = 104, html = "";
   var ang = 0;
+  var dec = svgId === "pastel22" ? 2 : 0;
   partes.forEach(function(p, i){
     var a0 = ang, a1 = ang + p.pct / 100 * 360; ang = a1;
     var medio = (a0 + a1) / 2;
     var etiqueta = polar(cx, cy, 62, medio);
     var fuera = p.pct <= 10;
-    var etiquetaFuera = polar(cx, cy, 128, medio);
+    var etiquetaFuera = polar(cx, cy, 122, medio);
+    var txt = pctTxt(p.pct) + "%";
     html += '<g class="rebanada" data-i="' + i + '" onclick="tocarPastel(this,\'' + svgId + '\',' + total + ')">'
       + '<path d="' + rebanada(cx, cy, r, a0, a1) + '" fill="' + p.color + '" stroke="#0E1512" stroke-width="2"/>'
       + (fuera
         ? '<line x1="' + polar(cx, cy, r + 2, medio)[0].toFixed(1) + '" y1="' + polar(cx, cy, r + 2, medio)[1].toFixed(1) + '" x2="' + etiquetaFuera[0].toFixed(1) + '" y2="' + etiquetaFuera[1].toFixed(1) + '" stroke="#F2F5F9" stroke-width="1"/>'
-          + '<text x="' + etiquetaFuera[0].toFixed(1) + '" y="' + (etiquetaFuera[1] - 4).toFixed(1) + '" style="fill:#F2F5F9" font-size="13">' + p.pct + '%</text>'
+          + '<text x="' + etiquetaFuera[0].toFixed(1) + '" y="' + (etiquetaFuera[1] - 4).toFixed(1) + '" style="fill:#F2F5F9" font-size="13">' + txt + '</text>'
           + '<text x="' + etiquetaFuera[0].toFixed(1) + '" y="' + (etiquetaFuera[1] + 11).toFixed(1) + '" style="fill:#F2F5F9" font-size="10">' + fmt(p.cup) + ' CUP</text>'
-        : '<text x="' + etiqueta[0].toFixed(1) + '" y="' + (etiqueta[1] - 2).toFixed(1) + '" font-size="15">' + p.pct + '%</text>'
+        : '<text x="' + etiqueta[0].toFixed(1) + '" y="' + (etiqueta[1] - 2).toFixed(1) + '" font-size="15">' + txt + '</text>'
           + '<text x="' + etiqueta[0].toFixed(1) + '" y="' + (etiqueta[1] + 13).toFixed(1) + '" font-size="10">' + fmt(p.cup) + ' CUP</text>')
       + '</g>';
   });
-  html += '<circle cx="120" cy="120" r="34" fill="#0E1512"/><text class="centro-txt" x="120" y="116" fill="#F5D67B" font-size="13" font-weight="700">' + fmt(total) + '</text><text class="centro-txt" x="120" y="132" fill="#9aa6c4" font-size="9">CUP en total</text>';
+  html += '<circle cx="130" cy="130" r="34" fill="#0E1512"/><text class="centro-txt" x="130" y="126" fill="#F5D67B" font-size="12" font-weight="700">' + fmt(total, dec) + '</text><text class="centro-txt" x="130" y="142" fill="#9aa6c4" font-size="8">CUP en total</text>';
   svg.innerHTML = html;
-  svg.style.transform = "rotate(-90deg)";
-  svg.style.transition = "transform 2.4s cubic-bezier(.16,1,.3,1)";
-  requestAnimationFrame(function(){ svg.style.transform = "rotate(0deg)"; });
+  if(detalleId){ $(detalleId).innerHTML = svgId === "pastel22" ? 'Ganancia total <b class="num">2,562.74 CUP</b> · toca un pedazo para verlo' : 'Total <b class="num">' + fmt(total) + ' CUP</b> · toca un pedazo para verlo'; }
+  if(animar === false){ svg.style.transition = "none"; svg.style.transform = "rotate(0deg)"; return; }
+  svg.style.transition = "none"; svg.style.transform = "rotate(-90deg)";
+  setTimeout(function(){ svg.style.transition = "transform 2.4s cubic-bezier(.16,1,.3,1)"; svg.style.transform = "rotate(0deg)"; }, 60);
 }
 function tocarPastel(el, svgId, total){
   var svg = $(svgId);
-  svg.querySelectorAll(".rebanada").forEach(function(g){ g.classList.remove("sel"); });
-  el.classList.add("sel");
+  svg.querySelectorAll(".rebanada").forEach(function(g){ g.classList.remove("sel"); g.style.opacity = "0.55"; });
+  el.classList.add("sel"); el.style.opacity = "1";
   var partes = svgId === "pastel22" ? SEMILLA.ciclo22.partes : SEMILLA.proy.partes;
   var p = partes[Number(el.dataset.i)];
   var detalleId = svgId === "pastel22" ? "detalle22" : "detalleProy";
-  $(detalleId).innerHTML = "<b>" + p.nombre + ": " + p.pct + "% · " + fmt(p.cup) + " CUP</b><br>de " + fmt(total) + " CUP en total";
-}
-
-/* ---------- Conteo lento del centro ---------- */
-function contarLento(id, valor){
-  var el = $(id), inicio = null, dur = 2000;
-  function paso(t){
-    if(!inicio) inicio = t;
-    var k = Math.min(1, (t - inicio) / dur), suave = 1 - Math.pow(1 - k, 3);
-    el.textContent = fmt(Math.round(valor * suave));
-    if(k < 1) requestAnimationFrame(paso);
-  }
-  requestAnimationFrame(paso);
+  var dec = svgId === "pastel22" ? 2 : 0;
+  var extra = "";
+  if(svgId === "pastel22" && p.modelo != null){ extra = "<br><span style='font-size:12px'>el " + p.modelo + "% exacto serían " + fmt(total * p.modelo / 100, 2) + " CUP</span>"; }
+  $(detalleId).innerHTML = "<b>" + p.nombre + ": " + pctTxt(p.pct) + "% · " + fmt(p.cup) + " CUP</b><br>de " + fmt(total, dec) + " CUP en total" + extra;
 }
 
 /* ---------- Calculadoras vivas, con las ecuaciones de Ernesto ---------- */
-function leerNum(id, defecto){ var v = parseFloat($(id).value); return isNaN(v) ? defecto : v; }
+function leerNum(id, defecto){ var v = parseFloat(String($(id).value).replace(/,/g, "").replace(/\s/g, "")); return isNaN(v) ? defecto : v; }
+function formatearMiles(el){ var v = parseFloat(String(el.value).replace(/,/g, "")); if(!isNaN(v) && Math.abs(v) >= 1000){ el.value = fmt(v); } }
 function recalcular(){
   var salidaS = leerNum("in-salida-s", 960), costo = leerNum("in-costo", 1000),
       tasa = leerNum("in-tasa", 300), saldo = leerNum("in-saldo", 10275);
@@ -420,12 +431,33 @@ function recalcular(){
   $("out-transf").textContent = fmt(transf, 2) + " CUP";
   $("out-qusd").textContent = fmt(qusd, 2) + " QUSD";
   $("out-regreso").textContent = fmt(regreso, 2) + " CUP";
+  var libroEq = (1 + pct / 100) * salidaT;
+  $("hero-libro-eq").textContent = fmt(libroEq);
+  $("hero-pct").textContent = "+" + pct + "%";
+  $("hero-libro").textContent = fmt(libro);
+  $("hero-salida-t").textContent = fmt(salidaT);
+  $("out-libro-eq").textContent = fmt(libroEq) + " CUP";
+  $("out-pct-eq").textContent = fmt((libro / salidaT - 1) * 100, 1) + "%";
+  $("ej-transf").textContent = "Más de ese % ya ganas · ahora mismo: " + fmt((libro / salidaT - 1) * 100, 1) + "% con libro " + fmt(libro) + " y salida " + fmt(salidaT) + ".";
+  $("ej-saldo").textContent = "ahora mismo: " + fmt(equilibrio, 1);
+  $("mini-saldo-nota").textContent = "ganancia por cada 360 · tasa " + fmt(tasa);
+  $("mini-transf-nota").textContent = "margen por vuelta · +" + pct + "%";
 }
 
 /* ---------- Repartir el capital ---------- */
-function repartir(){
+function repartir(animar){
   var a = leerNum("in-ciclo-a", 20000), b = leerNum("in-ciclo-b", 20000);
-  $("out-resto").textContent = fmt(SEMILLA.capital - a - b) + " CUP";
+  var resto = SEMILLA.capital - a - b;
+  $("out-resto").textContent = fmt(resto) + " CUP";
+  $("out-resto").style.color = resto < 0 ? "var(--rojo)" : "";
+  $("sub-proy").textContent = "Tu proyección: " + fmt(a) + " + " + fmt(b) + " + " + fmt(resto) + ". Tócala para ver cada parte.";
+  if(resto < 0){ return; }
+  SEMILLA.proy.partes = [
+    { nombre: "Ciclo 23", cup: a, color: "#2FBF71" },
+    { nombre: "Ciclo 24", cup: b, color: "#E8B84B" },
+    { nombre: "Resto", cup: resto, color: "#4CC3FF" } ];
+  SEMILLA.proy.partes.forEach(function(p){ p.pct = Math.round(p.cup / SEMILLA.capital * 1000) / 10; });
+  dibujarPastel("pastelProy", SEMILLA.proy.partes, SEMILLA.proy.total, "detalleProy", animar);
 }
 function cerrarCiclo(){
   if(!confirm("¿El ciclo 1 está terminado de verdad? Solo tú lo cierras, la app no lo hace sola.")) return;
@@ -469,7 +501,6 @@ function mostrarToast(txt){
 /* ---------- Arranque ---------- */
 dibujarPastel("pastel22", SEMILLA.ciclo22.partes, SEMILLA.ciclo22.total, "detalle22");
 dibujarPastel("pastelProy", SEMILLA.proy.partes, SEMILLA.proy.total, "detalleProy");
-contarLento("hero-capital", 41250);
 recalcular(); repartir(); pintarApuntes();
 document.querySelectorAll("#chips-tipo button")[0].classList.add("sel");
 </script>
