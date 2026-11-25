@@ -41,7 +41,7 @@ body{font-family:var(--fuente);background:var(--bg-0);color:var(--txt-1);overflo
 .brand span{color:var(--dorado)}
 .chip{font-size:11px;font-weight:800;background:var(--bg-2);border:1px solid var(--borde);padding:6px 10px;border-radius:999px;color:var(--txt-2);box-shadow:0 4px 10px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.05)}
 .chip.gold{background:rgba(232,184,75,.14);border-color:rgba(232,184,75,.35);color:var(--dorado)}
-.cuerpo{flex:1;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;scrollbar-width:none;padding:8px 16px calc(212px + env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:12px}
+.cuerpo{flex:1;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;scrollbar-width:none;padding:8px 16px calc(24px + env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:12px}
 .cuerpo::-webkit-scrollbar{display:none;width:0}
 .cuerpo>*{flex-shrink:0}
 .card{background:linear-gradient(180deg,#18241D,#141F18);border:1px solid var(--borde);border-radius:var(--r-lg);padding:16px;box-shadow:var(--sombra-tarjeta)}
@@ -166,7 +166,7 @@ details.card summary h2{display:inline}
 .paso-intro .kicker{font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--dorado)}
 .paso-intro h2{margin:4px 0 2px;font-size:20px;font-weight:800}
 .paso-intro .sub{font-size:14px}
-.barra-pasos{position:absolute;left:12px;right:12px;bottom:calc(10px + env(safe-area-inset-bottom));background:rgba(18,22,31,.92);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border:1px solid var(--borde);border-radius:20px;padding:10px 12px 12px;box-shadow:var(--sombra-flotante);z-index:4}
+.barra-pasos{position:static;flex-shrink:0;margin:0 12px calc(10px + env(safe-area-inset-bottom));background:rgba(18,22,31,.92);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border:1px solid var(--borde);border-radius:20px;padding:10px 12px 12px;box-shadow:var(--sombra-flotante);z-index:4}
 .progreso-top{display:flex;justify-content:space-between;font-size:12px;font-weight:800;color:var(--txt-2);margin-bottom:6px}
 .progreso-top b{color:var(--dorado)}
 .barra-progreso{height:8px;border-radius:999px;background:var(--bg-2);overflow:hidden;margin-bottom:10px}
@@ -202,18 +202,19 @@ details.card summary h2{display:inline}
       <div class="fila"><span class="k">Tu capital ahora</span><span class="v num" style="color:var(--dorado-claro)">41,250 CUP</span></div>
     </div>
     <p class="sub" style="text-align:center">En el paso 3 lo repartes entre los próximos ciclos.</p>
+    <div class="card" style="text-align:center"><h3 style="margin-bottom:4px">Lo que viene</h3><p class="sub">Paso 2 · El reparto del ciclo 22: quién se quedó con qué.</p><button class="btn fantasma" style="width:100%" onclick="mostrarPaso(2)">Ver el reparto →</button></div>
     </div>
     <div class="paso" data-paso="2">
-    <div class="paso-intro"><div class="kicker">Paso 2 de 6 · Reparto</div><h2>El ciclo 22 ya cerró</h2><p class="sub">Así se repartió su ganancia: la mayor parte vuelve a trabajar.</p></div>
+    <div class="paso-intro"><div class="kicker">Paso 2 de 6 · Reparto</div><h2>El ciclo 22 ya cerró</h2><p class="sub">Reparto redondeado a cero, como en tu libreta: 1,811 · 500 · 250 = 2,561 CUP.</p></div>
     <div class="card">
         <div id="det-22">
           <h3 style="margin:14px 0 4px">Ciclo 22 · cerrado ✅</h3>
-          <p class="sub">Ganancia 2,562.74 CUP · reparto 70% / 20% / 10%.</p>
+          <p class="sub">Ganancia 2,562.74 CUP · reparto redondeado 70.7% / 19.5% / 9.8%.</p>
           <div class="pastel-wrap">
             <svg id="pastel22" viewBox="0 0 360 360" role="img" aria-label="Pastel del ciclo 22: reinversión 70.7 por ciento, 1,811 CUP; Briku 19.5 por ciento, 500 CUP; yo 9.8 por ciento, 250 CUP"></svg>
             <div class="leyenda" id="leyenda22" aria-label="Leyenda del pastel del ciclo 22"></div>
             <div class="detalle-pastel" id="detalle22">Ganancia total <b class="num">2,562.74 CUP</b> · toca un pedazo para verlo</div>
-          <p class="ayuda" style="text-align:center">Los pedazos suman 2,561 CUP porque son tus números redondeados (Briku 512.55 → 500 · yo 256.27 → 250 · reinversión 1,793.92 → 1,811). La ganancia exacta es 2,562.74 CUP; la diferencia es 1.74 CUP de redondeo.</p>
+          <p class="ayuda" style="text-align:center">El modelo es 70/20/10 sobre la ganancia 2,562.74; al redondear a cero quedan 1,811 + 500 + 250 = 2,561 (diferencia 1.74 CUP por redondeo).</p>
           </div>
         </div>
     </div>
@@ -344,7 +345,12 @@ details.card summary h2{display:inline}
     <div class="paso-intro"><div class="kicker">Paso 5 de 6 · Gráfica de Briku</div><h2>Lo que Briku ya compró</h2><p class="sub">Esto es lo que Briku ya compró con tu dinero y lo que todavía le queda por buscar.</p></div>
     <div class="card">
       <h2>Briku: comprado y lo que falta</h2>
-      <p class="sub">De 20,000 CUP que le diste para buscar recargas.</p>
+      <p class="sub">De 20,000 CUP que le diste para buscar recargas. Tócalo: el pedazo se separa y abajo te lo explico grande.</p>
+      <div class="pastel-wrap">
+        <svg id="pastelBriku" viewBox="0 0 360 360" role="img" aria-label="Pastel de Briku: comprado 76.7 por ciento, 15,333 CUP; le quedan 23.3 por ciento, 4,667 CUP"></svg>
+        <div class="leyenda" id="leyendaBriku" aria-label="Leyenda del pastel de Briku"></div>
+        <div class="detalle-pastel" id="detalleBriku">Total <b class="num">20,000 CUP</b> · toca un pedazo para verlo</div>
+      </div>
       <div class="hero" style="margin-top:12px">
         <div class="etiqueta">Ya compró en recargas</div>
         <div class="cifra num">15,333</div>
@@ -358,6 +364,7 @@ details.card summary h2{display:inline}
       <div class="fila"><span class="k">Tú invertiste (ciclo 24)</span><span class="v num">5,200 CUP<small>2,000 saldo ≈ 5.55 recargas</small></span></div>
       <div class="fila"><span class="k">Caja</span><span class="v num">22,080 CUP<small>27,280 − 5,200 = 22,080</small></div>
     </div>
+    <div class="card" style="text-align:center"><h3 style="margin-bottom:4px">Lo que viene</h3><p class="sub">Paso 6 · Todo tu dinero en una foto: caja, Briku y lo tuyo, juntos.</p><button class="btn fantasma" style="width:100%" onclick="mostrarPaso(6)">Ver la foto completa →</button></div>
     </div>
     <div class="paso" data-paso="6">
     <div class="paso-intro"><div class="kicker">Paso 6 de 6 · Visión general</div><h2>Todo tu dinero en una foto</h2><p class="sub">Ya recorriste los 6 pasos: caja, Briku y lo tuyo, juntos en una sola foto.</p></div>
@@ -381,7 +388,7 @@ details.card summary h2{display:inline}
       <div style="margin-top:10px"><span class="etiqueta-estado est-bloqueado">BLOQUEADA · PENDIENTE</span></div>
       <div class="fila" style="margin-top:8px"><span class="k">Con buscador</span><span class="v num">70% · 20% · 10%</span></div>
       <div class="fila"><span class="k">Cuando lo buscas tú</span><span class="v num">70% · 30%</span></div>
-      <div class="fila"><span class="k">La ganancia se cuenta</span><span class="v" style="font-size:14px">después de vender los QUSD</span></div>
+      <div class="fila"><span class="k">La ganancia se cuenta</span><span class="v" style="font-size:14px">al vender los&nbsp;QUSD</span></div>
       <div class="fila"><span class="k">El capital</span><span class="v" style="font-size:14px">no se reparte, solo la ganancia</span></div>
     </div>
 
@@ -390,9 +397,6 @@ details.card summary h2{display:inline}
       <div class="lista-apuntes" id="lista-apuntes"><div class="vacio">Todavía no hay apuntes nuevos. Toca ANOTAR RÁPIDO y pon el primero.</div></div>
     </div>
     <div class="pie-pagina">Los datos son los de tu libreta de papel · Nada se cierra solo, tú decides · Fin de la libreta.</div>    </div>
-
-  </div>
-</section>
 
 <!-- Barra inferior: 3 anclas dentro de la vista unica, no 5 hojas lejos -->
 <div class="barra-pasos" aria-label="Tu progreso en el juego">
@@ -408,6 +412,20 @@ details.card summary h2{display:inline}
   </div>
   <div class="nav-pasos"><button class="btn sec" id="btn-atras" onclick="pasoAtras()">← Atrás</button><button class="btn" id="btn-siguiente" onclick="pasoSiguiente()">Siguiente →</button></div>
   <button class="btn fantasma" style="width:100%" onclick="abrirAnotar()">ANOTAR RÁPIDO</button>
+  </div>
+</section>
+
+</div>
+
+<!-- ============ CONFIRMAR CIERRE DE CICLO: cartel propio en la página,
+     nunca el confirm() nativo (en algunos navegadores no aparece) ============ -->
+<div class="modal" id="modal-cerrar" role="dialog" aria-label="Confirmar cierre de ciclo">
+  <div class="hoja">
+    <h2 id="titulo-cerrar">¿Seguro que quieres cerrar el ciclo 23?</h2>
+    <p class="sub" style="margin-bottom:16px" id="texto-cerrar">Solo tú lo cierras, la app no lo hace sola. Al cerrar, el 23 pasa a CERRADO y el 24 a ACTIVO.</p>
+    <button class="btn" id="btn-cerrar-si" onclick="confirmarCierre(true)">Sí, cerrar el ciclo 23</button>
+    <button class="btn fantasma" onclick="confirmarCierre(false)">No, volver</button>
+  </div>
 </div>
 
 <!-- ============ ANOTAR RÁPIDO ============ -->
@@ -454,7 +472,7 @@ const DATOS_VIVOS = [
   { nombre: 'Yo',    valor: 5200,  pct: 12.2, color: 0x0EA5E9 },
 ];
 const TOTAL_VIVO = 42613;
-const RADIO = 2.2, DEPTH = 0.32;
+const RADIO = 2.2, DEPTH = 0.42;
 const BEVEL = DEPTH * 0.08;
 
 const escenaEl = document.getElementById('escena-vision');
@@ -518,8 +536,12 @@ halo.rotation.x = -Math.PI / 2;
 halo.position.y = -0.61;
 scene.add(halo);
 
+/* Inclinación: -1.02 dejaba el pastel casi de frente (~18°), un círculo
+   plano sin grosor ni giro visible. Con +0.22 la normal queda a ~52° de la
+   cámara, la misma elipse que el pastel SVG del paso 2 (scaleY 0.62): se ve
+   inclinado, con canto y grosor, y el giro se nota. */
 const inclinado = new THREE.Group();
-inclinado.rotation.x = -1.02;
+inclinado.rotation.x = 0.22;
 scene.add(inclinado);
 const giro = new THREE.Group();
 inclinado.add(giro);
@@ -604,22 +626,38 @@ renderer.domElement.addEventListener('pointermove', (e) => {
   posDedo.set(nx * 3.2, 2.2 + ny * 1.2, 3.2);
 });
 
+let ultimoAncho = 0, ultimoAlto = 0;
 function redimensionar() {
   const w = escenaEl.clientWidth, h = escenaEl.clientHeight;
   if (!w || !h) return;
+  ultimoAncho = w; ultimoAlto = h;
   renderer.setSize(w, h, false);
   camera.aspect = w / h;
   camera.updateProjectionMatrix();
 }
 window.addEventListener('resize', redimensionar);
 redimensionar();
+/* La escena nace oculta (paso 6 no activo): al entrar al paso, el tamaño
+   cambia de 0 a real. El bucle de animación lo repara solo en el primer
+   fotograma visible, sin depender del evento resize. */
+window.__visionResize = redimensionar;
+/* Puente leyenda -> pedazo: tocar "Briku" (o Caja/Yo) en la leyenda separa
+   el pedazo igual que tocar el pastel directamente. */
+window.addEventListener('vision-seleccionar', (e) => {
+  activo = (e.detail == null) ? -1 : e.detail;
+  rebanadas.forEach((r, i) => { r.malla.userData.objetivo = (i === activo) ? 1 : 0; });
+});
 
 const reloj = new THREE.Clock();
 const easeOut = t => 1 - Math.pow(1 - t, 3);
 function animar() {
   requestAnimationFrame(animar);
   const t = reloj.getElapsedTime();
-  giro.rotation.z += 0.0016;
+  /* Giro por reloj, no por fotograma: 0.0016 por fotograma a 60 fps son
+     0.096 rad/s. Así el giro avanza con el tiempo real aunque el navegador
+     baje los fotogramas, y dos fotos con 5 s de diferencia se ven distintas. */
+  giro.rotation.z = t * 0.096;
+  if (escenaEl.clientWidth && (escenaEl.clientWidth !== ultimoAncho || escenaEl.clientHeight !== ultimoAlto)) redimensionar();
   rebanadas.forEach((r) => {
     const u = r.malla.userData;
     const p = THREE.MathUtils.clamp((t - u.retardo) / 0.9, 0, 1);
@@ -650,6 +688,9 @@ var SEMILLA = {
     { nombre: "Caja", pct: 51.8, cup: 22080, color: "#22C55E", que: "Dinero en caja: lo que tienes guardado, listo para usar." },
     { nombre: "Briku", pct: 36.0, cup: 15333, color: "#F59E0B", que: "15,333 CUP en recargas · 15.33 recargas (5,520 saldo ÷ 360): lo que Briku ya buscó con tu dinero." },
     { nombre: "Yo", pct: 12.2, cup: 5200, color: "#0EA5E9", que: "Lo que yo invertí: 5,200 CUP · 5.55 recargas (2,000 saldo ÷ 360), descontado de la caja." } ] },
+  briku: { total: 20000, partes: [
+    { nombre: "Comprado", pct: 76.7, cup: 15333, color: "#F59E0B", que: "Lo que Briku ya compró en recargas: 5,520 saldo · 15.33 recargas." },
+    { nombre: "Le quedan", pct: 23.3, cup: 4667, color: "#38B6FF", que: "Lo que todavía le queda por buscar: 4,667 CUP de 20,000." } ] },
   proy: { total: 41250, partes: [
     { nombre: "Ciclo 23", pct: 48.5, cup: 20000, color: "#2CEB7E", que: "El ciclo que está trabajando ahora mismo." },
     { nombre: "Ciclo 24", pct: 48.5, cup: 20000, color: "#FFB020", que: "El que espera: se activa solo cuando tú cierres el 23." },
@@ -677,7 +718,8 @@ function mostrarPaso(n){
   var c = $("cuerpo-unica"); if(c){ c.scrollTop = 0; }
   if(n === 2){ dibujarPastel("pastel22", SEMILLA.ciclo22.partes, SEMILLA.ciclo22.total, "detalle22", true); }
   if(n === 3){ dibujarPastel("pastelProy", SEMILLA.proy.partes, SEMILLA.proy.total, "detalleProy", true); }
-  if(n === 6){ window.dispatchEvent(new Event("resize")); }
+  if(n === 5){ dibujarPastel("pastelBriku", SEMILLA.briku.partes, SEMILLA.briku.total, "detalleBriku", true); }
+  if(n === 6){ if(window.__visionResize){ window.__visionResize(); } setTimeout(function(){ if(window.__visionResize){ window.__visionResize(); } }, 80); }
 }
 function pasoSiguiente(){ if(pasoActual === 6){ mostrarPaso(1); } else { mostrarPaso(pasoActual + 1); } }
 function pasoAtras(){ mostrarPaso(pasoActual - 1); }
@@ -739,10 +781,16 @@ function tono(hex, f){
   var b = Math.min(255, Math.round((n & 255) * f));
   return "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
 }
+/* Config de cada pastel SVG: partes, leyenda y decimales del total. */
+function configPastel(svgId){
+  if(svgId === "pastel22") return { partes: SEMILLA.ciclo22.partes, leyenda: "leyenda22", dec: 2 };
+  if(svgId === "pastelBriku") return { partes: SEMILLA.briku.partes, leyenda: "leyendaBriku", dec: 0 };
+  return { partes: SEMILLA.proy.partes, leyenda: "leyendaProy", dec: 0 };
+}
 function dibujarPastel(svgId, partes, total, detalleId, animar){
   var svg = $(svgId), cx = 180, cy = 180, R = 95, r = 46, rebanadas = "", etiquetas = "", defs = "", anillo = "";
   var ang = 0; /* el pedazo más grande empieza en las 12 y sigue en sentido horario */
-  var dec = svgId === "pastel22" ? 2 : 0;
+  var dec = configPastel(svgId).dec;
   partes.forEach(function(p, i){
     var a0 = ang, a1 = ang + p.pct / 100 * 360; ang = a1;
     var medio = (a0 + a1) / 2;
@@ -756,8 +804,8 @@ function dibujarPastel(svgId, partes, total, detalleId, animar){
     /* Tamaño de etiqueta: Proyección igual o mayor que Saldo (15/12 frente a
        13/10) para que se lea igual de grande a 390 px. En el código las dos
        ya eran 13/10; Proyección sube a 15/12 para que no se vea chica. */
-    var fsPct = svgId === "pastelProy" ? 15 : 13;
-    var fsCup = svgId === "pastelProy" ? 12 : 10;
+    var fsPct = svgId === "pastelProy" ? 15 : 16;
+    var fsCup = 12;
     /* Las de arriba, más lejos (172, antes 156): al separarse el pedazo sube
        y hay que dejarle aire hasta su etiqueta. La línea conectora es más
        larga (R+34, antes R+17) para que no quede cortita. */
@@ -809,6 +857,7 @@ function dibujarPastel(svgId, partes, total, detalleId, animar){
      con CUP, como en Saldo. */
   var centroGrande = svgId === "pastel22" ? fmt(total, dec) : fmt(total, dec) + " CUP";
   var centroChico = svgId === "pastel22" ? "CUP en total" : "en total";
+  /* En Briku el total va con CUP igual que en Proyección: 20,000 CUP. */
   var pastilla = '<g class="pastilla" pointer-events="none">'
     + '<rect x="122" y="158" width="116" height="50" rx="14" fill="#000000" opacity=".35"/>'
     + '<rect x="122" y="155" width="116" height="50" rx="14" fill="#0E1512" stroke="rgba(232,184,75,.45)" stroke-width="1"/>'
@@ -818,10 +867,11 @@ function dibujarPastel(svgId, partes, total, detalleId, animar){
   svg.querySelectorAll(".rebanada").forEach(function(g){
     g.addEventListener("click", function(){ seleccionarPastel(svgId, Number(g.dataset.i), total); });
   });
-  construirLeyenda(svgId === "pastel22" ? "leyenda22" : "leyendaProy", svgId, partes, total);
+  construirLeyenda(configPastel(svgId).leyenda, svgId, partes, total);
   if(detalleId){ $(detalleId).innerHTML = svgId === "pastel22"
     ? '<div class="det-nombre">Ganancia total</div><div class="det-cifra num">2,562.74 CUP</div><div class="det-que">Toca un pedazo: te digo quién es, su % y su cantidad, grande y claro.</div>'
     : '<div class="det-nombre">Total</div><div class="det-cifra num">' + fmt(total) + ' CUP</div><div class="det-que">Toca un pedazo para ver cada parte, grande y claro.</div>'; }
+  /* Briku: el detalle inicial dice de qué va, no solo el total. */
   /* El giro lento (2.4 s) es SOLO de las rebanadas (.giro): las etiquetas, el
      brillo, la sombra y la pastilla quedan quietos y horizontales siempre. */
   var giro = svg.querySelector(".giro");
@@ -836,7 +886,7 @@ function dibujarPastel(svgId, partes, total, detalleId, animar){
 function seleccionarPastel(svgId, i, total){
   var svg = $(svgId);
   if(!svg) return;
-  var partes = svgId === "pastel22" ? SEMILLA.ciclo22.partes : SEMILLA.proy.partes;
+  var partes = configPastel(svgId).partes;
   var p = partes[i]; if(!p) return;
   svg.querySelectorAll(".rebanada").forEach(function(g){
     var esSel = Number(g.dataset.i) === i;
@@ -851,11 +901,11 @@ function seleccionarPastel(svgId, i, total){
     } else { g.style.transform = ""; }
   });
   svg.querySelectorAll(".etq").forEach(function(e){ e.classList.toggle("sel", Number(e.dataset.i) === i); });
-  var leyendaId = svgId === "pastel22" ? "leyenda22" : "leyendaProy";
+  var leyendaId = configPastel(svgId).leyenda;
   var caja = $(leyendaId);
   if(caja){ caja.querySelectorAll(".leyenda-fila").forEach(function(b){ b.classList.toggle("sel", Number(b.dataset.i) === i); }); }
-  var detalleId = svgId === "pastel22" ? "detalle22" : "detalleProy";
-  var dec = svgId === "pastel22" ? 2 : 0;
+  var detalleId = svgId === "pastel22" ? "detalle22" : (svgId === "pastelBriku" ? "detalleBriku" : "detalleProy");
+  var dec = configPastel(svgId).dec;
   /* Detalle GRANDE y en sus palabras: quién es, % exacto, cantidad, y qué es eso. */
   var extra = "";
   if(svgId === "pastel22" && p.modelo != null){ extra = "<div class=\"det-total\">el " + p.modelo + "% exacto serían " + fmt(total * p.modelo / 100, 2) + " CUP · de " + fmt(total, dec) + " CUP en total</div>"; }
@@ -892,6 +942,8 @@ function construirLeyendaVision(){
 }
 function seleccionarVision(i){
   var partes = SEMILLA.vision.partes, det = $("detalleGen"); if(!det) return;
+  /* Avisar al módulo 3D para que el pedazo se separe igual que al tocarlo. */
+  try { window.dispatchEvent(new CustomEvent("vision-seleccionar", { detail: (i == null || i < 0) ? -1 : i })); } catch(e){}
   var caja = $("leyendaGen");
   if(caja){ caja.querySelectorAll(".leyenda-fila").forEach(function(b){ b.classList.toggle("sel", Number(b.dataset.i) === i); }); }
   if(i == null || i < 0 || !partes[i]){
@@ -963,6 +1015,7 @@ function repartir(animar){
   dibujarPastel("pastelProy", SEMILLA.proy.partes, SEMILLA.proy.total, "detalleProy", animar);
 }
 var cicloActivo = 23;
+var cicloPendiente = 23; /* ciclo que está esperando tu "Sí, cerrar" en el cartel */
 function verCiclo(n){
   if(n === 22){ mostrarPaso(2); return; }
   var det = $("det-" + n); if(!det) return;
@@ -973,10 +1026,22 @@ function verCiclo(n){
 }
 function cerrarCiclo(){ cerrarCicloActual(); }
 function cerrarCicloActual(){
+  /* Abre el cartel propio de confirmación. NUNCA se usa confirm() nativo:
+     en el navegador del Ojo (y en algunos WebView) no aparece y el botón
+     parecía no hacer nada. Sin tu "Sí, cerrar", nada cambia. */
+  cicloPendiente = cicloActivo;
   var sig = cicloActivo + 1;
-  if(!confirm("¿El ciclo " + cicloActivo + " está terminado de verdad? Solo tú lo cierras, la app no lo hace sola.")) return;
+  $("titulo-cerrar").textContent = "¿Seguro que quieres cerrar el ciclo " + cicloActivo + "?";
+  $("texto-cerrar").textContent = "Solo tú lo cierras, la app no lo hace sola. Al cerrar, el " + cicloActivo + " pasa a CERRADO y el " + sig + " a ACTIVO.";
+  $("btn-cerrar-si").textContent = "Sí, cerrar el ciclo " + cicloActivo;
+  $("modal-cerrar").classList.add("abierto");
+}
+function confirmarCierre(si){
+  $("modal-cerrar").classList.remove("abierto");
+  if(!si) return;
+  var sig = cicloPendiente + 1;
   function ponEstado(n, texto, clase){ var e = $("est-" + n); if(e){ e.textContent = texto; e.className = "etiqueta-estado " + clase; } }
-  ponEstado(cicloActivo, "CERRADO", "est-cerrado");
+  ponEstado(cicloPendiente, "CERRADO", "est-cerrado");
   if(sig === 25){ var c25 = $("casilla-25"); if(c25){ c25.classList.remove("oculta"); } }
   ponEstado(sig, "ACTIVO · TRABAJANDO", "est-activo");
   if(sig === 24){ var p24 = $("est-proy-24"); if(p24){ p24.textContent = "ACTIVO · TRABAJANDO"; p24.className = "etiqueta-estado est-activo"; } }
@@ -987,6 +1052,9 @@ function cerrarCicloActual(){
   mostrarToast("Ciclo " + (sig - 1) + " cerrado. El ciclo " + sig + " ya está trabajando.");
   verCiclo(sig);
 }
+/* El confirm() nativo quedó prohibido en esta página: el cierre solo sale
+   del cartel propio (#modal-cerrar). Si alguien lo vuelve a poner, el banco
+   lo caza (test "cerrar: sin confirm() nativo"). */
 
 /* ---------- Anotar rápido: Ernesto apunta, la app solo ordena ---------- */
 function abrirAnotar(){ $("modal-anotar").classList.add("abierto"); }
@@ -1025,6 +1093,7 @@ function mostrarToast(txt){
 construirLeyendaVision(); seleccionarVision(-1);
 dibujarPastel("pastel22", SEMILLA.ciclo22.partes, SEMILLA.ciclo22.total, "detalle22");
 dibujarPastel("pastelProy", SEMILLA.proy.partes, SEMILLA.proy.total, "detalleProy");
+dibujarPastel("pastelBriku", SEMILLA.briku.partes, SEMILLA.briku.total, "detalleBriku");
 /* Si el 3D no cargó (sin WebGL o sin red para la librería), se muestra el
    texto con las cifras, que ya está dentro de la escena. */
 setTimeout(function(){ if(!document.querySelector("#escena-vision canvas")){ var f = $("sinwebgl-vision"); if(f) f.style.display = "block"; } }, 5000);
