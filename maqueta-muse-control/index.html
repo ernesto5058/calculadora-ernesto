@@ -240,15 +240,32 @@
   .steps li small { display: block; color: var(--muted); font-size: 12px; margin-top: 2px; }
   .steps li.locked { opacity: .5; }
   /* El aviso es EN FLUJO: va justo debajo de la banda amarilla, empuja el
-     contenido hacia abajo y se desplaza con la página. Por construcción
-     nunca se solapa con nada: ni la banda, ni el diff, ni botones, ni el pie. */
+     contenido hacia abajo y nunca se solapa con nada: ni la banda, ni el
+     diff, ni botones, ni el pie. Cuando se dispara estando fuera de la
+     vista, la página se desplaza suavemente hasta él y vuelve a su sitio
+     al descartarlo (ver toast() en el script). Dura 8 s o hasta que se
+     cierra con la ×; la confirmación de «Demo restablecida» no se
+     auto-oculta. Hay un aviso igual dentro de cada vista a pantalla
+     completa (#ovToast), también en flujo en su parte superior. */
   .toast {
     display: none;
     background: #2a1d4d; border-bottom: 1px solid var(--acc); color: var(--txt);
-    padding: 12px 16px; font-size: 13px; font-weight: 600; text-align: center;
+    padding: 12px 16px; font-size: 13px; font-weight: 600;
     line-height: 1.45;
   }
-  .toast.show { display: block; }
+  .toast.show { display: flex; align-items: center; gap: 10px; }
+  .toast-msg { flex: 1; text-align: center; }
+  .toast-x {
+    flex: none; background: none; border: none; color: var(--acc2);
+    font-size: 20px; line-height: 1; cursor: pointer; padding: 2px 8px;
+  }
+  /* Aviso dentro de la vista a pantalla completa: en flujo en su parte
+     superior, empuja el listado hacia abajo sin tapar nada. */
+  .overlay .toast { border: 1px solid var(--acc); border-radius: 12px; margin-bottom: 12px; }
+  /* Espacio al final del chat: sin él la página no tiene recorrido para
+     dejar la última tarjeta por encima del compositor (ver
+     scrollChatToBottom). Son 200 px vacíos al final de Máximo. */
+  .chat-spacer { height: 200px; }
   /* Barra inferior */
   nav.bottom {
     position: fixed; left: 50%; transform: translateX(-50%);
@@ -303,7 +320,7 @@
     border-radius: 999px; padding: 8px 14px; font-size: 13px; font-weight: 700; cursor: pointer; flex: none;
   }
   .ov-head h2 { font-size: 17px; }
-  .ov-body { overflow-y: auto; padding: 14px 16px 24px; }
+  .ov-body { flex: 1; min-height: 0; overflow-y: auto; padding: 14px 16px 24px; }
   .ov-note { font-size: 12px; color: var(--muted); margin-bottom: 10px; line-height: 1.5; }
   .frag { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 13px 14px; margin-bottom: 10px; }
   .frag b { font-size: 12.5px; color: var(--acc2); display: block; margin-bottom: 6px; }
@@ -388,7 +405,7 @@
       <div class="act"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div><div><b>Servicios rearrancados solos</b><span>Tras el reinicio de la máquina, el timer los levantó</span></div><time>01:14</time></div>
       <div class="act"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" stroke-width="2" stroke-linecap="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/></svg></div><div><b>WhatsApp Baileys cayó 2 veces</b><span>Reinicios de máquina; levantado a mano</span></div><time>01:20</time></div>
     </div>
-    <p class="foot">Muse Control · Maqueta v4 · Los datos de esta pantalla son de ejemplo.</p>
+    <p class="foot">Muse Control · Maqueta v5 · Los datos de esta pantalla son de ejemplo.</p>
     <div style="text-align:center; margin-top:10px;"><button class="btn ghost" style="flex:none; padding:9px 18px;" onclick="resetDemo()">Restablecer demo</button></div>
   </section>
 
@@ -411,6 +428,7 @@
       </button>
     </div>
     <p class="foot">Ejemplo: «Audita la arquitectura de Muse y busca problemas de seguridad».</p>
+    <div class="chat-spacer" aria-hidden="true"></div>
   </section>
 
   <!-- ============ 03 ORQUESTA ============ -->
@@ -526,7 +544,7 @@
       <div class="plan-actions" style="margin-top:12px;">
         <button class="btn ghost" onclick="advanceStep()">Avanzar un paso (demo)</button>
       </div>
-      <p style="font-size:12.5px; color:var(--muted); margin-top:8px;">El avance se detiene en el paso 4 hasta que apruebes el cambio.</p>
+      <p style="font-size:12.5px; color:var(--muted); margin-top:8px;">El avance se detiene en el paso 3 hasta que apruebes el cambio. El paso 4 solo se abre al aprobar.</p>
     </div>
 
     <div class="sec-title"><h2>Historial de operaciones</h2></div>
@@ -535,7 +553,7 @@
       <div class="act"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#f87171" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></div><div><b>Despliegue rechazado</b><span>Maqueta v7-u2net · en cuarentena</span></div><time>ayer</time></div>
       <div class="act"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div><div><b>Pruebas del banco: 72/72</b><span>Juego v9 · sin fallos</span></div><time>ayer</time></div>
     </div>
-    <p class="foot">Taller · Maqueta v4 · Ningún despliegue o comando destructivo se ejecuta sin tu autorización.</p>
+    <p class="foot">Taller · Maqueta v5 · Ningún despliegue o comando destructivo se ejecuta sin tu autorización.</p>
   </section>
 
   <!-- ============ BARRA INFERIOR ============ -->
@@ -567,26 +585,74 @@
       <button onclick="closeList()">‹ Volver</button>
       <h2 id="ovTitle"></h2>
     </div>
+    <div class="toast" id="ovToast" role="status"></div>
     <div class="ov-body" id="ovBody"></div>
   </div>
 
 </div>
 
 <script>
+  /* ---------- Avisos ---------- */
+  /* El aviso es EN FLUJO (nunca tapa contenido) y se muestra en DOS
+     sitios a la vez: #toast bajo la banda amarilla y #ovToast en la parte
+     superior de cada vista a pantalla completa (hermano del cuerpo del
+     listado, nunca dentro de su innerHTML, para que no se borre al
+     redibujar el listado). El que se ve es el del contexto activo.
+     Si se dispara estando fuera de la vista, la página se desplaza
+     suavemente hasta él y vuelve a su sitio al descartarlo; si el usuario
+     se movió por su cuenta mientras tanto, no se le arrastra de vuelta.
+     Dura 8 s o hasta cerrar con la ×. Con {persist:true} no se
+     auto-oculta. Con {stay:true} no mueve la vista: la confirmación
+     visible es la que está junto a la acción (chat). */
   var toastTimer = null;
-  function toast(msg) {
-    var t = document.getElementById('toast');
-    t.textContent = msg;
-    t.classList.add('show');
+  var toastSavedY = null; /* posición de la página para restaurar al ocultar el aviso */
+  function toast(msg, opts) {
+    opts = opts || {};
+    var persist = !!opts.persist;
+    var stay = !!opts.stay;
+    var html = '<span class="toast-msg"></span><button class="toast-x" aria-label="Cerrar aviso" onclick="hideToast()">×</button>';
+    var slots = [document.getElementById('toast'), document.getElementById('ovToast')];
+    for (var i = 0; i < slots.length; i++) {
+      if (!slots[i]) continue;
+      slots[i].innerHTML = html;
+      slots[i].querySelector('.toast-msg').textContent = msg;
+      slots[i].classList.add('show');
+    }
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(function(){ t.classList.remove('show'); }, 2600);
+    var overlayOpen = document.getElementById('overlay').classList.contains('open');
+    if (!overlayOpen && !stay) {
+      var r = document.getElementById('toast').getBoundingClientRect();
+      if (r.top < 0 || r.bottom > window.innerHeight) {
+        if (toastSavedY === null) toastSavedY = window.scrollY;
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    }
+    if (!persist) toastTimer = setTimeout(function(){ hideToast(); }, 8000);
+  }
+  function hideToast() {
+    clearTimeout(toastTimer);
+    var t = document.getElementById('toast');
+    var o = document.getElementById('ovToast');
+    if (t) t.classList.remove('show');
+    if (o) o.classList.remove('show');
+    if (toastSavedY !== null) {
+      var y = toastSavedY;
+      toastSavedY = null;
+      /* Solo se restaura si el usuario sigue arriba del todo (no se movió
+         por su cuenta mientras el aviso estaba visible). */
+      if (window.scrollY < 80) window.scrollTo({ top: y, behavior: 'smooth' });
+    }
   }
 
   /* La maqueta no guarda estado de la demo en el navegador. La única
      excepción es una bandera de un solo uso en sessionStorage que avisa
      tras restablecer la demo; se lee y se borra al cargar.
-     Si el navegador restaura la página desde su caché de atrás/adelante, se recarga para no mostrar un estado viejo de la demo. */
-  window.addEventListener('pageshow', function (e) { if (e.persisted) location.reload(); });
+     Si el navegador restaura la página desde su caché de atrás/adelante, se recarga para no mostrar un estado viejo de la demo — salvo justo
+     después de restablecer, para no borrar la confirmación antes de que
+     se vea (la v4 la perdía así: la recarga doble llegaba antes que el
+     aviso de 300 ms y su auto-ocultado de 2,6 s). */
+  var resetJustShown = false;
+  window.addEventListener('pageshow', function (e) { if (e.persisted && !resetJustShown) location.reload(); });
 
   /* Estado de las alertas: marcar leídas o silenciar produce un cambio
      visible — las alertas se atenúan, el punto rojo de la campana
@@ -634,11 +700,16 @@
     try { sessionStorage.setItem('mc-demo-reset', '1'); } catch (e) {}
     location.reload();
   }
-  /* Confirmación del restablecimiento: sobrevive a la recarga y se borra al leerla */
+  /* Confirmación del restablecimiento: se dibuja en el primer pintado,
+     sin temporizador y sin auto-ocultado — queda visible hasta que se
+     descarta con la ×. La v4 fallaba aquí: la mostraba 300 ms después
+     de cargar y la auto-ocultaba a los 2,6 s, así que en el navegador
+     real nunca llegaba a verse. */
   try {
     if (sessionStorage.getItem('mc-demo-reset') === '1') {
       sessionStorage.removeItem('mc-demo-reset');
-      setTimeout(function(){ toast('Demo restablecida'); }, 300);
+      resetJustShown = true;
+      toast('Demo restablecida', { persist: true });
     }
   } catch (e) {}
 
@@ -762,29 +833,43 @@
     document.getElementById('chatInput').value = text;
     sendOrder();
   }
-  /* El chat baja SIEMPRE solo hasta el final con cada respuesta: se calcula
-     la posición del último mensaje y se deja por encima del compositor
-     y de la barra inferior (unos 150 px), porque scrollIntoView con
-     block:'end' lo dejaba tapado por el compositor. Se repite tras
-     350 ms para que el desplazamiento sea determinista aunque el
-     navegador aún esté pintando. */
+  /* El chat baja SOLO hasta el final con cada respuesta, y lo comprueba
+     midiendo de verdad: la tarjeta del plan debe quedar COMPLETAMENTE
+     visible por encima del compositor. La v4 calculaba una posición con
+     getBoundingClientRect y hacía un único scrollTo suave: fallaba porque
+     la página no tenía recorrido suficiente para llegar a esa posición
+     (el documento termina justo después del chat) y el compositor fijo
+     tapaba el final del mensaje. Aquí hay espacio de sobra al final
+     (.chat-spacer) y el desplazamiento se corrige en bucle hasta que la
+     medida dice que la tarjeta cabe. */
   function scrollChatToBottom() {
     var chat = document.getElementById('chat');
-    var last = chat.lastElementChild;
-    if (!last) return;
-    var y = last.getBoundingClientRect().top + window.scrollY + last.offsetHeight - window.innerHeight + 150;
-    window.scrollTo({ top: Math.max(0, y), behavior: 'smooth' });
-    setTimeout(function() {
-      var l2 = chat.lastElementChild;
-      if (!l2) return;
-      var y2 = l2.getBoundingClientRect().top + window.scrollY + l2.offsetHeight - window.innerHeight + 150;
-      window.scrollTo({ top: Math.max(0, y2), behavior: 'smooth' });
-    }, 350);
+    var tries = 0;
+    function place() {
+      var last = chat.lastElementChild;
+      if (!last) return;
+      var composer = document.querySelector('#scr-maximo .composer');
+      var limit = composer ? composer.getBoundingClientRect().top - 12 : window.innerHeight - 160;
+      var dy = last.getBoundingClientRect().bottom - limit;
+      if (dy > 1) {
+        window.scrollBy(0, dy);
+        tries++;
+        if (tries < 8) requestAnimationFrame(place);
+      }
+    }
+    requestAnimationFrame(place);
+    /* Re-comprobación tardía por si el navegador aún está pintando */
+    setTimeout(function(){ tries = 0; place(); }, 450);
   }
   function sendOrder() {
     var input = document.getElementById('chatInput');
     var text = (input.value || '').trim();
-    if (!text) { toast('Escribe primero una orden'); return; }
+    if (!text) {
+      input.style.borderColor = '#f87171';
+      setTimeout(function(){ input.style.borderColor = ''; }, 1200);
+      toast('Escribe primero una orden', { stay: true });
+      return;
+    }
     var sugg = document.getElementById('sugg');
     if (sugg) sugg.style.display = 'none';
     var chat = document.getElementById('chat');
@@ -815,11 +900,19 @@
   }
   function decide(btn, ok) {
     var wrap = btn.parentElement;
+    /* La confirmación en línea sustituye a los botones sin mover la
+       vista: si el cambio de altura mueve la fila, se compensa para que
+       quede exactamente donde estaba. Aprobar o rechazar no salta la
+       página arriba ni pierde la posición en el chat. */
+    var before = wrap.getBoundingClientRect().top;
     wrap.innerHTML = ok
       ? '<span style="color:var(--green); font-weight:700; font-size:13px;">Aprobado en la maqueta — en la versión real aquí empezaría el trabajo.</span>'
       : '<span style="color:var(--red); font-weight:700; font-size:13px;">Rechazado en la maqueta — no se ejecuta nada.</span>';
-    scrollChatToBottom();
-    toast(ok ? 'Plan aprobado (maqueta)' : 'Plan rechazado (maqueta)');
+    var dy = wrap.getBoundingClientRect().top - before;
+    if (dy) window.scrollBy(0, dy);
+    /* El aviso superior se muestra sin mover la vista: la confirmación
+       visible aquí es la de la línea, junto a la acción. */
+    toast(ok ? 'Plan aprobado (maqueta)' : 'Plan rechazado (maqueta)', { stay: true });
   }
 
   /* ---------- Listados completos (overlay) ---------- */
@@ -958,7 +1051,8 @@
   var step = 3;
   function advanceStep() {
     /* El avance demo NO llega a «Ejecutándose» ni a «finalizada» sin
-       aprobación: se detiene en el paso 4 hasta que se apruebe el cambio. */
+       aprobación: se detiene en el paso 3 hasta que se apruebe el cambio;
+       el paso 4 solo se abre al aprobar. */
     if (step === 3 && changeDecision !== 'aprobado') {
       toast(changeDecision === 'rechazado' ? 'El cambio está rechazado: no se puede ejecutar (demo)' : 'Primero aprueba el cambio: el paso 4 se abre al aprobar (demo)');
       return;
