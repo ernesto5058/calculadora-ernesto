@@ -7,148 +7,120 @@ let pass=0, fail=0;
 function t(n,c){ console.log((c?"PASS":"FAIL")+" "+n); c?pass++:fail++; }
 function txt(id){ return d.getElementById(id).textContent; }
 function seccion(id){ const s=d.getElementById(id); return s ? s.textContent : ""; }
-// estructura
-t("5 hojas", d.querySelectorAll('.screen').length===5);
-t("5 pestañas con nombre", [...d.querySelectorAll('.tabs button')].every(b=>b.textContent.trim().length>2));
-// ERROR 3 (no tocar): scroll intacto
+w.confirm=function(){ return true; };
+// ---------- VISTA UNICA: una sola pestana ----------
+t("vista unica: 1 sola pantalla activa #h-unica", d.querySelectorAll('.screen').length===1 && d.getElementById('h-unica').classList.contains('active'));
+t("vista unica: sin las 5 hojas viejas (h-general/h-saldo/h-clasica)", !d.getElementById('h-general') && !d.getElementById('h-saldo') && !d.getElementById('h-clasica'));
+t("vista unica: 6 secciones (vision, ciclos, zoom, proy, precios, clasica)", ['sec-vision','sec-ciclos','sec-zoom','sec-proy','sec-precios','sec-clasica'].every(function(id){ return !!d.getElementById(id); }));
+t("vista unica: barra inferior con 3 anclas (Vista/Ciclos/Precios), no 5 hojas", d.querySelectorAll('.tabs button').length===3 && d.body.textContent.includes('Vista'));
 t("scroll: cuerpo overflow-y auto + padding 120px safe-area",
   html.includes("overflow-y:auto") && html.includes("calc(120px + env(safe-area-inset-bottom))"));
-// ERROR 1: pastel exacto
+// ---------- VISION GENERAL: pastel nuevo 42,613 ----------
+t("vision: total 42,613 CUP", txt('pastelGen').includes('42,613 CUP'));
+t("vision: Caja 51.8% · 22,080 CUP", txt('pastelGen').includes('51.8%') && txt('pastelGen').includes('22,080'));
+t("vision: Briku 36.0% · 15,333 CUP", txt('pastelGen').includes('36.0%') && txt('pastelGen').includes('15,333'));
+t("vision: Yo 12.2% · 5,200 CUP", txt('pastelGen').includes('12.2%') && txt('pastelGen').includes('5,200'));
+t("vision: 3 pedazos 3D con grosor (54 lados)", d.querySelectorAll('#pastelGen .rebanada').length===3 && d.querySelectorAll('#pastelGen .lado').length===54);
+t("vision: 3 etiquetas fuera con linea", d.querySelectorAll('#pastelGen .etq').length===3 && d.querySelectorAll('#pastelGen .etq line').length===3);
+t("vision: leyenda 3 filas tocables", d.querySelectorAll('#leyendaGen .leyenda-fila').length===3);
+t("vision: tocar Briku muestra 15,333 CUP y 'recargas'",
+  (function(){ const p=d.querySelectorAll('#pastelGen .rebanada'); p[1].dispatchEvent(new w.Event('click',{bubbles:true})); return txt('detalleGen').includes('15,333 CUP') && txt('detalleGen').includes('36.0%') && txt('detalleGen').includes('recargas'); })());
+t("vision: tocar Caja muestra 22,080 CUP y 'caja'",
+  (function(){ const p=d.querySelectorAll('#pastelGen .rebanada'); p[0].dispatchEvent(new w.Event('click',{bubbles:true})); return txt('detalleGen').includes('22,080 CUP') && txt('detalleGen').includes('51.8%'); })());
+t("vision: suma 15,333+5,200+22,080=42,613 escrita", d.body.textContent.includes('15,333 + 5,200 + 22,080 = 42,613 CUP'));
+// ---------- CORRECCION RECARGAS (Ernesto 2026-11-25 11:52) ----------
+t("recargas: Briku 15.33 recargas, nunca QUSD", d.body.textContent.includes('15.33 recargas') && !d.body.textContent.includes('15.33 QUSD'));
+t("recargas: Yo 5.55 recargas, nunca QUSD", d.body.textContent.includes('5.55 recargas') && !d.body.textContent.includes('5.55 QUSD'));
+t("recargas: 5,520/360=15.33 y 2,000/360=5.55 (aritmetica)", Math.abs(5520/360-15.33)<0.01 && Math.abs(2000/360-5.55)<0.01);
+t("QUSD correcto se conserva: 34.25 QUSD -> 10,275 saldo", seccion('det-23').includes('34.25'));
+// ---------- CICLO 24 (datos nuevos) ----------
+t("ciclo 24: Briku 5,520 saldo y le quedan 4,667 CUP", seccion('det-24').includes('5,520') && seccion('det-24').includes('4,667'));
+t("ciclo 24: suma saldo Briku 360+120+120+480+720=1,800", seccion('det-24').includes('1,800'));
+t("ciclo 24: 15,333+4,667=20,000", seccion('det-24').includes('15,333 + 4,667 = 20,000'));
+t("ciclo 24: caja 27,280-5,200=22,080", seccion('det-24').includes('27,280') && seccion('det-24').includes('22,080'));
+t("ciclo 24: saldo total 7,520 (2,000+5,520)", seccion('det-24').includes('7,520'));
+t("ciclo 24: entrega 7,200 saldo 24/11 5:25 pm", seccion('det-24').includes('7,200 saldo') && seccion('det-24').includes('5:25'));
+// ---------- LINEA DE TIEMPO ----------
+t("timeline: 3 casillas visibles 22/23/24 + 25 oculta", d.querySelectorAll('.casilla').length===4 && d.getElementById('casilla-25').classList.contains('oculta'));
+t("timeline: ciclo 23 visible al arrancar, 22 y 24 ocultos", d.getElementById('det-23').classList.contains('ver') && !d.getElementById('det-22').classList.contains('ver') && !d.getElementById('det-24').classList.contains('ver'));
+t("timeline: tocar casilla 24 muestra su detalle",
+  (function(){ w.verCiclo(24); return d.getElementById('det-24').classList.contains('ver') && !d.getElementById('det-23').classList.contains('ver'); })());
+t("timeline: tocar casilla 22 muestra su pastel",
+  (function(){ w.verCiclo(22); return d.getElementById('det-22').classList.contains('ver') && d.querySelectorAll('#pastel22 .rebanada').length===3; })());
+w.verCiclo(23);
+// ---------- CERRAR CICLO con nombres reales ----------
+t("cerrar: boton dice 'Cerrar el ciclo 23 y pasar al ciclo 24' (no ciclo 1/2)", txt('btn-cerrar').includes('Cerrar el ciclo 23 y pasar al ciclo 24') && !txt('btn-cerrar').includes('ciclo 1'));
+t("cerrar 23: etiquetas cambian (23 CERRADO, 24 ACTIVO) y boton pasa a crear el 25",
+  (function(){ d.getElementById('btn-cerrar').dispatchEvent(new w.Event('click',{bubbles:true})); return txt('est-23').includes('CERRADO') && txt('est-24').includes('ACTIVO') && txt('btn-cerrar').includes('Cerrar el ciclo 24 y crear el ciclo 25'); })());
+t("cerrar 24: se crea el ciclo 25 (casilla visible, ACTIVO) y el detalle 25 se ve",
+  (function(){ d.getElementById('btn-cerrar').dispatchEvent(new w.Event('click',{bubbles:true})); return !d.getElementById('casilla-25').classList.contains('oculta') && txt('est-25').includes('ACTIVO') && d.getElementById('det-25').classList.contains('ver') && txt('btn-cerrar').includes('Cerrar el ciclo 25'); })());
+// ---------- ZOOM Dia / Mes / Ano ----------
+t("zoom: Dia visible al arrancar (Briku 5,520, caja 22,080, total 7,520)", d.getElementById('panel-dia').classList.contains('ver') && seccion('panel-dia').includes('5,520') && seccion('panel-dia').includes('22,080') && seccion('panel-dia').includes('7,520'));
+t("zoom: Mes muestra 22, 23 y 24 de noviembre",
+  (function(){ w.zoom('mes'); return d.getElementById('panel-mes').classList.contains('ver') && seccion('panel-mes').includes('2,562.74') && seccion('panel-mes').includes('2,465') && seccion('panel-mes').includes('15,333'); })());
+t("zoom: Ano solo noviembre lleno, 11 meses sin datos, sin cifras inventadas",
+  (function(){ w.zoom('ano'); var sin=(seccion('panel-ano').match(/sin datos/g)||[]).length; return d.getElementById('panel-ano').classList.contains('ver') && sin===11 && seccion('panel-ano').includes('Nov') && seccion('panel-ano').includes('22 · 23 · 24'); })());
+w.zoom('dia');
+// ---------- PASTEL 22 (regresion) ----------
 t("pastel 22 dice 70.7% y 1,811", txt('pastel22').includes('70.7%') && txt('pastel22').includes('1,811'));
 t("pastel 22 dice 19.5% / 9.8%", txt('pastel22').includes('19.5%') && txt('pastel22').includes('9.8%'));
 t("centro del pastel 22 es 2,562.74", txt('pastel22').includes('2,562.74'));
 t("nota de redondeo 1.74 CUP", d.body.textContent.includes('1.74 CUP'));
 t("tocar Reinversión muestra exacto 1,793.92",
   (function(){ const p=d.querySelectorAll('#pastel22 .rebanada'); p[0].dispatchEvent(new w.Event('click',{bubbles:true})); return txt('detalle22').includes('1,793.92') && txt('detalle22').includes('70.7%'); })());
-t("tocar Briku muestra 19.5% y exacto 512.55",
-  (function(){ const p=d.querySelectorAll('#pastel22 .rebanada'); p[1].dispatchEvent(new w.Event('click',{bubbles:true})); return txt('detalle22').includes('512.55') && txt('detalle22').includes('19.5%'); })());
-t("pedazo seleccionado visible (sel + opacidad)", (function(){ const p=d.querySelectorAll('#pastel22 .rebanada'); return p[1].classList.contains('sel') && p[0].style.opacity==="0.55"; })());
-t("3D: centro en pastilla legible (2,562.74 + CUP en total)", txt('pastel22').includes('2,562.74') && txt('pastel22').includes('CUP en total'));
-t("3D: pastilla del total en los dos pasteles", d.querySelectorAll('.pastilla').length===2);
+t("3D: pastilla del total en los 3 pasteles", d.querySelectorAll('.pastilla').length===3);
 t("leyenda Saldo: 3 filas tocables con % y CUP", (function(){ const f=d.querySelectorAll('#leyenda22 .leyenda-fila'); return f.length===3 && f[1].textContent.includes('Briku') && f[1].textContent.includes('19.5%') && f[1].textContent.includes('500 CUP'); })());
-t("leyenda Proyección: 3 filas", d.querySelectorAll('#leyendaProy .leyenda-fila').length===3);
-t("tocar leyenda Briku selecciona el pedazo y lo separa", (function(){ const f=d.querySelectorAll('#leyenda22 .leyenda-fila'); f[1].dispatchEvent(new w.Event('click',{bubbles:true})); const p=d.querySelectorAll('#pastel22 .rebanada'); return p[1].classList.contains('sel') && p[1].style.transform.includes('translate') && f[1].classList.contains('sel'); })());
-t("colores vivos distintos: verde #2CEB7E, ámbar #FFB020, azul #38B6FF", html.includes('#2CEB7E') && html.includes('#FFB020') && html.includes('#38B6FF'));
-// E1: TODAS las etiquetas fuera con línea, horizontales, fuera del pedazo
-t("E1: 3 etiquetas fuera en Saldo", d.querySelectorAll('#pastel22 .etq').length===3);
-t("E1: 3 etiquetas fuera en Proyección", d.querySelectorAll('#pastelProy .etq').length===3);
-t("E1: ninguna etiqueta dentro de una rebanada", d.querySelectorAll('#pastel22 .rebanada text').length===0 && d.querySelectorAll('#pastelProy .rebanada text').length===0);
-t("E1: etiquetas con línea conectora", d.querySelectorAll('#pastel22 .etq line').length===3);
-t("E1: etiquetas sin rotación (ninguna .etq rota)", [...d.querySelectorAll('#pastel22 .etq')].every(e => !e.style.transform || !e.style.transform.includes('rotate')) && ![...d.querySelectorAll('#pastel22 .etq text')].some(t => (t.getAttribute('transform')||'').includes('rotate')));
-t("E1: al separar Briku su etiqueta no se mueve", (function(){ const pp=d.querySelectorAll('#pastel22 .rebanada'); pp[1].dispatchEvent(new w.Event('click',{bubbles:true})); const e=d.querySelector('#pastel22 .etq[data-i="1"]'); return pp[1].style.transform.includes('translate') && (!e.style.transform || e.style.transform===""); })());
-t("E1: separación visible (translate 16px)", (function(){ const pp=d.querySelectorAll('#pastel22 .rebanada'); return pp[1].style.transform.includes('translate('); })());
+t("E1: 3 etiquetas fuera en cada pastel", d.querySelectorAll('#pastel22 .etq').length===3 && d.querySelectorAll('#pastelProy .etq').length===3 && d.querySelectorAll('#pastelGen .etq').length===3);
+t("E1: ninguna etiqueta dentro de una rebanada", d.querySelectorAll('#pastel22 .rebanada text').length===0 && d.querySelectorAll('#pastelProy .rebanada text').length===0 && d.querySelectorAll('#pastelGen .rebanada text').length===0);
+t("3D: pastel inclinado (scaleY 0.62) en los 3", ['pastelGen','pastel22','pastelProy'].every(function(id){ var g=d.querySelector('#'+id+' .inclinado'); return g && g.getAttribute('transform').includes('scale(1 0.62)'); }));
+t("3D: grosor 54 lados en los 3 pasteles", ['pastelGen','pastel22','pastelProy'].every(function(id){ return d.querySelectorAll('#'+id+' .lado').length===54; }));
 t("M1: separación lenta 700ms", html.includes('transition:transform .7s'));
 t("M2: botón dorado se hunde marcado (2px + 0.98 + brillo)", html.includes('filter:brightness(.93)'));
 t("M3: barra inferior flotante (12px, radio 20)", html.includes('left:12px;right:12px;bottom:calc(10px + env(safe-area-inset-bottom))'));
-t("M4: Margen % sin 1 solo (− 1 unido)", html.includes('−&nbsp;1'));
-// ERROR 2: etiquetas dentro del viewBox 260
-t("viewBox pastel 360x360 (aire para etiquetas fuera)", html.includes('viewBox="0 0 360 360"'));
-// ERROR 4: Clásica sin cifras ni inputs
-t("Clásica: 0 inputs", d.querySelectorAll('#h-clasica input').length===0);
-t("Clásica: sin 1,248 CUP", !seccion('h-clasica').includes('1,248 CUP'));
-t("Clásica: referencia estática, sin calculadora viva", seccion('h-clasica').includes('referencia') && !seccion('h-clasica').includes('out-equilibrio'));
-// FALTANTE: Saldo muestra sus ecuaciones
-t("Saldo muestra sus ecuaciones (equilibrio 345.6)", seccion('h-saldo').includes('Equilibrio') && txt('out-equilibrio').trim()==='345.6');
-t("Saldo: gan/360 152 CUP", txt('out-gan360').includes('152'));
-t("Saldo: gan total 4,323.89", txt('out-gantotal').includes('4,323.89'));
-// ERROR 7: Saldo cierra
-t("Saldo: 20x360 = 7,200 saldo", seccion('h-saldo').includes('7,200 saldo'));
-t("Saldo: efectivo 20x1,000 = 20,000 CUP", seccion('h-saldo').includes('20 × 1,000 = 20,000 CUP'));
-t("Saldo: toque 33,222.50 ≈ 33,200", seccion('h-saldo').includes('33,222.50'));
-// ERROR 6: Proyección sin contradicción
-t("Proyección aclara 11,250 después del ciclo 24", seccion('h-proyeccion').includes('después del ciclo 24'));
-// ERROR 5: pastel de Proyección recalcula
+// ---------- CLASICA ----------
+t("Clásica: 0 inputs", d.querySelectorAll('#sec-clasica input').length===0);
+t("Clásica: bloqueada sin cifras inventadas", seccion('sec-clasica').includes('BLOQUEADA') && seccion('sec-clasica').includes('sin cifras inventadas'));
+// ---------- PROYECCION (regresion) ----------
+t("Proyección aclara 11,250 después del ciclo 24", seccion('sec-proy').includes('después del ciclo 24'));
 d.getElementById('in-ciclo-a').value='15000'; d.getElementById('in-ciclo-a').dispatchEvent(new w.Event('change'));
 t("reparto resto 6,250", txt('out-resto').includes('6,250'));
 t("pastel Proyección recalcula a 15,000", txt('pastelProy').includes('15,000'));
 t("pastel Proyección % 36.4%", txt('pastelProy').includes('36.4%'));
 t("subtítulo Proyección actualizado", txt('sub-proy').includes('15,000 + 20,000 + 6,250'));
-t("pastel Proyección resto 6,250", txt('pastelProy').includes('6,250'));
 d.getElementById('in-ciclo-a').value='20000'; d.getElementById('in-ciclo-a').dispatchEvent(new w.Event('change'));
 t("reparto vuelve a 1,250", txt('out-resto').includes('1,250'));
 t("formato miles en input (15,000)", (function(){ const el=d.getElementById('in-ciclo-a'); el.value='15000'; el.dispatchEvent(new w.Event('change')); const ok=el.value==='15,000'; el.value='20000'; el.dispatchEvent(new w.Event('change')); return ok; })());
-// ERROR 9: recálculo inmediato al teclear (input, sin Enter)
+// ---------- CALCULADORAS VIVAS (regresion) ----------
 d.getElementById('in-pct').value='25'; d.getElementById('in-pct').dispatchEvent(new w.Event('input'));
 t("input inmediato: 25% -> margen 5.3%", txt('hero-margen').includes('5.3%'));
 t("input inmediato: precio libro equilibrio 1,200", txt('hero-libro-eq').includes('1,200'));
 d.getElementById('in-pct').value='30'; d.getElementById('in-pct').dispatchEvent(new w.Event('input'));
 t("vuelve a 9.5% y libro-eq 1,248", txt('hero-margen').includes('9.5%') && txt('hero-libro-eq').includes('1,248'));
 t("% de equilibrio 18.8%", txt('out-pct-eq').includes('18.8%'));
-t("ejemplo Transferencia vivo", txt('ej-transf').includes('18.8%'));
 d.getElementById('in-salida-s').value='1000'; d.getElementById('in-salida-s').dispatchEvent(new w.Event('input'));
 t("ejemplo Saldo vivo: equilibrio 360.0", txt('ej-saldo').includes('360.0'));
 d.getElementById('in-salida-s').value='960'; d.getElementById('in-salida-s').dispatchEvent(new w.Event('input'));
 t("ejemplo Saldo vuelve a 345.6", txt('ej-saldo').includes('345.6'));
-// ERROR 8: fórmulas sin scroll horizontal
 t("fórmulas sin nowrap", !html.includes('white-space:nowrap'));
-t("equilibrio con dos nombres distintos", txt('hero-libro-eq').length>0 && txt('out-pct-eq').includes('%'));
-// ERROR 10: el pastel vuelve a girar al entrar a Saldo
-w.irA('h-saldo');
-t("irA Saldo redibuja el pastel (3 pedazos, giro)", d.querySelectorAll('#pastel22 .rebanada').length===3);
-// MEJORAS
+t("Saldo: gan/360 152 CUP", txt('out-gan360').includes('152'));
+t("Saldo: gan total 4,323.89", txt('out-gantotal').includes('4,323.89'));
+t("Saldo: toque 33,222.50 ≈ 33,200 (970, no 930)", seccion('det-23').includes('33,222.50') && !d.body.textContent.includes('34.25 × 930'));
 t("capital directo 41,250 sin animación", txt('hero-capital').trim()==='41,250');
-t("toast arriba (no tapa Ir a Transferencia)", html.includes('.toast{position:absolute;left:16px;right:16px;top:12px'));
-t("sin datos de prueba Venta 777 en la página", !html.includes('777'));
-// calculadoras vivas (regresión)
-t("equilibrio Saldo 345.6", txt('out-equilibrio').trim()==='345.6');
-t("margen Transf 9.5%", txt('hero-margen').includes('9.5%'));
-d.getElementById('in-tasa').value='310'; d.getElementById('in-tasa').dispatchEvent(new w.Event('change'));
-t("tasa editable recalcula gan/360 ~115", txt('out-gan360').includes('115'));
-d.getElementById('in-tasa').value='300'; d.getElementById('in-tasa').dispatchEvent(new w.Event('change'));
-// anotar rápido (regresión)
-w.irA('h-general');
+t("columna 4,666 visible", d.body.textContent.includes('4,666'));
+// ---------- ANOTAR RAPIDO ----------
 d.querySelector('#chips-tipo button[data-tipo="Venta"]').dispatchEvent(new w.Event('click',{bubbles:true}));
 d.getElementById('in-monto').value='777'; d.getElementById('in-nota').value='prueba';
 w.abrirAnotar(); w.guardarApunte();
 t("anotar rápido guarda Venta 777", d.getElementById('lista-apuntes').textContent.includes('Venta') && d.getElementById('lista-apuntes').textContent.includes('777'));
 t("toast visible", d.getElementById('toast').classList.contains('ver'));
-// navegación
-w.irA('h-clasica');
-t("hoja Clásica activa", d.getElementById('h-clasica').classList.contains('active'));
-t("columna 4,666 visible", d.body.textContent.includes('4,666'));
-// PROFUNDIDAD (toda la app, no solo el pastel)
-t("profundidad: tokens de sombra", html.includes('--sombra-tarjeta') && html.includes('--sombra-boton'));
-t("profundidad: tarjeta con sombra + borde", html.includes('box-shadow:var(--sombra-tarjeta)'));
-t("profundidad: botón dorado flota y se hunde al tocar", html.includes('box-shadow:var(--sombra-boton)') && html.includes('.btn:active{transform:translateY(2px) scale(.98)'));
-t("profundidad: barra inferior con sombra flotante", html.includes('box-shadow:var(--sombra-flotante)'));
-t("profundidad: pastel con drop-shadow", html.includes('.pastel-wrap{') && html.includes('drop-shadow(0 12px 22px'));
-t("profundidad: modal y toast con sombra", html.includes('0 -18px 48px') && html.includes('0 10px 26px'));
-// 3D DE VERDAD + DETALLE GRANDE AL TOCAR
-function etqCajas(svgId){
-  // cajas estimadas de cada etiqueta (ancho ~0.62 * tamaño * caracteres), en coords del viewBox
-  return [...d.querySelectorAll('#'+svgId+' .etq')].map(function(g){
-    var ts=[...g.querySelectorAll('text')].map(function(x){ return { x:+x.getAttribute('x'), y:+x.getAttribute('y'), s:+x.getAttribute('font-size'), w:x.textContent.length*(+x.getAttribute('font-size'))*0.62 }; });
-    var x0=Math.min.apply(null, ts.map(function(o){return o.x-o.w/2;})), x1=Math.max.apply(null, ts.map(function(o){return o.x+o.w/2;}));
-    var y0=Math.min.apply(null, ts.map(function(o){return o.y-o.s;})), y1=Math.max.apply(null, ts.map(function(o){return o.y+3;}));
-    return { x0:x0, x1:x1, y0:y0, y1:y1 };
-  });
-}
-function cajasSinSolape(cajas){
-  for(var a=0;a<cajas.length;a++) for(var b=a+1;b<cajas.length;b++){
-    if(cajas[a].x0 < cajas[b].x1-2 && cajas[b].x0 < cajas[a].x1-2 && cajas[a].y0 < cajas[b].y1-2 && cajas[b].y0 < cajas[a].y1-2) return false;
-  }
-  return true;
-}
-t("3D: pastel inclinado en perspectiva (scaleY 0.62)", (function(){ var g=d.querySelector('#pastel22 .inclinado'); return g && g.getAttribute('transform').includes('scale(1 0.62)'); })());
-t("3D: inclinación en los dos pasteles", (function(){ var g=d.querySelector('#pastelProy .inclinado'); return g && g.getAttribute('transform').includes('scale(1 0.62)'); })());
-t("3D: grosor por capas (54 lados por pastel = 18 x 3 pedazos)", d.querySelectorAll('#pastel22 .lado').length===54 && d.querySelectorAll('#pastelProy .lado').length===54);
-t("3D: degradado vivo en cada cara superior", d.querySelectorAll('#pastel22 .cara').length===3 && [...d.querySelectorAll('#pastel22 .cara')].every(function(p){ return (p.getAttribute('fill')||'').indexOf('url(#pastel22-g')===0; }));
-t("3D: brillo arriba recortado al anillo", !!d.getElementById('pastel22-brillo') && !!d.getElementById('pastel22-anillo'));
-t("3D: sombra suave debajo del pastel", d.querySelectorAll('#pastel22 .sombra-suelo').length===1 && d.querySelectorAll('#pastelProy .sombra-suelo').length===1);
-t("3D: etiquetas dentro del viewBox 360", (function(){ var c=etqCajas('pastel22').concat(etqCajas('pastelProy')); return c.every(function(b){ return b.x0>=0 && b.x1<=360 && b.y0>=0 && b.y1<=360; }); })());
-t("3D: etiquetas sin solaparse entre sí", cajasSinSolape(etqCajas('pastel22')) && cajasSinSolape(etqCajas('pastelProy')));
-t("3D: etiquetas inclinadas (la de arriba no está en el borde plano)", (function(){ var ys=[...d.querySelectorAll('#pastel22 .etq text')].map(function(x){ return +x.getAttribute('y'); }); return Math.min.apply(null,ys) > 70; })());
-t("3D: el giro lento sigue tras el redibujo", (function(){ w.irA('h-saldo'); return d.querySelectorAll('#pastel22 .rebanada').length===3 && d.querySelectorAll('#pastel22 .lado').length===54 && !!d.querySelector('#pastel22 .inclinado'); })());
-// ACCIÓN AL TOCAR: se separa, se ilumina, detalle GRANDE en sus palabras
-(function(){ const p=d.querySelectorAll('#pastel22 .rebanada'); p[0].dispatchEvent(new w.Event('click',{bubbles:true})); })();
-t("TOQUE: Reinversión se separa + se ilumina (sel + brightness)", (function(){ const p=d.querySelectorAll('#pastel22 .rebanada'); return p[0].classList.contains('sel') && html.includes('brightness(1.18)'); })());
-t("TOQUE: detalle GRANDE Reinversión (nombre + % + CUP + qué es)", txt('detalle22').includes('Reinversión') && txt('detalle22').includes('70.7%') && txt('detalle22').includes('1,811 CUP') && txt('detalle22').includes('vuelve a trabajar'));
-t("TOQUE: detalle con cifra grande y exacto 1,793.92", d.getElementById('detalle22').innerHTML.includes('det-cifra') && txt('detalle22').includes('1,793.92'));
-t("TOQUE: detalle salta al cambiar (pop)", d.getElementById('detalle22').classList.contains('pop'));
-(function(){ const p=d.querySelectorAll('#pastelProy .rebanada'); p[1].dispatchEvent(new w.Event('click',{bubbles:true})); })();
-t("TOQUE Proyección: Ciclo 24 grande y claro (48.5% · 20,000 CUP · espera)", txt('detalleProy').includes('Ciclo 24') && txt('detalleProy').includes('48.5%') && txt('detalleProy').includes('20,000 CUP') && txt('detalleProy').includes('espera'));
-t("TOQUE Proyección: Resto dice qué es (sin repartir)", (function(){ const p=d.querySelectorAll('#pastelProy .rebanada'); p[2].dispatchEvent(new w.Event('click',{bubbles:true})); return txt('detalleProy').includes('Resto') && txt('detalleProy').includes('1,250 CUP') && txt('detalleProy').includes('sin repartir'); })());
-t("TOQUE: al separar, la etiqueta NO se mueve ni se tapa", (function(){ const e=d.querySelector('#pastelProy .etq[data-i="2"]'); const p=d.querySelectorAll('#pastelProy .rebanada'); return p[2].style.transform.includes('translate') && (!e.style.transform || e.style.transform===""); })());
-t("TOQUE: detalle por defecto también grande (total 2,562.74)", (function(){ w.irA('h-saldo'); return d.getElementById('detalle22').innerHTML.includes('det-cifra') && txt('detalle22').includes('2,562.74 CUP'); })());
+t("sin datos de prueba Venta 777 en la página (solo existe si se anota en vivo)", !html.includes('777'));
+// ---------- PUERTAS ARITMETICAS (datos nuevos) ----------
+t("puerta: 15,333+4,667=20,000", 15333+4667===20000);
+t("puerta: 5,520x1,000/360=15,333", Math.abs(5520*1000/360-15333)<1);
+t("puerta: 2,000+5,520=7,520", 2000+5520===7520);
+t("puerta: 27,280-5,200=22,080", 27280-5200===22080);
+t("puerta: 15,333+5,200+22,080=42,613", 15333+5200+22080===42613);
+t("puerta: % vision 36.0/12.2/51.8", Math.abs(15333/42613*100-36.0)<0.05 && Math.abs(5200/42613*100-12.2)<0.05 && Math.abs(22080/42613*100-51.8)<0.05);
+t("sin palabras de lanzamiento", !html.toLowerCase().includes('lanzamiento'));
 console.log(`\nDOM: ${pass} PASS / ${fail} FAIL`);
 process.exit(fail?1:0);

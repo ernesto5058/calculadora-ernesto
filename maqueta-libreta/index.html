@@ -6,6 +6,7 @@
 <meta name="theme-color" content="#0E1512">
 <title>Libreta · El juego</title>
 <style>
+
 /* MAQUETA — Libreta de Ernesto. Cara propia: cuaderno verde oscuro + dorado de marca.
    Piso PRO: tokens de tema-pro.css, rejilla 4/8, radios del sistema, números tabulares.
    Distinta a Mi Trabajo (azul + vídeos): aquí no hay vídeos, todo es SVG + CSS, ligero. */
@@ -132,58 +133,182 @@ label{display:block;font-size:13px;font-weight:600;color:var(--txt-2);margin:0 0
 .vacio{text-align:center;color:var(--txt-3);font-size:13px;padding:12px 0}
 .pie-pagina{font-size:11px;color:var(--txt-3);text-align:center;padding-bottom:4px}
 @media (max-height:700px){.hero .cifra{font-size:30px}.pastel-wrap svg{width:240px;height:240px}}
+
+/* VISTA UNICA: todo en una sola pestana */
+.trio{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.trio .mini{padding:10px 10px}
+.trio .mini .cifra{font-size:18px}
+.casillas{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.casilla{background:var(--bg-2);border:1px solid var(--borde);border-radius:16px;padding:12px 8px;text-align:center;cursor:pointer;font-family:var(--fuente);color:var(--txt-1)}
+.casilla.sel{border-color:var(--dorado);background:rgba(232,184,75,.12);box-shadow:0 6px 16px rgba(232,184,75,.16)}
+.casilla .nc{font-size:15px;font-weight:800}
+.casilla .es{font-size:11px;color:var(--txt-2);margin-top:4px;line-height:1.35}
+.casilla.oculta{display:none}
+.det-ciclo{display:none}
+.det-ciclo.ver{display:block;animation:entra 1s var(--lento)}
+.zoom-chips{display:flex;gap:8px}
+.zoom-chips button{flex:1;min-height:44px;border-radius:999px;border:1px solid var(--borde-fuerte);background:var(--bg-2);color:var(--txt-1);font-family:var(--fuente);font-size:14px;font-weight:700;cursor:pointer}
+.zoom-chips button.sel{background:rgba(232,184,75,.16);border-color:var(--dorado);color:var(--dorado)}
+.panel-zoom{display:none}
+.panel-zoom.ver{display:block;animation:entra 1s var(--lento)}
+.dias{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-top:10px}
+.dia{aspect-ratio:1;border-radius:10px;background:var(--bg-2);border:1px solid var(--borde);display:grid;place-items:center;font-size:12px;font-weight:700;color:var(--txt-3)}
+.dia.verde{background:var(--verde-suave);border-color:rgba(47,191,113,.5);color:var(--verde)}
+.dia.hoy{outline:2px solid var(--dorado)}
+.meses{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:10px}
+.mes{border-radius:12px;background:var(--bg-2);border:1px solid var(--borde);padding:10px 6px;text-align:center;font-size:12px;color:var(--txt-3);line-height:1.4}
+.mes.lleno{border-color:rgba(232,184,75,.5);color:var(--txt-1);background:rgba(232,184,75,.10)}
+.mes b{display:block;font-size:13px}
+details.card summary{cursor:pointer;list-style:none}
+details.card summary::-webkit-details-marker{display:none}
+details.card summary h2{display:inline}
+
 </style>
 </head>
 <body>
 <div id="app">
+<section class="screen active" id="h-unica">
+  <div class="top"><div><div class="brand">Libreta · <span>El juego</span></div><div class="sub" style="font-size:12px">Todo de un vistazo · Hola, Ernesto</div></div><div style="margin-left:auto" class="chip gold">MAQUETA</div></div>
+  <div class="cuerpo" id="cuerpo-unica">
 
-<!-- ============ HOJA GENERAL ============ -->
-<section class="screen active" id="h-general">
-  <div class="top"><div><div class="brand">Libreta · <span>El juego</span></div><div class="sub" style="font-size:12px">Hola, Ernesto · Tu libreta, en el teléfono</div></div><div style="margin-left:auto" class="chip gold">MAQUETA</div></div>
-  <div class="cuerpo">
-    <div class="hero">
+    <!-- 1) ARRIBA: capital + pastel Vision General + 3 minis -->
+    <div class="hero" id="sec-vision">
       <div class="etiqueta">Tu capital ahora mismo</div>
       <div class="cifra num" id="hero-capital">41,250</div>
       <div class="detalle">42,000 − 500 Briku − 250 yo · <span class="num">41,250 CUP</span></div>
     </div>
     <div class="card">
-      <h2>Cómo se usa, en 3 pasos</h2>
-      <div class="pasos" style="margin-top:12px">
-        <div class="n">1</div><p><b>Tu libreta ya está dentro.</b> Nada de empezar de cero: ciclo 22 cerrado y ciclo 23 en juego.</p>
-        <div class="n">2</div><p><b>Anota rápido lo nuevo.</b> Tocas qué es, pones solo el número y queda anotado. Tú mandas, la app solo calcula.</p>
-        <div class="n">3</div><p><b>Cambia el precio cuando amanezca el mercado.</b> Tasa, salida, libro y % se editan en un toque y todo recalcula solo.</p>
-      </div>
-    </div>
-    <div class="duo">
-      <div class="mini" style="border-color:rgba(47,191,113,.4)"><div class="etiqueta" style="color:var(--verde)">Saldo · QvaPay</div><div class="cifra num" id="mini-saldo-gan">152</div><div class="nota" id="mini-saldo-nota">ganancia por cada 360 · tasa 300</div></div>
-      <div class="mini" style="border-color:rgba(76,195,255,.4)"><div class="etiqueta" style="color:var(--azul)">Transferencia</div><div class="cifra num" id="mini-transf-margen">9.5%</div><div class="nota" id="mini-transf-nota">margen por vuelta · +30%</div></div>
-    </div>
-    <button class="btn" onclick="irA('h-saldo')">SEGUIR · CONTINUAR CICLO 23</button>
-    <button class="btn sec" onclick="abrirAnotar()">ANOTAR RÁPIDO</button>
-    <div class="card" style="padding:12px 16px">
-      <h3 style="margin-bottom:4px">Apuntes de hoy</h3>
-      <div class="lista-apuntes" id="lista-apuntes"><div class="vacio">Todavía no hay apuntes nuevos. Toca ANOTAR RÁPIDO y pon el primero.</div></div>
-    </div>
-    <div class="pie-pagina">Los datos son los de tu libreta de papel · Nada se cierra solo, tú decides</div>
-  </div>
-</section>
-
-<!-- ============ HOJA SALDO ============ -->
-<section class="screen" id="h-saldo">
-  <div class="top"><div><div class="brand">Saldo · <span>QvaPay</span></div><div class="sub" style="font-size:12px">Mercado 1 · separado de Transferencia</div></div><div style="margin-left:auto" class="chip" style="color:var(--verde)">CICLO 23 EN JUEGO</div></div>
-  <div class="cuerpo">
-    <div class="card">
-      <h2>El pastel del ciclo 22 <span class="etiqueta-estado est-cerrado">CERRADO</span></h2>
-      <p class="sub">Tócalo: el pedazo se separa, se ilumina y abajo te lo explico grande — quién es, su % y su cantidad.</p>
+      <h2>Visión general · Inversión en juego + Capital</h2>
+      <p class="sub">Tu dinero, en una foto: lo que Briku ya compró en recargas, lo que tú invertiste y lo que queda en caja. Tócalo: el pedazo se separa y abajo te lo explico grande.</p>
       <div class="pastel-wrap">
-        <svg id="pastel22" viewBox="0 0 360 360" role="img" aria-label="Pastel del ciclo 22: reinversión 70.7 por ciento, 1,811 CUP; Briku 19.5 por ciento, 500 CUP; yo 9.8 por ciento, 250 CUP"></svg>
-        <div class="leyenda" id="leyenda22" aria-label="Leyenda del pastel del ciclo 22"></div>
-        <div class="detalle-pastel" id="detalle22">Ganancia total <b class="num">2,562.74 CUP</b> · toca un pedazo para verlo</div>
-      <p class="ayuda" style="text-align:center">Los pedazos suman 2,561 CUP porque son tus números redondeados (Briku 512.55 → 500 · yo 256.27 → 250 · reinversión 1,793.92 → 1,811). La ganancia exacta es 2,562.74 CUP; la diferencia es 1.74 CUP de redondeo.</p>
+        <svg id="pastelGen" viewBox="0 0 360 360" role="img" aria-label="Pastel visión general: caja 51.8 por ciento, 22,080 CUP; Briku 36.0 por ciento, 15,333 CUP; yo 12.2 por ciento, 5,200 CUP"></svg>
+        <div class="leyenda" id="leyendaGen" aria-label="Leyenda del pastel visión general"></div>
+        <div class="detalle-pastel" id="detalleGen">Total <b class="num">42,613 CUP</b> · toca un pedazo para verlo</div>
+      <p class="ayuda" style="text-align:center">15,333 + 5,200 + 22,080 = 42,613 CUP · Briku 36.0% · Yo 12.2% · Caja 51.8%</p>
       </div>
     </div>
-    <div class="card">
-      <h2>Saldo · tus ecuaciones</h2>
+    <div class="trio">
+      <div class="mini" style="border-color:rgba(47,191,113,.4)"><div class="etiqueta" style="color:var(--verde)">Saldo</div><div class="cifra num" id="mini-saldo-gan">152</div><div class="nota" id="mini-saldo-nota">por cada 360 · tasa 300</div></div>
+      <div class="mini" style="border-color:rgba(76,195,255,.4)"><div class="etiqueta" style="color:var(--azul)">Transf.</div><div class="cifra num" id="mini-transf-margen">9.5%</div><div class="nota" id="mini-transf-nota">margen · +30%</div></div>
+      <div class="mini" style="border-color:rgba(232,184,75,.45)"><div class="etiqueta" style="color:var(--dorado)">Ciclo 23</div><div class="cifra num">85%</div><div class="nota">en juego · 17,000 / 20,000</div></div>
+    </div>
+    <button class="btn" onclick="abrirAnotar()">ANOTAR RÁPIDO</button>
+
+    <!-- 2) LINEA DE TIEMPO: 22 - 23 - 24, detalle en la misma pestana -->
+    <div class="card" id="sec-ciclos">
+      <h2>Tus ciclos · pasado, presente y futuro</h2>
+      <p class="sub">Toca una casilla y ves ese ciclo completo aquí mismo, sin irte a otra hoja.</p>
+      <div class="casillas" style="margin-top:12px">
+        <button class="casilla" id="casilla-22" data-ciclo="22" onclick="verCiclo(22)"><div class="nc">Ciclo 22</div><div class="es"><span class="etiqueta-estado est-cerrado">CERRADO ✅</span><br>Ganó 2,562.74 CUP</div></button>
+        <button class="casilla sel" id="casilla-23" data-ciclo="23" onclick="verCiclo(23)"><div class="nc">Ciclo 23</div><div class="es"><span class="etiqueta-estado est-activo" id="est-23">ACTIVO · TRABAJANDO 🟢</span><br>20 recargas · 2,465 CUP</div></button>
+        <button class="casilla" id="casilla-24" data-ciclo="24" onclick="verCiclo(24)"><div class="nc">Ciclo 24</div><div class="es"><span class="etiqueta-estado est-espera" id="est-24">EN JUEGO · BRIKU 🟢</span><br>15,333 comprado</div></button>
+        <button class="casilla oculta" id="casilla-25" data-ciclo="25" onclick="verCiclo(25)"><div class="nc">Ciclo 25</div><div class="es"><span class="etiqueta-estado est-espera" id="est-25">EN ESPERA</span><br>Todavía sin datos</div></button>
+      </div>
+      <div id="detalle-ciclo">
+        <div class="det-ciclo" id="det-22">
+          <h3 style="margin:14px 0 4px">Ciclo 22 · cerrado ✅</h3>
+          <p class="sub">Ganancia 2,562.74 CUP · reparto 70% / 20% / 10%.</p>
+          <div class="pastel-wrap">
+            <svg id="pastel22" viewBox="0 0 360 360" role="img" aria-label="Pastel del ciclo 22: reinversión 70.7 por ciento, 1,811 CUP; Briku 19.5 por ciento, 500 CUP; yo 9.8 por ciento, 250 CUP"></svg>
+            <div class="leyenda" id="leyenda22" aria-label="Leyenda del pastel del ciclo 22"></div>
+            <div class="detalle-pastel" id="detalle22">Ganancia total <b class="num">2,562.74 CUP</b> · toca un pedazo para verlo</div>
+          <p class="ayuda" style="text-align:center">Los pedazos suman 2,561 CUP porque son tus números redondeados (Briku 512.55 → 500 · yo 256.27 → 250 · reinversión 1,793.92 → 1,811). La ganancia exacta es 2,562.74 CUP; la diferencia es 1.74 CUP de redondeo.</p>
+          </div>
+        </div>
+        <div class="det-ciclo ver" id="det-23">
+          <h3 style="margin:14px 0 4px">Ciclo 23 · en juego 🟢</h3>
+          <div class="fila"><span class="k">Recargas</span><span class="v num">20 × 360 = 7,200 saldo</span></div>
+          <div class="fila"><span class="k">Efectivo que diste</span><span class="v num">20 × 1,000 = 20,000 CUP</span></div>
+          <div class="fila"><span class="k">Quedan por buscar</span><span class="v num">3,000 CUP</span></div>
+          <div class="fila"><span class="k">Tasa · QUSD · saldo</span><span class="v num">300 · 34.25 · 10,275</span></div>
+          <div class="fila"><span class="k">Toque hoy (tío ZIS)</span><span class="v num">970 · 33,222.50 CUP<small>≈ 33,200 redondeado</small></span></div>
+          <div class="fila"><span class="k">G. neta</span><span class="v num" style="color:var(--verde)">2,465 CUP</span></div>
+          <div class="fila"><span class="k">Columna</span><span class="v num" style="font-size:13px">4,666 − 650 − 1,000 − 320 + 9 − 240 = 2,465</span></div>
+          <div class="barra"><i id="barra23" style="width:0%"></i></div>
+          <p class="ayuda">Progreso del ciclo 23: 17,000 de 20,000 ya buscados · 85%</p>
+        </div>
+        <div class="det-ciclo" id="det-24">
+          <h3 style="margin:14px 0 4px">Ciclo 24 · en juego con Briku 🟢</h3>
+          <div class="fila"><span class="k">Te entregó Briku</span><span class="v num">7,200 saldo<small>24/11 · 5:25 pm</small></span></div>
+          <div class="fila"><span class="k">Saldo de Briku</span><span class="v num">360 + 120 + 120 + 480 + 720<small>= 1,800 saldo</small></span></div>
+          <div class="fila"><span class="k">Briku hoy 25/11 · 11:21 am</span><span class="v num">5,520 saldo ≈ 15.33 recargas</span></div>
+          <div class="fila"><span class="k">Dinero comprado en recargas</span><span class="v num">15,333 CUP<small>5,520 × 1,000 ÷ 360</small></span></div>
+          <div class="fila"><span class="k">Dinero que le queda a Briku</span><span class="v num">4,667 CUP<small>15,333 + 4,667 = 20,000</small></span></div>
+          <div class="fila"><span class="k">Yo invertí</span><span class="v num">5,200 CUP<small>2,000 saldo ≈ 5.55 recargas</small></span></div>
+          <div class="fila"><span class="k">Caja</span><span class="v num">22,080 CUP<small>27,280 − 5,200 = 22,080</small></span></div>
+          <div class="fila"><span class="k">Saldo total</span><span class="v num">7,520 saldo<small>2,000 + 5,520</small></span></div>
+          <div class="barra"><i id="barra24" style="width:0%"></i></div>
+          <p class="ayuda">Progreso del ciclo 24: 15,333 de 20,000 comprados · 77%</p>
+        </div>
+        <div class="det-ciclo" id="det-25">
+          <h3 style="margin:14px 0 4px">Ciclo 25 · todavía sin datos</h3>
+          <p class="sub">Se llena cuando empiece, con tus números de la libreta. Nada inventado.</p>
+        </div>
+      </div>
+      <button class="btn sec" style="margin-top:12px" id="btn-cerrar" onclick="cerrarCicloActual()">Cerrar el ciclo 23 y pasar al ciclo 24</button>
+      <p class="ayuda" id="aviso-cierre">Esto solo lo haces tú, cuando el ciclo esté terminado de verdad. Al cerrar, las etiquetas cambian solas: el que cierra pasa a CERRADO y el siguiente a ACTIVO.</p>
+    </div>
+
+    <!-- 3) ZOOM Dia / Mes / Ano -->
+    <div class="card" id="sec-zoom">
+      <h2>El tiempo, de mini a máximo</h2>
+      <p class="sub">Día, mes o año: la misma libreta, con más o menos zoom. Tú controlas.</p>
+      <div class="zoom-chips" style="margin-top:12px">
+        <button id="zoom-dia" class="sel" onclick="zoom('dia')">Día</button>
+        <button id="zoom-mes" onclick="zoom('mes')">Mes</button>
+        <button id="zoom-ano" onclick="zoom('ano')">Año</button>
+      </div>
+      <div class="panel-zoom ver" id="panel-dia">
+        <h3 style="margin:14px 0 4px">Hoy · 25/11</h3>
+        <div class="fila"><span class="k">Briku tiene</span><span class="v num">5,520 saldo</span></div>
+        <div class="fila"><span class="k">Caja</span><span class="v num">22,080 CUP</span></div>
+        <div class="fila"><span class="k">Saldo total</span><span class="v num">7,520 saldo</span></div>
+        <div class="dias"><div class="dia">24</div><div class="dia verde hoy">25</div><div class="dia">26</div><div class="dia">27</div><div class="dia">28</div><div class="dia">29</div><div class="dia">30</div></div>
+        <p class="ayuda">24/11 en verde: Briku te entregó 7,200 saldo. 25/11 en verde y con borde dorado: hoy, Briku ya tiene 5,520 saldo.</p>
+      </div>
+      <div class="panel-zoom" id="panel-mes">
+        <h3 style="margin:14px 0 4px">Noviembre 2026 · el mes</h3>
+        <div class="fila"><span class="k">Ciclo 22 · cerrado</span><span class="v num">2,562.74 CUP</span></div>
+        <div class="fila"><span class="k">Ciclo 23 · en juego</span><span class="v num">2,465 CUP</span></div>
+        <div class="fila"><span class="k">Ciclo 24 · en juego (Briku)</span><span class="v num">15,333 CUP comprado</span></div>
+        <p class="ayuda">Tres ciclos en un mes, cada uno con su foto. Toca una casilla de arriba para ver el ciclo completo.</p>
+      </div>
+      <div class="panel-zoom" id="panel-ano">
+        <h3 style="margin:14px 0 4px">2026 · el año</h3>
+        <p class="sub">Solo existe de verdad lo de noviembre: ciclos 22, 23 y 24. Los demás meses quedan en blanco, sin cifras inventadas.</p>
+        <div class="meses">
+          <div class="mes"><b>Ene</b>— sin datos</div><div class="mes"><b>Feb</b>— sin datos</div><div class="mes"><b>Mar</b>— sin datos</div><div class="mes"><b>Abr</b>— sin datos</div>
+          <div class="mes"><b>May</b>— sin datos</div><div class="mes"><b>Jun</b>— sin datos</div><div class="mes"><b>Jul</b>— sin datos</div><div class="mes"><b>Ago</b>— sin datos</div>
+          <div class="mes"><b>Sep</b>— sin datos</div><div class="mes"><b>Oct</b>— sin datos</div><div class="mes lleno"><b>Nov</b>22 · 23 · 24</div><div class="mes"><b>Dic</b>— sin datos</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 4) PROYECCION + PRECIOS, todo editable aqui mismo -->
+    <div class="card" id="sec-proy">
+      <h2>Proyección · reparte el capital</h2>
+      <p class="sub" id="sub-proy">Tu proyección: 20,000 + 20,000 + 1,250. Tócala: el pedazo se separa y abajo te lo explico grande.</p>
+      <div class="pastel-wrap">
+        <svg id="pastelProy" viewBox="0 0 360 360" role="img" aria-label="Pastel de proyección: ciclo 23, 20,000 CUP; ciclo 24, 20,000 CUP; resto 1,250 CUP"></svg>
+        <div class="leyenda" id="leyendaProy" aria-label="Leyenda del pastel de proyección"></div>
+        <div class="detalle-pastel" id="detalleProy">Total <b class="num">41,250 CUP</b> · toca un pedazo para verlo</div>
+      </div>
+      <p class="sub">Tú decides cuánto va a cada ciclo. Uno trabaja, el otro espera. <b style="color:var(--txt-1)">Nada se cierra solo:</b> el ciclo 2 se activa solo cuando TÚ cierras el 1.</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px">
+        <div><label for="in-ciclo-a">Ciclo 23 · a trabajar</label><input type="text" id="in-ciclo-a" value="20000" inputmode="decimal" oninput="repartir(false)" onchange="repartir(true);formatearMiles(this)"></div>
+        <div><label for="in-ciclo-b">Ciclo 24 · en espera</label><input type="text" id="in-ciclo-b" value="20000" inputmode="decimal" oninput="repartir(false)" onchange="repartir(true);formatearMiles(this)"></div>
+      </div>
+      <div class="fila" style="margin-top:8px"><span class="k">Capital total</span><span class="v num" id="out-capital">41,250 CUP</span></div>
+      <div class="fila"><span class="k">Queda sin repartir</span><span class="v num" id="out-resto">1,250 CUP</span></div>
+      <div class="fila"><span class="k">Ciclo 23</span><span class="v"><span class="etiqueta-estado est-activo" id="est-proy-23">ACTIVO · TRABAJANDO</span></span></div>
+      <div class="fila"><span class="k">Ciclo 24</span><span class="v"><span class="etiqueta-estado est-espera" id="est-proy-24">EN JUEGO · BRIKU</span></span></div>
+      <p class="ayuda">Ciclo 23 compró ☑ · Ciclo 24 en juego con Briku · Los 11,250 son lo que queda por repartir después del ciclo 24, según tu libreta.</p>
+    </div>
+
+    <details class="card" id="sec-precios" open>
+      <summary><h2>Precios de hoy · editables</h2></summary>
+      <p class="sub">Nadie sabe cómo amanece el mercado mañana. Cámbialos aquí mismo y todo recalcula solo.</p>
+      <h3 style="margin:14px 0 4px">Saldo · QvaPay</h3>
       <div class="ecu">Equilibrio = 360 × salida ÷ costo</div>
       <p class="sub">Tu techo: por encima de esto, pierdes · <span id="ej-saldo">ahora mismo: 345.6</span></p>
       <div class="ecu">Gan./360 = (360 ÷ tasa) × salida − costo</div>
@@ -199,136 +324,54 @@ label{display:block;font-size:13px;font-weight:600;color:var(--txt-2);margin:0 0
       <div class="fila" style="margin-top:8px"><span class="k">Equilibrio</span><span class="v num" id="out-equilibrio">345.6</span></div>
       <div class="fila"><span class="k">Ganancia por cada 360</span><span class="v num" id="out-gan360">152 CUP</span></div>
       <div class="fila"><span class="k">Ganancia total de la vuelta</span><span class="v num" id="out-gantotal">4,323.89 CUP</span></div>
-    </div>
-    <div class="card">
-      <h2>Ciclo 23 · en juego</h2>
-      <div class="fila"><span class="k">Recargas</span><span class="v num">20 × 360 = 7,200 saldo</span></div>
-      <div class="fila"><span class="k">Efectivo que diste</span><span class="v num">20 × 1,000 = 20,000 CUP</span></div>
-      <div class="fila"><span class="k">Quedan por buscar</span><span class="v num">3,000 CUP</span></div>
-      <div class="fila"><span class="k">Tasa · QUSD · saldo</span><span class="v num">300 · 34.25 · 10,275</span></div>
-      <div class="fila"><span class="k">Toque hoy (tío ZIS)</span><span class="v num">970 · 33,222.50 CUP<small>≈ 33,200 redondeado</small></span></div>
-      <div class="fila"><span class="k">G. neta</span><span class="v num" style="color:var(--verde)">2,465 CUP</span></div>
-      <div class="fila"><span class="k">Columna</span><span class="v num" style="font-size:13px">4,666 − 650 − 1,000 − 320 + 9 − 240 = 2,465</span></div>
-      <div class="barra"><i id="barra23" style="width:0%"></i></div>
-      <p class="ayuda">Progreso del ciclo 23: 17,000 de 20,000 ya buscados · 85%</p>
-    </div>
-    <button class="btn" onclick="abrirAnotar()">ANOTAR RÁPIDO</button>
-    <button class="btn fantasma" onclick="irA('h-transferencia')">Ir a Transferencia →</button>
-  </div>
-</section>
-
-<!-- ============ HOJA TRANSFERENCIA ============ -->
-<section class="screen" id="h-transferencia">
-  <div class="top"><div><div class="brand">Transferencia · <span>BANK_CUP</span></div><div class="sub" style="font-size:12px">Mercado 2 · separado de Saldo</div></div><div style="margin-left:auto" class="chip" style="color:var(--azul)">+30%</div></div>
-  <div class="cuerpo">
-    <div class="hero">
-      <div class="etiqueta">Margen por vuelta</div>
-      <div class="cifra num" id="hero-margen">9.5%</div>
-      <div class="detalle">Con <span id="hero-pct">+30%</span>, libro <span id="hero-libro">1,140</span> y salida <span id="hero-salida-t">960</span> · precio de libro de equilibrio <span class="num" id="hero-libro-eq">1,248</span></div>
-    </div>
-    <div class="card">
-      <h2>Tus ecuaciones, con calculadora viva</h2>
+      <h3 style="margin:16px 0 4px">Transferencia · BANK_CUP</h3>
       <div class="ecu">Transferencia = efectivo × (1 + %)</div>
-      <p class="sub">La transferencia que recibes por tu efectivo.</p>
       <div class="ecu">Efectivo = transferencia ÷ (1 + %)</div>
-      <p class="sub">El efectivo que entregas por una transferencia.</p>
       <div class="ecu">QUSD = transferencia ÷ libro</div>
-      <p class="sub">Los QUSD que compras con esa transferencia.</p>
       <div class="ecu">Regreso = QUSD × salida</div>
-      <p class="sub">El efectivo que vuelve a ti al vender los QUSD.</p>
       <div class="ecu">% de equilibrio = libro ÷ salida − 1</div>
       <p class="sub" id="ej-transf">Más de ese % ya ganas · ahora mismo: 18.8% con libro 1,140 y salida 960.</p>
       <div class="ecu">Margen % = (1 + %) × salida ÷ libro −&nbsp;1</div>
       <p class="sub">Tu % de ganancia en la vuelta completa.</p>
-    </div>
-    <div class="card">
-      <h2>Precios de hoy · editables</h2>
-      <p class="sub">Nadie sabe cómo amanece el mercado mañana. Cámbialos y todo recalcula solo.</p>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px">
         <div><label for="in-pct">Tu %</label><input type="text" id="in-pct" value="30" inputmode="decimal" oninput="recalcular()" onchange="recalcular();formatearMiles(this)"></div>
         <div><label for="in-libro">Libro</label><input type="text" id="in-libro" value="1140" inputmode="decimal" oninput="recalcular()" onchange="recalcular();formatearMiles(this)"></div>
         <div><label for="in-salida-t">Salida</label><input type="text" id="in-salida-t" value="960" inputmode="decimal" oninput="recalcular()" onchange="recalcular();formatearMiles(this)"></div>
         <div><label for="in-efectivo">Efectivo a dar</label><input type="text" id="in-efectivo" value="100" inputmode="decimal" oninput="recalcular()" onchange="recalcular();formatearMiles(this)"></div>
       </div>
-      <div class="fila" style="margin-top:8px"><span class="k">Recibes en transferencia</span><span class="v num" id="out-transf">130 CUP</span></div>
+      <div class="fila" style="margin-top:8px"><span class="k">Margen por vuelta</span><span class="v num" id="hero-margen">9.5%</span></div>
+      <div class="fila"><span class="k">Recibes en transferencia</span><span class="v num" id="out-transf">130 CUP</span></div>
       <div class="fila"><span class="k">Compras en QUSD</span><span class="v num" id="out-qusd">0.11 QUSD</span></div>
       <div class="fila"><span class="k">Te regresa en efectivo</span><span class="v num" id="out-regreso">109.47 CUP</span></div>
       <div class="fila"><span class="k">Precio de libro de equilibrio</span><span class="v num" id="out-libro-eq">1,248 CUP</span></div>
       <div class="fila"><span class="k">% de equilibrio</span><span class="v num" id="out-pct-eq">18.8%</span></div>
-    </div>
-    <button class="btn" onclick="abrirAnotar()">ANOTAR RÁPIDO</button>
-  </div>
-</section>
+      <div style="display:none"><span id="hero-pct">+30%</span><span id="hero-libro">1,140</span><span id="hero-salida-t">960</span><span id="hero-libro-eq">1,248</span></div>
+    </details>
 
-<!-- ============ HOJA PROYECCIÓN ============ -->
-<section class="screen" id="h-proyeccion">
-  <div class="top"><div><div class="brand">Proyección · <span>futura</span></div><div class="sub" style="font-size:12px">Lo que viene, según tu libreta</div></div><div style="margin-left:auto" class="chip gold">41,250 CUP</div></div>
-  <div class="cuerpo">
-    <div class="card">
-      <h2>Reparto del dinero</h2>
-      <p class="sub" id="sub-proy">Tu proyección: 20,000 + 20,000 + 1,250. Tócala: el pedazo se separa y abajo te lo explico grande.</p>
-      <div class="pastel-wrap">
-        <svg id="pastelProy" viewBox="0 0 360 360" role="img" aria-label="Pastel de proyección: ciclo 23, 20,000 CUP; ciclo 24, 20,000 CUP; resto 1,250 CUP"></svg>
-        <div class="leyenda" id="leyendaProy" aria-label="Leyenda del pastel de proyección"></div>
-        <div class="detalle-pastel" id="detalleProy">Total <b class="num">41,250 CUP</b> · toca un pedazo para verlo</div>
-      </div>
-    </div>
-    <div class="card">
-      <h2>Repartir el capital en dos ciclos</h2>
-      <p class="sub">Tú decides cuánto va a cada ciclo. Uno trabaja, el otro espera. <b style="color:var(--txt-1)">Nada se cierra solo:</b> el ciclo 2 se activa solo cuando TÚ cierras el 1.</p>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px">
-        <div><label for="in-ciclo-a">Ciclo 1 · a trabajar</label><input type="text" id="in-ciclo-a" value="20000" inputmode="decimal" oninput="repartir(false)" onchange="repartir(true);formatearMiles(this)"></div>
-        <div><label for="in-ciclo-b">Ciclo 2 · en espera</label><input type="text" id="in-ciclo-b" value="20000" inputmode="decimal" oninput="repartir(false)" onchange="repartir(true);formatearMiles(this)"></div>
-      </div>
-      <div class="fila" style="margin-top:8px"><span class="k">Capital total</span><span class="v num" id="out-capital">41,250 CUP</span></div>
-      <div class="fila"><span class="k">Queda sin repartir</span><span class="v num" id="out-resto">1,250 CUP</span></div>
-      <div class="fila"><span class="k">Ciclo 1</span><span class="v"><span class="etiqueta-estado est-activo">ACTIVO · TRABAJANDO</span></span></div>
-      <div class="fila"><span class="k">Ciclo 2</span><span class="v"><span class="etiqueta-estado est-espera">EN ESPERA</span></span></div>
-      <p class="ayuda">Ciclo 23 compró ☑ · Ciclo 24 pendiente ☐ · Los 11,250 son lo que queda por repartir después del ciclo 24, según tu libreta.</p>
-      <button class="btn sec" style="margin-top:12px" onclick="cerrarCiclo()">Cerrar el ciclo 1 y pasar al ciclo 2</button>
-      <p class="ayuda" id="aviso-cierre">Esto solo lo haces tú, cuando el ciclo 1 esté terminado de verdad.</p>
-    </div>
-    <button class="btn" onclick="abrirAnotar()">ANOTAR RÁPIDO</button>
-  </div>
-</section>
-
-<!-- ============ HOJA CLÁSICA / MODELO ============ -->
-<section class="screen" id="h-clasica">
-  <div class="top"><div><div class="brand">Clásica · <span>modelo</span></div><div class="sub" style="font-size:12px">El tercer mercado, cuando llegue</div></div><div style="margin-left:auto" class="chip">PENDIENTE</div></div>
-  <div class="cuerpo">
-    <div class="card" style="text-align:center;padding:28px 16px">
-      <div style="font-size:15px;font-weight:800">Clásica</div>
-      <p class="sub" style="margin:8px 0 12px">Todavía no la tienes. Esta hoja queda <b style="color:var(--txt-1)">bloqueada, sin cifras inventadas</b>, para cuando la tengas nos metemos ahí.</p>
-      <span class="etiqueta-estado est-bloqueado">BLOQUEADA · PENDIENTE</span>
-    </div>
-    <div class="card">
-      <h2>El modelo, como tú lo ordenaste</h2>
-      <div class="fila"><span class="k">Con buscador</span><span class="v num">70% · 20% · 10%</span><small style="display:block;text-align:right;font-size:11px;color:var(--txt-3)">reinversión · buscador · Ernesto</small></div>
-      <div class="fila"><span class="k">Cuando lo buscas tú</span><span class="v num">70% · 30%</span><small style="display:block;text-align:right;font-size:11px;color:var(--txt-3)">reinversión · Ernesto</small></div>
+    <div class="card" id="sec-clasica">
+      <h2>Clásica · el tercer mercado</h2>
+      <p class="sub">Todavía no la tienes. Queda <b style="color:var(--txt-1)">bloqueada, sin cifras inventadas</b>, para cuando la tengas nos metemos ahí.</p>
+      <div style="margin-top:10px"><span class="etiqueta-estado est-bloqueado">BLOQUEADA · PENDIENTE</span></div>
+      <div class="fila" style="margin-top:8px"><span class="k">Con buscador</span><span class="v num">70% · 20% · 10%</span></div>
+      <div class="fila"><span class="k">Cuando lo buscas tú</span><span class="v num">70% · 30%</span></div>
       <div class="fila"><span class="k">La ganancia se cuenta</span><span class="v" style="font-size:14px">después de vender los QUSD</span></div>
       <div class="fila"><span class="k">El capital</span><span class="v" style="font-size:14px">no se reparte, solo la ganancia</span></div>
     </div>
-    <div class="card">
-      <h2>Saldo · tus ecuaciones (referencia)</h2>
-      <div class="ecu">Equilibrio = 360 × salida ÷ costo</div>
-      <p class="sub">Tu techo: por encima de esto, pierdes.</p>
-      <div class="ecu">Gan./360 = (360 ÷ tasa) × salida − costo</div>
-      <p class="sub">Lo que ganas por cada recarga de 360 que vendes.</p>
-      <div class="ecu">Gan. total = gan. × (saldo ÷ 360) − 14.44</div>
-      <p class="sub">La vuelta completa. Se restan 14.44 CUP: son los 5 de saldo que se pierden en el traspaso de ETECSA.</p>
-      <p class="ayuda">Estas son las ecuaciones de Saldo, de referencia. La calculadora viva está en la hoja Saldo. Aquí no se edita nada: Clásica sigue pendiente.</p>
+
+    <div class="card" style="padding:12px 16px">
+      <h3 style="margin-bottom:4px">Apuntes de hoy</h3>
+      <div class="lista-apuntes" id="lista-apuntes"><div class="vacio">Todavía no hay apuntes nuevos. Toca ANOTAR RÁPIDO y pon el primero.</div></div>
     </div>
     <button class="btn" onclick="abrirAnotar()">ANOTAR RÁPIDO</button>
+    <div class="pie-pagina">Los datos son los de tu libreta de papel · Nada se cierra solo, tú decides · Fin de la libreta.</div>
   </div>
 </section>
 
-<!-- ============ BARRA INFERIOR: 5 hojas, con nombre visible ============ -->
-<nav class="tabs" aria-label="Hojas de la libreta">
-  <button class="activo" data-hoja="h-general" onclick="irA('h-general')"><svg viewBox="0 0 24 24"><path d="M4 5h16M4 12h16M4 19h10"/></svg>General</button>
-  <button data-hoja="h-saldo" onclick="irA('h-saldo')"><svg viewBox="0 0 24 24"><rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/></svg>Saldo</button>
-  <button data-hoja="h-transferencia" onclick="irA('h-transferencia')"><svg viewBox="0 0 24 24"><path d="M4 7h13l-3-3M20 17H7l3 3"/></svg>Transf.</button>
-  <button data-hoja="h-proyeccion" onclick="irA('h-proyeccion')"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 3v9l6 4"/></svg>Proy.</button>
-  <button data-hoja="h-clasica" onclick="irA('h-clasica')"><svg viewBox="0 0 24 24"><path d="M12 3l2.5 5.5L20 9.5l-4 4 1 5.5-5-3-5 3 1-5.5-4-4 5.5-1z"/></svg>Clásica</button>
+<!-- Barra inferior: 3 anclas dentro de la vista unica, no 5 hojas lejos -->
+<nav class="tabs" aria-label="Ir a una parte de la vista">
+  <button onclick="irA('sec-vision')"><svg viewBox="0 0 24 24"><path d="M4 5h16M4 12h16M4 19h10"/></svg>Vista</button>
+  <button onclick="irA('sec-ciclos')"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 3v9l6 4"/></svg>Ciclos</button>
+  <button onclick="irA('sec-precios')"><svg viewBox="0 0 24 24"><path d="M12 3l2.5 5.5L20 9.5l-4 4 1 5.5-5-3-5 3 1-5.5-4-4 5.5-1z"/></svg>Precios</button>
 </nav>
 
 <!-- ============ ANOTAR RÁPIDO ============ -->
@@ -355,6 +398,7 @@ label{display:block;font-size:13px;font-weight:600;color:var(--txt-2);margin:0 0
 </div>
 
 <script>
+
 /* Datos reales de la libreta de Ernesto, precargados. Nada empieza de cero. */
 var SEMILLA = {
   capital: 41250,
@@ -362,6 +406,10 @@ var SEMILLA = {
     { nombre: "Reinversión", pct: 70.7, cup: 1811, color: "#2CEB7E", modelo: 70, que: "Lo que vuelve a trabajar: con esto compras las próximas recargas." },
     { nombre: "Briku", pct: 19.5, cup: 500, color: "#FFB020", modelo: 20, que: "Lo que le toca a Briku por buscarte las recargas." },
     { nombre: "Yo", pct: 9.8, cup: 250, color: "#38B6FF", modelo: 10, que: "Lo que te queda a ti, limpio, de esta vuelta." } ] },
+  vision: { total: 42613, partes: [
+    { nombre: "Caja", pct: 51.8, cup: 22080, color: "#2CEB7E", que: "Dinero en caja: lo que tienes guardado, listo para usar." },
+    { nombre: "Briku", pct: 36.0, cup: 15333, color: "#FFB020", que: "Dinero comprado en recargas: lo que Briku ya buscó con tu dinero." },
+    { nombre: "Yo", pct: 12.2, cup: 5200, color: "#38B6FF", que: "Lo que yo invertí: 2,000 saldo, unas 5.55 recargas, descontado de la caja." } ] },
   proy: { total: 41250, partes: [
     { nombre: "Ciclo 23", pct: 48.5, cup: 20000, color: "#2CEB7E", que: "El ciclo que está trabajando ahora mismo." },
     { nombre: "Ciclo 24", pct: 48.5, cup: 20000, color: "#FFB020", que: "El que espera: se activa solo cuando tú cierres el 23." },
@@ -376,11 +424,11 @@ function $(id){ return document.getElementById(id); }
 
 /* ---------- Hojas ---------- */
 function irA(id){
-  document.querySelectorAll(".screen").forEach(function(s){ s.classList.remove("active"); });
-  $(id).classList.add("active");
-  document.querySelectorAll(".tabs button").forEach(function(b){ b.classList.toggle("activo", b.dataset.hoja === id); });
-  if(id === "h-saldo"){ setTimeout(function(){ $("barra23").style.width = "85%"; }, 300); dibujarPastel("pastel22", SEMILLA.ciclo22.partes, SEMILLA.ciclo22.total, "detalle22", true); }
-  if(id === "h-proyeccion"){ dibujarPastel("pastelProy", SEMILLA.proy.partes, SEMILLA.proy.total, "detalleProy", true); }
+  var el = $(id); if(!el) return;
+  el.scrollIntoView({behavior:"smooth", block:"start"});
+  if(id === "sec-ciclos"){ dibujarPastel("pastel22", SEMILLA.ciclo22.partes, SEMILLA.ciclo22.total, "detalle22", true); }
+  if(id === "sec-proy"){ dibujarPastel("pastelProy", SEMILLA.proy.partes, SEMILLA.proy.total, "detalleProy", true); }
+  if(id === "sec-vision"){ dibujarPastel("pastelGen", SEMILLA.vision.partes, SEMILLA.vision.total, "detalleGen", true); }
 }
 
 /* ---------- Pasteles 3D: inclinados en perspectiva, con grosor, brillo y sombra ----------
@@ -399,7 +447,7 @@ function rebanada(cx, cy, r, a0, a1){
   return "M " + cx + " " + cy + " L " + p0[0].toFixed(1) + " " + p0[1].toFixed(1) +
     " A " + r + " " + r + " 0 " + grande + " 1 " + p1[0].toFixed(1) + " " + p1[1].toFixed(1) + " Z";
 }
-function pctTxt(pct){ var v = Math.round(pct * 10) / 10; return v % 1 === 0 ? String(v) : v.toFixed(1); }
+function pctTxt(pct){ return (Math.round(pct * 10) / 10).toFixed(1); }
 function donut(cx, cy, R, r, a0, a1){
   var o0 = polar(cx, cy, R, a0), o1 = polar(cx, cy, R, a1);
   var i1 = polar(cx, cy, r, a1), i0 = polar(cx, cy, r, a0);
@@ -413,6 +461,7 @@ function iconoLeyenda(nombre, color){
   var interior = "";
   if(nombre === "Reinversión"){ interior = '<path d="M8 3a5 5 0 1 1-4.6 3"/><path d="M2 3v4h4"/>'; }
   else if(nombre === "Briku" || nombre === "Yo"){ interior = '<circle cx="8" cy="5.5" r="2.5"/><path d="M3 14c.5-2.5 2.5-4 5-4s4.5 1.5 5 4"/>'; }
+  else if(nombre === "Caja"){ interior = '<circle cx="8" cy="8" r="5.5"/><path d="M8 5.5v5M6 7h4"/>'; }
   else if(nombre === "Resto"){ interior = '<circle cx="8" cy="8" r="5.5"/><path d="M8 5.5v5M6 7h4"/>'; }
   else { interior = '<circle cx="8" cy="8" r="5.5"/><path d="M8 4.5V8l2.5 2"/>'; }
   return '<span class="ico" style="background:' + color + '">' +
@@ -507,8 +556,8 @@ function dibujarPastel(svgId, partes, total, detalleId, animar){
   /* El total va en pastilla sobre el centro: se lee siempre, inclinado o no.
      Proyección: el centro dice "41,250 CUP" grande y "en total" debajo,
      con CUP, como en Saldo. */
-  var centroGrande = svgId === "pastelProy" ? fmt(total, dec) + " CUP" : fmt(total, dec);
-  var centroChico = svgId === "pastelProy" ? "en total" : "CUP en total";
+  var centroGrande = svgId === "pastel22" ? fmt(total, dec) : fmt(total, dec) + " CUP";
+  var centroChico = svgId === "pastel22" ? "CUP en total" : "en total";
   var pastilla = '<g class="pastilla" pointer-events="none">'
     + '<rect x="122" y="158" width="116" height="50" rx="14" fill="#000000" opacity=".35"/>'
     + '<rect x="122" y="155" width="116" height="50" rx="14" fill="#0E1512" stroke="rgba(232,184,75,.45)" stroke-width="1"/>'
@@ -518,9 +567,11 @@ function dibujarPastel(svgId, partes, total, detalleId, animar){
   svg.querySelectorAll(".rebanada").forEach(function(g){
     g.addEventListener("click", function(){ seleccionarPastel(svgId, Number(g.dataset.i), total); });
   });
-  construirLeyenda(svgId === "pastel22" ? "leyenda22" : "leyendaProy", svgId, partes, total);
+  construirLeyenda(svgId === "pastelGen" ? "leyendaGen" : svgId === "pastel22" ? "leyenda22" : "leyendaProy", svgId, partes, total);
   if(detalleId){ $(detalleId).innerHTML = svgId === "pastel22"
     ? '<div class="det-nombre">Ganancia total</div><div class="det-cifra num">2,562.74 CUP</div><div class="det-que">Toca un pedazo: te digo quién es, su % y su cantidad, grande y claro.</div>'
+    : svgId === "pastelGen"
+    ? '<div class="det-nombre">Inversión en juego + Capital</div><div class="det-cifra num">' + fmt(total) + ' CUP</div><div class="det-que">Toca un pedazo: te digo de quién es ese dinero, grande y claro.</div>'
     : '<div class="det-nombre">Total</div><div class="det-cifra num">' + fmt(total) + ' CUP</div><div class="det-que">Toca un pedazo para ver cada parte, grande y claro.</div>'; }
   /* El giro lento (2.4 s) es SOLO de las rebanadas (.giro): las etiquetas, el
      brillo, la sombra y la pastilla quedan quietos y horizontales siempre. */
@@ -535,7 +586,7 @@ function dibujarPastel(svgId, partes, total, detalleId, animar){
 }
 function seleccionarPastel(svgId, i, total){
   var svg = $(svgId);
-  var partes = svgId === "pastel22" ? SEMILLA.ciclo22.partes : SEMILLA.proy.partes;
+  var partes = svgId === "pastelGen" ? SEMILLA.vision.partes : svgId === "pastel22" ? SEMILLA.ciclo22.partes : SEMILLA.proy.partes;
   var p = partes[i]; if(!p) return;
   svg.querySelectorAll(".rebanada").forEach(function(g){
     var esSel = Number(g.dataset.i) === i;
@@ -550,10 +601,10 @@ function seleccionarPastel(svgId, i, total){
     } else { g.style.transform = ""; }
   });
   svg.querySelectorAll(".etq").forEach(function(e){ e.classList.toggle("sel", Number(e.dataset.i) === i); });
-  var leyendaId = svgId === "pastel22" ? "leyenda22" : "leyendaProy";
+  var leyendaId = svgId === "pastelGen" ? "leyendaGen" : svgId === "pastel22" ? "leyenda22" : "leyendaProy";
   var caja = $(leyendaId);
   if(caja){ caja.querySelectorAll(".leyenda-fila").forEach(function(b){ b.classList.toggle("sel", Number(b.dataset.i) === i); }); }
-  var detalleId = svgId === "pastel22" ? "detalle22" : "detalleProy";
+  var detalleId = svgId === "pastelGen" ? "detalleGen" : svgId === "pastel22" ? "detalle22" : "detalleProy";
   var dec = svgId === "pastel22" ? 2 : 0;
   /* Detalle GRANDE y en sus palabras: quién es, % exacto, cantidad, y qué es eso. */
   var extra = "";
@@ -625,10 +676,35 @@ function repartir(animar){
   SEMILLA.proy.partes.forEach(function(p){ p.pct = Math.round(p.cup / SEMILLA.capital * 1000) / 10; });
   dibujarPastel("pastelProy", SEMILLA.proy.partes, SEMILLA.proy.total, "detalleProy", animar);
 }
-function cerrarCiclo(){
-  if(!confirm("¿El ciclo 1 está terminado de verdad? Solo tú lo cierras, la app no lo hace sola.")) return;
-  $("aviso-cierre").textContent = "Ciclo 1 cerrado por ti. Ahora trabaja el ciclo 2: el que estaba en espera pasa a activo.";
-  mostrarToast("Ciclo 1 cerrado. El ciclo 2 ya está trabajando.");
+var cicloActivo = 23;
+function verCiclo(n){
+  var det = $("det-" + n); if(!det) return;
+  document.querySelectorAll(".det-ciclo").forEach(function(x){ x.classList.remove("ver"); });
+  det.classList.add("ver");
+  document.querySelectorAll(".casilla").forEach(function(c){ c.classList.toggle("sel", Number(c.dataset.ciclo) === n); });
+  if(n === 22){ dibujarPastel("pastel22", SEMILLA.ciclo22.partes, SEMILLA.ciclo22.total, "detalle22", true); }
+}
+function zoom(nivel){
+  ["dia","mes","ano"].forEach(function(z){
+    $("zoom-" + z).classList.toggle("sel", z === nivel);
+    $("panel-" + z).classList.toggle("ver", z === nivel);
+  });
+}
+function cerrarCiclo(){ cerrarCicloActual(); }
+function cerrarCicloActual(){
+  var sig = cicloActivo + 1;
+  if(!confirm("¿El ciclo " + cicloActivo + " está terminado de verdad? Solo tú lo cierras, la app no lo hace sola.")) return;
+  function ponEstado(n, texto, clase){ var e = $("est-" + n); if(e){ e.textContent = texto; e.className = "etiqueta-estado " + clase; } }
+  ponEstado(cicloActivo, "CERRADO", "est-cerrado");
+  if(sig === 25){ var c25 = $("casilla-25"); if(c25){ c25.classList.remove("oculta"); } }
+  ponEstado(sig, "ACTIVO · TRABAJANDO", "est-activo");
+  if(sig === 24){ var p24 = $("est-proy-24"); if(p24){ p24.textContent = "ACTIVO · TRABAJANDO"; p24.className = "etiqueta-estado est-activo"; } }
+  cicloActivo = sig;
+  if(sig === 24){ $("btn-cerrar").textContent = "Cerrar el ciclo 24 y crear el ciclo 25"; }
+  else { $("btn-cerrar").textContent = "Cerrar el ciclo " + sig; }
+  $("aviso-cierre").textContent = "Ciclo " + (sig - 1) + " cerrado por ti. Ahora trabaja el ciclo " + sig + ".";
+  mostrarToast("Ciclo " + (sig - 1) + " cerrado. El ciclo " + sig + " ya está trabajando.");
+  verCiclo(sig);
 }
 
 /* ---------- Anotar rápido: Ernesto apunta, la app solo ordena ---------- */
@@ -665,10 +741,14 @@ function mostrarToast(txt){
 }
 
 /* ---------- Arranque ---------- */
+dibujarPastel("pastelGen", SEMILLA.vision.partes, SEMILLA.vision.total, "detalleGen");
 dibujarPastel("pastel22", SEMILLA.ciclo22.partes, SEMILLA.ciclo22.total, "detalle22");
 dibujarPastel("pastelProy", SEMILLA.proy.partes, SEMILLA.proy.total, "detalleProy");
 recalcular(); repartir(); pintarApuntes();
+setTimeout(function(){ $("barra23").style.width = "85%"; $("barra24").style.width = "77%"; }, 300);
+verCiclo(23); zoom("dia");
 document.querySelectorAll("#chips-tipo button")[0].classList.add("sel");
+
 </script>
 </body>
 </html>
