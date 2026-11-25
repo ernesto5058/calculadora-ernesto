@@ -132,6 +132,8 @@ label{display:block;font-size:13px;font-weight:600;color:var(--txt-2);margin:0 0
 .lista-apuntes b{color:var(--txt-1)}
 .vacio{text-align:center;color:var(--txt-3);font-size:13px;padding:12px 0}
 .pie-pagina{font-size:11px;color:var(--txt-3);text-align:center;padding-bottom:4px}
+/* Anclas M1/M3: Vista sube al inicio absoluto y Ciclos aterriza sin que nada quede tapado por la barra */
+#sec-vision,#sec-ciclos,#sec-zoom,#sec-proy,#sec-precios,#sec-clasica{scroll-margin-top:12px;scroll-margin-bottom:140px}
 @media (max-height:700px){.hero .cifra{font-size:30px}.pastel-wrap svg{width:240px;height:240px}}
 
 /* VISTA UNICA: todo en una sola pestana */
@@ -186,10 +188,11 @@ details.card summary h2{display:inline}
         <div class="detalle-pastel" id="detalleGen">Total <b class="num">42,613 CUP</b> · toca un pedazo para verlo</div>
       <p class="ayuda" style="text-align:center">15,333 + 5,200 + 22,080 = 42,613 CUP · Briku 36.0% · Yo 12.2% · Caja 51.8%</p>
       </div>
+      <p class="ayuda" style="text-align:center">Total en juego 42,613 CUP · Capital 41,250 CUP · Diferencia 1,363 CUP</p>
     </div>
     <div class="trio">
-      <div class="mini" style="border-color:rgba(47,191,113,.4)"><div class="etiqueta" style="color:var(--verde)">Saldo</div><div class="cifra num" id="mini-saldo-gan">152</div><div class="nota" id="mini-saldo-nota">por cada 360 · tasa 300</div></div>
-      <div class="mini" style="border-color:rgba(76,195,255,.4)"><div class="etiqueta" style="color:var(--azul)">Transf.</div><div class="cifra num" id="mini-transf-margen">9.5%</div><div class="nota" id="mini-transf-nota">margen · +30%</div></div>
+      <div class="mini" style="border-color:rgba(47,191,113,.4)"><div class="etiqueta" style="color:var(--verde)">Saldo</div><div class="cifra num" id="mini-saldo-gan">176</div><div class="nota" id="mini-saldo-nota">por cada 360 · tasa 300</div></div>
+      <div class="mini" style="border-color:rgba(76,195,255,.4)"><div class="etiqueta" style="color:var(--azul)">Transf.</div><div class="cifra num" id="mini-transf-margen">11.8%</div><div class="nota" id="mini-transf-nota">margen · +30%</div></div>
       <div class="mini" style="border-color:rgba(232,184,75,.45)"><div class="etiqueta" style="color:var(--dorado)">Ciclo 23</div><div class="cifra num">85%</div><div class="nota">en juego · 17,000 / 20,000</div></div>
     </div>
     <button class="btn" onclick="abrirAnotar()">ANOTAR RÁPIDO</button>
@@ -221,7 +224,8 @@ details.card summary h2{display:inline}
           <div class="fila"><span class="k">Efectivo que diste</span><span class="v num">20 × 1,000 = 20,000 CUP</span></div>
           <div class="fila"><span class="k">Quedan por buscar</span><span class="v num">3,000 CUP</span></div>
           <div class="fila"><span class="k">Tasa · QUSD · saldo</span><span class="v num">300 · 34.25 · 10,275</span></div>
-          <div class="fila"><span class="k">Toque hoy (tío ZIS)</span><span class="v num">970 · 33,222.50 CUP<small>≈ 33,200 redondeado</small></span></div>
+          <div class="fila"><span class="k">Toque hoy</span><span class="v num">975 · 33,393.75 CUP<small>≈ 33,400 redondeado</small></span></div>
+          <div class="fila"><span class="k">Salida de Miguel</span><span class="v num">980 CUP por 1 QUSD<small>34.25 QUSD × 980 = 33,565.00 CUP</small></span></div>
           <div class="fila"><span class="k">G. neta</span><span class="v num" style="color:var(--verde)">2,465 CUP</span></div>
           <div class="fila"><span class="k">Columna</span><span class="v num" style="font-size:13px">4,666 − 650 − 1,000 − 320 + 9 − 240 = 2,465</span></div>
           <div class="barra"><i id="barra23" style="width:0%"></i></div>
@@ -293,7 +297,7 @@ details.card summary h2{display:inline}
         <div class="leyenda" id="leyendaProy" aria-label="Leyenda del pastel de proyección"></div>
         <div class="detalle-pastel" id="detalleProy">Total <b class="num">41,250 CUP</b> · toca un pedazo para verlo</div>
       </div>
-      <p class="sub">Tú decides cuánto va a cada ciclo. Uno trabaja, el otro espera. <b style="color:var(--txt-1)">Nada se cierra solo:</b> el ciclo 2 se activa solo cuando TÚ cierras el 1.</p>
+      <p class="sub">Tú decides cuánto va a cada ciclo. Uno trabaja, el otro espera. Nada se cierra solo: el ciclo 24 se activa solo cuando TÚ cierras el 23.</p>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px">
         <div><label for="in-ciclo-a">Ciclo 23 · a trabajar</label><input type="text" id="in-ciclo-a" value="20000" inputmode="decimal" oninput="repartir(false)" onchange="repartir(true);formatearMiles(this)"></div>
         <div><label for="in-ciclo-b">Ciclo 24 · en espera</label><input type="text" id="in-ciclo-b" value="20000" inputmode="decimal" oninput="repartir(false)" onchange="repartir(true);formatearMiles(this)"></div>
@@ -302,7 +306,7 @@ details.card summary h2{display:inline}
       <div class="fila"><span class="k">Queda sin repartir</span><span class="v num" id="out-resto">1,250 CUP</span></div>
       <div class="fila"><span class="k">Ciclo 23</span><span class="v"><span class="etiqueta-estado est-activo" id="est-proy-23">ACTIVO · TRABAJANDO</span></span></div>
       <div class="fila"><span class="k">Ciclo 24</span><span class="v"><span class="etiqueta-estado est-espera" id="est-proy-24">EN JUEGO · BRIKU</span></span></div>
-      <p class="ayuda">Ciclo 23 compró ☑ · Ciclo 24 en juego con Briku · Los 11,250 son lo que queda por repartir después del ciclo 24, según tu libreta.</p>
+      <p class="ayuda">Ciclo 23 compró ☑ · Ciclo 24 en juego con Briku.</p>
     </div>
 
     <details class="card" id="sec-precios" open>
@@ -310,47 +314,47 @@ details.card summary h2{display:inline}
       <p class="sub">Nadie sabe cómo amanece el mercado mañana. Cámbialos aquí mismo y todo recalcula solo.</p>
       <h3 style="margin:14px 0 4px">Saldo · QvaPay</h3>
       <div class="ecu">Equilibrio = 360 × salida ÷ costo</div>
-      <p class="sub">Tu techo: por encima de esto, pierdes · <span id="ej-saldo">ahora mismo: 345.6</span></p>
+      <p class="sub">Tu techo: por encima de esto, pierdes · <span id="ej-saldo">ahora mismo: 352.8</span></p>
       <div class="ecu">Gan./360 = (360 ÷ tasa) × salida − costo</div>
       <p class="sub">Lo que ganas por cada recarga de 360 que vendes.</p>
       <div class="ecu">Gan. total = gan. × (saldo ÷ 360) − 14.44</div>
       <p class="sub">La vuelta completa. Se restan 14.44 CUP: son los 5 de saldo que se pierden en el traspaso de ETECSA.</p>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px">
-        <div><label for="in-salida-s">Salida</label><input type="text" id="in-salida-s" value="960" inputmode="decimal" oninput="recalcular()" onchange="recalcular();formatearMiles(this)"></div>
+        <div><label for="in-salida-s">Salida · Miguel</label><input type="text" id="in-salida-s" value="980" inputmode="decimal" oninput="recalcular()" onchange="recalcular();formatearMiles(this)"></div>
         <div><label for="in-costo">Costo</label><input type="text" id="in-costo" value="1000" inputmode="decimal" oninput="recalcular()" onchange="recalcular();formatearMiles(this)"></div>
         <div><label for="in-tasa">Tasa</label><input type="text" id="in-tasa" value="300" inputmode="decimal" oninput="recalcular()" onchange="recalcular();formatearMiles(this)"></div>
         <div><label for="in-saldo">Saldo a vender</label><input type="text" id="in-saldo" value="10275" inputmode="decimal" oninput="recalcular()" onchange="recalcular();formatearMiles(this)"></div>
       </div>
-      <div class="fila" style="margin-top:8px"><span class="k">Equilibrio</span><span class="v num" id="out-equilibrio">345.6</span></div>
-      <div class="fila"><span class="k">Ganancia por cada 360</span><span class="v num" id="out-gan360">152 CUP</span></div>
-      <div class="fila"><span class="k">Ganancia total de la vuelta</span><span class="v num" id="out-gantotal">4,323.89 CUP</span></div>
+      <div class="fila" style="margin-top:8px"><span class="k">Equilibrio</span><span class="v num" id="out-equilibrio">352.8</span></div>
+      <div class="fila"><span class="k">Ganancia por cada 360</span><span class="v num" id="out-gan360">176 CUP</span></div>
+      <div class="fila"><span class="k">Ganancia total de la vuelta</span><span class="v num" id="out-gantotal">5,008.89 CUP</span></div>
       <h3 style="margin:16px 0 4px">Transferencia · BANK_CUP</h3>
       <div class="ecu">Transferencia = efectivo × (1 + %)</div>
       <div class="ecu">Efectivo = transferencia ÷ (1 + %)</div>
       <div class="ecu">QUSD = transferencia ÷ libro</div>
       <div class="ecu">Regreso = QUSD × salida</div>
       <div class="ecu">% de equilibrio = libro ÷ salida − 1</div>
-      <p class="sub" id="ej-transf">Más de ese % ya ganas · ahora mismo: 18.8% con libro 1,140 y salida 960.</p>
+      <p class="sub" id="ej-transf">Más de ese % ya ganas · ahora mismo: 16.3% con libro 1,140 y salida 980.</p>
       <div class="ecu">Margen % = (1 + %) × salida ÷ libro −&nbsp;1</div>
       <p class="sub">Tu % de ganancia en la vuelta completa.</p>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px">
         <div><label for="in-pct">Tu %</label><input type="text" id="in-pct" value="30" inputmode="decimal" oninput="recalcular()" onchange="recalcular();formatearMiles(this)"></div>
         <div><label for="in-libro">Libro</label><input type="text" id="in-libro" value="1140" inputmode="decimal" oninput="recalcular()" onchange="recalcular();formatearMiles(this)"></div>
-        <div><label for="in-salida-t">Salida</label><input type="text" id="in-salida-t" value="960" inputmode="decimal" oninput="recalcular()" onchange="recalcular();formatearMiles(this)"></div>
+        <div><label for="in-salida-t">Salida · Miguel</label><input type="text" id="in-salida-t" value="980" inputmode="decimal" oninput="recalcular()" onchange="recalcular();formatearMiles(this)"></div>
         <div><label for="in-efectivo">Efectivo a dar</label><input type="text" id="in-efectivo" value="100" inputmode="decimal" oninput="recalcular()" onchange="recalcular();formatearMiles(this)"></div>
       </div>
-      <div class="fila" style="margin-top:8px"><span class="k">Margen por vuelta</span><span class="v num" id="hero-margen">9.5%</span></div>
+      <div class="fila" style="margin-top:8px"><span class="k">Margen por vuelta</span><span class="v num" id="hero-margen">11.8%</span></div>
       <div class="fila"><span class="k">Recibes en transferencia</span><span class="v num" id="out-transf">130 CUP</span></div>
       <div class="fila"><span class="k">Compras en QUSD</span><span class="v num" id="out-qusd">0.11 QUSD</span></div>
-      <div class="fila"><span class="k">Te regresa en efectivo</span><span class="v num" id="out-regreso">109.47 CUP</span></div>
-      <div class="fila"><span class="k">Precio de libro de equilibrio</span><span class="v num" id="out-libro-eq">1,248 CUP</span></div>
-      <div class="fila"><span class="k">% de equilibrio</span><span class="v num" id="out-pct-eq">18.8%</span></div>
-      <div style="display:none"><span id="hero-pct">+30%</span><span id="hero-libro">1,140</span><span id="hero-salida-t">960</span><span id="hero-libro-eq">1,248</span></div>
+      <div class="fila"><span class="k">Te regresa en efectivo</span><span class="v num" id="out-regreso">111.75 CUP</span></div>
+      <div class="fila"><span class="k">Precio de libro de equilibrio</span><span class="v num" id="out-libro-eq">1,274 CUP</span></div>
+      <div class="fila"><span class="k">% de equilibrio</span><span class="v num" id="out-pct-eq">16.3%</span></div>
+      <div style="display:none"><span id="hero-pct">+30%</span><span id="hero-libro">1,140</span><span id="hero-salida-t">980</span><span id="hero-libro-eq">1,274</span></div>
     </details>
 
     <div class="card" id="sec-clasica">
       <h2>Clásica · el tercer mercado</h2>
-      <p class="sub">Todavía no la tienes. Queda <b style="color:var(--txt-1)">bloqueada, sin cifras inventadas</b>, para cuando la tengas nos metemos ahí.</p>
+      <p class="sub">Todavía no la tienes. Queda bloqueada, sin cifras inventadas, para cuando la tengas nos metemos ahí.</p>
       <div style="margin-top:10px"><span class="etiqueta-estado est-bloqueado">BLOQUEADA · PENDIENTE</span></div>
       <div class="fila" style="margin-top:8px"><span class="k">Con buscador</span><span class="v num">70% · 20% · 10%</span></div>
       <div class="fila"><span class="k">Cuando lo buscas tú</span><span class="v num">70% · 30%</span></div>
@@ -408,8 +412,8 @@ var SEMILLA = {
     { nombre: "Yo", pct: 9.8, cup: 250, color: "#38B6FF", modelo: 10, que: "Lo que te queda a ti, limpio, de esta vuelta." } ] },
   vision: { total: 42613, partes: [
     { nombre: "Caja", pct: 51.8, cup: 22080, color: "#2CEB7E", que: "Dinero en caja: lo que tienes guardado, listo para usar." },
-    { nombre: "Briku", pct: 36.0, cup: 15333, color: "#FFB020", que: "Dinero comprado en recargas: lo que Briku ya buscó con tu dinero." },
-    { nombre: "Yo", pct: 12.2, cup: 5200, color: "#38B6FF", que: "Lo que yo invertí: 2,000 saldo, unas 5.55 recargas, descontado de la caja." } ] },
+    { nombre: "Briku", pct: 36.0, cup: 15333, color: "#FFB020", que: "15,333 CUP en recargas · 15.33 recargas (5,520 saldo ÷ 360): lo que Briku ya buscó con tu dinero." },
+    { nombre: "Yo", pct: 12.2, cup: 5200, color: "#38B6FF", que: "Lo que yo invertí: 5,200 CUP · 5.55 recargas (2,000 saldo ÷ 360), descontado de la caja." } ] },
   proy: { total: 41250, partes: [
     { nombre: "Ciclo 23", pct: 48.5, cup: 20000, color: "#2CEB7E", que: "El ciclo que está trabajando ahora mismo." },
     { nombre: "Ciclo 24", pct: 48.5, cup: 20000, color: "#FFB020", que: "El que espera: se activa solo cuando tú cierres el 23." },
@@ -425,7 +429,8 @@ function $(id){ return document.getElementById(id); }
 /* ---------- Hojas ---------- */
 function irA(id){
   var el = $(id); if(!el) return;
-  el.scrollIntoView({behavior:"smooth", block:"start"});
+  if(id === "sec-vision"){ var c = $("cuerpo-unica"); if(c){ if(c.scrollTo){ c.scrollTo({top:0,behavior:"smooth"}); } else { c.scrollTop = 0; } } }
+  else if(el.scrollIntoView){ el.scrollIntoView({behavior:"smooth", block:"start"}); }
   if(id === "sec-ciclos"){ dibujarPastel("pastel22", SEMILLA.ciclo22.partes, SEMILLA.ciclo22.total, "detalle22", true); }
   if(id === "sec-proy"){ dibujarPastel("pastelProy", SEMILLA.proy.partes, SEMILLA.proy.total, "detalleProy", true); }
   if(id === "sec-vision"){ dibujarPastel("pastelGen", SEMILLA.vision.partes, SEMILLA.vision.total, "detalleGen", true); }
@@ -627,7 +632,7 @@ function tocarPastel(el, svgId, total, indice){
 function leerNum(id, defecto){ var v = parseFloat(String($(id).value).replace(/,/g, "").replace(/\s/g, "")); return isNaN(v) ? defecto : v; }
 function formatearMiles(el){ var v = parseFloat(String(el.value).replace(/,/g, "")); if(!isNaN(v) && Math.abs(v) >= 1000){ el.value = fmt(v); } }
 function recalcular(){
-  var salidaS = leerNum("in-salida-s", 960), costo = leerNum("in-costo", 1000),
+  var salidaS = leerNum("in-salida-s", 980), costo = leerNum("in-costo", 1000),
       tasa = leerNum("in-tasa", 300), saldo = leerNum("in-saldo", 10275);
   var equilibrio = 360 * salidaS / costo;
   var gan360 = (360 / tasa) * salidaS - costo;
@@ -638,7 +643,7 @@ function recalcular(){
   $("mini-saldo-gan").textContent = fmt(Math.round(gan360));
 
   var pct = leerNum("in-pct", 30), libro = leerNum("in-libro", 1140),
-      salidaT = leerNum("in-salida-t", 960), efectivo = leerNum("in-efectivo", 100);
+      salidaT = leerNum("in-salida-t", 980), efectivo = leerNum("in-efectivo", 100);
   var transf = efectivo * (1 + pct / 100);
   var qusd = transf / libro;
   var regreso = qusd * salidaT;

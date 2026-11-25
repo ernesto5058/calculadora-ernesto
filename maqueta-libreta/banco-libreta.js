@@ -28,6 +28,26 @@ t("vision: tocar Briku muestra 15,333 CUP y 'recargas'",
 t("vision: tocar Caja muestra 22,080 CUP y 'caja'",
   (function(){ const p=d.querySelectorAll('#pastelGen .rebanada'); p[0].dispatchEvent(new w.Event('click',{bubbles:true})); return txt('detalleGen').includes('22,080 CUP') && txt('detalleGen').includes('51.8%'); })());
 t("vision: suma 15,333+5,200+22,080=42,613 escrita", d.body.textContent.includes('15,333 + 5,200 + 22,080 = 42,613 CUP'));
+// ---------- CORRECCION OJO: E1/E2/E3/M1/M2/M3/F1 + Toque 975 / Miguel 970 ----------
+t("E1: sin 11,250 en la pagina; resto sigue 1,250", !d.body.textContent.includes('11,250') && txt('out-resto').includes('1,250'));
+t("E2: proyeccion dice ciclo 24 se activa cuando cierras el 23 (no ciclo 1/2)", seccion('sec-proy').includes('el ciclo 24 se activa solo cuando TÚ cierras el 23') && !seccion('sec-proy').includes('ciclo 2 se activa') && !seccion('sec-proy').includes('cierras el 1'));
+t("E3: tocar Briku en Vision muestra 15.33 recargas exactas",
+  (function(){ const p=d.querySelectorAll('#pastelGen .rebanada'); p[1].dispatchEvent(new w.Event('click',{bubbles:true})); return txt('detalleGen').includes('15,333 CUP en recargas · 15.33 recargas (5,520 saldo ÷ 360)'); })());
+t("E3: tocar Yo en Vision muestra 5.55 recargas",
+  (function(){ const p=d.querySelectorAll('#pastelGen .rebanada'); p[2].dispatchEvent(new w.Event('click',{bubbles:true})); return txt('detalleGen').includes('5.55 recargas'); })());
+t("M1/M3: anclas con scroll-margin y Vista sube al inicio absoluto (scrollTo top 0)", html.includes('scroll-margin-top:12px') && html.includes('scroll-margin-bottom:140px') && html.includes('scrollTo({top:0'));
+t("M1/M3: irA Ciclos no falla", (function(){ try { w.irA('sec-ciclos'); return true; } catch(e){ return false; } })());
+t("M2: espacios bien (espera. Nada ... ciclo 24; Queda bloqueada)", d.body.textContent.includes('espera. Nada se cierra solo: el ciclo 24') && d.body.textContent.includes('Queda bloqueada, sin cifras inventadas') && !d.body.textContent.includes('espera.Nada') && !d.body.textContent.includes('Quedabloqueada') && !d.body.textContent.includes('solo:el ciclo'));
+t("F1: linea neutra Total en juego 42,613 · Capital 41,250 · Diferencia 1,363", d.body.textContent.includes('Total en juego 42,613 CUP · Capital 41,250 CUP · Diferencia 1,363 CUP'));
+t("F1: diferencia aritmetica 42,613-41,250=1,363", 42613-41250===1363);
+t("EXTRA: Toque hoy 975 -> 33,393.75 CUP", seccion('det-23').includes('Toque hoy') && seccion('det-23').includes('975') && seccion('det-23').includes('33,393.75'));
+t("EXTRA: Salida de Miguel 980 CUP por 1 QUSD (34.25x980=33,565.00)", seccion('det-23').includes('Salida de Miguel') && seccion('det-23').includes('980 CUP por 1 QUSD') && seccion('det-23').includes('33,565.00') && !d.body.textContent.includes('970 CUP por 1 QUSD'));
+t("EXTRA: inputs de salida en 980 (Miguel)", d.getElementById('in-salida-s').value==='980' && d.getElementById('in-salida-t').value==='980');
+t("EXTRA: con salida 980 equilibrio 352.8 y gan/360 176", txt('out-equilibrio').includes('352.8') && txt('out-gan360').includes('176'));
+t("EXTRA: con salida 980 gan total 5,008.89", txt('out-gantotal').includes('5,008.89'));
+t("EXTRA: con salida 980 margen 11.8%, libro-eq 1,274, % eq 16.3%", txt('hero-margen').includes('11.8%') && txt('out-libro-eq').includes('1,274') && txt('out-pct-eq').includes('16.3%'));
+t("EXTRA: con salida 980 regreso 111.75 CUP", txt('out-regreso').includes('111.75'));
+t("EXTRA: Toque 975 no se mezcla con salida 980 (equilibrio usa 980, no 351.0)", txt('out-equilibrio').includes('352.8') && !txt('out-equilibrio').includes('351.0'));
 // ---------- CORRECCION RECARGAS (Ernesto 2026-11-25 11:52) ----------
 t("recargas: Briku 15.33 recargas, nunca QUSD", d.body.textContent.includes('15.33 recargas') && !d.body.textContent.includes('15.33 QUSD'));
 t("recargas: Yo 5.55 recargas, nunca QUSD", d.body.textContent.includes('5.55 recargas') && !d.body.textContent.includes('5.55 QUSD'));
@@ -81,7 +101,7 @@ t("M3: barra inferior flotante (12px, radio 20)", html.includes('left:12px;right
 t("Clásica: 0 inputs", d.querySelectorAll('#sec-clasica input').length===0);
 t("Clásica: bloqueada sin cifras inventadas", seccion('sec-clasica').includes('BLOQUEADA') && seccion('sec-clasica').includes('sin cifras inventadas'));
 // ---------- PROYECCION (regresion) ----------
-t("Proyección aclara 11,250 después del ciclo 24", seccion('sec-proy').includes('después del ciclo 24'));
+t("Proyección: resto 1,250 sin frase de 11,250", !seccion('sec-proy').includes('11,250') && txt('out-resto').includes('1,250'));
 d.getElementById('in-ciclo-a').value='15000'; d.getElementById('in-ciclo-a').dispatchEvent(new w.Event('change'));
 t("reparto resto 6,250", txt('out-resto').includes('6,250'));
 t("pastel Proyección recalcula a 15,000", txt('pastelProy').includes('15,000'));
@@ -92,19 +112,19 @@ t("reparto vuelve a 1,250", txt('out-resto').includes('1,250'));
 t("formato miles en input (15,000)", (function(){ const el=d.getElementById('in-ciclo-a'); el.value='15000'; el.dispatchEvent(new w.Event('change')); const ok=el.value==='15,000'; el.value='20000'; el.dispatchEvent(new w.Event('change')); return ok; })());
 // ---------- CALCULADORAS VIVAS (regresion) ----------
 d.getElementById('in-pct').value='25'; d.getElementById('in-pct').dispatchEvent(new w.Event('input'));
-t("input inmediato: 25% -> margen 5.3%", txt('hero-margen').includes('5.3%'));
-t("input inmediato: precio libro equilibrio 1,200", txt('hero-libro-eq').includes('1,200'));
+t("input inmediato: 25% -> margen 7.5% (salida 980)", txt('hero-margen').includes('7.5%'));
+t("input inmediato: precio libro equilibrio 1,225 (salida 980)", txt('hero-libro-eq').includes('1,225'));
 d.getElementById('in-pct').value='30'; d.getElementById('in-pct').dispatchEvent(new w.Event('input'));
-t("vuelve a 9.5% y libro-eq 1,248", txt('hero-margen').includes('9.5%') && txt('hero-libro-eq').includes('1,248'));
-t("% de equilibrio 18.8%", txt('out-pct-eq').includes('18.8%'));
+t("vuelve a 11.8% y libro-eq 1,274 (salida 980)", txt('hero-margen').includes('11.8%') && txt('hero-libro-eq').includes('1,274'));
+t("% de equilibrio 16.3% (salida 980)", txt('out-pct-eq').includes('16.3%'));
 d.getElementById('in-salida-s').value='1000'; d.getElementById('in-salida-s').dispatchEvent(new w.Event('input'));
 t("ejemplo Saldo vivo: equilibrio 360.0", txt('ej-saldo').includes('360.0'));
-d.getElementById('in-salida-s').value='960'; d.getElementById('in-salida-s').dispatchEvent(new w.Event('input'));
-t("ejemplo Saldo vuelve a 345.6", txt('ej-saldo').includes('345.6'));
+d.getElementById('in-salida-s').value='980'; d.getElementById('in-salida-s').dispatchEvent(new w.Event('input'));
+t("ejemplo Saldo vuelve a 352.8 (salida 980)", txt('ej-saldo').includes('352.8'));
 t("fórmulas sin nowrap", !html.includes('white-space:nowrap'));
-t("Saldo: gan/360 152 CUP", txt('out-gan360').includes('152'));
-t("Saldo: gan total 4,323.89", txt('out-gantotal').includes('4,323.89'));
-t("Saldo: toque 33,222.50 ≈ 33,200 (970, no 930)", seccion('det-23').includes('33,222.50') && !d.body.textContent.includes('34.25 × 930'));
+t("Saldo: gan/360 176 CUP (salida 980)", txt('out-gan360').includes('176'));
+t("Saldo: gan total 5,008.89 (salida 980)", txt('out-gantotal').includes('5,008.89'));
+t("Saldo: Toque 975 y Miguel 980, no 930 ni 970", seccion('det-23').includes('975') && seccion('det-23').includes('980') && !d.body.textContent.includes('34.25 × 930') && !d.body.textContent.includes('970 CUP por 1 QUSD'));
 t("capital directo 41,250 sin animación", txt('hero-capital').trim()==='41,250');
 t("columna 4,666 visible", d.body.textContent.includes('4,666'));
 // ---------- ANOTAR RAPIDO ----------
