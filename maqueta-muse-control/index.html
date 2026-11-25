@@ -163,7 +163,8 @@
   .btn.no { background: rgba(248,113,113,.18); color: var(--red); border: 1px solid rgba(248,113,113,.45); }
   .btn.ghost { background: var(--card2); color: var(--txt); border: 1px solid var(--line); }
   .composer {
-    display: flex; gap: 8px; position: sticky; bottom: 84px;
+    display: flex; gap: 8px; position: sticky; bottom: 84px; /* respaldo:
+      fitComposer() lo ajusta a la altura real de la barra inferior */
     background: var(--bg); padding: 8px 0 4px;
   }
   .composer input {
@@ -438,7 +439,7 @@
       <div class="act" onclick="openActivity('home', 1)"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div><div><b>Servicios rearrancados solos</b><span>Tras el reinicio de la máquina, el timer los levantó.</span></div><time>01:14</time></div>
       <div class="act" onclick="openActivity('home', 2)"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" stroke-width="2" stroke-linecap="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/></svg></div><div><b>WhatsApp Baileys cayó 2 veces</b><span>Reinicios de máquina; levantado a mano.</span></div><time>01:20</time></div>
     </div>
-    <p class="foot">Muse Control · Maqueta v13 · Los datos de esta pantalla son de ejemplo.</p>
+    <p class="foot">Muse Control · Maqueta v14 · Los datos de esta pantalla son de ejemplo.</p>
     <div style="text-align:center; margin-top:10px;"><button class="btn ghost" style="flex:none; padding:9px 18px;" onclick="resetDemo()">Restablecer demo</button></div>
   </section>
 
@@ -587,7 +588,7 @@
       <div class="act" onclick="openActivity('taller', 1)"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#f87171" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></div><div><b>Despliegue rechazado</b><span>Maqueta v7-u2net · en cuarentena.</span></div><time>ayer</time></div>
       <div class="act" onclick="openActivity('taller', 2)"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div><div><b>Pruebas del banco: 72/72</b><span>Juego v9 · sin fallos.</span></div><time>ayer</time></div>
     </div>
-    <p class="foot">Taller · Maqueta v13 · Ningún despliegue o comando destructivo se ejecuta sin tu autorización.</p>
+    <p class="foot">Taller · Maqueta v14 · Ningún despliegue o comando destructivo se ejecuta sin tu autorización.</p>
   </section>
 
   <!-- ============ BARRA INFERIOR ============ -->
@@ -792,17 +793,26 @@
     return { pending: pending, silenced: silenced, unread: pending - silenced };
   }
   function alertTag(a) { return a.read ? 'Leída' : (a.silenced ? 'Silenciada' : ''); }
+  /* La tarjeta «Alertas» de Inicio se dibuja SIEMPRE desde alertCounts():
+     una sola fuente de verdad, en la carga y en CADA cambio de estado.
+     En la v13 solo se dibujaba tras una acción: tras recargar, la tarjeta
+     mostraba el texto estático del HTML («Revisar zrok») y el mismo estado
+     se veía distinto según el momento (fallo del Ojo). Y con las 2 leídas
+     decía «0 · Sin alertas» mientras las alertas seguían listadas con sus
+     problemas sin resolver (túnel público, RAM ajustada): ahora dice
+     «2 · Leídas». «Sin alertas» solo sale si no hay ninguna alerta. */
   function updateAlertsUI() {
     var c = alertCounts();
     var dot = document.querySelector('.bell .dot');
     if (dot) dot.style.display = c.pending ? '' : 'none';
     var count = document.getElementById('alertCount');
-    if (count) count.textContent = String(c.pending);
+    if (count) count.textContent = String(c.pending || alertsData.length);
     var pill = document.getElementById('alertPill');
     if (pill) {
       pill.className = 'pill ' + (c.pending ? 'warn' : 'ok');
       var label;
-      if (!c.pending) label = 'Sin alertas';
+      if (!alertsData.length) label = 'Sin alertas';
+      else if (!c.pending) label = 'Leídas';
       else if (!c.silenced) label = 'Revisar zrok';
       else if (!c.unread) label = c.silenced + (c.silenced > 1 ? ' silenciadas' : ' silenciada');
       else label = c.unread + ' sin leer · ' + c.silenced + ' silenciada' + (c.silenced > 1 ? 's' : '');
@@ -1002,6 +1012,11 @@
        tapada por el compositor: el ajuste de scroll también corre aquí,
        no solo al recibir la respuesta. */
     if (name === 'maximo') scrollChatToBottom();
+    /* Al volver a Orquesta con un filtro activo, el aviso del filtro
+       vuelve a aparecer: en la v13 el filtro persistía pero el aviso se
+       perdía al navegar (fallo del Ojo). Con el filtro quitado no hay
+       nada que re-mostrar. */
+    if (name === 'orquesta' && currentFilter !== 'all') toast(filterToastText(), { persist: true, kind: 'filter' });
   }
 
   /* ---------- Orquesta: datos de ejemplo ---------- */
@@ -1055,12 +1070,21 @@
     list.innerHTML = html;
     return shown;
   }
+  /* Texto del aviso de filtro, con el conteo vivo: lo usan setFilter()
+     y go() al volver a Orquesta con un filtro activo (M2). */
+  function filterToastText() {
+    var label = 'Todos';
+    var chips = document.querySelectorAll('#chips .chip');
+    for (var i = 0; i < chips.length; i++) if (chips[i].getAttribute('data-f') === currentFilter) label = chips[i].textContent.trim();
+    var shown = renderAgents();
+    return 'Filtro ' + label + ': ' + shown + (shown === 1 ? ' agente visible' : ' agentes visibles') + ' (maqueta)';
+  }
   function setFilter(f, el) {
     currentFilter = f;
     var chips = document.querySelectorAll('#chips .chip');
     for (var i = 0; i < chips.length; i++) chips[i].classList.remove('on');
     el.classList.add('on');
-    var shown = renderAgents();
+    renderAgents();
     renderOrchActivity();
     /* El filtro también avisa: es el control de Orquesta que dispara el
        aviso fijo de la pantalla (en la v7 ningún control de Orquesta lo
@@ -1069,7 +1093,7 @@
        (persistente): en la v8 desaparecía a los 8 s y el filtro aplicado
        solo se distinguía por el chip resaltado. Cambia al cambiar el
        filtro; la × lo descarta; cambiar de pantalla también. */
-    toast('Filtro ' + el.textContent.trim() + ': ' + shown + (shown === 1 ? ' agente visible' : ' agentes visibles') + ' (maqueta)', { persist: true, kind: 'filter' });
+    toast(filterToastText(), { persist: true, kind: 'filter' });
   }
   function filterAgents() { renderAgents(); renderOrchActivity(); }
   renderAgents();
@@ -1251,6 +1275,17 @@
      muestra la última tarjeta Y los 3 atajos completos por encima del
      compositor. El spacer de 200 px al final de la pantalla da el
      recorrido extra que ese ancla necesita. */
+  /* Altura real de la barra inferior (varía con el safe-area del iPhone):
+     el compositor se ancla justo encima de ella, sin franja entre ambos.
+     En la v13 el compositor iba fijo a 84 px y la barra mide ~64 px en
+     escritorio: quedaban ~20 px por los que asomaba el contenido al
+     desplazar, con fragmentos del último plan tapados por el compositor
+     y asomando entre él y la barra (fallo del Ojo). El 84 queda como
+     respaldo si la barra no se puede medir (p. ej. jsdom). */
+  function navH() { var n = document.querySelector('nav.bottom'); return (n && n.offsetHeight) || 84; }
+  function fitComposer() { var c = document.querySelector('#scr-maximo .composer'); if (c) c.style.bottom = navH() + 'px'; }
+  window.addEventListener('resize', fitComposer);
+  fitComposer();
   function scrollChatToBottom() {
     var chat = document.getElementById('chat');
     var composer = document.querySelector('#scr-maximo .composer');
@@ -1259,7 +1294,7 @@
        que no le gane a este desplazamiento. */
     try { window.scrollTo({ top: window.scrollY, behavior: 'instant' }); } catch (e) {}
     var compH = composer.offsetHeight || 58;
-    var limit = window.innerHeight - 84 - compH - 12;
+    var limit = window.innerHeight - navH() - compH - 12;
     /* Borde inferior del ancla: los atajos si están visibles (siempre en
        la v7), si no la última tarjeta del chat. */
     function anchorBottom() {
@@ -1457,11 +1492,13 @@
     { cls: 'red', title: 'El túnel zrok es público', sub: 'La API del shim responde sin autenticación de cliente. Antes de usarlo como puerta de mando hay que cerrarlo: share privado o auth por cliente.', time: '02:27', reviewLabel: 'Revisar el túnel', review: 'El túnel zrok es público: hay que cerrarlo antes de conectar (maqueta)', risk: 'Con el túnel abierto, cualquiera con la URL llega a la API (maqueta)', read: false, silenced: false },
     { cls: 'amber', title: 'RAM ajustada: 1,2 GB libres', sub: 'La PWA y un adaptador ligero sí caben. Nada de base de datos grande ni modelos locales.', time: '02:27', reviewLabel: 'Revisar la RAM', review: 'La RAM está ajustada: 1,2 GB libres; la PWA y un adaptador ligero caben, sin base de datos grande ni modelos locales (maqueta)', risk: 'Con 1,2 GB libres, un servicio más ya no cabe: la PWA o el adaptador se quedarían sin memoria (maqueta)', read: false, silenced: false }
   ];
+  /* Dibujo inicial de la tarjeta de Inicio desde el estado real (E1). */
+  updateAlertsUI();
   var sessionsData = [
     { name: 'Maqueta Libreta — pastel 3D', sub: 'Gemini 3.1 Flash Lite · hace 12 min', pill: 'run', label: 'Activa', model: 'Gemini 3.1 Flash Lite', project: 'calculadora-ernesto', desc: 'La maqueta de la libreta con el gráfico de pastel en 3D, precargada con los datos de Ernesto.', tasks: [ { label: 'Pastel 3D con perspectiva y extrusión', state: 'done' }, { label: 'Etiquetas fuera con conectora', state: 'done' }, { label: 'Pulido final y publicación', state: 'now' } ] },
     { name: 'Juego v9 — parte del trabajador', sub: 'Gemini 3.1 Flash Lite · hace 1 h', pill: 'ok', label: 'Terminada', model: 'Gemini 3.1 Flash Lite', project: 'calculadora-ernesto', desc: 'El juego de Mi Trabajo con la parte del trabajador al 20% de la ganancia y la ganancia total siempre oculta.', tasks: [ { label: 'Parte del trabajador al 20% de la ganancia', state: 'done' }, { label: 'La ganancia total nunca se muestra', state: 'done' }, { label: 'Publicación y entrega', state: 'done' } ] },
     { name: 'Consejo Fase 2 — diseño técnico', sub: 'Gemini 3.1 Flash Lite · en espera', pill: 'idle', label: 'Pausada', model: 'Gemini 3.1 Flash Lite', project: 'consejo-ia', desc: 'El diseño técnico de la Fase 2 del Consejo: consenso con Gemini Y Nemotron, planificador y verificador corregidos.', tasks: [ { label: 'Diseño técnico D1–D8', state: 'done' }, { label: 'Congelación y copia de seguridad', state: 'wait' }, { label: 'Corrección del consenso', state: 'wait' } ] },
-    { name: 'Maqueta Muse Control — panel de mando', sub: 'Gemini 3.1 Flash Lite · hace 30 min', pill: 'run', label: 'Activa', model: 'Gemini 3.1 Flash Lite', project: 'calculadora-ernesto', desc: 'Esta misma maqueta: el panel de mando de Muse para el iPhone, en versión offline.', tasks: [ { label: 'Maqueta v13 offline', state: 'done' }, { label: 'Pasada del Ojo en vivo', state: 'done' }, { label: 'Pulido de defectos bajos', state: 'now' } ] },
+    { name: 'Maqueta Muse Control — panel de mando', sub: 'Gemini 3.1 Flash Lite · hace 30 min', pill: 'run', label: 'Activa', model: 'Gemini 3.1 Flash Lite', project: 'calculadora-ernesto', desc: 'Esta misma maqueta: el panel de mando de Muse para el iPhone, en versión offline.', tasks: [ { label: 'Maqueta v14 offline', state: 'done' }, { label: 'Pasada del Ojo en vivo', state: 'done' }, { label: 'Pulido de defectos bajos', state: 'now' } ] },
     { name: 'Vigía de ofertas QvaPay — libro en vivo', sub: 'Gemini 3.1 Flash Lite · hace 48 min', pill: 'run', label: 'Activa', model: 'Gemini 3.1 Flash Lite', project: 'qvapay-saldo-trading', desc: 'El vigía que lee el libro de QvaPay en vivo y avisa cuando se aplica una oferta.', tasks: [ { label: 'Lectura del libro en vivo', state: 'done' }, { label: 'Aviso de aplicación', state: 'done' }, { label: 'Seguimiento de la oferta', state: 'now' } ] },
     { name: 'Exporte completo — paquete para otro agente', sub: 'Gemini 3.1 Flash Lite · ayer', pill: 'ok', label: 'Terminada', model: 'Gemini 3.1 Flash Lite', project: 'exporte-otro-agente', desc: 'La memoria portable y el exporte completo del trabajo, en ZIPs para otro agente.', tasks: [ { label: 'Memoria portable', state: 'done' }, { label: 'Exporte completo', state: 'done' }, { label: 'ZIPs para otro agente', state: 'done' } ] }
   ];
