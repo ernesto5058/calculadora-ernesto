@@ -319,6 +319,7 @@
   nav.bottom button.on svg { stroke: var(--acc2); }
   nav.bottom svg { width: 22px; height: 22px; }
   .foot { text-align: center; color: var(--muted); font-size: 11px; padding: 14px 20px 4px; line-height: 1.5; }
+  .reset-dest { text-align: center; color: var(--muted); font-size: 11px; padding: 6px 20px 0; line-height: 1.5; }
   /* Sugerencias de órdenes (Máximo) */
   .sugg { display: flex; flex-wrap: wrap; gap: 8px; margin: 2px 0 12px; }
   .sugg button {
@@ -450,13 +451,10 @@
     </div>
 
     <div class="sec-title"><h2>Actividad reciente</h2><a onclick="openList('actividad')">Ver todas</a></div>
-    <div class="card">
-      <div class="act" onclick="openActivity('home', 0)"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg></div><div><b>Auditoría Fase 0 completada</b><span>Infra, API y Consejo revisados en vivo.</span></div><time>02:27</time></div>
-      <div class="act" onclick="openActivity('home', 1)"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div><div><b>Servicios rearrancados solos</b><span>Tras el reinicio de la máquina, el timer los levantó.</span></div><time>01:14</time></div>
-      <div class="act" onclick="openActivity('home', 2)"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" stroke-width="2" stroke-linecap="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/></svg></div><div><b>WhatsApp Baileys cayó 2 veces</b><span>Reinicios de máquina; levantado a mano.</span></div><time>01:20</time></div>
-    </div>
-    <p class="foot">Muse Control · Maqueta v17 · Los datos de esta pantalla son de ejemplo.</p>
+    <div class="card" id="homeActivity"></div>
+    <p class="foot">Muse Control · Maqueta v18 · Los datos de esta pantalla son de ejemplo.</p>
     <div style="text-align:center; margin-top:10px;"><button class="btn ghost" style="flex:none; padding:9px 18px;" onclick="resetDemo()">Restablecer demo</button></div>
+    <p class="reset-dest">Volverás a Inicio</p>
   </section>
 
   <!-- ============ 02 MÁXIMO ============ -->
@@ -603,7 +601,7 @@
       <div class="act" onclick="openActivity('taller', 1)"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#f87171" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></div><div><b>Despliegue rechazado</b><span>Maqueta v7-u2net · en cuarentena.</span></div><time>ayer</time></div>
       <div class="act" onclick="openActivity('taller', 2)"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div><div><b>Pruebas del banco: 72/72</b><span>Juego v9 · sin fallos.</span></div><time>ayer</time></div>
     </div>
-    <p class="foot">Taller · Maqueta v17 · Ningún despliegue o comando destructivo se ejecuta sin tu autorización.</p>
+    <p class="foot">Taller · Maqueta v18 · Ningún despliegue o comando destructivo se ejecuta sin tu autorización.</p>
   </section>
 
   <!-- ============ BARRA INFERIOR ============ -->
@@ -964,14 +962,14 @@
        reproducido en render real antes de corregir). Con vista abierta
        se guarda la posición a la que volvería «‹ Volver»
        (overlayReturnY); sin vista, la posición de lectura
-       (resetPickY()). */
+       (resetPickY()).
+       (v18) resetPickY(): el ancla de lectura si existe y es válida;
+       si no, 0 explícito. null = no existe ancla; 0 es un ancla válida
+       (lectura en el inicio). Ninguna comprobación de truthiness
+       confunde ambos casos. */
     var y = 0;
     try {
-      /* (v17) resetPickY(): la lectura fijada si existe; si no, el ancla
-         síncrona (última posición antes del fondo); si no, 0. Sin
-         respaldo: el ancla se registra en cada scroll, así que siempre
-         existe cuando hubo lectura. */
-      y = document.getElementById('overlay').classList.contains('open') ? overlayReturnY : resetPickY();
+      y = resetEffectiveY();
     } catch (e) {}
     try { localStorage.clear(); } catch (e) {}
     try { sessionStorage.clear(); } catch (e) {}
@@ -1013,7 +1011,11 @@
       resetJustShown = true;
       var ry = sessionStorage.getItem('mc-reset-y');
       sessionStorage.removeItem('mc-reset-y');
-      resetRestoreY = ry === null ? 0 : (parseInt(ry, 10) || 0);
+      /* (v18) El valor guardado se valida como número dentro del
+         recorrido: un valor corrupto (texto, NaN, negativo, mayor que
+         el máximo) cae a 0 en vez de romper la restauración. */
+      var ryNum = ry === null ? NaN : parseInt(ry, 10);
+      resetRestoreY = isNaN(ryNum) ? 0 : Math.max(0, Math.min(ryNum, resetMaxScroll()));
       toast('Demo restablecida');
       applyResetRestore();
     }
@@ -1076,11 +1078,15 @@
     /* El estado del mecanismo de restablecer se limpia DESPUÉS del
        scrollTo: el envoltorio síncrono registra la salida (la posición
        que se abandona) y pisaría el ancla=0 si el reseteo fuera antes. */
-    settledY = 0; resetAnchorY = 0; resetReadY = null; resetLastY = 0; clearTimeout(resetPinTimer); /* la pantalla nueva empieza arriba del todo, visita nueva */
+    settledY = 0; resetReadingY = null; clearTimeout(resetPinTimer); /* la pantalla nueva empieza arriba del todo, visita nueva: sin lectura, el destino es 0 */
     /* Al re-entrar en Máximo, la última tarjeta del plan no debe quedar
        tapada por el compositor: el ajuste de scroll también corre aquí,
        no solo al recibir la respuesta. */
     if (name === 'maximo') { fitComposer(); scrollChatToBottom(); }
+    /* (v18) Al cambiar de pantalla el destino previsto vuelve a Inicio:
+       la pantalla nueva empieza arriba sin lectura. */
+    if (name === 'inicio') resetMeasureSections();
+    resetUpdateDestLabels();
     /* Al volver a Orquesta con un filtro activo, el aviso del filtro
        vuelve a aparecer: en la v13 el filtro persistía pero el aviso se
        perdía al navegar (fallo del Ojo). Con el filtro quitado no hay
@@ -1233,11 +1239,45 @@
     { icon: 'x', title: 'Despliegue rechazado', sub: 'Maqueta v7-u2net · en cuarentena.', time: 'ayer', go: 'taller', detail: 'Se rechazó por un defecto de recorte: la imagen queda mal cortada en el borde. Queda apartada y nunca se publica.' },
     { icon: 'check', title: 'Pruebas del banco: 72/72', sub: 'Juego v9 · sin fallos.', time: 'ayer', go: 'taller', detail: 'La última corrida del banco de pruebas del juego pasó 72 de 72.' }
   ];
+  /* (v18) Planes propuestos en el chat: cada plan nace también como
+     actividad reciente, con su título íntegro. CAUSA del hallazgo del
+     Ojo en la v17: decidir/deshacer NO tocaba el plan (solo reponen
+     los botones de la tarjeta del chat; verificado en render real: el
+     título sobrevive a decidir, deshacer y recargar), pero el plan no
+     quedaba registrado en ningún sitio: «Actividad reciente» solo
+     dibujaba sus listas estáticas de ejemplo y el plan no aparecía ni
+     en la vista previa ni en «Ver todas». Ahora el registro es
+     independiente de la tarjeta del chat: decidir/deshacer no lo tocan,
+     sobrevive a la recarga (sessionStorage, como el chat) y se muestra
+     arriba de la vista previa de Inicio y del listado completo.
+     Restablecer vuelve al estado inicial de la demo y lo limpia, igual
+     que el chat: es el contrato del restablecer, no una pérdida. */
+  var planActivities = [];
+  function savePlanActivities() { try { sessionStorage.setItem('mc-plan-activities', JSON.stringify(planActivities)); } catch (e) {} }
+  function loadPlanActivities() {
+    try {
+      var raw = sessionStorage.getItem('mc-plan-activities');
+      var arr = raw ? JSON.parse(raw) : [];
+      if (Object.prototype.toString.call(arr) === '[object Array]') planActivities = arr.slice(0, 10);
+    } catch (e) { planActivities = []; }
+  }
+  function homeActivityList() { return planActivities.concat(homeActivities); }
+  function fullActivityList() { return planActivities.concat(activities); }
+  function renderHomeActivity() {
+    var box = document.getElementById('homeActivity');
+    if (!box) return;
+    var list = homeActivityList();
+    var html = '';
+    for (var i = 0; i < list.length && i < 3; i++) html += activityHtml(list[i], i, 'home');
+    box.innerHTML = html;
+  }
+  loadPlanActivities();
+  renderHomeActivity();
   function openActivity(src, i) {
-    var list = src === 'home' ? homeActivities : (src === 'taller' ? tallerActivities : activities);
+    var list = src === 'home' ? homeActivityList() : (src === 'taller' ? tallerActivities : (src === 'all' ? fullActivityList() : activities));
     var a = list[i];
     if (!a) return;
-    var dest = a.go === 'consejo' ? 'Consejo' : (a.go === 'taller' ? 'Taller' : 'Orquesta');
+    var dest = a.go === 'consejo' ? 'Consejo' : (a.go === 'taller' ? 'Taller' : (a.go === 'maximo' ? 'Máximo' : 'Orquesta'));
     /* El subtítulo queda como primera línea, con su punto final (en la
        v9 se veía cortado, sin punto); el cuerpo trae solo información
        nueva y nunca repite el subtítulo (fallo del Ojo en la v9: el
@@ -1533,6 +1573,13 @@
     var bot = document.createElement('div');
     bot.className = 'msg bot';
     var plan = planFor(text);
+    /* (v18) El plan nace también como actividad reciente: su título
+       íntegro queda registrado fuera de la tarjeta del chat, así que
+       decidir/deshacer no pueden destruirlo (solo reponen los botones). */
+    planActivities.unshift({ agent: 'Máximo', go: 'maximo', icon: 'search', title: plan.title, sub: 'Plan propuesto en el chat de Máximo.', time: 'ahora', detail: 'Plan propuesto por Máximo en el chat. Pasos: ' + plan.items.join(' ') });
+    if (planActivities.length > 10) planActivities.length = 10;
+    savePlanActivities();
+    renderHomeActivity();
     bot.innerHTML = '<b>Máximo</b><br>Entendido. Mi plan para «' + escapeHtml(text) + '» sería: <b>' + plan.title + '</b>'
       + '<ul>' + plan.items.map(function (it) { return '<li>' + it + '</li>'; }).join('') + '</ul>'
       + '¿Lo ejecuto así?'
@@ -1598,7 +1645,7 @@
     { name: 'Maqueta Libreta — pastel 3D', sub: 'Gemini 3.1 Flash Lite · hace 12 min', pill: 'run', label: 'Activa', model: 'Gemini 3.1 Flash Lite', project: 'calculadora-ernesto', desc: 'La maqueta de la libreta con el gráfico de pastel en 3D, precargada con los datos de Ernesto.', tasks: [ { label: 'Pastel 3D con perspectiva y extrusión', state: 'done' }, { label: 'Etiquetas fuera con conectora', state: 'done' }, { label: 'Pulido final y publicación', state: 'now' } ] },
     { name: 'Juego v9 — parte del trabajador', sub: 'Gemini 3.1 Flash Lite · hace 1 h', pill: 'ok', label: 'Terminada', model: 'Gemini 3.1 Flash Lite', project: 'calculadora-ernesto', desc: 'El juego de Mi Trabajo con la parte del trabajador al 20% de la ganancia y la ganancia total siempre oculta.', tasks: [ { label: 'Parte del trabajador al 20% de la ganancia', state: 'done' }, { label: 'La ganancia total nunca se muestra', state: 'done' }, { label: 'Publicación y entrega', state: 'done' } ] },
     { name: 'Consejo Fase 2 — diseño técnico', sub: 'Gemini 3.1 Flash Lite · en espera', pill: 'idle', label: 'Pausada', model: 'Gemini 3.1 Flash Lite', project: 'consejo-ia', desc: 'El diseño técnico de la Fase 2 del Consejo: consenso con Gemini Y Nemotron, planificador y verificador corregidos.', tasks: [ { label: 'Diseño técnico D1–D8', state: 'done' }, { label: 'Congelación y copia de seguridad', state: 'wait' }, { label: 'Corrección del consenso', state: 'wait' } ] },
-    { name: 'Maqueta Muse Control — panel de mando', sub: 'Gemini 3.1 Flash Lite · hace 30 min', pill: 'run', label: 'Activa', model: 'Gemini 3.1 Flash Lite', project: 'calculadora-ernesto', desc: 'Esta misma maqueta: el panel de mando de Muse para el iPhone, en versión offline.', tasks: [ { label: 'Maqueta v17 offline', state: 'done' }, { label: 'Pasada del Ojo en vivo', state: 'done' }, { label: 'Pulido de defectos bajos', state: 'now' } ] },
+    { name: 'Maqueta Muse Control — panel de mando', sub: 'Gemini 3.1 Flash Lite · hace 30 min', pill: 'run', label: 'Activa', model: 'Gemini 3.1 Flash Lite', project: 'calculadora-ernesto', desc: 'Esta misma maqueta: el panel de mando de Muse para el iPhone, en versión offline.', tasks: [ { label: 'Maqueta v18 offline', state: 'done' }, { label: 'Pasada del Ojo en vivo', state: 'done' }, { label: 'Pulido de defectos bajos', state: 'now' } ] },
     { name: 'Vigía de ofertas QvaPay — libro en vivo', sub: 'Gemini 3.1 Flash Lite · hace 48 min', pill: 'run', label: 'Activa', model: 'Gemini 3.1 Flash Lite', project: 'qvapay-saldo-trading', desc: 'El vigía que lee el libro de QvaPay en vivo y avisa cuando se aplica una oferta.', tasks: [ { label: 'Lectura del libro en vivo', state: 'done' }, { label: 'Aviso de aplicación', state: 'done' }, { label: 'Seguimiento de la oferta', state: 'now' } ] },
     { name: 'Exporte completo — paquete para otro agente', sub: 'Gemini 3.1 Flash Lite · ayer', pill: 'ok', label: 'Terminada', model: 'Gemini 3.1 Flash Lite', project: 'exporte-otro-agente', desc: 'La memoria portable y el exporte completo del trabajo, en ZIPs para otro agente.', tasks: [ { label: 'Memoria portable', state: 'done' }, { label: 'Exporte completo', state: 'done' }, { label: 'ZIPs para otro agente', state: 'done' } ] }
   ];
@@ -1674,109 +1721,127 @@
     clearTimeout(settledTimer);
     settledTimer = setTimeout(function () { settledY = window.scrollY; }, 800);
   }, { passive: true });
-  /* Posición de LECTURA para restablecer (v17): reescritura completa.
-     Las v13–v16 inferían la lectura del historial de scroll con
-     temporizadores y umbrales (salto >250 px, 3 s quieto, 600 ms,
-     respaldo de paradas, caminata de origen). La sonda de la v17
-     reprodujo los patrones del Ojo en render real y midió 4 modos de
-     fallo distintos (probe-e3-eye.log):
-     F1 — clic <600 ms tras el último scroll: el temporizador de 600 ms
-     aún no había corrido y no existía ningún registro de la lectura → 0.
-     F2 — espera ≥3 s en el pie antes de tocar: la rama «salvo 3 s
-     quieto» fijaba el ancla EN EL PIE → restablecer devolvía el pie
-     (841 a 390 px, 618 a 1919 px).
-     F3 — paso de tránsito de 260–280 px: la rama «salto = leer en otra
-     zona» confirmaba un ancla falsa en el paso (660 a 390 px, 467 a
-     1919 px).
-     F4 — llegada en pasos sin salto: el ancla nunca confirmaba y la
-     caminata de respaldo incluía la parada de carga (y=0) y volvía a 0
-     (el filtro «since» no la excluye cuando nunca se fijó un ancla).
-     La lección: ningún umbral distingue un paso largo de un salto, ni
-     una espera en el pie de una lectura. La v17 no infiere: REGISTRA.
-     - Ancla síncrona (resetAnchorY): en CADA evento de scroll, si la
-       posición no está al fondo, el ancla ES esa posición. Sin
-       temporizador ni umbral de distancia: un salto con clic inmediato
-       ya ve el ancla (F1), y un paso de 280 px solo mueve el ancla a
-       donde el usuario está de verdad (F3).
-     - Al fondo (resetAtBottom): a ≤5 px del máximo. Ahí vive el botón:
-       llegar ahí es ir a restablecer, no leer. El ancla se congela en
-       la última posición antes del fondo (F2) y el fondo nunca se fija
-       como lectura. El margen es estrecho a propósito: la última parada
-       de la bajada (800 a 390 px, 607 a 1919 px) queda fuera de la zona
-       y sí se registra.
-     - Lectura fijada (resetReadY): si el usuario se queda quieto ≥3 s
-       en una posición (y ≥ 100, no al fondo), esa posición se FIJA y
-       manda sobre el ancla. Es lo que distingue «leí 5 s en Servicios
-       y luego bajé» (vuelve a Servicios) de «bajé en pasos» (vuelve a
-       la última parada antes del pie, que es lo que el Ojo esperaba en
-       la bajada simple). La fijación solo se pierde si el usuario sube
-       >250 px (vuelve a leer arriba) o salta >300 px a otra zona (el
-       umbral sale de los datos: pasos del Ojo ≤280 px, saltos ≥400 px).
-       Bajar nunca la mueve. El umbral de 3 s solo decide entre dos
-       respuestas defendibles (última parada vs lectura fijada): nunca
-       devuelve 0, el pie ni un paso al azar.
-     - resetDemo() usa la lectura fijada si existe; si no, el ancla;
-       si no, 0 (desde arriba, sin desplazarse). Sin respaldo: el ancla
-       se registra en cada scroll, así que siempre existe cuando hubo
-       lectura. */
-  var resetAnchorY = 0;
-  var resetReadY = null;
+  /* Posición de LECTURA para restablecer (v18): reescritura completa.
+     La v17 registraba un ancla en CADA evento de scroll: cualquier
+     parada de tránsito (un paso de la bajada, el último evento antes
+     del pie) se volvía «lectura», y el Ojo en vivo dio NO PASA (P1 0/3,
+     P2 0/3, P4 0/3; solo P3 3/3). Los bancos 362/362 no lo cazaron
+     porque siempre establecían una lectura antes de bajar; el Ojo parte
+     del inicio SIN haber leído nada y espera volver a 0. La v18 separa
+     dos cosas que la v17 confundía: TRANSITAR no es LEER.
+     - El ancla (resetReadingY) SOLO la fija una lectura real: quedarse
+       quieto ≥3 s en una posición que no sea el fondo. Los eventos de
+       scroll NUNCA la fijan: bajar en pasos, saltar al pie o llegar
+       por scrollIntoView no crean ninguna lectura.
+     - Centinela null explícito: null = «no existe ancla». 0 ES un ancla
+       válida (lectura en el inicio). Ninguna comprobación de truthiness
+       (if (anchor), ||, ??) toca el ancla: solo `!== null` más
+       validación de tipo y rango. Un ancla corrupta (NaN, texto, fuera
+       de rango) cae a 0.
+     - Sin ancla válida, el destino es 0 explícito (requisitos 1 y 3).
+       Con ancla válida, se vuelve a esa sección (requisito 2).
+     - El ancla SOLO la escribe el temporizador de lectura: quedarse
+       quieto ≥3 s fuera del fondo. Los eventos de scroll NUNCA la
+       escriben ni la borran: ni bajar en pasos (del tamaño que sean),
+       ni saltar al pie, ni subir a releer arriba. La única forma de
+       cambiar de lectura es leer en otro sitio 3 s: el temporizador
+       fija el ancla nueva y sustituye a la vieja. Por eso la bajada
+       de P3 conserva Servicios aunque baje en pasos de 350 px o con
+       AvPág: transitar no es leer, y el destino previsto lo muestra la
+       etiqueta antes de tocar Restablecer, así que nunca hay sorpresa.
+     - El destino previsto se muestra ANTES de restablecer
+       (resetUpdateDestLabels): «Volverás a Inicio» o «Volverás a
+       Servicios», según la sección de Inicio que contenga el destino.
+     - resetDemo() usa el destino efectivo (con vista abierta, la
+       posición a la que volvería «‹ Volver»; sin vista, resetPickY()).
+     - Los envoltorios de scrollTo/scrollBy/scrollIntoView de la v17
+       ya no existen: no hay nada que registrar al salir, y los métodos
+       nativos quedan intactos. */
+  var resetReadingY = null; /* null = no existe ancla; 0 es un ancla válida */
   var resetPinTimer = null;
-  var resetLastY = 0;
   function resetMaxScroll() { return Math.max(0, document.documentElement.scrollHeight - window.innerHeight); }
   function resetAtBottom(y) { return y >= resetMaxScroll() - 5; }
-  function resetPickY() { return resetReadY !== null ? resetReadY : resetAnchorY; }
+  /* (v18) Validez del ancla: número finito dentro del recorrido. */
+  function resetAnchorValid(y) {
+    return typeof y === 'number' && isFinite(y) && y >= 0 && y <= resetMaxScroll();
+  }
+  /* (v18) El destino: el ancla de lectura si existe y es válida; si no, 0. */
+  function resetPickY() {
+    if (resetReadingY !== null && resetAnchorValid(resetReadingY)) return resetReadingY;
+    return 0;
+  }
+  /* (v18) Destino efectivo del botón Restablecer, con vista abierta o sin ella. */
+  function resetEffectiveY() {
+    try {
+      if (document.getElementById('overlay').classList.contains('open')) return overlayReturnY;
+    } catch (e) {}
+    return resetPickY();
+  }
   function resetArmPin() {
     clearTimeout(resetPinTimer);
     resetPinTimer = setTimeout(function () {
       if (document.getElementById('overlay').classList.contains('open')) return;
       var y = Math.round(window.scrollY);
-      if (y >= 100 && !resetAtBottom(y)) resetReadY = y;
+      if (!resetAtBottom(y)) { resetReadingY = y; resetUpdateDestLabels(); } /* quieto ≥3 s fuera del fondo: es lectura; en el pie no se fija nada */
     }, 3000);
   }
   function resetTrackScroll() {
     if (document.getElementById('overlay').classList.contains('open')) return;
-    var y = Math.round(window.scrollY);
-    if (resetReadY !== null && y < resetReadY - 250) resetReadY = null; /* subió a releer arriba: la fijación queda vieja */
-    if (resetReadY !== null && Math.abs(y - resetLastY) > 300 && !resetAtBottom(y)) resetReadY = null; /* salto a otra zona: la fijación queda vieja */
-    resetLastY = y;
-    if (!resetAtBottom(y)) resetAnchorY = y;
+    /* El desplazamiento NUNCA toca el ancla: solo rearma el
+       temporizador de lectura y actualiza la etiqueta. */
     resetArmPin();
+    resetUpdateDestLabels();
   }
   window.addEventListener('scroll', resetTrackScroll, { passive: true });
-  /* Registro síncrono de la SALIDA (cierre de la carrera del lote, F5):
-     el ancla vivía solo del evento 'scroll', que es asíncrono y Chrome
-     lo fusiona: si el salto a la lectura y el scrollIntoView hacia el
-     pie caen en el mismo fotograma, solo llega UN evento (en el pie) y
-     el ancla nunca ve la lectura. Medido en la sonda del lote a 1919
-     (10 repeticiones): 1 sin evento en 207 — solo [t, 618, ancla 0] —
-     y el restablecer devolvía 0; las otras 9 sí vieron el evento.
-     La salida se registra ANTES de desplazarse: al llamar a scrollTo,
-     scrollBy o scrollIntoView, la posición actual (la que se abandona)
-     es la lectura si no está al fondo. El evento sigue mandando para
-     los desplazamientos de rueda/teclado, que son graduales y siempre
-     generan eventos. Con vista abierta no se registra nada (misma
-     guardia que el listener). */
-  var _scrollTo = window.scrollTo.bind(window);
-  var _scrollBy = window.scrollBy.bind(window);
-  var _scrollIntoView = Element.prototype.scrollIntoView;
-  function resetNoteDeparture() {
-    if (document.getElementById('overlay').classList.contains('open')) return;
-    var y = Math.round(window.scrollY);
-    if (!resetAtBottom(y)) resetAnchorY = y;
+  /* (v18) Nombre de la sección de Inicio que contiene la posición y.
+     Las posiciones se miden con Inicio visible y se guardan; si aún no
+     se midieron, el respaldo usa el umbral medido (Servicios ≈200 px). */
+  var resetSectionTops = null;
+  function resetMeasureSections() {
+    try {
+      var scr = document.getElementById('scr-inicio');
+      if (!scr || !scr.classList.contains('active')) return;
+      var heads = scr.querySelectorAll('.sec-title h2');
+      var arr = [];
+      for (var i = 0; i < heads.length; i++) {
+        arr.push({ top: Math.round(heads[i].getBoundingClientRect().top + window.scrollY), name: heads[i].textContent });
+      }
+      /* Sin layout real (p. ej. jsdom) todos los tops salen 0: una
+         medición degenerada no sustituye a la anterior ni al respaldo. */
+      var sane = arr.length > 1;
+      for (var j = 1; j < arr.length; j++) { if (arr[j].top <= arr[j - 1].top) sane = false; }
+      if (arr.length && sane) resetSectionTops = arr;
+    } catch (e) {}
   }
-  window.scrollTo = function () { resetNoteDeparture(); return _scrollTo.apply(window, arguments); };
-  window.scrollBy = function () { resetNoteDeparture(); return _scrollBy.apply(window, arguments); };
-  /* scrollIntoView puede no existir (jsdom no lo implementa): sin
-     original no hay envoltorio que poner. */
-  if (typeof _scrollIntoView === 'function') {
-    Element.prototype.scrollIntoView = function () { resetNoteDeparture(); return _scrollIntoView.apply(this, arguments); };
+  function resetSectionName(y) {
+    /* El punto de lectura es el 35 % del viewport por debajo del borde
+       superior: a y=0 el centro de la vista sigue en las tarjetas
+       (Inicio); a y≈207 el título de Servicios ya está en el tercio
+       superior y se está leyendo Servicios. */
+    var point = y + Math.round(window.innerHeight * 0.35);
+    if (resetSectionTops) {
+      var name = 'Inicio';
+      for (var i = 0; i < resetSectionTops.length; i++) {
+        if (resetSectionTops[i].top <= point) name = resetSectionTops[i].name;
+      }
+      return name;
+    }
+    return point < 453 ? 'Inicio' : 'Servicios';
   }
-  /* La restauración tras un restablecer ya desplazó la página antes de
-     que este bloque corriera: el ancla parte de donde se está, no de 0. */
-  resetLastY = Math.round(window.scrollY);
-  if (!resetAtBottom(resetLastY)) resetAnchorY = resetLastY;
+  /* (v18) El destino previsto, visible antes de restablecer. Solo se
+     escribe cuando cambia, para no tocar el DOM en cada scroll. */
+  function resetUpdateDestLabels() {
+    var label = 'Volverás a ' + resetSectionName(resetEffectiveY());
+    var els = document.querySelectorAll('.reset-dest');
+    for (var i = 0; i < els.length; i++) { if (els[i].textContent !== label) els[i].textContent = label; }
+  }
+  window.addEventListener('resize', resetMeasureSections);
+  /* Al cargar, la página empieza arriba del todo sin lectura: el ancla
+     es null hasta que el usuario lea 3 s en algún sitio (incluido el
+     inicio, donde el ancla fijada es 0, distinta de null). */
   resetArmPin();
+  resetMeasureSections();
+  resetUpdateDestLabels();
   var overlayReturnY = 0;
   var overlayStack = [];
   function openOverlay(title, bodyHtml, opts) {
@@ -1820,6 +1885,7 @@
        para avisos nacidos en pantalla o en este mismo detalle. */
     if (toastBornInOverlay && !opts.replace && toastBornTitle !== title) hideToast();
     carryToastToOverlay(); /* el aviso activo se ve dentro de la vista */
+    resetUpdateDestLabels(); /* (v18) el pie de la vista muestra el destino previsto de Restablecer */
     /* (v17) La ventana NO se desplaza al abrir la vista: la vista es
        fija y cubre la ventana, y desplazar la ventana saltaba la vista
        subyacente arriba (~620 px) mientras el listado estaba abierto
@@ -1847,6 +1913,7 @@
       ov2.classList.toggle('detail', !!prev.detail);
       var bd2 = document.getElementById('ovBackdrop');
       if (bd2) bd2.classList.toggle('show', !!prev.detail);
+      resetUpdateDestLabels(); /* (v18) el listado re-dibujado trae su propio pie de destino */
       return;
     }
     closeOverlayAll();
@@ -1884,7 +1951,12 @@
       if (ct !== null && ct >= 0 && ct < tb) window.scrollBy({ top: ct - tb, behavior: 'instant' });
     }
     settledY = window.scrollY;
-    resetAnchorY = window.scrollY;
+    /* (v18) Al cerrar la vista se vuelve a donde se leía: si el usuario
+       se queda quieto ahí, el temporizador fijará el ancla; cerrar no
+       fija nada por sí solo (la v17 ponía el ancla aquí y un tránsito
+       por la vista se volvía «lectura»). */
+    resetMeasureSections();
+    resetUpdateDestLabels();
   }
   /* Constructor del listado de alertas (v16): la nota del encabezado y
      las filas se dibujan desde alertCounts() cada vez, no una sola vez al
@@ -1913,18 +1985,23 @@
       + '<button class="btn ghost" onclick="alertAction(\'tunel\')">Revisar el túnel</button>'
       + '<button class="btn ghost" onclick="alertAction(\'fallar\')">Ver qué puede fallar</button>'
       + '</div>'
-      + '<div style="margin-top:16px; text-align:center;"><button class="btn ghost" style="flex:none; padding:9px 18px;" onclick="resetDemo()">Restablecer demo</button></div>';
+      + '<div style="margin-top:16px; text-align:center;"><button class="btn ghost" style="flex:none; padding:9px 18px;" onclick="resetDemo()">Restablecer demo</button></div>'
+      + '<div class="reset-dest">Volverás a Inicio</div>';
     return h;
   }
   function openList(kind, opts) {
     if (kind === 'alertas') {
       openOverlay('Alertas y errores', alertListHtml(), { replace: !!(opts && opts.replace), detail: true });
     } else if (kind === 'actividad') {
-      var total = activities.length, shown = 0, h2 = '';
-      for (var j = 0; j < activities.length; j++) {
-        if (!activityMatches(activities[j])) continue;
+      /* (v18) El listado completo empieza por los planes propuestos en
+         el chat y sigue con las actividades de Orquesta; los planes
+         pasan por el mismo filtro de agente (son de Máximo). */
+      var fullAct = fullActivityList();
+      var total = fullAct.length, shown = 0, h2 = '';
+      for (var j = 0; j < fullAct.length; j++) {
+        if (!activityMatches(fullAct[j])) continue;
         shown++;
-        h2 += activityHtml(activities[j], j, 'orch');
+        h2 += activityHtml(fullAct[j], j, 'all');
       }
       if (!shown) h2 = '<div style="text-align:center; color:var(--muted); font-size:13px; padding:10px 0;">Ninguna actividad coincide con ese filtro.</div>';
       openOverlay('Actividad reciente', '<p class="ov-note">Mostrando ' + shown + ' de ' + total + ' actividades. En Orquesta, el buscador y los filtros también filtran este listado.</p><div class="card">' + h2 + '</div>', opts);
@@ -2035,3 +2112,4 @@
 </script>
 </body>
 </html>
+
